@@ -190,3 +190,18 @@ le découpage est une décision de cadrage, pas une commodité.
 Commits amont examinés et décision prise à leur sujet (repris / adapté / écarté).
 
 _(vide — prochain `git fetch upstream` à faire avant divergence significative)_
+
+## Points en suspens
+
+### Comportements figés par S2 sans avoir été tranchés
+
+- **2026-08-30 — La mise à jour d'un patient ne trace aucun `OfficeEvent`.**
+  `receiver_newpatient` construit l'événement `TYPE_UPDATE_PATIENT`, appelle `clean()`, puis
+  n'appelle pas `save()` — la ligne est en commentaire depuis l'amont. Le test
+  `test_la_mise_a_jour_ne_trace_aucun_evenement` fige ce comportement pour que S2 ne le change
+  pas par accident. À trancher avec l'utilisateur : journal exhaustif des modifications de
+  dossier, ou journal des seules créations ?
+- **2026-08-30 — `ExaminationViewSet._validate_examination_date` est neutralisé.**
+  L'appel est en commentaire dans `perform_update` (`libreosteoweb/api/views.py`). Une
+  consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
+  changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
