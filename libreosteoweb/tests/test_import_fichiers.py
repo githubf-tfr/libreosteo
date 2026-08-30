@@ -25,7 +25,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from libreosteoweb.api.file_integrator import FileContentProxy
-from libreosteoweb.models import FileImport
+from libreosteoweb.models import FileImport, OfficeEvent, Patient
 from libreosteoweb.tests.fixtures import (
     cree_praticien,
     cree_reglages_praticien,
@@ -252,3 +252,70 @@ class TestAnalyseImport(APITestCase):
         self.assertEqual(depot.status, 0)
         # L'analyse échoue explicitement : un motif est remonté, ce n'est pas un silence.
         self.assertTrue(reponse.data["analyze"]["patient"][3])
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class TestIntegrationPatients(APITestCase):
+    def setUp(self):
+        FileContentProxy.file_content = {}
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def depose_et_integre(self, lignes_patient, lignes_consultation=None):
+        donnees = {
+            "file_patient": csv_televerse(
+                "patients.csv", ENTETE_PATIENT, lignes_patient
+            )
+        }
+        if lignes_consultation is not None:
+            donnees["file_examination"] = csv_televerse(
+                "consultations.csv", ENTETE_CONSULTATION, lignes_consultation
+            )
+        depot = self.client.post(
+            reverse("fileimport-list"), data=donnees, format="multipart"
+        )
+        return self.client.post(
+            reverse("fileimport-integrate", kwargs={"pk": depot.data["id"]})
+        )
+
+    def test_les_patients_du_fichier_sont_crees(self):
+        reponse = self.depose_et_integre(
+            [
+                ligne_patient(1),
+                ligne_patient(
+                    2, nom="Crusher", prenom="Beverly", naissance="13/10/1924"
+                ),
+            ]
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(reponse.data["patient"]["imported"], 2)
+        self.assertEqual(reponse.data["patient"]["errors"], [])
+        self.assertEqual(Patient.objects.count(), 2)
+        picard = Patient.objects.get(family_name="Picard")
+        self.assertEqual(picard.first_name, "Jean-Luc")
+        self.assertEqual(picard.address_city, "Paris")
+
+    def test_aucun_evenement_de_masse_n_est_produit(self):
+        self.depose_et_integre([ligne_patient(1), ligne_patient(2, nom="Crusher")])
+        self.assertEqual(OfficeEvent.objects.filter(clazz="Patient").count(), 0)
+
+    def test_une_ligne_en_erreur_est_remontee_avec_son_motif(self):
+        reponse = self.depose_et_integre(
+            [ligne_patient(1), ligne_patient(2, nom="Crusher", naissance="32/13/2020")]
+        )
+        self.assertEqual(reponse.data["patient"]["imported"], 1)
+        erreurs = reponse.data["patient"]["errors"]
+        self.assertEqual(len(erreurs), 1)
+        # Ligne 3 du fichier : en-tête + première ligne de données avant elle.
+        self.assertEqual(erreurs[0][0], 3)
+        self.assertTrue(erreurs[0][1])
+        self.assertEqual(Patient.objects.count(), 1)
+
+    def test_un_doublon_dans_le_fichier_est_remonte_sans_interrompre(self):
+        reponse = self.depose_et_integre([ligne_patient(1), ligne_patient(2)])
+        self.assertEqual(reponse.data["patient"]["imported"], 1)
+        self.assertEqual(len(reponse.data["patient"]["errors"]), 1)
+        self.assertEqual(Patient.objects.count(), 1)
