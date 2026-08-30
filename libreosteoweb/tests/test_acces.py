@@ -14,10 +14,11 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.sessions.models import Session
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
-from rest_framework.test import APIRequestFactory, APITestCase
+from rest_framework.test import APIClient, APIRequestFactory, APITestCase
 
 from libreosteoweb.api.permissions import (
     IsDataAccessAllowed,
@@ -27,7 +28,7 @@ from libreosteoweb.api.permissions import (
     maintenance_available,
 )
 from libreosteoweb.middleware import OfficeSettingsMiddleware
-from libreosteoweb.models import OfficeSettings
+from libreosteoweb.models import LoggedInUser, OfficeSettings
 from libreosteoweb.tests.fixtures import (
     cree_praticien,
     cree_reglages_praticien,
@@ -278,3 +279,35 @@ class TestOfficeSettingsMiddleware(TestCase):
         requete.session = {}
         self.assertIsNone(self.middleware.process_request(requete))
         self.assertFalse(hasattr(requete, "officesettings"))
+
+
+class TestOneSessionPerUser(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            cree_praticien()
+            regle_cabinet()
+
+    def test_une_seconde_connexion_invalide_la_precedente(self):
+        premier = APIClient()
+        premier.login(username="test", password="testpw")
+        premier.get("/jsi18n/")
+        premiere_session = premier.session.session_key
+
+        second = APIClient()
+        second.login(username="test", password="testpw")
+        second.get("/jsi18n/")
+
+        self.assertFalse(Session.objects.filter(session_key=premiere_session).exists())
+        self.assertEqual(
+            LoggedInUser.objects.get().session_key, second.session.session_key
+        )
+
+    def test_session_orpheline_ne_fait_pas_echouer_la_requete(self):
+        client = APIClient()
+        client.login(username="test", password="testpw")
+        client.get("/jsi18n/")
+        enregistrement = LoggedInUser.objects.get()
+        enregistrement.session_key = "sessioninexistante"
+        enregistrement.save()
+        reponse = client.get("/jsi18n/")
+        self.assertEqual(reponse.status_code, 200)

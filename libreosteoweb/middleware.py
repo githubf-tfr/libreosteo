@@ -206,7 +206,7 @@ class OneSessionPerUserMiddleware:
             if stored_session_key and stored_session_key != request.session.session_key:
                 try:
                     Session.objects.get(session_key=stored_session_key).delete()
-                except:
+                except Session.DoesNotExist:
                     LoggedInUser.objects.filter(user_id=request.user).delete()
 
             request.user.logged_in_user.session_key = request.session.session_key
