@@ -184,3 +184,62 @@ class TestAnalyseImport(APITestCase):
         )
         self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
         self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 1)
+
+    def test_fichiers_fournis_dans_le_mauvais_ordre_sont_permutes(self):
+        reponse = self.depose(
+            csv_televerse(
+                "consultations.csv", ENTETE_CONSULTATION, [ligne_consultation(1)]
+            ),
+            csv_televerse("patients.csv", ENTETE_PATIENT, [ligne_patient(1)]),
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        depot = FileImport.objects.get(id=reponse.data["id"])
+        self.assertIn("patients", depot.file_patient.name)
+        self.assertIn("consultations", depot.file_examination.name)
+        self.assertEqual(depot.status, 1)
+
+    def test_fichier_consultation_seul_est_refuse(self):
+        reponse = self.depose(
+            csv_televerse(
+                "consultations.csv", ENTETE_CONSULTATION, [ligne_consultation(1)]
+            )
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_mauvais_entete_est_rejete(self):
+        reponse = self.depose(
+            csv_televerse(
+                "inconnu.csv", ["colonne a", "colonne b"], [["valeur", "autre"]]
+            )
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
+
+    def test_fichier_vide_est_rejete(self):
+        reponse = self.depose(SimpleUploadedFile("vide.csv", b"", "text/csv"))
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
+
+    def test_fichier_non_csv_est_rejete(self):
+        reponse = self.depose(
+            SimpleUploadedFile(
+                "image.bin", b"\x00\x01\x02\x03", "application/octet-stream"
+            )
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
+
+    def test_encodage_non_supporte_produit_une_erreur_explicite(self):
+        reponse = self.depose(
+            csv_televerse(
+                "patients.csv",
+                ENTETE_PATIENT,
+                [ligne_patient(1, nom="Crémieux")],
+                encodage="iso-8859-1",
+            )
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        depot = FileImport.objects.get(id=reponse.data["id"])
+        self.assertEqual(depot.status, 0)
+        # L'analyse échoue explicitement : un motif est remonté, ce n'est pas un silence.
+        self.assertTrue(reponse.data["analyze"]["patient"][3])
