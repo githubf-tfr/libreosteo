@@ -76,10 +76,7 @@ def convert_to_long(value, strip_string_prefix=False):
     value_to_convert = value
     if strip_string_prefix:
         value_to_convert = re.sub(r"^[A-Za-z]*", "", value)
-    try:
-        return long(value_to_convert)
-    except:
-        return int(value_to_convert)
+    return int(value_to_convert)
 
 
 class LoggerWriter:

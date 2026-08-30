@@ -24,7 +24,7 @@ import cherrypy
 
 # For modulegraph import auto detect
 from cherrypy import _cperror, _cplogging
-from cherrypy.process import plugins
+from cherrypy.process import plugins, wspbus
 from django.conf import settings
 from django.http import HttpResponseServerError
 
@@ -59,7 +59,7 @@ def _exit(self):
     try:
         self.stop()
 
-        self.state = states.EXITING
+        self.state = wspbus.states.EXITING
         self.log("Bus EXITING")
         self.publish("exit")
         # This isn't strictly necessary, but it's better than seeing
@@ -72,7 +72,7 @@ def _exit(self):
         # Assume it's been logged and just die.
         return  # EX_SOFTWARE
 
-    if exitstate == states.STARTING:
+    if exitstate == wspbus.states.STARTING:
         # exit() was called before start() finished, possibly due to
         # Ctrl-C because a start listener got stuck. In this case,
         # we could get stuck in a loop where Ctrl-C never exits the
