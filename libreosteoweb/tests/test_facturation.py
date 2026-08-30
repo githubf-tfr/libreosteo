@@ -432,6 +432,7 @@ class TestRenduFacture(APITestCase):
             reverse("invoice_view", kwargs={"invoiceid": impayee.id})
         )
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertContains(reponse, "Non réglée en date de facture")
 
 
 class TestTemplatize(TestCase):
