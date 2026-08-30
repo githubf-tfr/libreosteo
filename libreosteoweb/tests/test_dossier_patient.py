@@ -223,3 +223,97 @@ class TestValidateurUnicite(TestCase):
         )
         serialiseur = PatientSerializer()
         validateur({"family_name": "Picard", "first_name": None}, serialiseur)
+
+
+class TestConsultation(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            self.autre = cree_praticien(username="autre")
+            cree_reglages_praticien(self.autre)
+            self.cabinet = regle_cabinet()
+            self.patient = cree_patient()
+        self.client.login(username="test", password="testpw")
+
+    def cree_par_l_api(self, **surcharges):
+        donnees = {
+            "date": timezone.now().isoformat(),
+            "status": ExaminationStatus.IN_PROGRESS,
+            "type": ExaminationType.NORMAL,
+            "patient": self.patient.id,
+            "reason": "Lombalgie",
+        }
+        donnees.update(surcharges)
+        return self.client.post(
+            reverse("examination-list"), data=donnees, format="json"
+        )
+
+    def test_creer_une_consultation_pose_le_praticien_et_le_cabinet(self):
+        reponse = self.cree_par_l_api()
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        consultation = Examination.objects.get(id=reponse.data["id"])
+        self.assertEqual(consultation.therapeut, self.user)
+        self.assertEqual(consultation.office, self.cabinet)
+
+    def test_la_creation_trace_un_evenement(self):
+        reponse = self.cree_par_l_api()
+        evenement = OfficeEvent.objects.get(clazz="Examination")
+        self.assertEqual(evenement.reference, reponse.data["id"])
+        self.assertEqual(evenement.user, self.user)
+        self.assertEqual(evenement.type, ExaminationType.NORMAL)
+
+    def test_creation_par_un_visiteur_non_connecte_est_renvoyee_a_la_connexion(self):
+        self.client.logout()
+        reponse = self.cree_par_l_api()
+        # Le middleware d'authentification intercepte avant la vue : la branche Http404 de
+        # perform_create n'est pas atteignable par l'API.
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("login") + "?next=/api/examinations")
+
+    def test_la_mise_a_jour_conserve_le_praticien_d_origine(self):
+        creation = self.cree_par_l_api()
+        self.client.login(username="autre", password="testpw")
+        donnees = self.client.get(
+            reverse("examination-detail", kwargs={"pk": creation.data["id"]})
+        ).data
+        donnees["conclusion"] = "Traitement terminé"
+        reponse = self.client.put(
+            reverse("examination-detail", kwargs={"pk": creation.data["id"]}),
+            data=donnees,
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        consultation = Examination.objects.get(id=creation.data["id"])
+        self.assertEqual(consultation.conclusion, "Traitement terminé")
+        self.assertEqual(consultation.therapeut, self.user)
+
+    def test_supprimer_une_consultation_en_cours_est_accepte(self):
+        creation = self.cree_par_l_api()
+        reponse = self.client.delete(
+            reverse("examination-detail", kwargs={"pk": creation.data["id"]})
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(OfficeEvent.objects.filter(clazz="Examination").exists())
+
+    def test_supprimer_une_consultation_cloturee_est_refuse(self):
+        creation = self.cree_par_l_api(status=ExaminationStatus.NOT_INVOICED)
+        reponse = self.client.delete(
+            reverse("examination-detail", kwargs={"pk": creation.data["id"]})
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Examination.objects.filter(id=creation.data["id"]).exists())
+
+    def test_les_consultations_du_patient_sont_rendues_de_la_plus_recente(self):
+        ancienne = self.cree_par_l_api(
+            date=(timezone.now() - timedelta(days=30)).isoformat()
+        )
+        recente = self.cree_par_l_api()
+        reponse = self.client.get(
+            reverse("patient-examinations", kwargs={"pk": self.patient.id})
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [c["id"] for c in reponse.data],
+            [recente.data["id"], ancienne.data["id"]],
+        )
