@@ -215,14 +215,28 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
 
 - **2026-08-30 — Fichier ISO-8859-1 importé comme valide (S2, L4T2 → L4T7).**
   Symptôme observable : un fichier CSV encodé en ISO-8859-1 (encodage courant des vieux
-  logiciels) est accepté avec status=1 (valide) au lieu de status=0 (invalide). Cause : une
-  `UnicodeDecodeError` est levée par `FileContentAdapter._get_reader()` à la ligne 237 de
-  `file_integrator.py` (lecture en UTF-8 d'un flux ISO-8859-1), puis avalée par un `except:`
-  nu à la ligne 75, laissant le dépôt marqué comme valide. Risque : un import silencieusement
-  tronqué ou corrompu. Défaut documenté par le test
-  `test_encodage_non_supporte_produit_une_erreur_explicite` (L4T2), marqué
-  `@unittest.expectedFailure` en attente de correction à L4T7 (« solde les `except:` nus »).
-  Cf. `.superpowers/sdd/2026-08-30-couverture-metier/L4T2-report.md` pour le diagnostic complet.
+  logiciels) est accepté avec status=1 (valide) au lieu de status=0 (invalide).
+  
+  **Deux défaillances en série, toutes deux à corriger :**
+  
+  1. **`file_integrator.py:76`** — `except:` nu avale l'`UnicodeDecodeError` levée par
+     `FileContentAdapter._get_reader()` à la ligne 237 (lecture en UTF-8 d'un flux ISO-8859-1).
+     L'exception est silencieuse, et `Extractor.analyze_file` renvoie un `type_file` **vide**.
+  
+  2. **`libreosteoweb/api/views.py:715`** — La boucle ne combine `is_valid` que sous
+     `if type_file in ["examination", "patient"]`. Un `type_file` vide n'entre dans aucune
+     branche, `is_all_valid` reste à `True` par défaut, et le dépôt est déclaré valide
+     (status=1).
+  
+  **Important :** corriger la première défaillance sans la seconde ne suffira pas. Si L4T7
+  remplace l'`except:` nu par une exception nommée sans modifier `views.py:715`, le
+  `type_file` restera vide, le statut restera 1, et le test
+  `test_encodage_non_supporte_produit_une_erreur_explicite` continuera d'échouer indéfiniment
+  sans jamais lever un « unexpected success ».
+  
+  Risque pratique : un import silencieusement tronqué ou corrompu. Défaut documenté par le
+  test `test_encodage_non_supporte_produit_une_erreur_explicite` (L4T2), marqué
+  `@unittest.expectedFailure` en attente de correction à L4T7.
 
 ### Comportements figés par S2 sans avoir été tranchés
 
