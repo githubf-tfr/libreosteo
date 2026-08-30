@@ -1,0 +1,150 @@
+# This file is part of LibreOsteo.
+#
+# LibreOsteo is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LibreOsteo is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
+# -*- coding: utf-8 -*-
+from django.test import TestCase
+from rest_framework.test import APIRequestFactory
+
+from libreosteoweb.api.permissions import (
+    IsDataAccessAllowed,
+    IsStaffOrReadOnlyTargetUser,
+    IsStaffOrTargetUser,
+    IsStaffOrTargetUserFactory,
+)
+from libreosteoweb.tests.fixtures import (
+    cree_praticien,
+    cree_reglages_praticien,
+    sans_receivers,
+)
+
+
+class VueFactice:
+    """Seul contrat qu'une permission DRF attend d'une vue : un attribut `action`."""
+
+    def __init__(self, action=None):
+        self.action = action
+
+
+class TestIsStaffOrReadOnlyTargetUser(TestCase):
+    def setUp(self):
+        self.fabrique = APIRequestFactory()
+        with sans_receivers():
+            self.personnel = cree_praticien(username="personnel")
+            self.simple = cree_praticien(username="simple", is_staff=False)
+        self.permission = IsStaffOrReadOnlyTargetUser()
+
+    def test_lecture_ouverte_a_tous(self):
+        requete = self.fabrique.get("/api/office-users")
+        requete.user = self.simple
+        self.assertTrue(self.permission.has_permission(requete, VueFactice()))
+
+    def test_ecriture_reservee_au_personnel(self):
+        requete = self.fabrique.post("/api/office-users")
+        requete.user = self.simple
+        self.assertFalse(self.permission.has_permission(requete, VueFactice()))
+        requete.user = self.personnel
+        self.assertTrue(self.permission.has_permission(requete, VueFactice()))
+
+    def test_un_utilisateur_est_proprietaire_de_lui_meme(self):
+        requete = self.fabrique.put("/api/office-users")
+        requete.user = self.simple
+        self.assertTrue(
+            self.permission.has_object_permission(requete, VueFactice(), self.simple)
+        )
+        self.assertFalse(
+            self.permission.has_object_permission(requete, VueFactice(), self.personnel)
+        )
+
+    def test_un_objet_porte_par_un_utilisateur_lui_appartient(self):
+        reglages = cree_reglages_praticien(self.simple)
+        requete = self.fabrique.put("/api/profiles")
+        requete.user = self.simple
+        self.assertTrue(
+            self.permission.has_object_permission(requete, VueFactice(), reglages)
+        )
+        requete.user = self.personnel
+        self.assertTrue(
+            self.permission.has_object_permission(requete, VueFactice(), reglages)
+        )
+
+
+class TestIsDataAccessAllowed(TestCase):
+    def setUp(self):
+        self.fabrique = APIRequestFactory()
+        with sans_receivers():
+            self.personnel = cree_praticien(username="personnel")
+            self.simple = cree_praticien(username="simple", is_staff=False)
+        self.permission = IsDataAccessAllowed()
+
+    def test_la_liste_exige_la_permission_de_dump(self):
+        requete = self.fabrique.get("/api/patients")
+        requete.user = self.simple
+        self.assertFalse(self.permission.has_permission(requete, VueFactice("list")))
+        requete.user = self.personnel
+        self.assertTrue(self.permission.has_permission(requete, VueFactice("list")))
+
+    def test_le_detail_n_exige_pas_la_permission_de_dump(self):
+        requete = self.fabrique.get("/api/patients/1")
+        requete.user = self.simple
+        self.assertTrue(self.permission.has_permission(requete, VueFactice("retrieve")))
+
+
+class TestIsStaffOrTargetUser(TestCase):
+    def setUp(self):
+        self.fabrique = APIRequestFactory()
+        with sans_receivers():
+            self.personnel = cree_praticien(username="personnel")
+            self.simple = cree_praticien(username="simple", is_staff=False)
+
+    def requete_de(self, utilisateur):
+        requete = self.fabrique.get("/api/profiles")
+        requete.user = utilisateur
+        return requete
+
+    def test_action_hors_liste_reservee_au_personnel(self):
+        permission = IsStaffOrTargetUser()
+        self.assertFalse(
+            permission.has_permission(
+                self.requete_de(self.simple), VueFactice("destroy")
+            )
+        )
+        self.assertTrue(
+            permission.has_permission(
+                self.requete_de(self.personnel), VueFactice("destroy")
+            )
+        )
+
+    def test_action_supplementaire_declaree_est_permise(self):
+        classe = IsStaffOrTargetUserFactory.additional_methods(["list"])
+        permission = classe()
+        self.assertTrue(
+            permission.has_permission(self.requete_de(self.simple), VueFactice("list"))
+        )
+
+    def test_action_non_declaree_reste_refusee(self):
+        classe = IsStaffOrTargetUserFactory.additional_methods(["list"])
+        permission = classe()
+        self.assertFalse(
+            permission.has_permission(
+                self.requete_de(self.simple), VueFactice("destroy")
+            )
+        )
+
+    def test_get_by_user_est_permis_sans_declaration(self):
+        permission = IsStaffOrTargetUser()
+        self.assertTrue(
+            permission.has_permission(
+                self.requete_de(self.simple), VueFactice("get_by_user")
+            )
+        )
