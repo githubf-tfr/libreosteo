@@ -402,6 +402,8 @@ class TestConversions(unittest.TestCase):
         self.assertEqual(self.fabrique.get_sex_value("F"), "F")
         self.assertEqual(self.fabrique.get_sex_value("f"), "F")
         self.assertEqual(self.fabrique.get_sex_value("M"), "M")
+        # Toute valeur non reconnue devient "M" sans aucun avertissement, sur de la
+        # donnée médicale importée. Ce comportement est figé faute d'être tranché.
         self.assertEqual(self.fabrique.get_sex_value("inconnu"), "M")
 
     def test_lateralite(self):
@@ -434,3 +436,15 @@ class TestConversions(unittest.TestCase):
 
     def test_date_de_consultation_sans_heure(self):
         self.assertEqual(self.integrateur.get_date("01/02/2020"), date(2020, 2, 1))
+
+    def test_date_vide_patient(self):
+        # Date vide lève une ValueError car datetime.strptime ne peut pas parser
+        # une chaîne vide au format "%d/%m/%Y"
+        with self.assertRaises(ValueError):
+            self.fabrique.get_date("")
+
+    def test_date_vide_consultation(self):
+        # Date vide lève une ValueError car datetime.strptime ne peut pas parser
+        # une chaîne vide au format "%d/%m/%Y"
+        with self.assertRaises(ValueError):
+            self.integrateur.get_date("")
