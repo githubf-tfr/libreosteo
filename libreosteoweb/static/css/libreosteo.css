@@ -1,0 +1,426 @@
+
+/**
+    This file is part of Libreosteo.
+
+    Libreosteo is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Libreosteo is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Libreosteo.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/* For fixed navbar */
+body { padding-top: 50px; }
+
+
+/* angular-xeditable override */
+
+.editable-click {
+    !important;
+    color : black;
+    border-bottom : none;
+}
+
+.editable-empty,
+.editable-empty:hover,
+.editable-empty:focus,
+a.editable-empty,
+a.editable-empty:hover,
+a.editable-empty:focus {
+    color: #ccc;
+}
+
+/* end angular-xeditable override */
+
+pre {
+    background-color : transparent;
+    border : none;
+    font-family: Arial, Helvetica, sans-serif;
+    white-space: pre-wrap;
+}
+
+.no-session {
+    height : 200px;
+}
+
+.displayExamination.ng-enter, .displayExamination.ng-leave {
+    -webkit-transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
+    -moz-transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
+    -ms-transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
+    -o-transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
+    transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
+}
+
+.displayExamination.ng-enter,
+.displayExamination.ng-leave.ng-leave-active
+{
+    opacity: 1;
+}
+
+.displayExamination.ng-leave, .displayExamination.ng-enter-active
+{
+    opacity: 0;
+}
+
+.highlighted
+{
+    font-weight: bold;
+}
+
+.extract
+{
+    margin-top : -7px;
+    margin-left : 10px;
+}
+
+.search-entry
+{
+    margin-bottom : 25px;
+}
+
+.growl
+{
+    z-index : 3000;
+    top: 55px;
+}
+
+.timeline-panel
+{
+    cursor:pointer;
+}
+.timeline-badge
+{
+    cursor:pointer;
+}
+
+.events-badge
+{
+    z-index: 100;
+    top: 0px;
+    left: 50%;
+    width: 50px;
+    height: 50px;
+    margin-left: 0%;
+    border-radius: 50% 50% 50% 50%;
+    text-align: center;
+    font-size: 1.4em;
+    line-height: 50px;
+    color: #fff;
+    background-color: #3f903f;
+}
+
+.officeevent
+{
+    cursor: pointer;
+}
+
+.timeline-comments
+{
+
+}
+
+.comments-list
+{
+
+}
+
+.comment
+{
+    list-style-type: none;
+    margin-bottom : 20px;
+}
+
+.comment-ident
+{
+    margin-left: -40px;
+    margin-bottom:-11px;
+    font-size: 0.8em;
+    color:#000099;
+}
+.comment-time
+{
+    font-size : 0.8em;
+    margin-top: -11px;
+    float:right;
+}
+
+.usersGrid {
+    width: 800px;
+    height: 300px;
+}
+
+.chat-panel .panel-body{
+    height: auto;
+    overflow-y : initial;
+}
+
+.dashboard-sparkline
+{
+    float:left;
+    margin-top: 10%;
+    margin-left: 40%;
+}
+.jqstooltip {
+  -webkit-box-sizing: content-box;
+  -moz-box-sizing: content-box;
+  box-sizing: content-box;
+}
+.subtitle {
+    padding-bottom:10px;
+}
+.inPlaceholderMode {
+  color: #ccc;
+}
+
+div.readyForEditMode {
+  height: auto;
+  min-height:34px;
+}
+
+.version {
+    font-size : 0.5em;
+}
+.editor {
+    width: 250px;
+    top:0px;
+}
+
+.inner-spaced .panel-body {
+    margin-left: 5px;
+    margin-right : 5px;
+}
+
+.left-bordered-col {
+    border-left: 2px solid #eee;
+}
+
+ul li.documenttile  {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+.documenttile{
+    margin-top: 100%;
+    transition-property: width,height;
+    transition-duration: 500ms;
+    transition-timing-function: ease-out;
+}
+
+.document_title {
+    text-align: center;
+    border-bottom : 1px #eee solid;
+}
+.document_ico {
+    text-align: center;
+}
+
+.document_notes {
+    font-size: small;
+    color: #999;
+}
+.document_notes_ctn {
+    height:2em;
+}
+
+.doc_thumbnail {
+    height: 10em;
+    margin-left: 10px;
+}
+.doc_expand {
+    margin-left: 10px;
+}
+.doc_date {
+    font-size : smaller;
+    color : #999;
+    position: absolute;
+    bottom: 0.6em;
+    right:0.2em;
+}
+.document-edit {
+    font-size : small;
+}
+.expand {
+    cursor : pointer;
+}
+.document-close {
+    float:left;
+}
+.document-close.ng-enter {
+    transition:0.5s linear all;
+    opacity:0;
+}
+.document-close.ng-enter.ng-enter-active {
+    opacity: 1;
+}
+.document-close.ng-leave {
+    transition:0.5s linear all;
+    opacity:1;
+}
+.document-close.ng-leave.ng-leave-active {
+    opacity: 0;
+}
+.document_partialnote.ng-enter {
+    transition : 0.1s, linear all;
+    opacity: 0;
+    transition-delay: 0.4s
+}
+.document_partialnote.ng-enter.ng-enter-active {
+    opacity: 1;
+}
+.document_partialnote.ng-leave {
+    transition : 0.1s, linear all;
+    opacity: 1;
+}
+.document_partialnote.ng-leave.ng-leave-active {
+    opacity: 0;
+}
+.document_fullnote.ng-enter {
+    transition : 0.1s, linear all;
+    opacity: 0;
+    transition-delay: 0.4s
+}
+.document_fullnote.ng-enter.ng-enter-active {
+    opacity: 1;
+}
+.document_fullnote.ng-leave {
+    transition : 0.1s, linear all;
+    opacity: 1;
+}
+.document_fullnote.ng-leave.ng-leave-active {
+    opacity: 0;
+}
+.document-edit-ok {
+    color : green;
+    opacity: 1
+}
+.document-edit-ok:hover {
+    color : green;
+    opacity: 0.5
+}
+.document-edit-cancel {
+    color : red;
+    opacity: 1
+}
+.document-edit-cancel:hover {
+    color : red;
+    opacity: 0.5;
+}
+.document_create.ng-enter {
+    transition : 0.5s, ease-out all;
+    opacity: 0;
+}
+.document_create.ng-enter.ng-enter-active {
+    opacity : 1;
+}
+.document_create.ng-leave {
+    transition : 0.5s, ease-out all;
+    opacity: 1
+}
+.document_create.ng_leave.active {
+    opacity: 0
+}
+.documenttile.ng-enter {
+    transition:0.5s, ease-out all;
+    opacity: 0;
+}
+.documenttile.ng-enter.ng-enter-active {
+    opacity: 1;
+}
+.documenttile.ng-leave {
+    transition : 0.5s, ease-out all;
+    opacity: 1
+}
+.documenttile.ng-leave.ng-leave-active {
+    opacity: 0;
+}
+.document_create.ng-leave {
+    transition : 0.5s, ease-out all;
+    opacity: 1;
+}
+.document_create.ng-leave.ng-leave-active {
+    opacity: 0;
+}
+.panel-title {
+    font-size : 14px;
+}
+
+.nav-tabs {
+    margin-bottom: 15px;
+}
+
+.panel-heading .badge {
+    float: right;
+}
+
+.panel-primary > .panel-heading .badge-danger {
+	color: #a94442;
+}
+
+.panel-primary > .panel-heading .badge-danger  {
+	color: #c9302c;
+}
+
+.panel-primary > .panel-heading .badge-warning  {
+	color: #ec971f;
+}
+
+.dashboard-catalog-item img {
+    box-shadow: 3px 3px 5px 6px #ccc;
+    max-width: 100%;
+}
+
+/* We want that element:
+ - not to appear or fill space on page,
+ - to remain in CSS flow so that the calendar popup shows up there
+ */
+.hidden-datepicker-host {
+    border: 0px;
+    width: 0px;
+    margin: 0px;
+    padding: 0px;
+    height: 42px;
+    opacity: 0;
+    position: relative;
+    right: 16px;
+}
+.checkbox.paimentmean {
+	width : 12%;
+}
+
+.radio.cancelinginvoice {
+  width: 25%;
+}
+
+input.ng-invalid-email,
+input.ng-invalid,
+input.ng-invalid-email:focus,
+input.ng-invalid:focus {
+  color: #a94442;
+  border-color: #a94442;
+}
+
+input.ng-invalid-email:focus,
+input.ng-invalid:focus {
+  -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(233, 116, 102, .6);
+          box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(233, 116, 102, .6);
+
+}
+.editable-error {
+  font-size: small;
+}
+.request_consent {
+  margin: auto;
+  width: 40%;
+}
+
+.consent_refused {
+  height: 5em;
+  width: 75%;
+}

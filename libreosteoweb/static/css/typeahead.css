@@ -1,0 +1,55 @@
+
+/**
+    This file is part of Libreosteo.
+
+    Libreosteo is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Libreosteo is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Libreosteo.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.search-container
+{
+    overflow:hidden;
+}
+
+.typeahead-list
+{
+    background-color : #f5f5f5;
+    position: absolute;
+    top: 0px;
+    left : -250px;
+    opacity : 0;
+    z-index : -1;
+    width:250px;
+    transition : opacity 1s;
+    -webkit-transition: opacity 1s ;
+    -moz-transition: opacity 1s ;
+    -o-transition: opacity 1s ;
+    border: #e7e7e7 solid 1px;
+    box-shadow: rgba(0,0,0,0.2) 0 2px 6px;
+}
+
+.typeahead-list-open
+{
+    left:250px;
+    opacity : 100;
+    -webkit-opacity : 100;
+    -moz-opacity: 100;
+    -o-opacity : 100;
+}
+
+.typeahead-active {
+    background-color : #eee;
+}
+
+.typeahead-item{
+    padding : 10px;
+}

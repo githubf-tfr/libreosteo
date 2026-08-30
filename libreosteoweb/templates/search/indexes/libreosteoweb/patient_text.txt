@@ -1,0 +1,18 @@
+{{ object.family_name }}
+{{ object.original_name }}
+{{ object.first_name }}
+{{ object.address_zipcode }}
+{{ object.address_city }}
+{{ object.phone }}
+{{ object.email }}
+{{ object.job | safe}}
+{{ object.hobbies | safe}}
+{{ object.doctor.family_name}}
+{{ object.mobile_phone }}
+{{ object.important_info|safe }}
+{{ object.current_treatment|safe }}
+{{ object.surgical_history|safe }}
+{{ object.medical_history|safe }}
+{{ object.family_history|safe }}
+{{ object.trauma_history|safe }}
+{{ object.medical_reports|safe }}

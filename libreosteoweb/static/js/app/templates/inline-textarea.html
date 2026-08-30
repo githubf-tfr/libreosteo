@@ -1,0 +1,35 @@
+<div style="margin-left: 5px; margin-right: 5px" ng-switch="model[property].length" ng-if="!readOnly">
+    <div ng-switch-when="0" ng-mouseenter="displayButton = true"
+                      ng-mouseleave="displayButton = false">
+                <span editable-textarea="model[property]"
+                      e-placeholder="{$ placeholder $}" onaftersave="saveModel()" e-form="editform"
+                      e-rows="{$ row $}" e-cols="{$ col $}"
+                      blur="submit"
+                      tooltip="{$ placeholder $}"
+                      tooltip-trigger="mouseenter"
+                        >
+                    <pre class="inlineedit" style="display:inline">{$ model[property] || '&nbsp;&nbsp;' $}</pre>
+                    </span>
+        <button class="btn btn-default btn-xs glyphicon glyphicon-pencil inlineditbtn"
+                ng-click="editform.$show()"
+                ng-show="displayButton && !editform.$visible"
+                tooltip="{$ placeholder $}"
+                tooltip-trigger="mouseenter"
+                ></button>
+    </div>
+    <div ng-switch-default>
+                <span editable-textarea="model[property]"
+                      e-placeholder="{$ placeholder $}" onaftersave="saveModel()"
+                      e-rows="{$ row $}" e-cols="{$ col $}"
+                      blur="submit"
+                      tooltip="{$ placeholder $}"
+                      tooltip-trigger="mouseenter"
+                        ><pre class="inlineedit">{$ model[property] || '&nbsp;&nbsp;' $}</pre></span>
+    </div>
+</div>
+
+<div style="margin-left: 5px; margin-right: 5px" ng-if="readOnly">
+    <div>
+                <span><pre class="inlineedit">{$ model[property] || '&nbsp;&nbsp;' $}</pre></span>
+    </div>
+</div>

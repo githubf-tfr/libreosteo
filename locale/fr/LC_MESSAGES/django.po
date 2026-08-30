@@ -1,0 +1,2220 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: LibreOsteo 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-03-20 22:10+0100\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "French"
+msgstr "Français"
+
+msgid "English"
+msgstr "Anglais"
+
+#, python-format
+msgid "Invoice sequence updated from %(previous)s to %(actual)s"
+msgstr "Séquence de facturation modifiée de %(previous)s à %(actual)s"
+
+#, python-format
+msgid "%s has downloaded the full list of patient"
+msgstr "%s a téléchargé la liste complète des patients"
+
+#, python-format
+msgid "%s has downloaded the full content of the Database"
+msgstr "%s a téléchargé le contenu complet de la base de données"
+
+#, python-format
+msgid "%s has downloaded the full list of examinations"
+msgstr "%s a téléchargé la liste complète des consultations"
+
+msgid "Analyze failed on this file"
+msgstr "L'analyse a échoué sur ce fichier"
+
+msgid "Cannot recognize the patient file"
+msgstr "Impossible de reconnaître le fichier patient"
+
+msgid "Cannot read the content file. Check the encoding."
+msgstr "Impossible de lire le contenu du fichier. Vérifiez l'encodage."
+
+msgid "Missing patient file to integrate it."
+msgstr "Il manque le fichier patient pour intégrer."
+
+msgid "Imported examination"
+msgstr "Consultations importées"
+
+msgid "There is a problem when reading this line :"
+msgstr "Il y a un problème lors de la lecture de la ligne :"
+
+msgid "There is a problem when reading this line."
+msgstr "Il y a un problème lors de la lecture de la ligne."
+
+msgid "New patient created"
+msgstr "Nouveau patient créé"
+
+msgid "Patient updated"
+msgstr "Fiche patient mise à jour"
+
+msgid "New examination"
+msgstr "Nouvelle consultation"
+
+msgid "Birth date is invalid"
+msgstr "La date de naissance est invalide"
+
+msgid "Birth date"
+msgstr "Date de naissance"
+
+msgid "Consent"
+msgstr "Consentement"
+
+msgid "This patient already exists"
+msgstr "Ce patient existe déjà"
+
+msgid "The examination date is not valid"
+msgstr "La date de consultation est invalide"
+
+msgid "Reason is mandatory when the examination is not invoiced"
+msgstr "La raison est obligatoire lorsque la consultation n'est pas facturée"
+
+msgid "Amount is invalid"
+msgstr "Le montant est invalide"
+
+msgid "Paiment mode is mandatory when the examination is invoiced"
+msgstr ""
+"Le mode de paiement est obligatoire lorsque la consultation est facturée"
+
+msgid "Check information is missing"
+msgstr "Les informations de chèque sont manquantes"
+
+msgid "Missing data to continue"
+msgstr "Données manquantes"
+
+msgid "Prefix for invoicing sequence should have 3 char length maximum"
+msgstr ""
+"Le préfixe de séquence de facturation devrait avoir une longueur de 3 "
+"caractères maximum"
+
+msgid "Prefix could only contains alpha characters"
+msgstr "Le préfixe ne peut contenir que des caractères alphabétiques"
+
+msgid "Not paid"
+msgstr "Non réglée"
+
+msgid "This archive file seems to be incorrect. Impossible to load it."
+msgstr "Ce fichier d'archive semble être incorrect. Impossible de le charger."
+
+msgid "Family name"
+msgstr "Nom de famille"
+
+msgid "Firstname"
+msgstr "Prénom"
+
+msgid "Phone"
+msgstr "Téléphone"
+
+msgid "City"
+msgstr "Ville"
+
+msgid "Original name"
+msgstr "Nom de naissance"
+
+msgid "Date of consent"
+msgstr "Date du consentement"
+
+msgid "Street"
+msgstr "Rue"
+
+msgid "Address complement"
+msgstr "Complément d'adresse"
+
+msgid "Zipcode"
+msgstr "Code postal"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "Mobile phone"
+msgstr "Mobile"
+
+msgid "Job"
+msgstr "Profession"
+
+msgid "Hobbies"
+msgstr "Loisirs"
+
+msgid "Regular doctor"
+msgstr "Médecin traitant"
+
+msgid "Smoker"
+msgstr "Fumeur"
+
+msgid "Laterality"
+msgstr "Latéralité"
+
+msgid "Left-handed"
+msgstr "Gaucher"
+
+msgid "Right-handed"
+msgstr "Droitier"
+
+msgid "Important note"
+msgstr "Note importante"
+
+msgid "Current treatment"
+msgstr "Traitement en cours"
+
+msgid "Surgical history"
+msgstr "Antécédents chirurgicaux"
+
+msgid "Medical history"
+msgstr "Antécédents médicaux"
+
+msgid "Family history"
+msgstr "Antécédents familiaux"
+
+msgid "Trauma history"
+msgstr "Antécédents traumatiques"
+
+msgid "Medical reports"
+msgstr "Compte-rendus médicaux"
+
+msgid "Creation date"
+msgstr "Date de création"
+
+msgid "Sex"
+msgstr "Sexe"
+
+msgid "Male"
+msgstr "Masculin"
+
+msgid "Female"
+msgstr "Féminin"
+
+msgid "Parent"
+msgstr "Parent"
+
+msgid "Reason"
+msgstr "Motif"
+
+msgid "Reason description/Context"
+msgstr "Détail du motif de consultation / Contexte"
+
+msgid "ORL Sphere"
+msgstr "Sphère ORL"
+
+msgid "Visceral Sphere"
+msgstr "Sphère viscérale"
+
+msgid "Cardio-Pulmo Sphere"
+msgstr "Sphère cardio-pulmonaire"
+
+msgid "Uro-gyneco Sphere"
+msgstr "Sphère uro-gynéco"
+
+msgid "Periphery Sphere"
+msgstr "Sphère périphérique"
+
+msgid "General state"
+msgstr "État général"
+
+msgid "Medical examination"
+msgstr "Examen médical"
+
+msgid "Diagnosis"
+msgstr "Diagnostic ostéopathique"
+
+msgid "Treatments"
+msgstr "Traitements"
+
+msgid "Conclusion"
+msgstr "Conclusion"
+
+msgid "Date"
+msgstr "Date"
+
+msgid "Status"
+msgstr "État"
+
+msgid "Status reason"
+msgstr "Raison de l'état"
+
+msgid "Type"
+msgstr "Type"
+
+msgid "Invoice"
+msgstr "Facture"
+
+msgid "Patient"
+msgstr "Patient"
+
+msgid "Therapeut"
+msgstr "Thérapeute"
+
+msgid "Office Settings"
+msgstr "Paramètres du cabinet"
+
+msgid "Normal examination"
+msgstr "Consultation normale"
+
+msgid "Continuing examination"
+msgstr "Poursuite de traitement"
+
+msgid "Return"
+msgstr "Retour"
+
+msgid "Emergency"
+msgstr "Urgence"
+
+msgid "User"
+msgstr "Utilisateur"
+
+msgid "Comment"
+msgstr "Commentaire"
+
+msgid "Examination"
+msgstr "Consultation"
+
+msgid "Amount"
+msgstr "Montant"
+
+msgid "Currency"
+msgstr "Monnaie"
+
+msgid "Paiment mode"
+msgstr "Mode de paiement"
+
+msgid "Header"
+msgstr "Entête"
+
+msgid "Therapeut name"
+msgstr "Nom du thérapeute"
+
+msgid "Therapeut firstname"
+msgstr "Prénom du thérapeute"
+
+msgid "Quality"
+msgstr "Qualité"
+
+msgid "Professional id"
+msgstr "Identifiant professionnel"
+
+msgid "Professional id label"
+msgstr "Libellé d'identifiant professionnel"
+
+msgid "Location"
+msgstr "Lieu"
+
+msgid "Number"
+msgstr "Numéro"
+
+msgid "Content"
+msgstr "Contenu"
+
+msgid "Footer"
+msgstr "Pied de page"
+
+msgid "Office identifier"
+msgstr "Identifiant de structure"
+
+msgid "Office identifier label"
+msgstr "Libellé d'identifiant de structure"
+
+msgid "status"
+msgstr "état"
+
+msgid "therapeut_id"
+msgstr "thérapeute id"
+
+msgid "Canceled by"
+msgstr "Annulée par"
+
+msgid "Invoice replaced"
+msgstr "Facture remplacée"
+
+msgid "Invoice type"
+msgstr "Type de facture"
+
+msgid "office id"
+msgstr "cabinet id"
+
+msgid "check_sum"
+msgstr "somme de contrôle"
+
+msgid "Code"
+msgstr "Code"
+
+msgid "Text"
+msgstr "Texte"
+
+msgid "Enabled"
+msgstr "Activé"
+
+msgid "Invoices"
+msgstr "Factures"
+
+msgid "Class"
+msgstr "Classe"
+
+msgid "Reference"
+msgstr "Référence"
+
+msgid "user"
+msgstr "utilisateur"
+
+msgid "Office name"
+msgstr "Nom du cabinet"
+
+msgid "Invoice office header"
+msgstr "Entête de facture"
+
+msgid "Invoice content"
+msgstr "Contenu de la facture"
+
+msgid "Invoice footer"
+msgstr "Pied de page de facture"
+
+msgid "Invoice start sequence"
+msgstr "Séquence de démarrage de facture"
+
+msgid "Invoice prefix sequence"
+msgstr "Préfixe de séquence de facturation"
+
+msgid "Invoice canceling by credit note"
+msgstr "Annulation de facture par avoir"
+
+msgid "Statistics"
+msgstr "Statistiques"
+
+msgid "Events history"
+msgstr "Historique des évènements"
+
+msgid "Spheres"
+msgstr "Sphères"
+
+msgid "Zipcode completion (France)"
+msgstr "Auto-complétion via le code postal (France)"
+
+msgid "Dashboard"
+msgstr "Tableau de bord"
+
+msgid "validity status"
+msgstr "validité"
+
+msgid "Title"
+msgstr "Titre"
+
+msgid "Notes"
+msgstr "Notes"
+
+msgid "Adding date"
+msgstr "Date d'ajout"
+
+msgid "Document date"
+msgstr "Date document"
+
+msgid "Mime-Type"
+msgstr "Type mime"
+
+msgid "patient"
+msgstr "patient"
+
+msgid "document"
+msgstr "document"
+
+msgid "attachmentType"
+msgstr "type de pièce jointe"
+
+msgid "User Profile"
+msgstr "Profil utilisateur"
+
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Logout"
+msgstr "Déconnexion"
+
+msgid "Search..."
+msgstr "Recherche..."
+
+msgid "New patient"
+msgstr "Nouveau patient"
+
+msgid "Create admin account on LibreOsteo"
+msgstr "Créé un compte administrateur sur LibreOsteo"
+
+msgid "Registration"
+msgstr "Enregistrement"
+
+msgid ""
+"In order to use LibreOsteo, you have to register a login and password on the "
+"application. Please select it before to use the application."
+msgstr ""
+"Afin d'utiliser LibreOsteo, vous devez enregistrer un utilisateur et un mot "
+"de passe sur l'application. Veuillez les saisir avant d'utiliser "
+"l'application."
+
+msgid ""
+"Then you will be redirected to be identified with this login and password."
+msgstr ""
+"Ensuite vous serez dirigé afin d'être identifié avec ce nom d'utilisateur et "
+"mot de passe."
+
+msgid "Your login"
+msgstr "Votre nom d'utilisateur"
+
+msgid "Password"
+msgstr "Mot de passe"
+
+msgid "Confirm password"
+msgstr "Confirmation du mot de passe"
+
+msgid "Remember me"
+msgstr "Se rappeler de moi"
+
+msgid "Register"
+msgstr "Enregistrer"
+
+msgid "Signin on LibreOsteo"
+msgstr "Identifiez-vous sur LibreOsteo"
+
+msgid "Please sign in"
+msgstr "Veuillez vous identifier"
+
+msgid "Your username and password didn't match. Please try again."
+msgstr ""
+"Votre nom d'utilisateur et mot de passe ne correspondent pas. Veuillez "
+"réessayer s'il vous plaît."
+
+msgid "Sign in"
+msgstr "Identification"
+
+msgid "Accounting"
+msgstr "Comptabilité"
+
+msgid "Import/export"
+msgstr "Import/export"
+
+msgid "Rebuild index"
+msgstr "Réindexer"
+
+msgid "Change office"
+msgstr "Changer d'établissement"
+
+msgid "Help"
+msgstr "Aide"
+
+msgid "Project web page"
+msgstr "Site vitrine"
+
+msgid "Community support"
+msgstr "Support communautaire"
+
+msgid "Development and code project"
+msgstr "Code et développement"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "New version available"
+msgstr "Nouvelle version disponible"
+
+msgid "LibreOsteo Hosting"
+msgstr "Hébergement LibreOsteo"
+
+msgid "Edit"
+msgstr "Éditer"
+
+msgid "End of editing"
+msgstr "Fin d'édition"
+
+msgid "Delete"
+msgstr "Supprimer"
+
+msgid "Install LibreOsteo"
+msgstr "Installer LibreOsteo"
+
+msgid ""
+"\n"
+"                    <h1>LibreOsteo</h1>\n"
+"                    <p>Thank you to chose LibreOsteo as your software to "
+"manage your patients.</p>\n"
+"                    <p>You successfully installed the software on your "
+"machine. Now you have to decide if you want to restore a previous backup of "
+"your patient file (performed from LibreOsteo) or use a new installation and "
+"register your first user on the softwarewhich will be the administrator of "
+"the software</p>\n"
+"                    <p>Join the user community from the main <a href="
+"\"https://www.libreosteo.org/\" target=\"_blank\">website</a> in order to "
+"share your experience with this software.</p>\n"
+"                    "
+msgstr ""
+"\n"
+"                    <h1>LibreOsteo</h1>\n"
+"                    <p>Merci d'avoir choisi LibreOsteo comme votre logiciel "
+"pour gérer vos patients.</p>\n"
+"                    <p>Vous avez correctement installé le logiciel sur votre "
+"machine. Maintenant vous devez décider si vous voulez restaurer une "
+"précédente sauvegarde de votre fichier patient (réalisé depuis LibreOsteo) "
+"ou bien utiliser cette nouvelle installation et enregistrer votre premier "
+"utilisateur sur le logiciel qui en sera l'administrateur.</p>\n"
+"                    <p>Rejoignez la communauté des utilisateurs depuis le <a "
+"href=\"https://www.libreosteo.org/\" target=\"_blank\">site web</a> "
+"principal afin de partager votre expérience de ce logiciel.</p>\n"
+"                    "
+
+msgid "Restore database"
+msgstr "Restaurer la base de données"
+
+msgid "Register the administrator"
+msgstr "Enregistrer l'administrateur"
+
+msgid ""
+"Patient gives its consent to handle its personnal information in order to "
+"perform the good osteopathic care."
+msgstr ""
+"Le patient donne son consentement pour l'enregistrement de données "
+"personnelles afin de réaliser le bon traitement ostéopathique."
+
+msgid "Init the patient file"
+msgstr "Initialiser la fiche patient"
+
+msgid "Add user in the office"
+msgstr "Ajouter un utilisateur au cabinet"
+
+msgid "Username"
+msgstr "Nom utilisateur"
+
+msgid "Confirm the password"
+msgstr "Confirmation du mot de passe"
+
+msgid "Validate"
+msgstr "Valider"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Confirm"
+msgstr "Confirmer"
+
+msgid "Ok"
+msgstr "Ok"
+
+msgid "Week"
+msgstr "Semaine"
+
+msgid "Month"
+msgstr "Mois"
+
+msgid "Year"
+msgstr "Année"
+
+msgid "New patients"
+msgstr "Nouveaux patients"
+
+msgid "View Details"
+msgstr "Afficher les détails"
+
+msgid "Examinations"
+msgstr "Consultations"
+
+msgid "Urgent return"
+msgstr "Retour"
+
+msgid "Add a doctor"
+msgstr "Ajouter un médecin"
+
+msgid "Add"
+msgstr "Ajouter"
+
+msgid "not documented"
+msgstr "non renseigné"
+
+msgid "Session of "
+msgstr "Séance du "
+
+msgid "by"
+msgstr "par"
+
+msgid "Performed at "
+msgstr "Réalisé à "
+
+msgid "Print"
+msgstr "Imprimer"
+
+msgid "To invoice"
+msgstr "Facturer"
+
+msgid "Regularize"
+msgstr "Régulariser"
+
+msgid "Unfold"
+msgstr "Déplier"
+
+msgid "Draft"
+msgstr "Brouillon"
+
+msgid "Paid"
+msgstr "Réglée"
+
+msgid "Cancelled"
+msgstr "Annulée"
+
+msgid "Credit note"
+msgstr "Avoir"
+
+msgid "Close"
+msgstr "Clôturer"
+
+msgid "Infos patient"
+msgstr "Infos patient"
+
+msgid "Not smoker"
+msgstr "Non fumeur"
+
+msgid "Click to send"
+msgstr "Cliquer pour envoyer"
+
+msgid "in progress..."
+msgstr "en cours..."
+
+msgid "Loaded"
+msgstr "Chargé"
+
+msgid "Error"
+msgstr "Erreur"
+
+msgid "Managing import/export"
+msgstr "Gestion de l'import/export"
+
+msgid "Archive and restore database"
+msgstr "Archiver la base de données"
+
+msgid "This system helps you to archive and restore the full system."
+msgstr "Cette fonction vous aider à archiver et restaurer le système entier."
+
+msgid "Archive"
+msgstr "Archiver"
+
+msgid "get archive"
+msgstr "obtenir l'archive"
+
+msgid ""
+"\n"
+"                            This file is the full content of your database. "
+"It could only be used by LibreOsteo. Use it to restore your database or "
+"transfert the content to an other machine.\n"
+"                            "
+msgstr ""
+"\n"
+"                            Ce fichier est le contenu complet de votre base. "
+"Il peut uniquement être utilisé par LibreOsteo. Utilisez-le afin de "
+"restaurer votre base de données ou pour transférer le contenu vers une autre "
+"machine.\n"
+"                            "
+
+msgid "Import from external system"
+msgstr "Importer d'un système externe"
+
+msgid ""
+"\n"
+"            <p>For importing patient or examination in the database, you "
+"have to download these both above templates. Fill them with your favorite "
+"Spreasheet editor and save them as csv files.</p>\n"
+"            <p>Do not change the format, because Libresoteo read only csv "
+"files.</p>\n"
+"            <br/>\n"
+"            <p>After you fill them, you upload your files with the import "
+"tool above.</p>\n"
+"            <br/>\n"
+"            <p>In order to add examinations for patients, you have to link "
+"each one with a number. If you read the Patient templates file you will see "
+"that the first column is \"Number\". This number should have been the same "
+"in the examination to add this examination to the patient.</p>\n"
+"            <div class=\"well\">Note : It have no relation with the number "
+"that you can see in the system after integration.</div>\n"
+"            "
+msgstr ""
+"\n"
+"            <p>Pour importer des patients ou des consultations dans la base, "
+"vous devez télécharger ces deux fichiers gabarits ci-dessous. Renseignez-les "
+"avec votre éditeur de feuilles de calcul favori et enregistrez-les en "
+"fichier csv.</p>\n"
+"            <p>Ne changez pas le format car LibreOsteo lit uniquement des "
+"fichiers csv.</p>\n"
+"            <br/>\n"
+"            <p>Une fois que vous les avez renseignés, transmettez les "
+"fichiers avec l'outil ci-dessous.</p>\n"
+"            <br/>\n"
+"            <p>Afin d'ajouter des consultations pour les patients, vous "
+"devez lier l'un avec l'autre avec un numéro. Si vous lisez le gabarit de "
+"patient, vous verrez que la première colonne est \"Numéro\". Ce nombre "
+"devrait être le même dans la consultation à ajouter que le patient.</p>\n"
+"            <div class=\"well\">Note : Celui-ci n'a aucun lien avec le "
+"numéro que vous pourriez voir dans le système après intégration de patients."
+"</div>\n"
+"            "
+
+msgid "Patient template file"
+msgstr "Gabarit du fichier patient"
+
+msgid "Examination template file"
+msgstr "Gabarit du fichier consultation"
+
+msgid "Import"
+msgstr "Importer"
+
+msgid "Patient file"
+msgstr "Fichier patient"
+
+msgid "Examination file"
+msgstr "Fichier de consultation"
+
+msgid "Analyze"
+msgstr "Analyser"
+
+msgid "Analyze result"
+msgstr "Résultats d'analyse"
+
+msgid ""
+"Please check that the file is correctly read by the software before to "
+"integrate the content. Here is an extract of some lines of the file."
+msgstr ""
+"Veuillez vérifier que le fichier est correctement lu par le logiciel avant "
+"d'intégrer le contenu. Voici un extrait des lignes du fichier."
+
+msgid "CSV line number"
+msgstr "N° de ligne CSV"
+
+msgid "Patient num. (internal use)"
+msgstr "N° de patient (usage interne)"
+
+msgid "Birth date (DD/MM/AAAA)"
+msgstr "Date de naissance (JJ/MM/AAAA)"
+
+msgid "Sex (M/F)"
+msgstr "Sexe (M/F)"
+
+msgid "Smoker (O/N)"
+msgstr "Fumeur (O/N)"
+
+msgid "Laterality (G/D)"
+msgstr "Latéralité (G/D)"
+
+msgid "Empty file"
+msgstr "Fichier vide"
+
+msgid "Importing succeed"
+msgstr "Importation réussie"
+
+msgid "lines imported from file patient"
+msgstr "lignes importées du fichier patient"
+
+msgid "Importing succeed but some errors"
+msgstr "Importation réussie avec des erreurs"
+
+msgid "Errors when integrating patients"
+msgstr "Erreurs lors de l'importation des patients"
+
+msgid "line : "
+msgstr "ligne : "
+
+msgid "lines imported from file examination"
+msgstr "lignes importées du fichier consultation"
+
+msgid "Errors when integrating examinations"
+msgstr "Erreurs lors de l'importation des consultations"
+
+msgid "Importing failed"
+msgstr "L'importation a échoué"
+
+msgid "Errors when integrating "
+msgstr "Erreurs lors de l'importation "
+
+msgid "Export to an external system"
+msgstr "Exporter vers un système externe"
+
+msgid ""
+"Here you can download the full list of patients and examinations as Excel files"
+msgstr ""
+"Vous pouvez télécharger ici la liste complète des patients et des "
+"consultations sous forme de fichiers Excel"
+
+msgid "Patients file"
+msgstr "Fichier patients"
+
+msgid "Examinations file"
+msgstr "Fichier des consultations"
+
+msgid "Export"
+msgstr "Exporter"
+
+msgid "CSV"
+msgstr "CSV"
+
+msgid "anonym CSV"
+msgstr "CSV anonymisé"
+
+msgid "Total amount on selected period"
+msgstr "Montant total sur la période sélectionnée"
+
+msgid "Invoice nr"
+msgstr "N° de facture"
+
+msgid "Paiment mean"
+msgstr "Moyen de paiement"
+
+msgid "By"
+msgstr "Par"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "multiple"
+msgstr "multiple"
+
+msgid "Invoicing"
+msgstr "Facturation"
+
+msgid "Not invoiced"
+msgstr "Non facturée"
+
+msgid "Invoiced"
+msgstr "Facturée"
+
+msgid "Bank"
+msgstr "Banque"
+
+msgid "Payer"
+msgstr "Émetteur"
+
+msgid "Office settings"
+msgstr "Paramètres du cabinet"
+
+msgid "General"
+msgstr "Général"
+
+msgid ""
+"This instance of libreosteo could be accessed on the following addresses of "
+"the network : "
+msgstr ""
+"Cette instance de libreosteo peut être utilisée en utilisant les adresses "
+"suivantes sur le réseau : "
+
+msgid ""
+"Think about the hosted version of LibreOsteo to help to share with other "
+"users."
+msgstr ""
+"Pensez à la version hébergée de LibreOsteo pour faciliter le partager avec "
+"d'autres utilisateurs"
+
+msgid "More"
+msgstr "En savoir plus"
+
+msgid "Office"
+msgstr "Cabinet"
+
+msgid "Paiment means"
+msgstr "Moyens de paiement"
+
+msgid "The prefix to add for invoicing sequence"
+msgstr "Le préfixe à ajouter à la séquence de facturation"
+
+msgid "Credit note on canceling"
+msgstr "Avoir sur annulation"
+
+msgid "Corrective invoice on canceling"
+msgstr "Facture corrective sur annulation"
+
+msgid "The start sequence must have composed only with numbers"
+msgstr "La séquence de démarrage doit être composée uniquement de chiffres"
+
+msgid "Update"
+msgstr "Mettre à jour"
+
+msgid "Settings was updated"
+msgstr "Les paramètres ont été mis à jour"
+
+msgid "Users"
+msgstr "Utilisateurs"
+
+msgid "Add user"
+msgstr "Ajouter un utilisateur"
+
+msgid "Events"
+msgstr "Évènements"
+
+msgid "By day"
+msgstr "Par jour"
+
+msgid "All"
+msgstr "Tout"
+
+msgid ""
+"This patient didn't give its consent to handle data in an information "
+"technology system."
+msgstr ""
+"Ce patient n'a pas donné son consentement à l'utilisation des données dans "
+"un système d'information."
+
+msgid ""
+"Please inform about data that you use : specially phone number and email, "
+"and request for consentment."
+msgstr ""
+"Veuillez l'informer sur les données que vous utilisez: en particulier "
+"téléphone et email, et veuillez demander son consentement."
+
+msgid "Otherwise you have to delete this folder or these data"
+msgstr "Autrement vous devez supprimer ce dossier ou ces données"
+
+msgid "Get consent"
+msgstr "Obtenir le consentement"
+
+msgid ""
+"In accordance with GDPR law, you have to request consent of your patient in "
+"order to store personal information"
+msgstr ""
+"En accord avec la loi RGPD, vous devez obtenir le consentement de votre "
+"patient pour enregistrer les données personnelles"
+
+msgid ""
+"Inform your patient, that personal information are required for the "
+"osteopathic treatment"
+msgstr ""
+"Informez votre patient que des données personnelles sont nécessaires pour "
+"le  traitement ostéopathique."
+
+msgid ""
+"For email or phone, please indicates to the patient what is the usage for"
+msgstr ""
+"Pour l'email ou le téléphone, merci de préciser au patient l'usage que vous "
+"en ferez"
+
+msgid "Does the patient give you its consent ?"
+msgstr "Est-ce que le patient donne son consentement ?"
+
+msgid "Accept"
+msgstr "Accepter"
+
+msgid "Refuse"
+msgstr "Refuser"
+
+msgid "You have to delete this folder"
+msgstr "Vous devez supprimer ce dossier"
+
+msgid "General infos"
+msgstr "Infos générales"
+
+msgid "Patient infos"
+msgstr "Infos patient"
+
+msgid "Consent given on "
+msgstr "Consentement donné le "
+
+msgid "History"
+msgstr "Antécédents"
+
+msgid "Add document"
+msgstr "Ajouter des documents"
+
+msgid "Add document as medical report. Could be image, pdf, text file, ..."
+msgstr ""
+"Ajouter des documents en tant que rapport médicaux. Cela peut-être une "
+"image, un pdf, un fichier texte, ..."
+
+msgid "Click to expand the notes"
+msgstr "Cliquer pour étendre la note"
+
+msgid "Current Examination"
+msgstr "Consultation en cours"
+
+msgid ""
+"This function helps to rebuild index when for different reason, searching "
+"does not work.\n"
+"        Be sure that no body is adding new patient and examination before to "
+"do that."
+msgstr ""
+"Cette fonction permet de reconstruire l'indexation de la base quand, pour "
+"des raisons diverses, la recherche ne fonctionne pas ou plus\n"
+"       Soyez certain que personne n'est en train d'ajouter de patient ou de "
+"consultation avant de faire ceci."
+
+msgid "rebuild index"
+msgstr "réindexer"
+
+msgid "Finished"
+msgstr "Terminé"
+
+msgid "Failed"
+msgstr "Echec"
+
+msgid "Your login must not contain space"
+msgstr "Votre login ne doit pas contenir d'espace"
+
+msgid ""
+"150 characters maximum. Only letters, numbers or characters \"@\",\".\",\"+"
+"\",\"-\",\"_\""
+msgstr ""
+"150 caractères maximum. Uniquement des lettres, nombres ou les caractères \"@"
+"\",\".\",\"+\",\"-\",\"_\""
+
+msgid ""
+"You can restore a previous archive of the database. This archive should be "
+"performed from the software with the Import/Export/Archive function."
+msgstr ""
+"Vous pouvez restaurer une archive précédente de la base de données. Cette "
+"archive doit être obtenue depuis le logiciel avec la fonction Importer/"
+"Exporter/Archiver."
+
+msgid "Archive file to restore"
+msgstr "Fichier d'archive à restaurer"
+
+msgid "Restore"
+msgstr "Restaurer"
+
+msgid "Loading in progress"
+msgstr "Chargement en cours"
+
+msgid "Search for"
+msgstr "Recherche de"
+
+msgid "No results found"
+msgstr "Aucun résultat trouvé"
+
+msgid "Previous"
+msgstr "Précédent"
+
+msgid "Next"
+msgstr "Suivant"
+
+msgid "Change password"
+msgstr "Modifier le mot de passe"
+
+msgid "Start an examination"
+msgstr "Démarrer une consultation"
+
+msgid "No comment"
+msgstr "Aucun commentaire"
+
+msgid "Send"
+msgstr "Envoyer"
+
+msgid "No session for this patient"
+msgstr "Pas de séance pour ce patient"
+
+msgid "User profile"
+msgstr "Profil utilisateur"
+
+msgid "Identity"
+msgstr "Utilisateur"
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "Display settings"
+msgstr "Paramètres d'affichage"
+
+msgid "Profile was updated"
+msgstr "Profil mis à jour"
+
+msgid "usage: "
+msgstr ""
+
+msgid ".__call__() not defined"
+msgstr ""
+
+#, python-format
+msgid "unknown parser %r (choices: %s)"
+msgstr ""
+
+#, python-format
+msgid "argument \"-\" with mode %r"
+msgstr ""
+
+#, python-format
+msgid "cannot merge actions - two groups are named %r"
+msgstr ""
+
+msgid "'required' is an invalid argument for positionals"
+msgstr ""
+
+#, python-format
+msgid "invalid option string %r: must start with a character %r"
+msgstr ""
+
+#, python-format
+msgid "dest= is required for options like %r"
+msgstr ""
+
+#, python-format
+msgid "invalid conflict_resolution value: %r"
+msgstr ""
+
+#, python-format
+msgid "conflicting option string(s): %s"
+msgstr ""
+
+msgid "mutually exclusive arguments must be optional"
+msgstr ""
+
+msgid "positional arguments"
+msgstr ""
+
+msgid "optional arguments"
+msgstr ""
+
+msgid "show this help message and exit"
+msgstr ""
+
+msgid "show program's version number and exit"
+msgstr ""
+
+msgid "cannot have multiple subparser arguments"
+msgstr ""
+
+#, python-format
+msgid "unrecognized arguments: %s"
+msgstr ""
+
+#, python-format
+msgid "not allowed with argument %s"
+msgstr ""
+
+#, python-format
+msgid "ignored explicit argument %r"
+msgstr ""
+
+msgid "too few arguments"
+msgstr ""
+
+#, python-format
+msgid "argument %s is required"
+msgstr ""
+
+#, python-format
+msgid "one of the arguments %s is required"
+msgstr ""
+
+msgid "expected one argument"
+msgstr ""
+
+msgid "expected at most one argument"
+msgstr ""
+
+msgid "expected at least one argument"
+msgstr ""
+
+#, python-format
+msgid "expected %s argument(s)"
+msgstr ""
+
+#, python-format
+msgid "ambiguous option: %s could match %s"
+msgstr ""
+
+#, python-format
+msgid "unexpected option string: %s"
+msgstr ""
+
+#, python-format
+msgid "%r is not callable"
+msgstr ""
+
+#, python-format
+msgid "invalid %s value: %r"
+msgstr ""
+
+#, python-format
+msgid "invalid choice: %r (choose from %s)"
+msgstr ""
+
+#, python-format
+msgid "%s: error: %s\n"
+msgstr ""
+
+msgid "Messages"
+msgstr ""
+
+msgid "Site Maps"
+msgstr ""
+
+#, fuzzy
+#| msgid "Statistics"
+msgid "Static Files"
+msgstr "Statistiques"
+
+#, fuzzy
+#| msgid "Location"
+msgid "Syndication"
+msgstr "Lieu"
+
+msgid "That page number is not an integer"
+msgstr ""
+
+msgid "That page number is less than 1"
+msgstr ""
+
+msgid "That page contains no results"
+msgstr ""
+
+msgid "Enter a valid value."
+msgstr ""
+
+msgid "Enter a valid URL."
+msgstr ""
+
+msgid "Enter a valid integer."
+msgstr ""
+
+msgid "Enter a valid email address."
+msgstr ""
+
+#. Translators: "letters" means latin letters: a-z and A-Z.
+msgid ""
+"Enter a valid 'slug' consisting of letters, numbers, underscores or hyphens."
+msgstr ""
+
+msgid ""
+"Enter a valid 'slug' consisting of Unicode letters, numbers, underscores, or "
+"hyphens."
+msgstr ""
+
+msgid "Enter a valid IPv4 address."
+msgstr ""
+
+msgid "Enter a valid IPv6 address."
+msgstr ""
+
+msgid "Enter a valid IPv4 or IPv6 address."
+msgstr ""
+
+msgid "Enter only digits separated by commas."
+msgstr ""
+
+#, python-format
+msgid "Ensure this value is %(limit_value)s (it is %(show_value)s)."
+msgstr ""
+
+#, python-format
+msgid "Ensure this value is less than or equal to %(limit_value)s."
+msgstr ""
+
+#, python-format
+msgid "Ensure this value is greater than or equal to %(limit_value)s."
+msgstr ""
+
+#, python-format
+msgid ""
+"Ensure this value has at least %(limit_value)d character (it has "
+"%(show_value)d)."
+msgid_plural ""
+"Ensure this value has at least %(limit_value)d characters (it has "
+"%(show_value)d)."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"Ensure this value has at most %(limit_value)d character (it has "
+"%(show_value)d)."
+msgid_plural ""
+"Ensure this value has at most %(limit_value)d characters (it has "
+"%(show_value)d)."
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+#| msgid "CSV line number"
+msgid "Enter a number."
+msgstr "N° de ligne CSV"
+
+#, python-format
+msgid "Ensure that there are no more than %(max)s digit in total."
+msgid_plural "Ensure that there are no more than %(max)s digits in total."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Ensure that there are no more than %(max)s decimal place."
+msgid_plural "Ensure that there are no more than %(max)s decimal places."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"Ensure that there are no more than %(max)s digit before the decimal point."
+msgid_plural ""
+"Ensure that there are no more than %(max)s digits before the decimal point."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"File extension '%(extension)s' is not allowed. Allowed extensions are: "
+"'%(allowed_extensions)s'."
+msgstr ""
+
+msgid "Null characters are not allowed."
+msgstr ""
+
+msgid "and"
+msgstr ""
+
+#, python-format
+msgid "%(model_name)s with this %(field_labels)s already exists."
+msgstr ""
+
+#, python-format
+msgid "Value %(value)r is not a valid choice."
+msgstr ""
+
+msgid "This field cannot be null."
+msgstr ""
+
+msgid "This field cannot be blank."
+msgstr ""
+
+#, python-format
+msgid "%(model_name)s with this %(field_label)s already exists."
+msgstr ""
+
+#. Translators: The 'lookup_type' is one of 'date', 'year' or 'month'.
+#. Eg: "Title must be unique for pub_date year"
+#, python-format
+msgid ""
+"%(field_label)s must be unique for %(date_field_label)s %(lookup_type)s."
+msgstr ""
+
+#, python-format
+msgid "Field of type: %(field_type)s"
+msgstr ""
+
+msgid "Integer"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' value must be an integer."
+msgstr ""
+
+msgid "Big (8 byte) integer"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' value must be either True or False."
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' value must be either True, False, or None."
+msgstr ""
+
+msgid "Boolean (Either True or False)"
+msgstr ""
+
+#, python-format
+msgid "String (up to %(max_length)s)"
+msgstr ""
+
+msgid "Comma-separated integers"
+msgstr ""
+
+#, python-format
+msgid ""
+"'%(value)s' value has an invalid date format. It must be in YYYY-MM-DD "
+"format."
+msgstr ""
+
+#, python-format
+msgid ""
+"'%(value)s' value has the correct format (YYYY-MM-DD) but it is an invalid "
+"date."
+msgstr ""
+
+msgid "Date (without time)"
+msgstr ""
+
+#, python-format
+msgid ""
+"'%(value)s' value has an invalid format. It must be in YYYY-MM-DD HH:MM[:ss[."
+"uuuuuu]][TZ] format."
+msgstr ""
+
+#, python-format
+msgid ""
+"'%(value)s' value has the correct format (YYYY-MM-DD HH:MM[:ss[.uuuuuu]]"
+"[TZ]) but it is an invalid date/time."
+msgstr ""
+
+msgid "Date (with time)"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' value must be a decimal number."
+msgstr ""
+
+msgid "Decimal number"
+msgstr ""
+
+#, python-format
+msgid ""
+"'%(value)s' value has an invalid format. It must be in [DD] [HH:[MM:]]ss[."
+"uuuuuu] format."
+msgstr ""
+
+#, fuzzy
+#| msgid "Location"
+msgid "Duration"
+msgstr "Lieu"
+
+msgid "Email address"
+msgstr ""
+
+msgid "File path"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' value must be a float."
+msgstr ""
+
+msgid "Floating point number"
+msgstr ""
+
+msgid "IPv4 address"
+msgstr ""
+
+msgid "IP address"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' value must be either None, True or False."
+msgstr ""
+
+msgid "Boolean (Either True, False or None)"
+msgstr ""
+
+msgid "Positive integer"
+msgstr ""
+
+msgid "Positive small integer"
+msgstr ""
+
+#, python-format
+msgid "Slug (up to %(max_length)s)"
+msgstr ""
+
+msgid "Small integer"
+msgstr ""
+
+#, python-format
+msgid ""
+"'%(value)s' value has an invalid format. It must be in HH:MM[:ss[.uuuuuu]] "
+"format."
+msgstr ""
+
+#, python-format
+msgid ""
+"'%(value)s' value has the correct format (HH:MM[:ss[.uuuuuu]]) but it is an "
+"invalid time."
+msgstr ""
+
+msgid "Time"
+msgstr ""
+
+msgid "URL"
+msgstr ""
+
+msgid "Raw binary data"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' is not a valid UUID."
+msgstr ""
+
+msgid "Universally unique identifier"
+msgstr ""
+
+msgid "File"
+msgstr ""
+
+msgid "Image"
+msgstr ""
+
+#, python-format
+msgid "%(model)s instance with %(field)s %(value)r does not exist."
+msgstr ""
+
+msgid "Foreign Key (type determined by related field)"
+msgstr ""
+
+msgid "One-to-one relationship"
+msgstr ""
+
+#, python-format
+msgid "%(from)s-%(to)s relationship"
+msgstr ""
+
+#, python-format
+msgid "%(from)s-%(to)s relationships"
+msgstr ""
+
+msgid "Many-to-many relationship"
+msgstr ""
+
+#. Translators: If found as last label character, these punctuation
+#. characters will prevent the default label_suffix to be appended to the label
+msgid ":?.!"
+msgstr ""
+
+msgid "This field is required."
+msgstr ""
+
+msgid "Enter a whole number."
+msgstr ""
+
+msgid "Enter a valid date."
+msgstr ""
+
+msgid "Enter a valid time."
+msgstr ""
+
+msgid "Enter a valid date/time."
+msgstr ""
+
+msgid "Enter a valid duration."
+msgstr ""
+
+#, python-brace-format
+msgid "The number of days must be between {min_days} and {max_days}."
+msgstr ""
+
+msgid "No file was submitted. Check the encoding type on the form."
+msgstr ""
+
+#, fuzzy
+#| msgid "Profile was updated"
+msgid "No file was submitted."
+msgstr "Profil mis à jour"
+
+msgid "The submitted file is empty."
+msgstr ""
+
+#, python-format
+msgid "Ensure this filename has at most %(max)d character (it has %(length)d)."
+msgid_plural ""
+"Ensure this filename has at most %(max)d characters (it has %(length)d)."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Please either submit a file or check the clear checkbox, not both."
+msgstr ""
+
+msgid ""
+"Upload a valid image. The file you uploaded was either not an image or a "
+"corrupted image."
+msgstr ""
+
+#, python-format
+msgid "Select a valid choice. %(value)s is not one of the available choices."
+msgstr ""
+
+msgid "Enter a list of values."
+msgstr ""
+
+msgid "Enter a complete value."
+msgstr ""
+
+msgid "Enter a valid UUID."
+msgstr ""
+
+#. Translators: This is the default suffix added to form field labels
+msgid ":"
+msgstr ""
+
+#, python-format
+msgid "(Hidden field %(name)s) %(error)s"
+msgstr ""
+
+msgid "ManagementForm data is missing or has been tampered with"
+msgstr ""
+
+#, python-format
+msgid "Please submit %d or fewer forms."
+msgid_plural "Please submit %d or fewer forms."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Please submit %d or more forms."
+msgid_plural "Please submit %d or more forms."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Order"
+msgstr ""
+
+#, python-format
+msgid "Please correct the duplicate data for %(field)s."
+msgstr ""
+
+#, python-format
+msgid "Please correct the duplicate data for %(field)s, which must be unique."
+msgstr ""
+
+#, python-format
+msgid ""
+"Please correct the duplicate data for %(field_name)s which must be unique "
+"for the %(lookup)s in %(date_field)s."
+msgstr ""
+
+msgid "Please correct the duplicate values below."
+msgstr ""
+
+msgid "The inline value did not match the parent instance."
+msgstr ""
+
+msgid "Select a valid choice. That choice is not one of the available choices."
+msgstr ""
+
+#, python-format
+msgid "\"%(pk)s\" is not a valid value."
+msgstr ""
+
+#, python-format
+msgid ""
+"%(datetime)s couldn't be interpreted in time zone %(current_timezone)s; it "
+"may be ambiguous or it may not exist."
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+#, fuzzy
+#| msgid "Currency"
+msgid "Currently"
+msgstr "Monnaie"
+
+#, fuzzy
+#| msgid "Change office"
+msgid "Change"
+msgstr "Changer d'établissement"
+
+msgid "Unknown"
+msgstr ""
+
+msgid "Yes"
+msgstr ""
+
+msgid "No"
+msgstr ""
+
+msgid "yes,no,maybe"
+msgstr ""
+
+#, python-format
+msgid "%(size)d byte"
+msgid_plural "%(size)d bytes"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%s KB"
+msgstr ""
+
+#, python-format
+msgid "%s MB"
+msgstr ""
+
+#, python-format
+msgid "%s GB"
+msgstr ""
+
+#, python-format
+msgid "%s TB"
+msgstr ""
+
+#, python-format
+msgid "%s PB"
+msgstr ""
+
+msgid "p.m."
+msgstr ""
+
+msgid "a.m."
+msgstr ""
+
+msgid "PM"
+msgstr ""
+
+msgid "AM"
+msgstr ""
+
+msgid "midnight"
+msgstr ""
+
+msgid "noon"
+msgstr ""
+
+msgid "Monday"
+msgstr ""
+
+msgid "Tuesday"
+msgstr ""
+
+msgid "Wednesday"
+msgstr ""
+
+msgid "Thursday"
+msgstr ""
+
+msgid "Friday"
+msgstr ""
+
+msgid "Saturday"
+msgstr ""
+
+msgid "Sunday"
+msgstr ""
+
+#, fuzzy
+#| msgid "Month"
+msgid "Mon"
+msgstr "Mois"
+
+msgid "Tue"
+msgstr ""
+
+msgid "Wed"
+msgstr ""
+
+msgid "Thu"
+msgstr ""
+
+msgid "Fri"
+msgstr ""
+
+#, fuzzy
+#| msgid "Status"
+msgid "Sat"
+msgstr "État"
+
+msgid "Sun"
+msgstr ""
+
+msgid "January"
+msgstr ""
+
+msgid "February"
+msgstr ""
+
+msgid "March"
+msgstr ""
+
+msgid "April"
+msgstr ""
+
+msgid "May"
+msgstr ""
+
+msgid "June"
+msgstr ""
+
+msgid "July"
+msgstr ""
+
+msgid "August"
+msgstr ""
+
+#, fuzzy
+#| msgid "Remember me"
+msgid "September"
+msgstr "Se rappeler de moi"
+
+msgid "October"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number"
+msgid "November"
+msgstr "Numéro"
+
+#, fuzzy
+#| msgid "Remember me"
+msgid "December"
+msgstr "Se rappeler de moi"
+
+msgid "jan"
+msgstr ""
+
+msgid "feb"
+msgstr ""
+
+msgid "mar"
+msgstr ""
+
+msgid "apr"
+msgstr ""
+
+msgid "may"
+msgstr ""
+
+msgid "jun"
+msgstr ""
+
+msgid "jul"
+msgstr ""
+
+msgid "aug"
+msgstr ""
+
+msgid "sep"
+msgstr ""
+
+msgid "oct"
+msgstr ""
+
+msgid "nov"
+msgstr ""
+
+msgid "dec"
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "Jan."
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "Feb."
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "March"
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "April"
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "May"
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "June"
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "July"
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "Aug."
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "Sept."
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "Oct."
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "Nov."
+msgstr ""
+
+msgctxt "abbrev. month"
+msgid "Dec."
+msgstr ""
+
+msgctxt "alt. month"
+msgid "January"
+msgstr ""
+
+msgctxt "alt. month"
+msgid "February"
+msgstr ""
+
+msgctxt "alt. month"
+msgid "March"
+msgstr ""
+
+msgctxt "alt. month"
+msgid "April"
+msgstr ""
+
+msgctxt "alt. month"
+msgid "May"
+msgstr ""
+
+msgctxt "alt. month"
+msgid "June"
+msgstr ""
+
+msgctxt "alt. month"
+msgid "July"
+msgstr ""
+
+msgctxt "alt. month"
+msgid "August"
+msgstr ""
+
+#, fuzzy
+#| msgid "Remember me"
+msgctxt "alt. month"
+msgid "September"
+msgstr "Se rappeler de moi"
+
+msgctxt "alt. month"
+msgid "October"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number"
+msgctxt "alt. month"
+msgid "November"
+msgstr "Numéro"
+
+#, fuzzy
+#| msgid "Remember me"
+msgctxt "alt. month"
+msgid "December"
+msgstr "Se rappeler de moi"
+
+msgid "This is not a valid IPv6 address."
+msgstr ""
+
+#, python-format
+msgctxt "String to return when truncating text"
+msgid "%(truncated_text)s…"
+msgstr ""
+
+#, fuzzy
+#| msgid "More"
+msgid "or"
+msgstr "En savoir plus"
+
+#. Translators: This string is used as a separator between list elements
+msgid ", "
+msgstr ""
+
+#, python-format
+msgid "%d year"
+msgid_plural "%d years"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy, python-format
+#| msgid "Month"
+msgid "%d month"
+msgid_plural "%d months"
+msgstr[0] "Mois"
+msgstr[1] "Mois"
+
+#, python-format
+msgid "%d week"
+msgid_plural "%d weeks"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy, python-format
+#| msgid "By day"
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] "Par jour"
+msgstr[1] "Par jour"
+
+#, python-format
+msgid "%d hour"
+msgid_plural "%d hours"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d minute"
+msgid_plural "%d minutes"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "0 minutes"
+msgstr ""
+
+msgid "Forbidden"
+msgstr ""
+
+msgid "CSRF verification failed. Request aborted."
+msgstr ""
+
+msgid ""
+"You are seeing this message because this HTTPS site requires a 'Referer "
+"header' to be sent by your Web browser, but none was sent. This header is "
+"required for security reasons, to ensure that your browser is not being "
+"hijacked by third parties."
+msgstr ""
+
+msgid ""
+"If you have configured your browser to disable 'Referer' headers, please re-"
+"enable them, at least for this site, or for HTTPS connections, or for 'same-"
+"origin' requests."
+msgstr ""
+
+msgid ""
+"If you are using the <meta name=\"referrer\" content=\"no-referrer\"> tag or "
+"including the 'Referrer-Policy: no-referrer' header, please remove them. The "
+"CSRF protection requires the 'Referer' header to do strict referer checking. "
+"If you're concerned about privacy, use alternatives like <a rel=\"noreferrer"
+"\" ...> for links to third-party sites."
+msgstr ""
+
+msgid ""
+"You are seeing this message because this site requires a CSRF cookie when "
+"submitting forms. This cookie is required for security reasons, to ensure "
+"that your browser is not being hijacked by third parties."
+msgstr ""
+
+msgid ""
+"If you have configured your browser to disable cookies, please re-enable "
+"them, at least for this site, or for 'same-origin' requests."
+msgstr ""
+
+msgid "More information is available with DEBUG=True."
+msgstr ""
+
+msgid "No year specified"
+msgstr ""
+
+#, fuzzy
+#| msgid "Date of consent"
+msgid "Date out of range"
+msgstr "Date du consentement"
+
+msgid "No month specified"
+msgstr ""
+
+msgid "No day specified"
+msgstr ""
+
+msgid "No week specified"
+msgstr ""
+
+#, python-format
+msgid "No %(verbose_name_plural)s available"
+msgstr ""
+
+#, python-format
+msgid ""
+"Future %(verbose_name_plural)s not available because %(class_name)s."
+"allow_future is False."
+msgstr ""
+
+#, python-format
+msgid "Invalid date string '%(datestr)s' given format '%(format)s'"
+msgstr ""
+
+#, python-format
+msgid "No %(verbose_name)s found matching the query"
+msgstr ""
+
+msgid "Page is not 'last', nor can it be converted to an int."
+msgstr ""
+
+#, python-format
+msgid "Invalid page (%(page_number)s): %(message)s"
+msgstr ""
+
+#, python-format
+msgid "Empty list and '%(class_name)s.allow_empty' is False."
+msgstr ""
+
+msgid "Directory indexes are not allowed here."
+msgstr ""
+
+#, python-format
+msgid "\"%(path)s\" does not exist"
+msgstr ""
+
+#, python-format
+msgid "Index of %(directory)s"
+msgstr ""
+
+msgid "Django: the Web framework for perfectionists with deadlines."
+msgstr ""
+
+#, python-format
+msgid ""
+"View <a href=\"https://docs.djangoproject.com/en/%(version)s/releases/\" "
+"target=\"_blank\" rel=\"noopener\">release notes</a> for Django %(version)s"
+msgstr ""
+
+msgid "The install worked successfully! Congratulations!"
+msgstr ""
+
+#, python-format
+msgid ""
+"You are seeing this page because <a href=\"https://docs.djangoproject.com/en/"
+"%(version)s/ref/settings/#debug\" target=\"_blank\" rel=\"noopener"
+"\">DEBUG=True</a> is in your settings file and you have not configured any "
+"URLs."
+msgstr ""
+
+#, fuzzy
+#| msgid "Document date"
+msgid "Django Documentation"
+msgstr "Date document"
+
+msgid "Topics, references, &amp; how-to's"
+msgstr ""
+
+msgid "Tutorial: A Polling App"
+msgstr ""
+
+msgid "Get started with Django"
+msgstr ""
+
+msgid "Django Community"
+msgstr ""
+
+msgid "Connect, get help, or contribute"
+msgstr ""
+
+#, python-format
+msgid "0 of %(count)d selected"
+msgid_plural "of %(count)d selected"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy, python-format
+#| msgid "Total amount on selected period"
+msgid "%(total_count)s selected"
+msgid_plural "All %(total_count)s selected"
+msgstr[0] "Montant total sur la période sélectionnée"
+msgstr[1] "Montant total sur la période sélectionnée"
+
+#, fuzzy
+#| msgid "Search..."
+msgid "Search"
+msgstr "Recherche..."
+
+#, fuzzy
+#| msgid "Search for"
+msgid "Search In"
+msgstr "Recherche de"
+
+msgid "Haystack"
+msgstr ""
+
+#, fuzzy
+#| msgid "Search for"
+msgid "Search Queries"
+msgstr "Recherche de"
+
+msgid "Query"
+msgstr ""
+
+msgid "Backend Alias"
+msgstr ""
+
+msgid "Timeline"
+msgstr ""
+
+msgid "Kwargs"
+msgstr ""

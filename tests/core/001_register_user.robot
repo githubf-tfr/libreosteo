@@ -1,0 +1,47 @@
+*** Settings ***
+Library   OperatingSystem
+Test Setup  Clear database
+Resource   resources.txt
+
+
+*** Test Cases ***
+First Installation
+  [Documentation]   Register an administrator on freshed installation
+  Open Browser To Login Page
+  Title Should Be     Installer LibreOsteo
+  Click RegisterUser
+  Input Username    test
+  Input Password1   test
+  Input Password2   test
+  Submit Credentials
+  Login Page Should Be Open
+  [Teardown]  Close Browser
+
+*** Keywords ***
+Click RegisterUser
+  Click Button  register
+
+Input Username
+  [Arguments]   ${username}
+  Input Text  name:username  ${username}
+
+Input Password1
+  [Arguments]   ${password}
+  Input Text  password1  ${password}
+
+Input Password2
+  [Arguments]   ${password}
+  Input Text  password2  ${password}
+
+Submit Credentials
+  Click Button  login
+
+Login Page Should Be Open
+  Title Should Be  Identifiez-vous sur LibreOsteo
+
+Clear database
+  Remove File   data/db.sqlite3
+  Remove Directory  data/whoosh_index    recursive=True
+  Run   python ./manage.py migrate
+  Run   mkdir data/whoosh_index
+  Run   python ./manage.py rebuild_index --noinput

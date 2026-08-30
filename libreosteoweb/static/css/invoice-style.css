@@ -1,0 +1,111 @@
+
+/**
+    This file is part of Libreosteo.
+
+    Libreosteo is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Libreosteo is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Libreosteo.  If not, see <http://www.gnu.org/licenses/>.
+*/
+* { margin: 0; padding: 0; }
+
+#page_wrap {
+	font:16px/1.4 Georgia, serif;
+	width: 800px;
+	margin : 0 auto;
+}
+
+#header {
+	margin : 25px 0;
+	float:none;
+}
+.frame {
+	float: left;
+}
+.header {
+	font : 24px bold;
+}
+
+.address {
+	font-size : 14px;
+}
+.phone {
+	font-size : 14px;
+}
+.therapeut-frame {
+	float:right;
+}
+.therapeut{
+	padding-top: 12px;
+}
+.spacer{
+	clear:both;
+}
+
+#patient {
+	margin-top: 50px;
+	margin-bottom: 100px;
+	float: right;
+
+}
+
+#location-date {
+	float:left;
+	margin-top: 50px;
+}
+#invoice-number {
+	margin-bottom: 50px;
+	font-weight: bold;
+}
+
+#main {
+	clear: both;
+	margin-top: 150px;
+	margin-left: 100px;
+	margin-bottom: 100px;
+}
+
+.fees {
+	margin-top : 50px;
+	margin-bottom : 50px;
+	border:1px solid black;
+	border-collapse: collapse;
+	vertical-align:middle;
+	text-align: center;
+	width:50%;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.fees td {
+	text-align: center;
+	padding-bottom: 2em;
+	padding-top: 2em;
+	border: 1px solid black;
+}
+
+#footer {
+	margin-top: auto;
+	margin-left: 100px;
+}
+#watermark {
+  position:absolute;
+  top:50%;
+  right:25%;
+  user-slect:none;
+  -ms-user-select:none;
+  -moz-user-select:none;
+  -webkit-user-select:none;
+  font-family:"Roboto", "Arial", sans-serif;
+  font-size: 10em;
+  opacity:0.2;
+  transform: rotate(-30deg);
+}

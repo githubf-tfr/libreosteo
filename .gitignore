@@ -1,0 +1,43 @@
+# Database
+db.sqlite3
+
+# Python compiled files
+*.pyc
+
+# Assets
+libreosteoweb/static/bower_components/
+libreosteoweb/static/components/
+/static/
+/media/
+/node_modules/
+/data/
+
+# Indexes
+whoosh_index/
+
+# IDE Files
+.idea
+.idea/
+.sublime-project
+.sublime-workspace
+.komodoproject
+.idea
+.project
+.metadata
+
+# VirtualEnv files
+.env
+.venv
+env/
+venv/
+
+# log files
+*.log
+Libreosteo/settings/local.py*
+
+# Tests / tooling artefacts
+selenium-screenshot-*.png
+yarn.lock
+output.xml
+/log.html
+/report.html
