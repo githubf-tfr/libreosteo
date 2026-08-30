@@ -1,7 +1,20 @@
-# Configuration de l'outillage de qualite uniquement.
-# L'emballage du paquet reste decrit par setup.py et setup.cfg.
+# Configuration de l'outillage de qualité uniquement.
+# L'emballage du paquet reste décrit par setup.py et setup.cfg.
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "Libreosteo.settings"
 testpaths = ["libreosteoweb/tests", "zipcode_lookup"]
 python_files = ["test_*.py", "tests.py"]
+addopts = "--cov --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["libreosteoweb"]
+omit = [
+    "libreosteoweb/migrations/*",
+    "libreosteoweb/tests/*",
+]
+
+[tool.coverage.report]
+# Plancher à cliquet : cette valeur ne descend jamais. Quand la couverture
+# progresse durablement, on relève le plancher dans le commit qui l'a fait monter.
+fail_under = 62
