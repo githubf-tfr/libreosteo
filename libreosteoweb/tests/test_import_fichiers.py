@@ -25,7 +25,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from libreosteoweb.api.file_integrator import FileContentProxy
-from libreosteoweb.models import FileImport, OfficeEvent, Patient
+from libreosteoweb.models import Examination, FileImport, OfficeEvent, Patient
 from libreosteoweb.tests.fixtures import (
     cree_praticien,
     cree_reglages_praticien,
@@ -319,3 +319,65 @@ class TestIntegrationPatients(APITestCase):
         self.assertEqual(reponse.data["patient"]["imported"], 1)
         self.assertEqual(len(reponse.data["patient"]["errors"]), 1)
         self.assertEqual(Patient.objects.count(), 1)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class TestIntegrationConsultations(APITestCase):
+    def setUp(self):
+        FileContentProxy.file_content = {}
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def depose_et_integre(self, lignes_patient, lignes_consultation):
+        depot = self.client.post(
+            reverse("fileimport-list"),
+            data={
+                "file_patient": csv_televerse(
+                    "patients.csv", ENTETE_PATIENT, lignes_patient
+                ),
+                "file_examination": csv_televerse(
+                    "consultations.csv", ENTETE_CONSULTATION, lignes_consultation
+                ),
+            },
+            format="multipart",
+        )
+        return self.client.post(
+            reverse("fileimport-integrate", kwargs={"pk": depot.data["id"]})
+        )
+
+    def test_la_consultation_est_rattachee_a_son_patient(self):
+        reponse = self.depose_et_integre(
+            [ligne_patient(1)], [ligne_consultation(1, conclusion="Amélioration")]
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(reponse.data["examination"]["imported"], 1)
+        consultation = Examination.objects.get()
+        self.assertEqual(consultation.patient.family_name, "Picard")
+        self.assertEqual(consultation.conclusion, "Amélioration")
+        self.assertEqual(consultation.therapeut, self.user)
+
+    def test_aucun_evenement_de_masse_n_est_produit(self):
+        self.depose_et_integre([ligne_patient(1)], [ligne_consultation(1)])
+        self.assertEqual(OfficeEvent.objects.filter(clazz="Examination").count(), 0)
+
+    def test_numero_de_patient_inconnu_produit_une_erreur_de_ligne(self):
+        reponse = self.depose_et_integre(
+            [ligne_patient(1)], [ligne_consultation(1), ligne_consultation(99)]
+        )
+        self.assertEqual(reponse.data["examination"]["imported"], 1)
+        erreurs = reponse.data["examination"]["errors"]
+        self.assertEqual(len(erreurs), 1)
+        self.assertEqual(erreurs[0][0], 3)
+        self.assertIn("general_problem", erreurs[0][1])
+        self.assertEqual(Examination.objects.count(), 1)
+
+    def test_date_de_consultation_invalide_produit_une_erreur_de_ligne(self):
+        reponse = self.depose_et_integre(
+            [ligne_patient(1)], [ligne_consultation(1, date="32/13/2020")]
+        )
+        self.assertEqual(reponse.data["examination"]["imported"], 0)
+        self.assertEqual(len(reponse.data["examination"]["errors"]), 1)
+        self.assertEqual(Examination.objects.count(), 0)
