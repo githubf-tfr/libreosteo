@@ -52,3 +52,6 @@ output.xml
 
 # Ledger superpowers : jamais versionné
 .superpowers/
+
+# Export de production : donnees de sante nominatives, jamais versionnees
+export-test/
