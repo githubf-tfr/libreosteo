@@ -14,7 +14,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 from django.http import HttpResponse
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory, APITestCase
 
@@ -187,5 +187,46 @@ class TestStaffRequiredMixin(APITestCase):
 
     def test_un_utilisateur_non_personnel_est_renvoye_vers_la_connexion(self):
         reponse = self.client.get(reverse("rebuild_index"))
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("login"))
+
+
+class AuthentificateurQuiEchoue:
+    def authenticate(self, request):
+        raise RuntimeError("authentificateur indisponible")
+
+
+class TestLoginRequiredMiddleware(APITestCase):
+    def test_base_vide_toute_requete_mene_a_l_installation(self):
+        reponse = self.client.get("/")
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("install"))
+
+    def test_base_vide_la_page_d_installation_n_est_pas_redirigee(self):
+        reponse = self.client.get(reverse("install"))
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_utilisateur_non_connecte_est_redirige_avec_next(self):
+        with sans_receivers():
+            cree_praticien()
+        reponse = self.client.get("/")
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("login") + "?next=/")
+
+    def test_url_hors_reroutage_n_est_pas_redirigee(self):
+        with sans_receivers():
+            cree_praticien()
+        reponse = self.client.get("/jsi18n/")
+        self.assertEqual(reponse.status_code, 200)
+
+    @override_settings(
+        LIBREOSTEO_AUTHENTICATOR=[
+            "libreosteoweb.tests.test_acces.AuthentificateurQuiEchoue"
+        ]
+    )
+    def test_echec_de_l_authentificateur_renvoie_a_la_connexion(self):
+        with sans_receivers():
+            cree_praticien()
+        reponse = self.client.get("/")
         self.assertEqual(reponse.status_code, 302)
         self.assertEqual(reponse.url, reverse("login"))
