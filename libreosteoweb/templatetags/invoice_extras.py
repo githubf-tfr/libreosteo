@@ -14,16 +14,14 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # Invoice Extras filter
 import locale
+import logging
+import re
 
 from django import template
 
 from libreosteoweb.api.utils import _unicode
 
 register = template.Library()
-
-import logging
-import re
-
 logger = logging.getLogger(__name__)
 
 

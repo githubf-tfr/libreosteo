@@ -13,9 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+import locale
 from datetime import timedelta
 
-from django.test import override_settings
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -28,6 +29,7 @@ from libreosteoweb.models import (
     InvoiceStatus,
     Paiment,
 )
+from libreosteoweb.templatetags.invoice_extras import templatize
 from libreosteoweb.tests.fixtures import (
     cree_consultation,
     cree_patient,
@@ -390,3 +392,63 @@ class TestListeFactures(APITestCase):
         )
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         self.assertEqual(reponse.data["envoyee"], str(self.ma_facture.id))
+
+
+class TestRenduFacture(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet(invoice_content="Consultation de <patient_first_name>")
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+        self.facture = Invoice.objects.get(
+            id=self.client.post(
+                reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+                data=facturation(),
+                format="json",
+            ).data["invoiced"]
+        )
+
+    def test_page_de_facture_rendue(self):
+        reponse = self.client.get(
+            reverse("invoice_view", kwargs={"invoiceid": self.facture.id})
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertContains(reponse, "10000")
+
+    def test_page_de_facture_impayee_affiche_non_paye(self):
+        with sans_receivers():
+            autre = cree_consultation(self.patient, therapeut=self.user)
+        impayee = Invoice.objects.get(
+            id=self.client.post(
+                reverse("examination-invoice", kwargs={"pk": autre.id}),
+                data=facturation(paiment_mode="notpaid"),
+                format="json",
+            ).data["invoiced"]
+        )
+        reponse = self.client.get(
+            reverse("invoice_view", kwargs={"invoiceid": impayee.id})
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+
+
+class TestTemplatize(TestCase):
+    def test_remplace_un_champ_de_l_objet(self):
+        facture = Invoice(patient_first_name="Jean-Luc", number="10000")
+        self.assertEqual(
+            templatize("Facture <number> pour <patient_first_name>", facture),
+            "Facture 10000 pour Jean-Luc",
+        )
+
+    def test_remplace_une_cle_de_dictionnaire(self):
+        self.assertEqual(
+            templatize("Bonjour <nom>", {"nom": "Picard"}), "Bonjour Picard"
+        )
+
+    def test_valeur_flottante_rendue_selon_la_locale(self):
+        self.assertEqual(templatize("<amount>", {"amount": 50.0}), locale.str(50.0))
+
+    def test_texte_sans_balise_est_rendu_tel_quel(self):
+        self.assertEqual(templatize("Aucune balise", {}), "Aucune balise")
