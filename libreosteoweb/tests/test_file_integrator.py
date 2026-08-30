@@ -108,4 +108,4 @@ class TestFileIntegrator(TestCase):
             self.assertEqual([], result["content"])
 
     def tearDown(self):
-        pass
+        self.patcher.stop()
