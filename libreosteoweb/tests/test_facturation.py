@@ -242,3 +242,68 @@ class TestEncaissement(APITestCase):
         self.assertEqual(paiement.amount, facture.amount)
         self.assertEqual(paiement.currency, "EUR")
         self.assertEqual(paiement.paiment_mode, "cash")
+
+
+class TestAnnulationFacture(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet()
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+        creation = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+        self.facture = Invoice.objects.get(id=creation.data["invoiced"])
+
+    def annule(self, data=None):
+        return self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": self.facture.id}),
+            data=data if data is not None else {},
+            format="json",
+        )
+
+    def test_annulation_en_avoir(self):
+        regle_cabinet(cancel_invoice_credit_note=True)
+        reponse = self.annule()
+        self.assertEqual(reponse.status_code, status.HTTP_202_ACCEPTED)
+        avoir = Invoice.objects.get(id=reponse.data["credit_note"]["id"])
+        self.assertEqual(avoir.amount, -1 * self.facture.amount)
+        self.assertEqual(avoir.type, "creditnote")
+        self.assertEqual(avoir.number, "10001")
+        self.assertEqual(avoir.status, InvoiceStatus.INVOICED_PAID)
+        self.facture.refresh_from_db()
+        self.assertEqual(self.facture.status, InvoiceStatus.CANCELED)
+        self.assertEqual(self.facture.canceled_by_id, avoir.id)
+
+    def test_annulation_par_facture_corrective(self):
+        regle_cabinet(cancel_invoice_credit_note=False)
+        consultation = self.client.get(
+            reverse("examination-detail", kwargs={"pk": self.consultation.id})
+        ).data
+        reponse = self.annule(
+            {
+                "examination": consultation,
+                "corrective_invoice": facturation(amount=60.0),
+            }
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_202_ACCEPTED)
+        corrective = Invoice.objects.get(id=reponse.data["corrective_invoice"]["id"])
+        self.assertEqual(corrective.amount, 60.0)
+        self.assertEqual(corrective.replace, self.facture.number)
+        self.facture.refresh_from_db()
+        self.assertEqual(self.facture.status, InvoiceStatus.CANCELED)
+        self.assertEqual(self.facture.canceled_by_id, corrective.id)
+
+    def test_annulation_corrective_sans_donnees_est_refusee(self):
+        regle_cabinet(cancel_invoice_credit_note=False)
+        self.assertEqual(self.annule().status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_annuler_une_facture_deja_annulee_est_refuse(self):
+        regle_cabinet(cancel_invoice_credit_note=True)
+        self.assertEqual(self.annule().status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(self.annule().status_code, status.HTTP_400_BAD_REQUEST)
