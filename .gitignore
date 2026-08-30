@@ -49,3 +49,6 @@ output.xml
 # Local development tooling (sandbox-specific, never distributed)
 .tools/
 .uv-python/
+
+# Ledger superpowers : jamais versionné
+.superpowers/
