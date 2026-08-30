@@ -623,9 +623,6 @@ class PatientDocument(models.Model):
         "AttachmentType", "SURGICAL", "MEDICAL", "FAMILIAL", "TRAUMA", "MEDICAL_REPORTS"
     )
 
-    def delete(self, *args, **kwargs):
-        super(PatientDocument, self).delete(*args, **kwargs)
-
 
 class LoggedInUser(models.Model):
     user = models.OneToOneField(

@@ -23,10 +23,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from libreosteoweb.api import serializers as apiserializers
 from libreosteoweb.api.serializers import PatientSerializer
 from libreosteoweb.api.validators import UniqueTogetherIgnoreCaseValidator
-from libreosteoweb.api.views import PatientDocumentViewSet
 from libreosteoweb.models import (
     Document,
     Examination,
@@ -400,18 +398,44 @@ class TestDocumentsPatient(APITestCase):
         )
         self.assertFalse(Document.objects.filter(id=document_id).exists())
 
-    @override_settings(DEMONSTRATION=True)
-    def test_en_demonstration_le_serialiseur_de_demonstration_est_retenu(self):
-        reponse = self.client.get(
-            reverse("PatientDocuments-list"), {"patient": self.patient.id}
+    def test_supprimer_un_patient_avec_document_efface_tout(self):
+        depot = self.depose_un_document()
+        self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Document.objects.count(), 1)
+        patient_doc_id = depot.data["document"]["id"]
+        reponse = self.client.delete(
+            reverse("patient-detail", kwargs={"pk": self.patient.id}) + "?gdpr=true"
         )
-        # La vue rend 400 tant qu'aucun document n'existe : ce qui est vérifié ici est le
-        # sérialiseur retenu, obtenu depuis la vue elle-même.
-        vue = PatientDocumentViewSet()
-        vue.request = reponse.wsgi_request
-        self.assertIs(
-            vue.get_serializer_class(),
-            apiserializers.PatientDocumentDemonstrationSerializer,
+        self.assertEqual(reponse.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            PatientDocument.objects.filter(document_id=patient_doc_id).exists()
+        )
+        self.assertFalse(Document.objects.filter(id=patient_doc_id).exists())
+
+    @override_settings(DEMONSTRATION=True, MEDIA_ROOT=tempfile.mkdtemp())
+    def test_en_demonstration_le_contenu_televerse_est_remplace(self):
+        contenu_original = b"ceci ne doit pas etre enregistre"
+        fichier = SimpleUploadedFile(
+            "secret.txt", contenu_original, content_type="text/plain"
+        )
+        depot = self.client.post(
+            reverse("PatientDocuments-list"),
+            data={
+                "patient": self.patient.id,
+                "attachment_type": PatientDocument.AttachmentType.MEDICAL,
+                "document.title": "Document confidentiel",
+                "document.document_file": fichier,
+            },
+            format="multipart",
+        )
+        self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
+        document_id = depot.data["document"]["id"]
+        document = Document.objects.get(id=document_id)
+        contenu_enregistre = document.document_file.read()
+        self.assertNotEqual(contenu_enregistre, contenu_original)
+        self.assertIn(
+            b"For security purpose, no document could be uploaded",
+            contenu_enregistre,
         )
 
 
