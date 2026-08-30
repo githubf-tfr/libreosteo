@@ -2,29 +2,47 @@ name: Libreosteo Continuous Integration
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ main ]
 
 jobs:
-  build:
+  quality:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8, 3.9, '3.10']
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install Tooling
+          python-version: '3.13'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/requirements.txt
+          pip install -r requirements/requ-dev.txt
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+          mypy
+      - name: Model migration status
+        run: python ./manage.py makemigrations --check
+      - name: Unit tests and coverage
+        run: pytest
+
+  functional:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install tooling
         run: |
           export FIREFOX_SOURCE_URL='https://download.mozilla.org/?product=firefox-latest&lang=fr&os=linux64'
           wget --no-verbose -O /tmp/firefox-latest.tar.xz $FIREFOX_SOURCE_URL
           tar -xJf /tmp/firefox-latest.tar.xz
           curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.21.1
-          wget https://github.com/mozilla/geckodriver/releases/download/v0.21.0/geckodriver-v0.21.0-linux64.tar.gz -O /tmp/geckodriver.tar.gz
+          wget https://github.com/mozilla/geckodriver/releases/download/v0.37.1/geckodriver-v0.37.1-linux64.tar.gz -O /tmp/geckodriver.tar.gz
           tar -xvf /tmp/geckodriver.tar.gz
           sudo locale-gen fr_FR
           sudo locale-gen fr_FR.UTF-8
@@ -38,23 +56,16 @@ jobs:
           $HOME/.yarn/bin/yarn
           python ./manage.py collectstatic --no-input
           python ./manage.py compilejsi18n
-      - name: Run unit tests
-        run: |
-          echo 'Execute Unit tests'
-          python ./manage.py test
       - name: Run functional tests
         run: |
-          echo 'Execute functional tests'
           export PATH=$PWD/firefox:$PATH:$PWD
-          which geckodriver
-          which firefox
           python ./server.py &
           xvfb-run --server-args="-screen 0 1280x1024x24" robot -X -P . tests
       - name: Archiving results
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: result-tests-${{matrix.python-version}}
+          name: result-tests
           path: |
             log.html
             report.html
@@ -66,12 +77,3 @@ jobs:
             access.log
             errors.log
             console.log
-      - name: Translations state
-        run: |
-          echo 'Translations status'
-          #python ./manage.py makemessages -d django --no-location ; python ./manage.py makemessages --no-location -d djangojs ; git diff --exit-code -G'^[^"]'
-      - name: Model migration status
-        run: |
-          echo "Model migration status"
-          python ./manage.py makemigrations --check
-
