@@ -13,14 +13,17 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+from django.http import HttpResponse
 from django.test import TestCase
-from rest_framework.test import APIRequestFactory
+from django.urls import reverse
+from rest_framework.test import APIRequestFactory, APITestCase
 
 from libreosteoweb.api.permissions import (
     IsDataAccessAllowed,
     IsStaffOrReadOnlyTargetUser,
     IsStaffOrTargetUser,
     IsStaffOrTargetUserFactory,
+    maintenance_available,
 )
 from libreosteoweb.tests.fixtures import (
     cree_praticien,
@@ -148,3 +151,41 @@ class TestIsStaffOrTargetUser(TestCase):
                 self.requete_de(self.simple), VueFactice("get_by_user")
             )
         )
+
+
+@maintenance_available
+def vue_de_maintenance(request):
+    return HttpResponse("disponible")
+
+
+@maintenance_available
+def vue_de_maintenance_qui_echoue(request):
+    raise ValueError("boum")
+
+
+class TestMaintenanceAvailable(TestCase):
+    def test_disponible_tant_qu_aucun_utilisateur_n_existe(self):
+        reponse = vue_de_maintenance(None)
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_refusee_des_qu_un_utilisateur_existe(self):
+        with sans_receivers():
+            cree_praticien()
+        reponse = vue_de_maintenance(None)
+        self.assertEqual(reponse.status_code, 403)
+
+    def test_une_erreur_de_la_vue_decoree_n_est_pas_avalee(self):
+        with self.assertRaises(ValueError):
+            vue_de_maintenance_qui_echoue(None)
+
+
+class TestStaffRequiredMixin(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            cree_praticien(username="simple", is_staff=False)
+        self.client.login(username="simple", password="testpw")
+
+    def test_un_utilisateur_non_personnel_est_renvoye_vers_la_connexion(self):
+        reponse = self.client.get(reverse("rebuild_index"))
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("login"))

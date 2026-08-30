@@ -17,6 +17,7 @@ from functools import wraps
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.db import DatabaseError
 from django.http import (
     HttpResponseForbidden,
     HttpResponseRedirect,
@@ -106,12 +107,14 @@ def maintenance_available(func):
     def _decorator(*args, **kwargs):
         UserModel = get_user_model()
         try:
-            if UserModel.objects.all().count() == 0:
-                return func(*args, **kwargs)
-            else:
-                return HttpResponseForbidden()
-        except:
+            aucun_utilisateur = UserModel.objects.all().count() == 0
+        except DatabaseError:
+            # Base injoignable ou non migrée : on refuse, on ne devine pas.
+            logger.exception("Impossible de compter les utilisateurs")
             return HttpResponseForbidden()
+        if aucun_utilisateur:
+            return func(*args, **kwargs)
+        return HttpResponseForbidden()
 
     return _decorator
 
