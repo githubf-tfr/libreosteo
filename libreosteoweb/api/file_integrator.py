@@ -290,10 +290,9 @@ class FileContentProxy(object):
 
     def unproxy(self, ourfile, line_filter=None):
         key = FileContentKey(ourfile, line_filter)
-        try:
-            self.file_content[key] = None
-        except:
-            pass
+        # Supprimer la clé, et non y écrire None : un get_content ultérieur doit relire le
+        # fichier, pas retrouver une entrée vide.
+        self.file_content.pop(key, None)
 
 
 class AnalyzerHandler(object):

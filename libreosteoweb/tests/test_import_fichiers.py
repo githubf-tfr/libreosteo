@@ -26,9 +26,11 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from libreosteoweb.api.file_integrator import (
+    Extractor,
     FileContentProxy,
     FilePatientFactory,
     IntegratorExamination,
+    IntegratorHandler,
 )
 from libreosteoweb.models import Examination, FileImport, OfficeEvent, Patient
 from libreosteoweb.tests.fixtures import (
@@ -448,3 +450,41 @@ class TestConversions(unittest.TestCase):
         # une chaîne vide au format "%d/%m/%Y"
         with self.assertRaises(ValueError):
             self.integrateur.get_date("")
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class TestCacheDeContenu(APITestCase):
+    def setUp(self):
+        FileContentProxy.file_content = {}
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+        depot = self.client.post(
+            reverse("fileimport-list"),
+            data={
+                "file_patient": csv_televerse(
+                    "patients.csv", ENTETE_PATIENT, [ligne_patient(1)]
+                )
+            },
+            format="multipart",
+        )
+        self.depot = FileImport.objects.get(id=depot.data["id"])
+
+    def test_le_contenu_est_relu_apres_unproxy(self):
+        extracteur = Extractor()
+        premier = extracteur.get_content(self.depot.file_patient)
+        self.assertEqual(premier["nb_row"], 2)
+
+        extracteur.unproxy(self.depot.file_patient)
+
+        second = extracteur.get_content(self.depot.file_patient)
+        self.assertIsNotNone(second, "get_content rend None après unproxy")
+        self.assertEqual(second["nb_row"], 2)
+
+    def test_post_processing_nettoie_le_cache(self):
+        extracteur = Extractor()
+        extracteur.get_content(self.depot.file_patient)
+        IntegratorHandler().post_processing(files=[self.depot.file_patient])
+        self.assertEqual(FileContentProxy.file_content, {})
