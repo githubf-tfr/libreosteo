@@ -145,6 +145,18 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## Pièges rencontrés
 
+- **2026-08-30 (S2, L4T1)** — `test_file_integrator.py::TestFileIntegrator.setUp`
+  démarre `patch("libreosteoweb.api.file_integrator.open", mock_open(), create=True)`
+  mais son `tearDown` était un `pass` : le patch n'était jamais arrêté. Le mock fuyait
+  dans toute la suite exécutée après cette classe — `file_integrator.open` restait un
+  `MagicMock` vide, si bien que la lecture d'un vrai fichier CSV, plus loin dans des
+  tests sans rapport, renvoyait un contenu vide (`_csv.Error: Could not determine
+  delimiter` chez `csv.Sniffer`). Invisible jusqu'ici car `test_file_integrator.py` ne
+  lit que des fichiers mockés : aucun test existant ne dépendait d'une vraie lecture
+  après lui. Découvert en ajoutant `test_import_fichiers.py` (lot 4, premiers tests à
+  lire de vrais CSV) — l'échec n'apparaissait qu'en suite complète, jamais en
+  isolation, et aurait cassé les sept tâches suivantes du lot de façon
+  incompréhensible. Correction : `tearDown` appelle `self.patcher.stop()`.
 - **2026-08-30 (S2, L3T5)** — Suppression en cascade du `PatientDocument` levait une
   exception `RelatedObjectDoesNotExist`. Le receiver `delete_document` (ligne 104 de
   `api/receivers.py`) supprime déjà le Document associé ; la méthode `delete()` du modèle
