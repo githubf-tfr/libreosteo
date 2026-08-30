@@ -113,3 +113,60 @@ class TestFacturation(APITestCase):
         reponse = self.facture(paiment_mode="ecard")
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Invoice.objects.count(), 0)
+
+
+class TestNumerotationFacture(APITestCase):
+    """La séquence est un état persistant partagé : chaque test part d'un cabinet neuf."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            self.reglages_praticien = cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet()
+            self.patient = cree_patient()
+        self.client.login(username="test", password="testpw")
+
+    def facture_une_consultation(self):
+        with sans_receivers():
+            consultation = cree_consultation(self.patient, therapeut=self.user)
+        reponse = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+        return Invoice.objects.get(id=reponse.data["invoiced"])
+
+    def test_premiere_facture_part_de_dix_mille(self):
+        facture = self.facture_une_consultation()
+        self.assertEqual(facture.number, "10000")
+
+    def test_la_sequence_est_incrementee_et_persistee(self):
+        self.facture_une_consultation()
+        self.cabinet.refresh_from_db()
+        self.assertEqual(self.cabinet.invoice_start_sequence, "10001")
+        deuxieme = self.facture_une_consultation()
+        self.assertEqual(deuxieme.number, "10001")
+        self.cabinet.refresh_from_db()
+        self.assertEqual(self.cabinet.invoice_start_sequence, "10002")
+
+    def test_la_sequence_de_depart_du_cabinet_est_respectee(self):
+        regle_cabinet(invoice_start_sequence="4200")
+        facture = self.facture_une_consultation()
+        self.assertEqual(facture.number, "4200")
+
+    def test_le_prefixe_est_applique_au_numero(self):
+        regle_cabinet(invoice_start_sequence="42", invoice_prefix_sequence="FA-")
+        facture = self.facture_une_consultation()
+        self.assertEqual(facture.number, "FA-42")
+        self.cabinet.refresh_from_db()
+        self.assertEqual(self.cabinet.invoice_start_sequence, "43")
+
+    def test_les_reglages_praticien_surchargent_ceux_du_cabinet(self):
+        regle_cabinet(office_identifier="CAB", invoice_footer="Pied cabinet")
+        self.reglages_praticien.office_identifier = "PRAT"
+        self.reglages_praticien.invoice_footer = "Pied praticien"
+        self.reglages_praticien.save()
+        facture = self.facture_une_consultation()
+        self.assertEqual(facture.office_identifier, "PRAT")
+        self.assertEqual(facture.footer, "Pied praticien")
+        self.assertEqual(facture.professional_id, "12345")
