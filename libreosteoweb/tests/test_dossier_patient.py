@@ -13,11 +13,16 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+from datetime import timedelta
+
+from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from libreosteoweb.api.serializers import PatientSerializer
+from libreosteoweb.api.validators import UniqueTogetherIgnoreCaseValidator
 from libreosteoweb.models import (
     Examination,
     ExaminationStatus,
@@ -27,6 +32,7 @@ from libreosteoweb.models import (
 )
 from libreosteoweb.tests.fixtures import (
     cree_consultation,
+    cree_patient,
     cree_praticien,
     cree_reglages_praticien,
     regle_cabinet,
@@ -152,3 +158,68 @@ class TestSuppressionPatient(APITestCase):
         self.assertFalse(Patient.objects.filter(id=self.patient.id).exists())
         self.assertFalse(Examination.objects.filter(patient=self.patient.id).exists())
         self.assertEqual(OfficeEvent.objects.count(), 0)
+
+
+class TestValidationPatient(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def cree(self, **surcharges):
+        donnees = dict(PATIENT_MINIMAL)
+        donnees.update(surcharges)
+        return self.client.post(reverse("patient-list"), data=donnees, format="json")
+
+    def test_doublon_a_la_casse_pres_est_refuse(self):
+        self.assertEqual(self.cree().status_code, status.HTTP_201_CREATED)
+        reponse = self.cree(family_name="PICARD", first_name="jean-luc")
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Patient.objects.count(), 1)
+
+    def test_meme_nom_mais_date_de_naissance_differente_est_accepte(self):
+        self.assertEqual(self.cree().status_code, status.HTTP_201_CREATED)
+        reponse = self.cree(birth_date="1940-01-01")
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Patient.objects.count(), 2)
+
+    def test_l_unicite_s_applique_aussi_a_la_mise_a_jour(self):
+        premier = self.cree()
+        self.cree(family_name="Riker", first_name="William")
+        donnees = self.client.get(
+            reverse("patient-detail", kwargs={"pk": premier.data["id"]})
+        ).data
+        donnees["family_name"] = "riker"
+        donnees["first_name"] = "WILLIAM"
+        donnees["birth_date"] = PATIENT_MINIMAL["birth_date"]
+        reponse = self.client.put(
+            reverse("patient-detail", kwargs={"pk": premier.data["id"]}),
+            data=donnees,
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_date_de_naissance_future_est_refusee(self):
+        future = (timezone.now().date() + timedelta(days=1)).isoformat()
+        reponse = self.cree(birth_date=future)
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Patient.objects.count(), 0)
+
+
+class TestValidateurUnicite(TestCase):
+    """`UniqueTogetherIgnoreCaseValidator` ignore la validation dès qu'un champ comparé est nul."""
+
+    def test_un_champ_nul_desactive_la_validation(self):
+        with sans_receivers():
+            cree_patient(first_name="")
+            cree_patient(first_name="")
+        validateur = UniqueTogetherIgnoreCaseValidator(
+            queryset=Patient.objects.all(),
+            fields=("family_name", "first_name"),
+            message="doublon",
+            ignore_case=True,
+        )
+        serialiseur = PatientSerializer()
+        validateur({"family_name": "Picard", "first_name": None}, serialiseur)
