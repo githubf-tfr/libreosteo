@@ -13,8 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+from datetime import timedelta
+
+from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
+from rest_framework.response import Response
 from rest_framework.test import APITestCase
 
 from libreosteoweb.models import (
@@ -307,3 +312,81 @@ class TestAnnulationFacture(APITestCase):
         regle_cabinet(cancel_invoice_credit_note=True)
         self.assertEqual(self.annule().status_code, status.HTTP_202_ACCEPTED)
         self.assertEqual(self.annule().status_code, status.HTTP_400_BAD_REQUEST)
+
+
+def envoi_factice(request, pk=None):
+    """Substitut de SEND_INVOICE_FUNC : prouve l'indirection, sans envoyer quoi que ce soit."""
+    return Response({"envoyee": pk})
+
+
+class TestListeFactures(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            self.autre = cree_praticien(username="autre")
+            cree_reglages_praticien(self.autre)
+            regle_cabinet()
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+            self.consultation_autre = cree_consultation(
+                self.patient, therapeut=self.autre
+            )
+        self.client.login(username="test", password="testpw")
+        self.ma_facture = Invoice.objects.get(
+            id=self.client.post(
+                reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+                data=facturation(),
+                format="json",
+            ).data["invoiced"]
+        )
+        self.client.login(username="autre", password="testpw")
+        self.facture_autre = Invoice.objects.get(
+            id=self.client.post(
+                reverse(
+                    "examination-invoice",
+                    kwargs={"pk": self.consultation_autre.id},
+                ),
+                data=facturation(),
+                format="json",
+            ).data["invoiced"]
+        )
+        self.client.login(username="test", password="testpw")
+
+    def test_filtrer_par_praticien(self):
+        reponse = self.client.get(
+            reverse("invoice-list"), {"therapeut_id": self.user.id}
+        )
+        self.assertEqual([f["id"] for f in reponse.data], [self.ma_facture.id])
+
+    def test_filtrer_par_cabinet(self):
+        reponse = self.client.get(reverse("invoice-list"), {"office_settings_id": 1})
+        self.assertEqual(len(reponse.data), 2)
+        reponse = self.client.get(reverse("invoice-list"), {"office_settings_id": 2})
+        self.assertEqual(len(reponse.data), 0)
+
+    def test_filtrer_par_intervalle_de_dates(self):
+        hier = (timezone.now() - timedelta(days=1)).date().isoformat()
+        demain = (timezone.now() + timedelta(days=1)).date().isoformat()
+        reponse = self.client.get(
+            reverse("invoice-list"), {"date__gte": hier, "date__lte": demain}
+        )
+        self.assertEqual(len(reponse.data), 2)
+        avant_hier = (timezone.now() - timedelta(days=2)).date().isoformat()
+        reponse = self.client.get(reverse("invoice-list"), {"date__lte": avant_hier})
+        self.assertEqual(len(reponse.data), 0)
+
+    def test_export_xlsx(self):
+        reponse = self.client.get(reverse("invoice-list"), {"format": "xlsx"})
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertIn("spreadsheetml", reponse["Content-Type"])
+
+    @override_settings(
+        SEND_INVOICE_FUNC="libreosteoweb.tests.test_facturation.envoi_factice"
+    )
+    def test_envoi_delegue_a_la_fonction_configuree(self):
+        reponse = self.client.post(
+            reverse("invoice-send", kwargs={"pk": self.ma_facture.id})
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(reponse.data["envoyee"], str(self.ma_facture.id))
