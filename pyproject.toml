@@ -21,7 +21,8 @@ omit = [
 # morts retire des lignes couvertes, donc rétrécit le dénominateur (62,07 % sur
 # 2494 lignes, 61,94 % sur 2483). Aucun test perdu, aucune ligne nouvellement
 # découverte — c'est le dénominateur qui a bougé, pas la couverture réelle.
-fail_under = 61
+# 2026-08-30 : relevé à 64 par le lot 1 de S2 (facturation), couverture constatée 64,68 %.
+fail_under = 64
 
 [tool.ruff]
 target-version = "py313"
