@@ -79,7 +79,7 @@ class TestFileIntegrator(TestCase):
                 report = handler.analyze(f)
                 self.assertTrue(report.is_empty)
                 self.assertTrue(report.is_valid)
-                self.assertEquals(file_integrator.FileCsvType.PATIENT,
+                self.assertEqual(file_integrator.FileCsvType.PATIENT,
                                   report.type)
 
     def test_analyze_handler_not_empty(self):
@@ -99,7 +99,7 @@ class TestFileIntegrator(TestCase):
                 report = handler.analyze(f)
                 # self.assertFalse(report.is_empty)
                 self.assertTrue(report.is_valid)
-                self.assertEquals(file_integrator.FileCsvType.PATIENT,
+                self.assertEqual(file_integrator.FileCsvType.PATIENT,
                                   report.type)
 
     def test_file_content_adapter(self):
@@ -113,10 +113,10 @@ class TestFileIntegrator(TestCase):
             adapter._get_reader = MagicMock(
                 return_value=iter((header.split(';'), )))
             result = adapter.get_content()
-            self.assertEquals(1, result['nb_row'])
-            self.assertEquals(['Nom', 'Prenom', 'Nom de Famille'],
+            self.assertEqual(1, result['nb_row'])
+            self.assertEqual(['Nom', 'Prenom', 'Nom de Famille'],
                               result['header'])
-            self.assertEquals([], result['content'])
+            self.assertEqual([], result['content'])
 
     def tearDown(self):
         pass
