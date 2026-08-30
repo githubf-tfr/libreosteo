@@ -35,8 +35,7 @@ class Loader(BaseLoader):
     def get_template_sources(self, template_name, template_dirs=None):
         "Template loader that loads templates from a ZIP file."
 
-        template_zipfiles = getattr(settings, "TEMPLATE_ZIP_FILES",
-                                    ['library.zip'])
+        template_zipfiles = getattr(settings, "TEMPLATE_ZIP_FILES", ["library.zip"])
 
         try:
             yield self.templates_dict[template_name]._origin
@@ -45,15 +44,16 @@ class Loader(BaseLoader):
             for fname in template_zipfiles:
                 try:
                     z = zipfile.ZipFile(fname)
-                    source = z.read('templates/%s' % (template_name))
+                    source = z.read("templates/%s" % (template_name))
                 except (IOError, KeyError):
                     continue
                 z.close()
-                origin = Origin(name=template_name,
-                                template_name=template_name,
-                                loader=self)
+                origin = Origin(
+                    name=template_name, template_name=template_name, loader=self
+                )
                 self.templates_dict[template_name] = EntryLoaderCache(
-                    origin=origin, content=source)
+                    origin=origin, content=source
+                )
                 yield origin
 
 

@@ -18,18 +18,19 @@ from django.utils import timezone
 
 
 class Generator(object):
-
     def __init__(self, office_settings, therapeut_settings):
         self.office_settings = office_settings
         self.therapeut_settings = therapeut_settings
 
     def generate_invoice(self, examination, serializer_data, user_therapeut):
         invoice = models.Invoice()
-        invoice.amount = serializer_data['amount']
+        invoice.amount = serializer_data["amount"]
         invoice.currency = self.office_settings.currency
         invoice.header = self.office_settings.invoice_office_header
         invoice.office_address_street = self.office_settings.office_address_street
-        invoice.office_address_complement = self.office_settings.office_address_complement
+        invoice.office_address_complement = (
+            self.office_settings.office_address_complement
+        )
         invoice.office_address_zipcode = self.office_settings.office_address_zipcode
         invoice.office_address_city = self.office_settings.office_address_city
         invoice.office_phone = self.office_settings.office_phone
@@ -40,7 +41,7 @@ class Generator(object):
         if self.therapeut_settings.office_identifier is not None:
             invoice.office_identifier = self.therapeut_settings.office_identifier
 
-        invoice.paiment_mode = serializer_data['paiment_mode']
+        invoice.paiment_mode = serializer_data["paiment_mode"]
         invoice.therapeut_name = user_therapeut.last_name
         invoice.therapeut_first_name = user_therapeut.first_name
         invoice.therapeut_id = user_therapeut.id
@@ -68,18 +69,25 @@ class Generator(object):
         return invoice
 
     def get_invoice_number(self):
-        if self.office_settings.invoice_start_sequence is not None and len(
-                self.office_settings.invoice_start_sequence) > 0:
+        if (
+            self.office_settings.invoice_start_sequence is not None
+            and len(self.office_settings.invoice_start_sequence) > 0
+        ):
             invoice_number = _unicode(
-                convert_to_long(self.office_settings.invoice_start_sequence))
+                convert_to_long(self.office_settings.invoice_start_sequence)
+            )
             self.office_settings.invoice_start_sequence = _unicode(
-                convert_to_long(invoice_number) + 1)
+                convert_to_long(invoice_number) + 1
+            )
         else:
             invoice_number = _unicode(10000)
             self.office_settings.invoice_start_sequence = _unicode(
-                convert_to_long(invoice_number) + 1)
+                convert_to_long(invoice_number) + 1
+            )
         if self.office_settings.invoice_prefix_sequence is not None:
-            invoice_number = self.office_settings.invoice_prefix_sequence + invoice_number
+            invoice_number = (
+                self.office_settings.invoice_prefix_sequence + invoice_number
+            )
         return invoice_number
 
     def cancel_invoice(self, invoice):
@@ -112,7 +120,7 @@ class Generator(object):
         credit_note.content_invoice = invoice.content_invoice
         credit_note.footer = invoice.footer
         credit_note.date = timezone.now()
-        credit_note.type = 'creditnote' if credit_note.amount < 0 else 'invoice'
+        credit_note.type = "creditnote" if credit_note.amount < 0 else "invoice"
         credit_note.number = self.get_invoice_number()
         credit_note.status = models.InvoiceStatus.INVOICED_PAID
         credit_note.officesettings_id = invoice.officesettings_id
@@ -120,54 +128,55 @@ class Generator(object):
 
 
 class ExaminationInvoiceHelper(object):
-
     def __init__(self, office_settings, therapeut_settings, therapeut_user):
         self.office_settings = office_settings
         self.therapeut_settings = therapeut_settings
         self.therapeut_user = therapeut_user
 
-    def invoice_examination(self,
-                            invoicing_serializer,
-                            current_examination,
-                            invoice_to_cancel=None):
-        if hasattr(invoicing_serializer,
-                   'initial_data') and not invoicing_serializer.is_valid():
-            return {'errors': invoicing_serializer.errors}
+    def invoice_examination(
+        self, invoicing_serializer, current_examination, invoice_to_cancel=None
+    ):
+        if (
+            hasattr(invoicing_serializer, "initial_data")
+            and not invoicing_serializer.is_valid()
+        ):
+            return {"errors": invoicing_serializer.errors}
 
-        if invoicing_serializer.validated_data['status'] == 'notinvoiced':
+        if invoicing_serializer.validated_data["status"] == "notinvoiced":
             current_examination.status = models.Examination.EXAMINATION_NOT_INVOICED
             current_examination.status_reason = invoicing_serializer.validated_data[
-                'reason']
+                "reason"
+            ]
             current_examination.save()
-            return {'invoiced': None}
-        if invoicing_serializer.validated_data['status'] == 'invoiced':
+            return {"invoiced": None}
+        if invoicing_serializer.validated_data["status"] == "invoiced":
             current_invoice = self.generate_invoice(
-                current_examination, invoicing_serializer.validated_data,
-                invoice_to_cancel)
+                current_examination,
+                invoicing_serializer.validated_data,
+                invoice_to_cancel,
+            )
             current_examination.invoices.add(current_invoice)
-            if invoicing_serializer.validated_data[
-                    'paiment_mode'] == 'notpaid':
-                current_examination.status = models.ExaminationStatus.WAITING_FOR_PAIEMENT
+            if invoicing_serializer.validated_data["paiment_mode"] == "notpaid":
+                current_examination.status = (
+                    models.ExaminationStatus.WAITING_FOR_PAIEMENT
+                )
                 current_invoice.status = models.InvoiceStatus.WAITING_FOR_PAIEMENT
                 current_invoice.save()
                 current_examination.save()
-            if invoicing_serializer.validated_data['paiment_mode'] in [
-                    p.code
-                    for p in models.PaimentMean.objects.filter(enable=True)
+            if invoicing_serializer.validated_data["paiment_mode"] in [
+                p.code for p in models.PaimentMean.objects.filter(enable=True)
             ]:
                 current_examination.status = models.ExaminationStatus.INVOICED_PAID
                 current_invoice.status = models.InvoiceStatus.INVOICED_PAID
                 current_invoice.save()
                 current_examination.save()
-            return {'invoiced': current_invoice.id}
+            return {"invoiced": current_invoice.id}
         return {}
 
-    def generate_invoice(self, examination, invoicingSerializerData,
-                         invoice_to_cancel):
-        invoice = Generator(self.office_settings,
-                            self.therapeut_settings).generate_invoice(
-                                examination, invoicingSerializerData,
-                                self.therapeut_user)
+    def generate_invoice(self, examination, invoicingSerializerData, invoice_to_cancel):
+        invoice = Generator(
+            self.office_settings, self.therapeut_settings
+        ).generate_invoice(examination, invoicingSerializerData, self.therapeut_user)
         self.office_settings.save()
         invoice.save()
         if invoice_to_cancel:

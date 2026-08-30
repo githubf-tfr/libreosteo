@@ -23,7 +23,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class block_disconnect_all_signal():
+class block_disconnect_all_signal:
     """Temporarily disconnect all managed models from a signal"""
 
     def __init__(self, signal, receivers_senders, dispatch_uid=None):
@@ -32,20 +32,20 @@ class block_disconnect_all_signal():
         self.dispatch_uid = dispatch_uid
 
     def __enter__(self):
-        for (lreceiver, sender) in self.receivers_senders:
-            self.signal.disconnect(receiver=lreceiver,
-                                   sender=sender,
-                                   dispatch_uid=self.dispatch_uid)
+        for lreceiver, sender in self.receivers_senders:
+            self.signal.disconnect(
+                receiver=lreceiver, sender=sender, dispatch_uid=self.dispatch_uid
+            )
 
     def __exit__(self, type, value, traceback):
-        for (lreceiver, sender) in self.receivers_senders:
-            self.signal.connect(receiver=lreceiver,
-                                sender=sender,
-                                dispatch_uid=self.dispatch_uid)
+        for lreceiver, sender in self.receivers_senders:
+            self.signal.connect(
+                receiver=lreceiver, sender=sender, dispatch_uid=self.dispatch_uid
+            )
 
 
-class temp_disconnect_signal():
-    """ Temporarily disconnect a model from a signal """
+class temp_disconnect_signal:
+    """Temporarily disconnect a model from a signal"""
 
     def __init__(self, signal, receiver, sender, dispatch_uid=None):
         self.signal = signal
@@ -54,32 +54,32 @@ class temp_disconnect_signal():
         self.dispatch_uid = dispatch_uid
 
     def __enter__(self):
-        self.signal.disconnect(receiver=self.receiver,
-                               sender=self.sender,
-                               dispatch_uid=self.dispatch_uid)
+        self.signal.disconnect(
+            receiver=self.receiver, sender=self.sender, dispatch_uid=self.dispatch_uid
+        )
 
     def __exit__(self, type, value, traceback):
-        self.signal.connect(receiver=self.receiver,
-                            sender=self.sender,
-                            dispatch_uid=self.dispatch_uid)
+        self.signal.connect(
+            receiver=self.receiver, sender=self.sender, dispatch_uid=self.dispatch_uid
+        )
 
 
 @receiver(post_save, sender=Patient)
 def receiver_newpatient(sender, **kwargs):
     event = OfficeEvent()
     event.clazz = Patient.__name__
-    if kwargs['created']:
+    if kwargs["created"]:
         event.type = Patient.TYPE_NEW_PATIENT
-        event.comment = _('New patient created')
-        event.reference = kwargs['instance'].id
-        event.user = kwargs['instance'].current_user_operation
+        event.comment = _("New patient created")
+        event.reference = kwargs["instance"].id
+        event.user = kwargs["instance"].current_user_operation
         event.clean()
         event.save()
     else:
         event.type = Patient.TYPE_UPDATE_PATIENT
-        event.comment = _('Patient updated')
-        event.reference = kwargs['instance'].id
-        event.user = kwargs['instance'].current_user_operation
+        event.comment = _("Patient updated")
+        event.reference = kwargs["instance"].id
+        event.user = kwargs["instance"].current_user_operation
         event.clean()
         # Does not save update on patient
         # event.save()
@@ -89,26 +89,26 @@ def receiver_newpatient(sender, **kwargs):
 def receiver_examination(sender, **kwargs):
     event = OfficeEvent()
     event.clazz = Examination.__name__
-    if kwargs['created']:
-        event.type = kwargs['instance'].type
-        event.comment = _('New examination')
-        event.reference = kwargs['instance'].id
-        event.user = kwargs['instance'].therapeut
+    if kwargs["created"]:
+        event.type = kwargs["instance"].type
+        event.comment = _("New examination")
+        event.reference = kwargs["instance"].id
+        event.user = kwargs["instance"].therapeut
         event.clean()
         event.save()
 
 
 @receiver(post_delete, sender=PatientDocument)
 def delete_document(sender, **kwargs):
-    doc_instance = kwargs['instance']
+    doc_instance = kwargs["instance"]
     doc_instance.document.delete()
 
 
 @receiver(user_logged_in)
 def on_user_logged_in(sender, request, **kwargs):
-    LoggedInUser.objects.get_or_create(user=kwargs.get('user'))
+    LoggedInUser.objects.get_or_create(user=kwargs.get("user"))
 
 
 @receiver(user_logged_out)
 def on_user_logged_out(sender, request, **kwargs):
-    LoggedInUser.objects.filter(user=kwargs.get('user')).delete()
+    LoggedInUser.objects.filter(user=kwargs.get("user")).delete()

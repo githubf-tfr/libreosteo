@@ -15,7 +15,7 @@
 from .base import *
 
 DEBUG = True
-TEMPLATES[0]['OPTIONS']['debug'] = True
+TEMPLATES[0]["OPTIONS"]["debug"] = True
 COMPRESS_ENABLED = False
 
 try:

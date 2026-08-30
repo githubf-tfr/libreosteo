@@ -26,7 +26,6 @@ _CSV_BUFFER_SIZE = 1024 * 1024 * 10
 
 
 class Extractor(object):
-
     def extract(self, instance):
         """
         return a dict with key patient and examination which gives some extract of the content,
@@ -37,8 +36,8 @@ class Extractor(object):
         extract_patient = self.extract_file(instance.file_patient)
         extract_examination = self.extract_file(instance.file_examination)
 
-        result['patient'] = extract_patient
-        result['examination'] = extract_examination
+        result["patient"] = extract_patient
+        result["examination"] = extract_examination
 
         return result
 
@@ -53,56 +52,54 @@ class Extractor(object):
         logger.info("* Analyze the instance")
         result = {}
 
-        (type_file, is_valid, is_empty,
-         errors) = self.analyze_file(instance.file_patient)
-        result['patient'] = (type_file, is_valid, is_empty, errors)
+        (type_file, is_valid, is_empty, errors) = self.analyze_file(
+            instance.file_patient
+        )
+        result["patient"] = (type_file, is_valid, is_empty, errors)
 
-        (type_file, is_valid, is_empty,
-         errors) = self.analyze_file(instance.file_examination)
-        result['examination'] = (type_file, is_valid, is_empty, errors)
+        (type_file, is_valid, is_empty, errors) = self.analyze_file(
+            instance.file_examination
+        )
+        result["examination"] = (type_file, is_valid, is_empty, errors)
         return result
 
     def analyze_file(self, internal_file):
         if not bool(internal_file):
-            return ('', False, True, [])
+            return ("", False, True, [])
 
         try:
             handler = AnalyzerHandler()
             report = handler.analyze(internal_file)
         except:
-            logger.exception('Analyze failed.')
-            return ('', False, True, [_('Analyze failed on this file')])
+            logger.exception("Analyze failed.")
+            return ("", False, True, [_("Analyze failed on this file")])
 
         if report.type == FileCsvType.PATIENT:
-            return ('patient', report.is_valid, report.is_empty, [])
+            return ("patient", report.is_valid, report.is_empty, [])
         if report.type == FileCsvType.EXAMINATION:
-            return ('examination', report.is_valid, report.is_empty, [])
+            return ("examination", report.is_valid, report.is_empty, [])
         else:
-            return ('patient', False, True,
-                    [_('Cannot recognize the patient file')])
+            return ("patient", False, True, [_("Cannot recognize the patient file")])
 
     def extract_file(self, internal_file):
         if not bool(internal_file):
             return {}
         result = {}
         try:
-            content = FileContentProxy().get_content(internal_file,
-                                                     line_filter=filter)
-            nb_row = content['nb_row'] - 1
+            content = FileContentProxy().get_content(internal_file, line_filter=filter)
+            nb_row = content["nb_row"] - 1
             if nb_row > 0:
-                idx = sorted(
-                    random.sample(range(1, nb_row + 1), min(5, nb_row)))
+                idx = sorted(random.sample(range(1, nb_row + 1), min(5, nb_row)))
                 logger.info("indexes = %s " % idx)
                 for i in idx:
-                    result['%s' % (i + 1)] = content['content'][i - 1]
+                    result["%s" % (i + 1)] = content["content"][i - 1]
         except:
-            logger.exception('Extractor failed.')
+            logger.exception("Extractor failed.")
         logger.info("result is %s" % result)
         return result
 
     def get_content(self, internal_file):
-        return FileContentProxy().get_content(internal_file,
-                                              line_filter=filter)
+        return FileContentProxy().get_content(internal_file, line_filter=filter)
 
     def unproxy(self, internal_file):
         FileContentProxy().unproxy(internal_file, line_filter=filter)
@@ -110,32 +107,30 @@ class Extractor(object):
 
 def filter(line):
     logger.debug("filtering ...")
-    if not hasattr(line, 'decode'):
+    if not hasattr(line, "decode"):
         logger.debug("no decode available")
         return line
     result_line = None
     try:
         logger.debug("Try to decode against utf-8")
-        result_line = line.decode('utf-8')
+        result_line = line.decode("utf-8")
     except:
         logger.debug("Fail to decode against utf-8")
         pass
     if result_line is None:
         try:
             logger.debug("Try to decode against iso-8859-1")
-            result_line = line.decode('iso-8859-1')
+            result_line = line.decode("iso-8859-1")
         except:
             logger.info("Fail to decode against iso-8859-1")
-            result_line = _(
-                'Cannot read the content file. Check the encoding.')
+            result_line = _("Cannot read the content file. Check the encoding.")
     return result_line
 
 
-FileCsvType = enum('FileCsvType', 'PATIENT', 'EXAMINATION')
+FileCsvType = enum("FileCsvType", "PATIENT", "EXAMINATION")
 
 
 class AnalyzeReport(object):
-
     def __init__(self, is_empty, is_valid, internal_type):
         self.is_empty = is_empty
         self.is_valid = is_valid
@@ -153,9 +148,10 @@ class AnalyzeReport(object):
 
 class Analyzer(object):
     """
-        Performs the analyze on the content.
-        It should be inherited.
+    Performs the analyze on the content.
+    It should be inherited.
     """
+
     identifier = None
     type = None
 
@@ -165,7 +161,7 @@ class Analyzer(object):
     def is_instance(self):
         if self.content is not None:
             try:
-                self._parse_header(self.content['header'])
+                self._parse_header(self.content["header"])
                 return True
             except ValueError:
                 return False
@@ -183,7 +179,7 @@ class Analyzer(object):
 
 
 class AnalyzerPatientFile(Analyzer):
-    identifier = 'nom de famille'
+    identifier = "nom de famille"
     type = FileCsvType.PATIENT
     field_number = 24
 
@@ -192,7 +188,7 @@ class AnalyzerPatientFile(Analyzer):
 
 
 class AnalyzerExaminationFile(Analyzer):
-    identifier = 'conclusion'
+    identifier = "conclusion"
     type = FileCsvType.EXAMINATION
     field_number = 14
 
@@ -201,10 +197,9 @@ class AnalyzerExaminationFile(Analyzer):
 
 
 class FileContentAdapter(dict):
-
     def __init__(self, ourfile, line_filter=None):
         self.file = ourfile
-        self['content'] = None
+        self["content"] = None
         self.filter = line_filter
         if self.filter is None:
             self.filter = self.passthrough
@@ -213,7 +208,7 @@ class FileContentAdapter(dict):
         return self[attr]
 
     def get_content(self):
-        if self['content'] is None:
+        if self["content"] is None:
             reader = self._get_reader()
             rownum = 0
             header = None
@@ -226,15 +221,15 @@ class FileContentAdapter(dict):
                     content.append([self.filter(c) for c in row])
                 rownum += 1
             self.file.close()
-            self['content'] = content
-            self['nb_row'] = rownum
-            self['header'] = header
+            self["content"] = content
+            self["nb_row"] = rownum
+            self["header"] = header
         return self
 
     def _get_reader(self):
         if not bool(self.file):
             return None
-        f = open(str(self.file.file), mode='r', encoding='utf-8')
+        f = open(str(self.file.file), mode="r", encoding="utf-8")
         logger.info("* Try to guess the dialect on csv")
         csv_buffer = f.read(_CSV_BUFFER_SIZE)
         # Compatibility with python2 and python3
@@ -248,7 +243,6 @@ class FileContentAdapter(dict):
 
 
 class DecodeCsvReader(object):
-
     def __init__(self, underlying_instance, decode_filter):
         self.reader_instance = underlying_instance
         self.filter = decode_filter
@@ -261,7 +255,6 @@ class DecodeCsvReader(object):
 
 
 class FileContentKey(object):
-
     def __init__(self, ourfile, line_filter):
         self.file = ourfile
         self.line_filter = line_filter
@@ -288,7 +281,8 @@ class FileContentProxy(object):
             return self.file_content[key]
         except KeyError:
             self.file_content[key] = FileContentAdapter(
-                ourfile, line_filter).get_content()
+                ourfile, line_filter
+            ).get_content()
             return self.file_content[key]
 
     def unproxy(self, ourfile, line_filter=None):
@@ -319,20 +313,18 @@ class AnalyzerHandler(object):
     def filter(self, line):
         result_line = None
         try:
-            result_line = line.decode('utf-8')
+            result_line = line.decode("utf-8")
         except:
             pass
         if result_line is None:
             try:
-                result_line = line.decode('iso-8859-1')
+                result_line = line.decode("iso-8859-1")
             except:
-                result_line = _(
-                    'Cannot read the content file. Check the encoding.')
+                result_line = _("Cannot read the content file. Check the encoding.")
         return result_line
 
 
 class InvalidIntegrationFile(Exception):
-
     def __init__(self, value):
         self.value = value
 
@@ -341,16 +333,14 @@ class InvalidIntegrationFile(Exception):
 
 
 class IntegratorHandler(object):
-
     def integrate(self, file, file_additional=None, user=None):
         integrator = IntegratorFactory().get_instance(file)
         if integrator is None:
             raise InvalidIntegrationFile(
-                "This file %s is not valid to be integrated." % (file))
+                "This file %s is not valid to be integrated." % (file)
+            )
 
-        result = integrator.integrate(file,
-                                      file_additional=file_additional,
-                                      user=user)
+        result = integrator.integrate(file, file_additional=file_additional, user=user)
         return result
 
     def post_processing(self, files):
@@ -360,7 +350,6 @@ class IntegratorHandler(object):
 
 
 class IntegratorFactory(object):
-
     def __init__(self, serializer_class=None):
         self.extractor = Extractor()
         self.serializer_class = serializer_class
@@ -369,73 +358,78 @@ class IntegratorFactory(object):
         result = self.extractor.analyze_file(file)
         if not result[1]:
             return None
-        if result[0] == 'patient':
+        if result[0] == "patient":
             from .serializers import PatientSerializer
+
             return IntegratorPatient(serializer_class=PatientSerializer)
-        elif result[0] == 'examination':
+        elif result[0] == "examination":
             from .serializers import ExaminationSerializer
-            return IntegratorExamination(
-                serializer_class=ExaminationSerializer)
+
+            return IntegratorExamination(serializer_class=ExaminationSerializer)
 
 
 class FilePatientFactory(object):
-
     def __init__(self):
         from .serializers import PatientSerializer
+
         self.serializer_class = PatientSerializer
 
     def get_serializer(self, row):
         try:
             data = {
-                'family_name': row[1],
-                'original_name': row[2],
-                'first_name': row[3],
-                'birth_date': self.get_date(row[4]),
-                'sex': self.get_sex_value(row[5]),
-                'address_street': row[6],
-                'address_complement': row[7],
-                'address_zipcode': row[8],
-                'address_city': row[9],
-                'email': row[10],
-                'phone': row[11],
-                'mobile_phone': row[12],
-                'job': row[13],
-                'hobbies': row[14],
-                'smoker': self.get_boolean_value(row[15]),
-                'laterality': self.get_laterality_value(row[16]),
-                'important_info': row[17],
-                'current_treatment': row[18],
-                'surgical_history': row[19],
-                'medical_history': row[20],
-                'family_history': row[21],
-                'trauma_history': row[22],
-                'medical_reports': row[23],
-                'creation_date': self.get_default_date(),
-                'consent_check': False
+                "family_name": row[1],
+                "original_name": row[2],
+                "first_name": row[3],
+                "birth_date": self.get_date(row[4]),
+                "sex": self.get_sex_value(row[5]),
+                "address_street": row[6],
+                "address_complement": row[7],
+                "address_zipcode": row[8],
+                "address_city": row[9],
+                "email": row[10],
+                "phone": row[11],
+                "mobile_phone": row[12],
+                "job": row[13],
+                "hobbies": row[14],
+                "smoker": self.get_boolean_value(row[15]),
+                "laterality": self.get_laterality_value(row[16]),
+                "important_info": row[17],
+                "current_treatment": row[18],
+                "surgical_history": row[19],
+                "medical_history": row[20],
+                "family_history": row[21],
+                "trauma_history": row[22],
+                "medical_reports": row[23],
+                "creation_date": self.get_default_date(),
+                "consent_check": False,
             }
             serializer = self.serializer_class(data=data)
         except ValueError as e:
             logger.exception("Exception when creating patient %s ." % row[0])
-            serializer = {'errors': ["%s" % e]}
+            serializer = {"errors": ["%s" % e]}
         except:
             logger.exception("Exception when creating patient %s ." % row[0])
         return serializer
 
     def get_sex_value(self, value):
-        if value.upper() == 'F':
-            return 'F'
+        if value.upper() == "F":
+            return "F"
         else:
-            return 'M'
+            return "M"
 
     def get_laterality_value(self, value):
-        if value.upper() == 'G' or value.upper() == 'L':
-            return 'L'
+        if value.upper() == "G" or value.upper() == "L":
+            return "L"
         else:
-            return 'R'
+            return "R"
 
     def get_boolean_value(self, value):
-        if value.lower() == 'o' or value.lower() == 'oui' or value.lower(
-        ) == 'true' or value.lower() == 't':
+        if (
+            value.lower() == "o"
+            or value.lower() == "oui"
+            or value.lower() == "true"
+            or value.lower() == "t"
+        ):
             return True
         else:
             return False
@@ -449,13 +443,11 @@ class FilePatientFactory(object):
 
 
 class AbstractIntegrator(object):
-
     def integrate(self, file, file_additional=None, user=None):
         pass
 
 
 class IntegratorPatient(AbstractIntegrator):
-
     def __init__(self, serializer_class=None):
         self.extractor = Extractor()
         self.serializer_class = serializer_class
@@ -466,11 +458,11 @@ class IntegratorPatient(AbstractIntegrator):
         errors = []
         factory = FilePatientFactory()
 
-        for idx, r in enumerate(content['content']):
+        for idx, r in enumerate(content["content"]):
             serializer = factory.get_serializer(r)
             try:
-                serializer['errors']
-                errors.append((idx + 2, serializer['errors']))
+                serializer["errors"]
+                errors.append((idx + 2, serializer["errors"]))
             except KeyError:
                 if serializer.is_valid():
                     serializer.save()
@@ -479,14 +471,15 @@ class IntegratorPatient(AbstractIntegrator):
                     # idx + 2 because : we have header and the index start from 0
                     # To have the line number we have to add 2 to the index....
                     errors.append((idx + 2, serializer.errors))
-                    logger.info("errors detected, data is = %s, errors = %s " %
-                                (serializer.initial_data, serializer.errors))
+                    logger.info(
+                        "errors detected, data is = %s, errors = %s "
+                        % (serializer.initial_data, serializer.errors)
+                    )
         logger.info("Dump errors : %s ", errors)
         return (nb_line, errors)
 
 
 class IntegratorExamination(AbstractIntegrator):
-
     def __init__(self, serializer_class=None):
         self.extractor = Extractor()
         self.serializer_class = serializer_class
@@ -494,33 +487,33 @@ class IntegratorExamination(AbstractIntegrator):
 
     def integrate(self, file, file_additional=None, user=None):
         if file_additional is None:
-            return (0, [_('Missing patient file to integrate it.')])
+            return (0, [_("Missing patient file to integrate it.")])
         content = self.extractor.get_content(file)
         nb_line = 0
         errors = []
-        for idx, r in enumerate(content['content']):
+        for idx, r in enumerate(content["content"]):
             logger.info("* Load line %s from content" % idx)
             try:
                 patient = self.get_patient(int(r[0]), file_additional)
                 data = {
-                    'date': self.get_date(r[1], with_time=True),
-                    'reason': r[2],
-                    'reason_description': r[3],
-                    'orl': r[4],
-                    'visceral': r[5],
-                    'pulmo': r[6],
-                    'uro_gyneco': r[7],
-                    'periphery': r[8],
-                    'general_state': r[9],
-                    'medical_examination': r[10],
-                    'diagnosis': r[11],
-                    'treatments': r[12],
-                    'conclusion': r[13],
-                    'patient': patient.id,
-                    'therapeut': user.id,
-                    'type': ExaminationType.NORMAL,
-                    'status': ExaminationStatus.NOT_INVOICED,
-                    'status_reason': u'%s' % _('Imported examination'),
+                    "date": self.get_date(r[1], with_time=True),
+                    "reason": r[2],
+                    "reason_description": r[3],
+                    "orl": r[4],
+                    "visceral": r[5],
+                    "pulmo": r[6],
+                    "uro_gyneco": r[7],
+                    "periphery": r[8],
+                    "general_state": r[9],
+                    "medical_examination": r[10],
+                    "diagnosis": r[11],
+                    "treatments": r[12],
+                    "conclusion": r[13],
+                    "patient": patient.id,
+                    "therapeut": user.id,
+                    "type": ExaminationType.NORMAL,
+                    "status": ExaminationStatus.NOT_INVOICED,
+                    "status_reason": "%s" % _("Imported examination"),
                 }
                 serializer = self.serializer_class(data=data)
                 if serializer.is_valid():
@@ -530,21 +523,35 @@ class IntegratorExamination(AbstractIntegrator):
                     # idx + 2 because : we have header and the index start from 0
                     # To have the line number we have to add 2 to the index....
                     errors.append((idx + 2, serializer.errors))
-                    logger.info("errors detected, data is = %s, errors = %s " %
-                                (data, serializer.errors))
+                    logger.info(
+                        "errors detected, data is = %s, errors = %s "
+                        % (data, serializer.errors)
+                    )
             except ValueError as e:
                 logger.exception("Exception when creating examination.")
-                errors.append((idx + 2, {
-                    'general_problem':
-                    _('There is a problem when reading this line :') +
-                    _unicode(e)
-                }))
+                errors.append(
+                    (
+                        idx + 2,
+                        {
+                            "general_problem": _(
+                                "There is a problem when reading this line :"
+                            )
+                            + _unicode(e)
+                        },
+                    )
+                )
             except:
                 logger.exception("Exception when creating examination.")
-                errors.append((idx + 2, {
-                    'general_problem':
-                    _('There is a problem when reading this line.')
-                }))
+                errors.append(
+                    (
+                        idx + 2,
+                        {
+                            "general_problem": _(
+                                "There is a problem when reading this line."
+                            )
+                        },
+                    )
+                )
         return (nb_line, errors)
 
     def get_date(self, value, with_time=False):
@@ -564,19 +571,18 @@ class IntegratorExamination(AbstractIntegrator):
         content = self.extractor.get_content(file_patient)
         self.patient_table = {}
         factory = FilePatientFactory()
-        for c in content['content']:
+        for c in content["content"]:
             try:
                 serializer = factory.get_serializer(c)
                 # remove validators to get a validated data through filters
                 serializer.validators = []
                 serializer.is_valid()
                 self.patient_table[int(c[0])] = Patient.objects.filter(
-                    family_name=serializer.validated_data['family_name'],
-                    first_name=serializer.validated_data['first_name'],
-                    birth_date=serializer.validated_data['birth_date']).first(
-                    )
+                    family_name=serializer.validated_data["family_name"],
+                    first_name=serializer.validated_data["first_name"],
+                    birth_date=serializer.validated_data["birth_date"],
+                ).first()
 
-                logger.info("found patient %s " %
-                            self.patient_table[int(c[0])])
+                logger.info("found patient %s " % self.patient_table[int(c[0])])
             except:
                 logger.exception("Could not load patient %s" % c[0])

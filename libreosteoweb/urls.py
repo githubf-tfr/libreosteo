@@ -18,6 +18,6 @@ from django.urls import path
 from libreosteoweb.api import displays
 
 urlpatterns = [
-    path(r'/', displays.display_index, name='officesettings-set'),
-    path(r'/', displays.display_index, name='officesettings-reset'),
+    path(r"/", displays.display_index, name="officesettings-set"),
+    path(r"/", displays.display_index, name="officesettings-reset"),
 ]

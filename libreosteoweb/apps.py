@@ -20,19 +20,19 @@ logger = logging.getLogger(__name__)
 
 
 class LibreosteoConfig(AppConfig):
-    name = 'libreosteoweb'
+    name = "libreosteoweb"
     verbose_name = "Libreosteo WebApp"
 
     def ready(self):
         import libreosteoweb.api.receivers
         import libreosteoweb.models as models
+
         file_import_list = models.FileImport.objects.all()
         try:
             for f in file_import_list:
                 f.delete()
         except Exception:
-            logger.debug(
-                "Exception when purging files at starting application")
+            logger.debug("Exception when purging files at starting application")
 
         try:
             nb_office_settings = models.OfficeSettings.objects.all().count()

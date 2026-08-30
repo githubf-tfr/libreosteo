@@ -15,6 +15,7 @@
 # -*- coding: utf-8 -*-
 from django.test import TestCase
 from libreosteoweb.api import file_integrator
+
 try:
     from unittest.mock import mock_open
     from unittest.mock import patch
@@ -28,16 +29,15 @@ except ImportError:
 
 
 class TestFileIntegrator(TestCase):
-
     def setUp(self):
-        self.patcher = patch('libreosteoweb.api.file_integrator.open',
-                             mock_open(),
-                             create=True)
+        self.patcher = patch(
+            "libreosteoweb.api.file_integrator.open", mock_open(), create=True
+        )
         self.patcher.start()
 
     def test_filecontentkey(self):
-        f = 'file'
-        t = 'test'
+        f = "file"
+        t = "test"
         key1 = file_integrator.FileContentKey(f, None)
         key2 = file_integrator.FileContentKey(f, None)
 
@@ -47,8 +47,8 @@ class TestFileIntegrator(TestCase):
 
     def test_file_content_proxy(self):
         f = MagicMock()
-        m = mock_open(read_data='Nom;Prenom;Nom de Famille;')
-        with patch('libreosteoweb.api.file_integrator.open', m):
+        m = mock_open(read_data="Nom;Prenom;Nom de Famille;")
+        with patch("libreosteoweb.api.file_integrator.open", m):
             proxy1 = file_integrator.FileContentProxy()
             proxy2 = file_integrator.FileContentProxy()
 
@@ -59,64 +59,58 @@ class TestFileIntegrator(TestCase):
 
     def test_analyzertype(self):
         content = {}
-        content['header'] = ['nom de famille', 'prenom', 'date de naissance']
-        content['nb_row'] = 1
-        content['content'] = ['test', 'test', 'test']
+        content["header"] = ["nom de famille", "prenom", "date de naissance"]
+        content["nb_row"] = 1
+        content["content"] = ["test", "test", "test"]
 
         a = file_integrator.AnalyzerPatientFile(content)
         self.assertTrue(a.is_instance())
 
     def test_analyze_handler(self):
         handler = file_integrator.AnalyzerHandler()
-        header = u'Numero;Nom de Famille;Nom de jeune fille ou jeune homme;Prenom;Date de naissance (JJ MM AAAA);Sex (M F);Rue;Complement dadresse;code postal;ville;email;Telephone;Mobile;Profession;Loisirs;Fumeur (O/N);Lateralite;Informations importantes;Traitement en cours;Antecedents chirurgicaux;Antecedents medicaux;Antecedents familiaux;Antecedents traumatiques;CR medicaux'
+        header = "Numero;Nom de Famille;Nom de jeune fille ou jeune homme;Prenom;Date de naissance (JJ MM AAAA);Sex (M F);Rue;Complement dadresse;code postal;ville;email;Telephone;Mobile;Profession;Loisirs;Fumeur (O/N);Lateralite;Informations importantes;Traitement en cours;Antecedents chirurgicaux;Antecedents medicaux;Antecedents familiaux;Antecedents traumatiques;CR medicaux"
         f = MagicMock()
         m = mock_open(read_data=header)
-        with patch('libreosteoweb.api.file_integrator.open', m):
+        with patch("libreosteoweb.api.file_integrator.open", m):
             with patch(
-                    'libreosteoweb.api.file_integrator.FileContentAdapter._get_reader',
-                    return_value=[header.split(';')]):
-
+                "libreosteoweb.api.file_integrator.FileContentAdapter._get_reader",
+                return_value=[header.split(";")],
+            ):
                 report = handler.analyze(f)
                 self.assertTrue(report.is_empty)
                 self.assertTrue(report.is_valid)
-                self.assertEqual(file_integrator.FileCsvType.PATIENT,
-                                  report.type)
+                self.assertEqual(file_integrator.FileCsvType.PATIENT, report.type)
 
     def test_analyze_handler_not_empty(self):
         handler = file_integrator.AnalyzerHandler()
 
-        header = u'Numero;Nom de Famille;Nom de jeune fille/ou jeune homme;Prenom;Date de naissance (JJ/MM/AAAA);Sex (M/F);Rue;Complement dadresse;code postal;ville;email;Telephone;Mobile;Profession;Loisirs;Fumeur (O/N);Lateralite;Informations importantes;Traitement en cours;Antecedents chirurgicaux;Antecedents medicaux;Antecedents familiaux;Antecedents traumatiques;CR medicaux'
-        value = u'Test;Test;Test'
+        header = "Numero;Nom de Famille;Nom de jeune fille/ou jeune homme;Prenom;Date de naissance (JJ/MM/AAAA);Sex (M/F);Rue;Complement dadresse;code postal;ville;email;Telephone;Mobile;Profession;Loisirs;Fumeur (O/N);Lateralite;Informations importantes;Traitement en cours;Antecedents chirurgicaux;Antecedents medicaux;Antecedents familiaux;Antecedents traumatiques;CR medicaux"
+        value = "Test;Test;Test"
 
         f = MagicMock()
         m = mock_open(read_data=header)
-        with patch('libreosteoweb.api.file_integrator.open', m):
+        with patch("libreosteoweb.api.file_integrator.open", m):
             with patch(
-                    'libreosteoweb.api.file_integrator.FileContentAdapter._get_reader',
-                    return_value=[header.split(';'),
-                                  value.split(';')]):
-
+                "libreosteoweb.api.file_integrator.FileContentAdapter._get_reader",
+                return_value=[header.split(";"), value.split(";")],
+            ):
                 report = handler.analyze(f)
                 # self.assertFalse(report.is_empty)
                 self.assertTrue(report.is_valid)
-                self.assertEqual(file_integrator.FileCsvType.PATIENT,
-                                  report.type)
+                self.assertEqual(file_integrator.FileCsvType.PATIENT, report.type)
 
     def test_file_content_adapter(self):
-        header = 'Nom;Prenom;Nom de Famille'
+        header = "Nom;Prenom;Nom de Famille"
 
         f = MagicMock()
         m = mock_open(read_data=header)
-        with patch('libreosteoweb.api.file_integrator.open', m):
-
+        with patch("libreosteoweb.api.file_integrator.open", m):
             adapter = file_integrator.FileContentAdapter(f)
-            adapter._get_reader = MagicMock(
-                return_value=iter((header.split(';'), )))
+            adapter._get_reader = MagicMock(return_value=iter((header.split(";"),)))
             result = adapter.get_content()
-            self.assertEqual(1, result['nb_row'])
-            self.assertEqual(['Nom', 'Prenom', 'Nom de Famille'],
-                              result['header'])
-            self.assertEqual([], result['content'])
+            self.assertEqual(1, result["nb_row"])
+            self.assertEqual(["Nom", "Prenom", "Nom de Famille"], result["header"])
+            self.assertEqual([], result["content"])
 
     def tearDown(self):
         pass

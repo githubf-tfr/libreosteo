@@ -29,6 +29,7 @@ def remove_useless_files(directory, keepfiles_list, keepdir_list):
 
 def execute_cmd_context(cmd):
     from subprocess import run
+
     run("activate;" + cmd, shell=True, env=os.environ.copy())
 
 
@@ -56,15 +57,15 @@ def get_zipcodes():
 
 
 def purge_static():
-    purge_dir = ['components']
-    keep_path = ['components/webshim']
+    purge_dir = ["components"]
+    keep_path = ["components/webshim"]
     to_remove_list = []
     # For each dir in purge dir from static :
     # delete each files
-    for root, directories, files in os.walk('static'):
+    for root, directories, files in os.walk("static"):
         for p in purge_dir:
             for d in directories:
-                if root == os.path.join('static', p):
+                if root == os.path.join("static", p):
                     for a in keep_path:
                         if d not in os.path.split(a):
                             shutil.rmtree(os.path.join(root, d))
@@ -75,8 +76,7 @@ def purge_static():
 # usage :
 #     python setup.py build_exe
 #
-if sys.platform in ['win32']:
-
+if sys.platform in ["win32"]:
     # before all of things : collectstatic
     collectstatic()
 
@@ -88,46 +88,55 @@ if sys.platform in ['win32']:
 
     from cx_Freeze import setup, Executable
     import zipfile
+
     # GUI applications require a different base on Windows (the default is for a
     # console application).
-    base = 'Console'
+    base = "Console"
     import os.path
+
     PYTHON_INSTALL_DIR = os.path.dirname(os.path.dirname(os.__file__))
-    os.environ['TCL_LIBRARY'] = os.path.join(PYTHON_INSTALL_DIR, 'tcl',
-                                             'tcl8.6')
-    os.environ['TK_LIBRARY'] = os.path.join(PYTHON_INSTALL_DIR, 'tcl', 'tk8.6')
+    os.environ["TCL_LIBRARY"] = os.path.join(PYTHON_INSTALL_DIR, "tcl", "tcl8.6")
+    os.environ["TK_LIBRARY"] = os.path.join(PYTHON_INSTALL_DIR, "tcl", "tk8.6")
     import compressor
 
     def get_djangolocale():
-        os.environ.setdefault("DJANGO_SETTINGS_MODULE",
-                              "Libreosteo.settings.standalone")
+        os.environ.setdefault(
+            "DJANGO_SETTINGS_MODULE", "Libreosteo.settings.standalone"
+        )
         import django
-        directory = os.path.join(django.__path__[0], 'conf', 'locale')
-        return [(directory, 'django/conf/locale')]
+
+        directory = os.path.join(django.__path__[0], "conf", "locale")
+        return [(directory, "django/conf/locale")]
 
     def add_jaraco_files():
         import jaraco
-        directory = os.path.join(jaraco.__path__[0], 'text')
+
+        directory = os.path.join(jaraco.__path__[0], "text")
         zipf = zipfile.ZipFile(
-            'build/exe.%s-%s/lib/library.zip' %
-            (get_platform_identifier(), sys.winver[0:3]), "a")
-        zipf.write(os.path.join(directory, 'Lorem ipsum.txt'),
-                   os.path.join('jaraco', 'text', 'Lorem ipsum.txt'))
+            "build/exe.%s-%s/lib/library.zip"
+            % (get_platform_identifier(), sys.winver[0:3]),
+            "a",
+        )
+        zipf.write(
+            os.path.join(directory, "Lorem ipsum.txt"),
+            os.path.join("jaraco", "text", "Lorem ipsum.txt"),
+        )
         zipf.close()
 
     def get_platform_identifier():
         platform_identifier = sys.platform
-        if os.environ['PROCESSOR_ARCHITECTURE'].lower() == 'amd64':
-            platform_identifier = 'win-%s' % os.environ[
-                'PROCESSOR_ARCHITECTURE'].lower()
+        if os.environ["PROCESSOR_ARCHITECTURE"].lower() == "amd64":
+            platform_identifier = (
+                "win-%s" % os.environ["PROCESSOR_ARCHITECTURE"].lower()
+            )
         return platform_identifier
 
     def compressor_path(t):
         (c, c1) = t
-        return (c, c1.replace(compressor.__path__[0] + os.sep, ''))
+        return (c, c1.replace(compressor.__path__[0] + os.sep, ""))
 
     def get_compressor_templates():
-        directory = os.path.join(compressor.__path__[0], 'templates')
+        directory = os.path.join(compressor.__path__[0], "templates")
         list_files = get_filepaths(directory)
         return list(map(compressor_path, list_files))
 
@@ -143,7 +152,7 @@ if sys.platform in ['win32']:
         # Walk the tree.
         for root, directories, files in os.walk(directory):
             for filename in files:
-                if pyc_only and not filename.endswith('.pyc'):
+                if pyc_only and not filename.endswith(".pyc"):
                     continue
                 # Join the two strings in order to form the full filepath.
                 filepath = os.path.join(root, filename)
@@ -162,47 +171,71 @@ if sys.platform in ['win32']:
         migration_files = []
         for root, directories, files in os.walk(directory):
             for filename in files:
-                if (filename.endswith('.py')
-                    ) and not (filename.startswith('__')):
+                if (filename.endswith(".py")) and not (filename.startswith("__")):
                     migration_files.append(
-                        directory.replace('/', '.') + '.' +
-                        filename[0:len(filename) - 3])
+                        directory.replace("/", ".")
+                        + "."
+                        + filename[0 : len(filename) - 3]
+                    )
         return migration_files
 
     from cx_Freeze import setup, Executable
+
     copyDependentFiles = True
     includes = [
-        'cherrypy', 'win32serviceutil', 'win32service', 'win32event',
-        'servicemanager', 'win32timezone', 'django.template.loader_tags',
-        'django.core.management', 'Libreosteo', 'Libreosteo.urls',
-        'Libreosteo.settings', 'Libreosteo.wsgi', 'Libreosteo.zip_loader',
-        'libreosteoweb.admin', 'libreosteoweb.middleware',
-        'libreosteoweb.management', 'libreosteoweb.models',
-        'libreosteoweb.search_indexes', 'libreosteoweb.api',
-        'libreosteoweb.apps', 'libreosteoweb.templatetags.invoice_extras',
-        'email.mime.image', "rcssmin", "rjsmin", "jaraco.text"
+        "cherrypy",
+        "win32serviceutil",
+        "win32service",
+        "win32event",
+        "servicemanager",
+        "win32timezone",
+        "django.template.loader_tags",
+        "django.core.management",
+        "Libreosteo",
+        "Libreosteo.urls",
+        "Libreosteo.settings",
+        "Libreosteo.wsgi",
+        "Libreosteo.zip_loader",
+        "libreosteoweb.admin",
+        "libreosteoweb.middleware",
+        "libreosteoweb.management",
+        "libreosteoweb.models",
+        "libreosteoweb.search_indexes",
+        "libreosteoweb.api",
+        "libreosteoweb.apps",
+        "libreosteoweb.templatetags.invoice_extras",
+        "email.mime.image",
+        "rcssmin",
+        "rjsmin",
+        "jaraco.text",
     ]
     migrations = [
-        'libreosteoweb.migrations', "django.contrib.admin.migrations",
+        "libreosteoweb.migrations",
+        "django.contrib.admin.migrations",
         "django.contrib.auth.migrations",
         "django.contrib.contenttypes.migrations",
-        "django.contrib.sessions.migrations"
+        "django.contrib.sessions.migrations",
     ]
 
-    include_files = get_filepaths('media') + get_filepaths('locale') + [
-        ('zipcode_dataset.json', 'zipcode_dataset')
-    ]
-    extra_includes = get_filepaths(
-        'templates') + get_compressor_templates() + get_filepaths('static')
+    include_files = (
+        get_filepaths("media")
+        + get_filepaths("locale")
+        + [("zipcode_dataset.json", "zipcode_dataset")]
+    )
+    extra_includes = (
+        get_filepaths("templates")
+        + get_compressor_templates()
+        + get_filepaths("static")
+    )
     packages = [
         "os",
         "django",
-        #"htmlentitydefs",
-        #"HTMLParser",
-        #"Cookie",
-        'http',
+        # "htmlentitydefs",
+        # "HTMLParser",
+        # "Cookie",
+        "http",
         "gettext",
-        'html',
+        "html",
         "rest_framework",
         "haystack",
         "sqlite3",
@@ -218,47 +251,68 @@ if sys.platform in ['win32']:
         "django.core.management.commands",
         "zipcode_lookup.management.commands",
         "libreosteoweb.management.commands",
-        "protected_media"
+        "protected_media",
     ]
     in_zip_packages = includes + [
-        '_markerlib', 'appconf', 'backports', 'cheroot', 'compiler',
-        'compressor', 'ctypes', 'distutils', 'django_filters', 'email',
-        'encodings', 'haystack', 'importlib', 'json', 'logging',
-        'more_itertools', 'multiprocessing', 'pkg_resources', 'pydoc_data',
-        'rest_framework', 'rest_framework_csv', 'sqlite3', 'sqlparse',
-        'statici18n', 'tempora', 'test', 'unittest', 'whoosh', 'wsgiref'
-        'xml'
+        "_markerlib",
+        "appconf",
+        "backports",
+        "cheroot",
+        "compiler",
+        "compressor",
+        "ctypes",
+        "distutils",
+        "django_filters",
+        "email",
+        "encodings",
+        "haystack",
+        "importlib",
+        "json",
+        "logging",
+        "more_itertools",
+        "multiprocessing",
+        "pkg_resources",
+        "pydoc_data",
+        "rest_framework",
+        "rest_framework_csv",
+        "sqlite3",
+        "sqlparse",
+        "statici18n",
+        "tempora",
+        "test",
+        "unittest",
+        "whoosh",
+        "wsgirefxml",
     ]
     build_exe_options = {
         "packages": packages,
         "includes": includes + migrations,
         "include_files": include_files + extra_includes,
         "zip_includes": extra_includes,
-        "excludes": ['cStringIO', 'tcl', 'Tkinter'],
+        "excludes": ["cStringIO", "tcl", "Tkinter"],
         "no_compress": False,
         "optimize": 2,
         "zip_include_packages": in_zip_packages,
-        "zip_exclude_packages": ['libreosteoweb'],
-        "include_msvcr": True
+        "zip_exclude_packages": ["libreosteoweb"],
+        "include_msvcr": True,
     }
 
-    setup(name="LibreOsteo",
-          version=version,
-          description="LibreOsteo, suite for osteopaths",
-          options={"build_exe": build_exe_options},
-          executables=[
-              Executable("winserver.py",
-                         base=base,
-                         targetName="LibreOsteo.exe"),
-              Executable("manage.py", base=base, targetName="manager.exe"),
-              Executable("application.py",
-                         base=base,
-                         targetName="launcher.exe")
-          ])
+    setup(
+        name="LibreOsteo",
+        version=version,
+        description="LibreOsteo, suite for osteopaths",
+        options={"build_exe": build_exe_options},
+        executables=[
+            Executable("winserver.py", base=base, targetName="LibreOsteo.exe"),
+            Executable("manage.py", base=base, targetName="manager.exe"),
+            Executable("application.py", base=base, targetName="launcher.exe"),
+        ],
+    )
 
     # Create a web shorcut link
-    build_dir = glob.glob('build/exe.%s-%s' %
-                          (get_platform_identifier(), sys.winver[:3]))
+    build_dir = glob.glob(
+        "build/exe.%s-%s" % (get_platform_identifier(), sys.winver[:3])
+    )
     for b in build_dir:
         shortlink = open(b + "/LibreOsteo.url", "w")
         shortlink.write("[InternetShortcut]\n")
@@ -268,17 +322,25 @@ if sys.platform in ['win32']:
 
         ##Remove useless locales
         remove_useless_files(b + "/django/conf/locale", [], ["fr", "en"])
-        remove_useless_files(b + "lib/django/conf/locale", [], ['fr', 'en'])
-        remove_useless_files(b + "/static/components/angular-i18n", [
-            "angular-locale_en.js", "angular-locale_en-us.js",
-            "angular-locale_fr.js", "angular-locale_fr-fr.js"
-        ], [])
+        remove_useless_files(b + "lib/django/conf/locale", [], ["fr", "en"])
+        remove_useless_files(
+            b + "/static/components/angular-i18n",
+            [
+                "angular-locale_en.js",
+                "angular-locale_en-us.js",
+                "angular-locale_fr.js",
+                "angular-locale_fr-fr.js",
+            ],
+            [],
+        )
 
     ## Patch django migration loader
     from patch import patch_django_loader_pyc
+
     print("Platform identifier : %s" % get_platform_identifier())
-    patch_django_loader_pyc('build/exe.%s-%s/' %
-                            (get_platform_identifier(), sys.winver[:3]))
+    patch_django_loader_pyc(
+        "build/exe.%s-%s/" % (get_platform_identifier(), sys.winver[:3])
+    )
 
     # Restore file for jaraco
     add_jaraco_files()
@@ -288,7 +350,7 @@ if sys.platform in ['win32']:
 # Usage:
 #        python setup.py py2app
 
-if sys.platform in ['darwin']:
+if sys.platform in ["darwin"]:
     from setuptools import setup
 
     # before all of things : collectstatic
@@ -298,20 +360,19 @@ if sys.platform in ['darwin']:
 
     compress()
 
-    APP = ['server.py']
+    APP = ["server.py"]
 
     DATA_FILES = [
-        'static',
-        'locale',
+        "static",
+        "locale",
     ]
 
     OPTIONS = {
-        'argv_emulation':
-        True,
-        'includes': [
+        "argv_emulation": True,
+        "includes": [
             #    'HTMLParser',
         ],
-        'packages': [
+        "packages": [
             "django",
             "Libreosteo",
             "libreosteoweb",
@@ -325,32 +386,35 @@ if sys.platform in ['darwin']:
             "django_filters",
             "protected_media",
         ],
-        'plist': {
-            'LSBackgroundOnly': True,
-            'LSUIElement': False,
-            'CFBundleIdentifier': 'org.libreosteo.macos.libreosteo.service',
-            'CFBundleGetInfoString': 'LibreOsteoService',
-            'CFBundleDisplayName': 'LibreOsteoService',
-            'CFBundleName': 'LibreOsteoService',
-            'CFBundleShortVersionString': version,
-            'CFBundleVersion': version,
+        "plist": {
+            "LSBackgroundOnly": True,
+            "LSUIElement": False,
+            "CFBundleIdentifier": "org.libreosteo.macos.libreosteo.service",
+            "CFBundleGetInfoString": "LibreOsteoService",
+            "CFBundleDisplayName": "LibreOsteoService",
+            "CFBundleName": "LibreOsteoService",
+            "CFBundleShortVersionString": version,
+            "CFBundleVersion": version,
         },
-        'extra_scripts': ['application.py', 'manage.py'],
-        'optimize':
-        True,
-        'iconfile':
-        'libreosteoweb/static/images/favicon.icns',
+        "extra_scripts": ["application.py", "manage.py"],
+        "optimize": True,
+        "iconfile": "libreosteoweb/static/images/favicon.icns",
     }
     setup(
         app=APP,
         data_files=DATA_FILES,
-        options={'py2app': OPTIONS},
-        setup_requires=['py2app'],
+        options={"py2app": OPTIONS},
+        setup_requires=["py2app"],
     )
     remove_useless_files(
-        "build/exe.win32-2.7/static/bower_components/angular-i18n", [
-            "angular-locale_en.js", "angular-locale_en-us.js",
-            "angular-locale_fr.js", "angular-locale_fr-fr.js"
-        ], [])
-elif sys.platform not in ['win32']:
+        "build/exe.win32-2.7/static/bower_components/angular-i18n",
+        [
+            "angular-locale_en.js",
+            "angular-locale_en-us.js",
+            "angular-locale_fr.js",
+            "angular-locale_fr-fr.js",
+        ],
+        [],
+    )
+elif sys.platform not in ["win32"]:
     print("Nothing to do")

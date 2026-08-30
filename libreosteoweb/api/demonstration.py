@@ -18,18 +18,19 @@ from datetime import datetime
 
 
 def get_demonstration_file():
-    demonstration_file = models.Document.objects.filter(
-        title="demonstration").first()
+    demonstration_file = models.Document.objects.filter(title="demonstration").first()
     if demonstration_file is None:
         document_file = models.Document(
             title="demonstration",
             notes="This is a demonstration attached file",
-            internal_date=datetime.today())
+            internal_date=datetime.today(),
+        )
         document_file.document_file.save(
-            'demonstration.txt',
+            "demonstration.txt",
             ContentFile(
                 "For security purpose, no document could be uploaded on this demonstration instance"
-            ))
+            ),
+        )
         document_file.clean()
         document_file.save()
         demonstration_file = document_file

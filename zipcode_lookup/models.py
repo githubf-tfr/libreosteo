@@ -2,9 +2,10 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 validate_french_zipcode = RegexValidator(
-    regex='\d{5}',
-    message='Does not look like a french zipcode',
+    regex="\d{5}",
+    message="Does not look like a french zipcode",
 )
+
 
 class ZipcodeMapping(models.Model):
     zipcode = models.CharField(

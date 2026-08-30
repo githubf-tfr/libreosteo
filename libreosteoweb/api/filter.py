@@ -87,9 +87,8 @@ class CapitalizeNameFilter(AbstractFilter):
     def filter(self, text=None):
         filtered_text = text
         if filtered_text:
-            text_list = filtered_text.split(' ')
-            filtered_text = ' '.join(
-                [self._capitalize_word(t) for t in text_list])
+            text_list = filtered_text.split(" ")
+            filtered_text = " ".join([self._capitalize_word(t) for t in text_list])
         return super(CapitalizeNameFilter, self).filter(filtered_text)
 
     def _capitalize_word(self, word=None):
@@ -105,9 +104,8 @@ class CapitalizeJoinNameFilter(CapitalizeNameFilter):
     def filter(self, text=None):
         filtered_text = text
         if filtered_text:
-            text_list = filtered_text.split(' ')
-            filtered_text = '-'.join(
-                [self._capitalize_word(t) for t in text_list])
+            text_list = filtered_text.split(" ")
+            filtered_text = "-".join([self._capitalize_word(t) for t in text_list])
         return super(CapitalizeJoinNameFilter, self).filter(filtered_text)
 
 
@@ -118,9 +116,8 @@ class CapitalizeComposedNameFilter(CapitalizeJoinNameFilter):
     def filter(self, text=None):
         filtered_text = text
         if filtered_text:
-            text_list = filtered_text.split('-')
-            filtered_text = '-'.join(
-                [self._capitalize_word(t) for t in text_list])
+            text_list = filtered_text.split("-")
+            filtered_text = "-".join([self._capitalize_word(t) for t in text_list])
         return super(CapitalizeComposedNameFilter, self).filter(filtered_text)
 
 

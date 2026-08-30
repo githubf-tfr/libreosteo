@@ -21,15 +21,14 @@ import sys
 import logging
 import os, os.path
 
-if sys.argv[0].endswith('.exe') or not sys.argv[0].endswith('.py'):
-    setattr(sys, 'frozen', True)
+if sys.argv[0].endswith(".exe") or not sys.argv[0].endswith(".py"):
+    setattr(sys, "frozen", True)
 
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     # frozen
     dir = os.path.dirname(sys.executable)
     sys.path.append(dir)
-    os.environ['PATH'] = (os.environ['PATH'] + ";").join(p + ";"
-                                                         for p in sys.path)
+    os.environ["PATH"] = (os.environ["PATH"] + ";").join(p + ";" for p in sys.path)
 
 # Win32 service imports
 import win32serviceutil
@@ -43,12 +42,13 @@ import server
 
 rootLogger = logging.getLogger(__name__)
 
+
 class LibreosteoService(win32serviceutil.ServiceFramework):
     """Libreosteo NT Service."""
 
     _svc_name_ = "LibreosteoService"
     _svc_display_name_ = "Libreosteo Service"
-    _exe_name_ = 'LibreOsteo.exe'
+    _exe_name_ = "LibreOsteo.exe"
 
     def log(self, msg):
         servicemanager.LogInfoMsg(str(msg))
@@ -67,37 +67,36 @@ class LibreosteoService(win32serviceutil.ServiceFramework):
             # it, as you can't be assured what path your service
             # will run in.
             self.log("Configure the server")
-            cherrypy.config.update({
-                'global': {
-                    'log.screen':
-                    False,
-                    'engine.autoreload.on':
-                    False,
-                    'engine.SIGHUP':
-                    None,
-                    'engine.SIGTERM':
-                    None,
-                    'log.error_file':
-                    os.path.join(_srvr.base_dir, 'libreosteo_error.log'),
-                    'tools.log_tracebacks.on':
-                    True,
-                    'log.access_file':
-                    os.path.join(_srvr.base_dir, 'libreosteo_access.log'),
-                    'server.socket_port':
-                    config["server_port"],
-                    'server.socket_host':
-                    '0.0.0.0',
+            cherrypy.config.update(
+                {
+                    "global": {
+                        "log.screen": False,
+                        "engine.autoreload.on": False,
+                        "engine.SIGHUP": None,
+                        "engine.SIGTERM": None,
+                        "log.error_file": os.path.join(
+                            _srvr.base_dir, "libreosteo_error.log"
+                        ),
+                        "tools.log_tracebacks.on": True,
+                        "log.access_file": os.path.join(
+                            _srvr.base_dir, "libreosteo_access.log"
+                        ),
+                        "server.socket_port": config["server_port"],
+                        "server.socket_host": "0.0.0.0",
+                    }
                 }
-            })
+            )
             self.ReportServiceStatus(win32service.SERVICE_RUNNING)
-            servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
-                                  servicemanager.PYS_SERVICE_STARTED,
-                                  (self._svc_name_, ''))
+            servicemanager.LogMsg(
+                servicemanager.EVENTLOG_INFORMATION_TYPE,
+                servicemanager.PYS_SERVICE_STARTED,
+                (self._svc_name_, ""),
+            )
             self.log("Run the service Libreosteo")
             _srvr.run()
         except Exception as e:
             s = str(e)
-            self.log('Exception : %s' % s)
+            self.log("Exception : %s" % s)
             self.SvcStop()
 
     def SvcStop(self):
@@ -111,113 +110,95 @@ class LibreosteoService(win32serviceutil.ServiceFramework):
         self.log("Service stopped")
 
 
-if __name__ == '__main__':
-    if getattr(sys, 'frozen', False):
+if __name__ == "__main__":
+    if getattr(sys, "frozen", False):
         # frozen
         DATA_FOLDER = os.path.dirname(sys.executable)
     else:
         # unfrozen
         DATA_FOLDER = os.path.dirname(os.path.realpath(__file__))
     LOG_CONF = {
-        'version': 1,
-        'formatters': {
-            'void': {
-                'format': ''
+        "version": 1,
+        "formatters": {
+            "void": {"format": ""},
+            "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
+        },
+        "handlers": {
+            "default": {
+                "level": "INFO",
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "standard",
+                "filename": os.path.join(DATA_FOLDER, "default.log"),
+                "maxBytes": 10485760,
+                "backupCount": 20,
+                "encoding": "utf8",
             },
-            'standard': {
-                'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+            "cherrypy_console": {
+                "level": "INFO",
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "standard",
+                "filename": os.path.join(DATA_FOLDER, "console.log"),
+                "maxBytes": 10485760,
+                "backupCount": 20,
+                "encoding": "utf8",
+            },
+            "cherrypy_access": {
+                "level": "INFO",
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "standard",
+                "filename": os.path.join(DATA_FOLDER, "access.log"),
+                "maxBytes": 10485760,
+                "backupCount": 20,
+                "encoding": "utf8",
+            },
+            "cherrypy_error": {
+                "level": "INFO",
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "standard",
+                "filename": os.path.join(DATA_FOLDER, "errors.log"),
+                "maxBytes": 10485760,
+                "backupCount": 20,
+                "encoding": "utf8",
             },
         },
-        'handlers': {
-            'default': {
-                'level': 'INFO',
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'standard',
-                'filename': os.path.join(DATA_FOLDER, 'default.log'),
-                'maxBytes': 10485760,
-                'backupCount': 20,
-                'encoding': 'utf8'
+        "loggers": {
+            "django.utils.translation": {"handlers": ["default"], "level": "INFO"},
+            "": {"handlers": ["default"], "level": "INFO"},
+            "root": {"handlers": ["default"], "level": "INFO"},
+            "db": {"handlers": ["default"], "level": "INFO", "propagate": True},
+            "cherrypy.access": {
+                "handlers": ["cherrypy_access"],
+                "level": "INFO",
+                "propagate": True,
             },
-            'cherrypy_console': {
-                'level': 'INFO',
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'standard',
-                'filename': os.path.join(DATA_FOLDER, 'console.log'),
-                'maxBytes': 10485760,
-                'backupCount': 20,
-                'encoding': 'utf8'
+            "cherrypy.error": {
+                "handlers": ["cherrypy_console", "cherrypy_error"],
+                "level": "INFO",
+                "propagate": True,
             },
-            'cherrypy_access': {
-                'level': 'INFO',
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'standard',
-                'filename': os.path.join(DATA_FOLDER, 'access.log'),
-                'maxBytes': 10485760,
-                'backupCount': 20,
-                'encoding': 'utf8'
+            "libreosteoweb.api": {
+                "handlers": ["cherrypy_console", "default"],
+                "level": "INFO",
+                "propagate": True,
             },
-            'cherrypy_error': {
-                'level': 'INFO',
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'standard',
-                'filename': os.path.join(DATA_FOLDER, 'errors.log'),
-                'maxBytes': 10485760,
-                'backupCount': 20,
-                'encoding': 'utf8'
+            "libreosteo": {
+                "handlers": ["cherrypy_console", "default"],
+                "level": "INFO",
+                "propagate": True,
+            },
+            "Libreosteo": {
+                "handlers": ["cherrypy_console", "default"],
+                "level": "INFO",
+                "propagate": True,
             },
         },
-        'loggers': {
-            'django.utils.translation': {
-                'handlers': ['default'],
-                'level': 'INFO'
-            },
-            '': {
-                'handlers': ['default'],
-                'level': 'INFO'
-            },
-            'root': {
-                'handlers': ['default'],
-                'level': 'INFO'
-            },
-            'db': {
-                'handlers': ['default'],
-                'level': 'INFO',
-                'propagate': True
-            },
-            'cherrypy.access': {
-                'handlers': ['cherrypy_access'],
-                'level': 'INFO',
-                'propagate': True
-            },
-            'cherrypy.error': {
-                'handlers': ['cherrypy_console', 'cherrypy_error'],
-                'level': 'INFO',
-                'propagate': True
-            },
-            'libreosteoweb.api': {
-                'handlers': ['cherrypy_console', 'default'],
-                'level': 'INFO',
-                'propagate': True
-            },
-            'libreosteo': {
-                'handlers': ['cherrypy_console', 'default'],
-                'level': 'INFO',
-                'propagate': True
-            },
-            'Libreosteo': {
-                'handlers': ['cherrypy_console', 'default'],
-                'level': 'INFO',
-                'propagate': True
-            },
-        }
     }
 
     logging.config.dictConfig(LOG_CONF)
     os.chdir(DATA_FOLDER)
     logging.info(os.getcwd())
     logger = logging.getLogger(__name__)
-    logger.info("Frozen with attribute value %s" %
-                (getattr(sys, 'frozen', False)))
+    logger.info("Frozen with attribute value %s" % (getattr(sys, "frozen", False)))
     if len(sys.argv) == 1:
         logging.info("Start service")
         logging.info("Handle starting of the service")

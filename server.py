@@ -37,18 +37,20 @@ logger = logging.getLogger(__name__)
 def configure():
     server_config = {"server_port": 8085, "max_size": 500}
     config = configparser.ConfigParser()
-    config_file = os.path.join(settings.DATA_FOLDER, 'server.cfg')
+    config_file = os.path.join(settings.DATA_FOLDER, "server.cfg")
     logging.info("Read configuration from %s" % config_file)
     config.read(config_file)
     logging.info("config sections = %s" % config.sections())
-    if 'server' in config and 'port' in config['server']:
+    if "server" in config and "port" in config["server"]:
         logging.info("port option was found")
-        server_config["server_port"] = int(config['server']['port'])
-    if 'server' in config and 'max_size' in config['server']:
+        server_config["server_port"] = int(config["server"]["port"])
+    if "server" in config and "max_size" in config["server"]:
         logging.info("max_size option was found")
-        server_config["max_size"] = int(config['server']['max_size'])
-    logging.info("SERVER_PORT = %s, MAX_SIZE = %s" %
-                 (server_config["server_port"], server_config["max_size"]))
+        server_config["max_size"] = int(config["server"]["max_size"])
+    logging.info(
+        "SERVER_PORT = %s, MAX_SIZE = %s"
+        % (server_config["server_port"], server_config["max_size"])
+    )
     return server_config
 
 
@@ -59,11 +61,11 @@ def _exit(self):
         self.stop()
 
         self.state = states.EXITING
-        self.log('Bus EXITING')
-        self.publish('exit')
+        self.log("Bus EXITING")
+        self.publish("exit")
         # This isn't strictly necessary, but it's better than seeing
         # "Waiting for child threads to terminate..." and then nothing.
-        self.log('Bus EXITED')
+        self.log("Bus EXITED")
     except:
         # This method is often called asynchronously (whether thread,
         # signal handler, console handler, or atexit handler), so we
@@ -88,8 +90,8 @@ class Server(object):
         self.server_config = server_config
         self.base_dir = os.path.abspath(os.getcwd())
 
-        #conf_path = os.path.join(self.base_dir, ".", "server.cfg")
-        #cherrypy.config.update(conf_path)
+        # conf_path = os.path.join(self.base_dir, ".", "server.cfg")
+        # cherrypy.config.update(conf_path)
 
         # This registers a plugin to handle the Django app
         # with the CherryPy engine, meaning the app will
@@ -98,15 +100,19 @@ class Server(object):
 
     def run(self, callback=None):
         engine = cherrypy.engine
-        cherrypy.config.update({'server.socket_host': '0.0.0.0'})
+        cherrypy.config.update({"server.socket_host": "0.0.0.0"})
         cherrypy.config.update(
-            {'server.socket_port': self.server_config["server_port"]})
-        cherrypy.config.update({'server.socket_timeout': 600})
-        cherrypy.config.update({'response.timeout': 3600})
-        cherrypy.config.update({
-            'server.max_request_body_size':
-            self.server_config["max_size"] * 1024 * 1024
-        })
+            {"server.socket_port": self.server_config["server_port"]}
+        )
+        cherrypy.config.update({"server.socket_timeout": 600})
+        cherrypy.config.update({"response.timeout": 3600})
+        cherrypy.config.update(
+            {
+                "server.max_request_body_size": self.server_config["max_size"]
+                * 1024
+                * 1024
+            }
+        )
 
         engine.signal_handler.subscribe()
 
@@ -139,10 +145,10 @@ class DjangoAppPlugin(plugins.SimplePlugin):
 
         # Well this isn't quite as clean as I'd like so
         # feel free to suggest something more appropriate
-        #from Libreosteo.settings import *
-        #app_settings = locals().copy()
-        #del app_settings['self']
-        #settings.configure(**app_settings)
+        # from Libreosteo.settings import *
+        # app_settings = locals().copy()
+        # del app_settings['self']
+        # settings.configure(**app_settings)
 
         self.bus.log("Mounting the Django application")
         cherrypy.tree.graft(HTTPLogger(application), "/")
@@ -150,16 +156,15 @@ class DjangoAppPlugin(plugins.SimplePlugin):
         self.bus.log("Setting up the static directory to be served")
         # We server static files through CherryPy directly
         # bypassing entirely Django
-        static_handler = cherrypy.tools.staticdir.handler(section="/",
-                                                          dir="static",
-                                                          root=self.base_dir)
-        cherrypy.tree.mount(static_handler, '/static')
+        static_handler = cherrypy.tools.staticdir.handler(
+            section="/", dir="static", root=self.base_dir
+        )
+        cherrypy.tree.mount(static_handler, "/static")
 
 
 class HTTPLogger(_cplogging.LogManager):
     def __init__(self, app):
-        _cplogging.LogManager.__init__(self, id(self),
-                                       cherrypy.log.logger_root)
+        _cplogging.LogManager.__init__(self, id(self), cherrypy.log.logger_root)
         self.app = app
 
     def __call__(self, environ, start_response):
@@ -182,35 +187,30 @@ class HTTPLogger(_cplogging.LogManager):
         log format. This is mostly taken from CherryPy and adapted
         to the WSGI's style of passing information.
         """
-        if hasattr(response, 'streaming_content'):
+        if hasattr(response, "streaming_content"):
             resp_len = 0
         else:
             resp_len = len(response.content)
         atoms = {
-            'h':
-            environ.get('REMOTE_ADDR', ''),
-            'l':
-            '-',
-            'u':
-            "-",
-            't':
-            self.time(),
-            'r':
-            "%s %s %s" % (environ['REQUEST_METHOD'], environ['REQUEST_URI'],
-                          environ['SERVER_PROTOCOL']),
-            's':
-            response.status_code,
-            'b':
-            str(resp_len),
-            'f':
-            environ.get('HTTP_REFERER', ''),
-            'a':
-            environ.get('HTTP_USER_AGENT', ''),
+            "h": environ.get("REMOTE_ADDR", ""),
+            "l": "-",
+            "u": "-",
+            "t": self.time(),
+            "r": "%s %s %s"
+            % (
+                environ["REQUEST_METHOD"],
+                environ["REQUEST_URI"],
+                environ["SERVER_PROTOCOL"],
+            ),
+            "s": response.status_code,
+            "b": str(resp_len),
+            "f": environ.get("HTTP_REFERER", ""),
+            "a": environ.get("HTTP_USER_AGENT", ""),
         }
         for k, v in atoms.items():
             try:
                 if isinstance(v, unicode):
-                    v = v.encode('utf8')
+                    v = v.encode("utf8")
             except NameError:
                 pass
             if not isinstance(v, str):
@@ -221,118 +221,107 @@ class HTTPLogger(_cplogging.LogManager):
             # Escape double-quote.
             atoms[k] = v.replace('"', '\\"')
         try:
-            self.access_log.log(logging.INFO,
-                                self.access_log_format.format(**atoms))
+            self.access_log.log(logging.INFO, self.access_log_format.format(**atoms))
         except:
             self.error(traceback=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if "__file__":
         DATA_FOLDER = os.path.dirname("__file__")
     else:
         DATA_FOLDER = os.path.dirname(sys.argv[0])
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         SITE_ROOT = os.path.split(
             os.path.split(
-                os.path.split(os.path.dirname(
-                    os.path.realpath("__file__")))[0])[0])[0]
+                os.path.split(os.path.dirname(os.path.realpath("__file__")))[0]
+            )[0]
+        )[0]
         DATA_FOLDER = SITE_ROOT
-        if (getattr(sys, 'frozen', False) == 'macosx_app'):
+        if getattr(sys, "frozen", False) == "macosx_app":
             DATA_FOLDER = os.path.join(
-                os.path.join(os.path.join(os.environ['HOME'], 'Library'),
-                             'Application Support'), 'Libreosteo')
+                os.path.join(
+                    os.path.join(os.environ["HOME"], "Library"), "Application Support"
+                ),
+                "Libreosteo",
+            )
             SITE_ROOT = os.path.split(SITE_ROOT)[0]
             if not os.path.exists(DATA_FOLDER):
                 os.makedirs(DATA_FOLDER)
     LOG_CONF = {
-        'version': 1,
-        'formatters': {
-            'void': {
-                'format': ''
+        "version": 1,
+        "formatters": {
+            "void": {"format": ""},
+            "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
+        },
+        "handlers": {
+            "default": {
+                "level": "INFO",
+                "class": "logging.StreamHandler",
+                "formatter": "standard",
+                "stream": "ext://sys.stdout",
             },
-            'standard': {
-                'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+            "cherrypy_console": {
+                "level": "INFO",
+                "class": "logging.StreamHandler",
+                "formatter": "void",
+                "stream": "ext://sys.stdout",
+            },
+            "cherrypy_access": {
+                "level": "INFO",
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "void",
+                "filename": os.path.join(DATA_FOLDER, "access.log"),
+                "maxBytes": 10485760,
+                "backupCount": 20,
+                "encoding": "utf8",
+            },
+            "cherrypy_error": {
+                "level": "INFO",
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "void",
+                "filename": os.path.join(DATA_FOLDER, "errors.log"),
+                "maxBytes": 10485760,
+                "backupCount": 20,
+                "encoding": "utf8",
+            },
+            "console": {
+                "level": "INFO",
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "standard",
+                "filename": os.path.join(DATA_FOLDER, "console.log"),
+                "maxBytes": 10485760,
+                "backupCount": 20,
+                "encoding": "utf8",
             },
         },
-        'handlers': {
-            'default': {
-                'level': 'INFO',
-                'class': 'logging.StreamHandler',
-                'formatter': 'standard',
-                'stream': 'ext://sys.stdout'
+        "loggers": {
+            "": {"handlers": ["console"], "level": "INFO"},
+            "db": {"handlers": ["console"], "level": "INFO", "propagate": True},
+            "django": {"handlers": ["console"], "level": "INFO", "propagate": True},
+            "rest_framework": {
+                "handlers": ["console"],
+                "level": "INFO",
+                "propagate": True,
             },
-            'cherrypy_console': {
-                'level': 'INFO',
-                'class': 'logging.StreamHandler',
-                'formatter': 'void',
-                'stream': 'ext://sys.stdout'
+            "cherrypy.access": {
+                "handlers": ["cherrypy_access"],
+                "level": "INFO",
+                "propagate": False,
             },
-            'cherrypy_access': {
-                'level': 'INFO',
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'void',
-                'filename': os.path.join(DATA_FOLDER, 'access.log'),
-                'maxBytes': 10485760,
-                'backupCount': 20,
-                'encoding': 'utf8'
-            },
-            'cherrypy_error': {
-                'level': 'INFO',
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'void',
-                'filename': os.path.join(DATA_FOLDER, 'errors.log'),
-                'maxBytes': 10485760,
-                'backupCount': 20,
-                'encoding': 'utf8'
-            },
-            'console': {
-                'level': 'INFO',
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'standard',
-                'filename': os.path.join(DATA_FOLDER, 'console.log'),
-                'maxBytes': 10485760,
-                'backupCount': 20,
-                'encoding': 'utf8'
+            "cherrypy.error": {
+                "handlers": ["cherrypy_console", "cherrypy_error"],
+                "level": "INFO",
+                "propagate": False,
             },
         },
-        'loggers': {
-            '': {
-                'handlers': ['console'],
-                'level': 'INFO'
-            },
-            'db': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': True
-            },
-            'django': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': True
-            },
-            'rest_framework': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': True
-            },
-            'cherrypy.access': {
-                'handlers': ['cherrypy_access'],
-                'level': 'INFO',
-                'propagate': False
-            },
-            'cherrypy.error': {
-                'handlers': ['cherrypy_console', 'cherrypy_error'],
-                'level': 'INFO',
-                'propagate': False
-            },
-        }
     }
 
     logging.config.dictConfig(LOG_CONF)
     server_config = configure()
     import socket
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex(('127.0.0.1', server_config["server_port"]))
+    result = sock.connect_ex(("127.0.0.1", server_config["server_port"]))
     if result != 0:
         Server(server_config).run()

@@ -24,8 +24,9 @@ class UniqueTogetherIgnoreCaseValidator(UniqueTogetherValidator):
     requires_context = True
 
     def __init__(self, queryset, fields, message=None, ignore_case=False):
-        super(UniqueTogetherIgnoreCaseValidator,
-              self).__init__(queryset, fields, message)
+        super(UniqueTogetherIgnoreCaseValidator, self).__init__(
+            queryset, fields, message
+        )
         self.ignore_case = ignore_case
 
     def filter_queryset(self, attrs, queryset, serializer):
@@ -37,14 +38,12 @@ class UniqueTogetherIgnoreCaseValidator(UniqueTogetherValidator):
         if serializer.instance is not None:
             for field_name in self.fields:
                 if field_name not in attrs:
-                    attrs[field_name] = getattr(serializer.instance,
-                                                field_name)
+                    attrs[field_name] = getattr(serializer.instance, field_name)
         # Determine the filter keyword arguments and filter the queryset.
         filter_kwargs = {}
         for field_name in self.fields:
             if self.__is_str(attrs[field_name]):
-                filter_kwargs[field_name +
-                              '__iexact'] = attrs[field_name].lower()
+                filter_kwargs[field_name + "__iexact"] = attrs[field_name].lower()
             else:
                 filter_kwargs[field_name] = attrs[field_name]
         return queryset.filter(**filter_kwargs)
@@ -53,17 +52,17 @@ class UniqueTogetherIgnoreCaseValidator(UniqueTogetherValidator):
         self.enforce_required_fields(attrs, serializer)
         queryset = self.queryset
         queryset = self.filter_queryset(attrs, queryset, serializer)
-        queryset = self.exclude_current_instance(attrs, queryset,
-                                                 serializer.instance)
+        queryset = self.exclude_current_instance(attrs, queryset, serializer.instance)
 
         # Ignore validation if any field is None
         checked_values = [
             value.lower() if (self.__is_str(value)) else value
-            for field, value in attrs.items() if field in self.fields
+            for field, value in attrs.items()
+            if field in self.fields
         ]
 
         if None not in checked_values and queryset.exists():
-            field_names = ', '.join(self.fields)
+            field_names = ", ".join(self.fields)
             raise ValidationError(self.message.format(field_names=field_names))
 
     def __is_str(self, value):

@@ -21,9 +21,9 @@ import logging
 
 logger = logging.getLogger("patch")
 
+
 def wr_long(f, x):
-    f.write(
-        bytes([x & 0xff, (x >> 8) & 0xff, (x >> 16) & 0xff, (x >> 24) & 0xff]))
+    f.write(bytes([x & 0xFF, (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF]))
 
 
 def patch_file(module_name, file_name, patch_function, path_prefix):
@@ -34,23 +34,24 @@ def patch_file(module_name, file_name, patch_function, path_prefix):
     import glob, struct
     import builtins
     import importlib
+
     loader = pkgutil.get_loader(module_name)
     loader_file = glob.glob(path_prefix + file_name)[0]
     if sys.version_info.major >= 3:
         source = patch_function(loader.get_source(module_name))
         source_stats = loader.path_stats(loader.path)
-        code = loader.source_to_code(source, '<string>')
+        code = loader.source_to_code(source, "<string>")
         bytecode = importlib._bootstrap_external._code_to_timestamp_pyc(
-            code, source_stats['mtime'], source_stats['size'])
+            code, source_stats["mtime"], source_stats["size"]
+        )
         mode = importlib._bootstrap_external._calc_mode(loader.path)
         importlib._bootstrap_external._write_atomic(loader_file, bytecode)
     else:
-        code = compile(patch_function(loader.get_source()), "<string>",
-                       "<exec>")
+        code = compile(patch_function(loader.get_source()), "<string>", "<exec>")
         timestamp = time.time()
         try:
-            f = open(loader_file, 'wb')
-            f.write(b'\0\0\0\0')
+            f = open(loader_file, "wb")
+            f.write(b"\0\0\0\0")
             wr_long(f, timestamp)
             marshal.dump(code, f)
             f.flush()
@@ -62,6 +63,9 @@ def patch_file(module_name, file_name, patch_function, path_prefix):
 
 
 def patch_django_loader_pyc(path_prefix):
-    patch_file('django.db.migrations.loader',
-               'lib/django/db/migrations/loader.pyc', lambda src: src.replace(
-                   '".py"', '".pyc"'), path_prefix)
+    patch_file(
+        "django.db.migrations.loader",
+        "lib/django/db/migrations/loader.pyc",
+        lambda src: src.replace('".py"', '".pyc"'),
+        path_prefix,
+    )

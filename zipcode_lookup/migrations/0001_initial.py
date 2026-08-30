@@ -7,19 +7,37 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='ZipcodeMapping',
+            name="ZipcodeMapping",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('zipcode', models.CharField(db_index=True, max_length=5, validators=[django.core.validators.RegexValidator(message='Does not look like a french zipcode', regex='\\d{5}')])),
-                ('city', models.CharField(db_index=True, max_length=60)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "zipcode",
+                    models.CharField(
+                        db_index=True,
+                        max_length=5,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                message="Does not look like a french zipcode",
+                                regex="\\d{5}",
+                            )
+                        ],
+                    ),
+                ),
+                ("city", models.CharField(db_index=True, max_length=60)),
             ],
         ),
     ]

@@ -12,5 +12,5 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-default_app_config = 'libreosteoweb.apps.LibreosteoConfig'
-__version__ = '0.6.9.dev0'
+default_app_config = "libreosteoweb.apps.LibreosteoConfig"
+__version__ = "0.6.9.dev0"

@@ -13,7 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 from django.db import OperationalError
-from django.http import HttpResponseRedirect, HttpResponseNotFound, Http404, HttpResponseForbidden
+from django.http import (
+    HttpResponseRedirect,
+    HttpResponseNotFound,
+    Http404,
+    HttpResponseForbidden,
+)
 from rest_framework import permissions
 from django.contrib.auth import get_user_model
 from django.utils.decorators import method_decorator
@@ -35,17 +40,18 @@ class IsStaffOrReadOnlyTargetUser(permissions.BasePermission):
         if request.user.is_staff:
             return True
         try:
-            return getattr(obj, 'user') == request.user
+            return getattr(obj, "user") == request.user
         except AttributeError:
             return obj == request.user
 
 
 class IsDataAccessAllowed(permissions.BasePermission):
     def has_permission(self, request, view):
-        if view.action == 'list' and request.user.has_perm(
-                'libreosteoweb.patient.data_dump'):
+        if view.action == "list" and request.user.has_perm(
+            "libreosteoweb.patient.data_dump"
+        ):
             return True
-        if view.action != 'list' and request.user:
+        if view.action != "list" and request.user:
             return True
         return False
 
@@ -53,17 +59,20 @@ class IsDataAccessAllowed(permissions.BasePermission):
 class IsStaffOrTargetUserFactory(object):
     @staticmethod
     def additional_methods(methods_list):
-        return type('IsStaffOrTargetUser', (IsStaffOrTargetUser, ),
-                    {'extra_actions': methods_list})
+        return type(
+            "IsStaffOrTargetUser",
+            (IsStaffOrTargetUser,),
+            {"extra_actions": methods_list},
+        )
 
 
 class IsStaffOrTargetUser(permissions.BasePermission):
     all_user_actions = [
-        'create',
-        'retrieve',
-        'partial_update',
-        'update',
-        'get_by_user',
+        "create",
+        "retrieve",
+        "partial_update",
+        "update",
+        "get_by_user",
     ]
 
     extra_actions = []
@@ -73,8 +82,7 @@ class IsStaffOrTargetUser(permissions.BasePermission):
 
     def has_permission(self, request, view):
         # allow user to list all users if logged in user is staff
-        return (
-            view.action in self.permitted_actions()) or request.user.is_staff
+        return (view.action in self.permitted_actions()) or request.user.is_staff
 
     def has_object_permission(self, request, view, obj):
         # allow logged in user to view own details, allows staff to view all records
@@ -82,7 +90,7 @@ class IsStaffOrTargetUser(permissions.BasePermission):
             return True
 
         try:
-            return getattr(obj, 'user') == request.user
+            return getattr(obj, "user") == request.user
         except AttributeError:
             return obj == request.user
 
@@ -120,6 +128,5 @@ class StaffRequiredMixin(object):
     @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_staff:
-            return HttpResponseRedirect(reverse('login'))
-        return super(StaffRequiredMixin,
-                     self).dispatch(request, *args, **kwargs)
+            return HttpResponseRedirect(reverse("login"))
+        return super(StaffRequiredMixin, self).dispatch(request, *args, **kwargs)
