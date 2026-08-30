@@ -119,9 +119,20 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## En cours
 
-- **2026-08-30** — **S2, couverture métier**, prochain sous-chantier. S1 est clos (livré,
-  poussé, CI verte). Rien n'est encore écrit : S2 repart de `superpowers:brainstorming`,
-  puis spec, puis plan. Périmètre et motif ci-dessous, § Suite du projet.
+- **2026-08-30** — **S2, couverture métier**, en cours d'exécution. Spec et plan écrits
+  (`docs/superpowers/{specs,plans}/2026-08-30-couverture-metier*`), 35 tâches en 5 lots,
+  exécutées sur `main` une par une avec revue.
+  - **Lots 1 à 3 clos** : facturation (31 tests), accès et middlewares (25 tests), dossier
+    patient (26 tests). Plancher de couverture monté de 61 à 72.
+  - **Lot 4, import de fichiers** : 6 tâches sur 8 faites, dernier commit `482e82c`.
+    Reprise à la tâche 7 (les `except:` nus de `file_integrator.py`).
+  - **Défauts de production corrigés en chemin** : `maintenance_available` et
+    `OneSessionPerUserMiddleware` (`except:` nus), `PatientDocument.delete` (double
+    suppression du Document), `FileContentProxy.unproxy` (écrivait `None` dans le cache au
+    lieu de retirer la clé — cause du non-déterminisme de la suite fonctionnelle en S1).
+  - **Défaut ouvert, non corrigé** : l'encodage ISO-8859-1 à l'import, cf. § Points en
+    suspens. Le test le grave en `expectedFailure` ; il se relèvera de lui-même à la
+    correction.
 
 ## Terminé
 
