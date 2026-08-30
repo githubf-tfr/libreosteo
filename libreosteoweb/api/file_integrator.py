@@ -12,13 +12,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-import logging
 import csv
-from django.utils.translation import gettext_lazy as _
+import logging
 import random
-from libreosteoweb.models import Patient, ExaminationType, ExaminationStatus
 from datetime import date, datetime
-from .utils import enum, Singleton, _unicode
+
+from django.utils.translation import gettext_lazy as _
+
+from libreosteoweb.models import ExaminationStatus, ExaminationType, Patient
+
+from .utils import Singleton, _unicode, enum
 
 logger = logging.getLogger(__name__)
 

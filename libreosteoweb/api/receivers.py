@@ -12,12 +12,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from django.dispatch import receiver
-from django.db.models.signals import post_save, post_delete
-from django.utils.translation import gettext_lazy as _
-from django.contrib.auth import user_logged_in, user_logged_out
-from ..models import OfficeEvent, Patient, Examination, PatientDocument, LoggedInUser
 import logging
+
+from django.contrib.auth import user_logged_in, user_logged_out
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+from django.utils.translation import gettext_lazy as _
+
+from ..models import Examination, LoggedInUser, OfficeEvent, Patient, PatientDocument
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)

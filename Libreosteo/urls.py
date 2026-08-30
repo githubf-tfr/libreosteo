@@ -12,21 +12,19 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from django.urls import include, path, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.auth.views import LoginView, LogoutView
-
 from django.contrib import admin
+from django.contrib.auth.views import LoginView, LogoutView
+from django.urls import include, re_path
 
 admin.autodiscover()
 
-from libreosteoweb.api import views
-
+from django.views.generic.base import TemplateView
 from rest_framework import routers
 from rest_framework.urlpatterns import format_suffix_patterns
-from django.views.generic.base import TemplateView
-from libreosteoweb.api import displays
+
+from libreosteoweb.api import displays, views
 
 # Routers provide an easy way of automatically determining the URL conf
 router = routers.SimpleRouter(trailing_slash=False)

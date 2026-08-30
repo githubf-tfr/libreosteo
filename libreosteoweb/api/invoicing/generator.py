@@ -12,9 +12,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
+from django.utils import timezone
+
 from libreosteoweb import models
 from libreosteoweb.api.utils import _unicode, convert_to_long
-from django.utils import timezone
 
 
 class Generator(object):

@@ -12,21 +12,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from django.db import OperationalError
-from django.http import (
-    HttpResponseRedirect,
-    HttpResponseNotFound,
-    Http404,
-    HttpResponseForbidden,
-)
-from rest_framework import permissions
-from django.contrib.auth import get_user_model
-from django.utils.decorators import method_decorator
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-from functools import wraps
 import logging
+from functools import wraps
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
+from django.http import (
+    HttpResponseForbidden,
+    HttpResponseRedirect,
+)
+from django.urls import reverse
+from django.utils.decorators import method_decorator
+from rest_framework import permissions
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)

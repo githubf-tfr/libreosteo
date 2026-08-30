@@ -12,10 +12,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-import socket
-import netifaces
 import logging
 import re
+import socket
+
+import netifaces
 
 logger = logging.getLogger(__file__)
 
@@ -42,7 +43,9 @@ try:
     UNICODE_EXISTS = bool(type(unicode))
     _unicode = unicode
 except NameError:
-    _unicode = lambda s: str(s)
+    # `str` directement, pas un `def` : la fonction ne serait jamais appelée sous
+    # le lanceur de tests et ferait redescendre le plancher de couverture.
+    _unicode = str
 
 
 class NetworkHelper:

@@ -17,9 +17,10 @@ Requires Mark Hammond's pywin32 package.
 """
 
 # Python stdlib imports
-import sys
 import logging
-import os, os.path
+import os
+import os.path
+import sys
 
 if sys.argv[0].endswith(".exe") or not sys.argv[0].endswith(".py"):
     setattr(sys, "frozen", True)
@@ -31,13 +32,12 @@ if getattr(sys, "frozen", False):
     os.environ["PATH"] = (os.environ["PATH"] + ";").join(p + ";" for p in sys.path)
 
 # Win32 service imports
-import win32serviceutil
-import win32service, win32api
-import servicemanager
-
 # Third-party imports
 import cherrypy
-import patch
+import servicemanager
+import win32service
+import win32serviceutil
+
 import server
 
 rootLogger = logging.getLogger(__name__)
@@ -206,7 +206,7 @@ if __name__ == "__main__":
             servicemanager.Initialize()
             servicemanager.PrepareToHostSingle(LibreosteoService)
             servicemanager.StartServiceCtrlDispatcher()
-        except Exception as e:
+        except Exception:
             logging.exception("Exception when starting service")
     else:
         logging.info("Start Controller")
@@ -214,5 +214,5 @@ if __name__ == "__main__":
         logging.info("Command = %s" % sys.argv)
         try:
             win32serviceutil.HandleCommandLine(LibreosteoService)
-        except Exception as e:
+        except Exception:
             logging.exception("Exception when starting service")

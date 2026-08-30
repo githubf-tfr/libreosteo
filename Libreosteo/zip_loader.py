@@ -12,12 +12,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-import os
+import zipfile
+
 from django.conf import settings
 from django.template import TemplateDoesNotExist
-import zipfile
 from django.template.base import Origin
-
 from django.template.loaders.base import Loader as BaseLoader
 
 

@@ -13,29 +13,27 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
-from django.test import TestCase
+from datetime import datetime
+
+from django.contrib.auth import get_user_model
+from django.db.models import signals
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-from rest_framework.test import APIRequestFactory, force_authenticate
-from django.contrib.auth import get_user_model
-from libreosteoweb.models import (
-    Patient,
-    Examination,
-    TherapeutSettings,
-    OfficeSettings,
-    Invoice,
-)
-from libreosteoweb.api.views import ExaminationViewSet, PatientViewSet
-from datetime import datetime
-from django.utils import timezone
+
 from libreosteoweb.api.receivers import (
     block_disconnect_all_signal,
     receiver_examination,
-    temp_disconnect_signal,
     receiver_newpatient,
 )
-from django.db.models import signals
+from libreosteoweb.models import (
+    Examination,
+    Invoice,
+    OfficeSettings,
+    Patient,
+    TherapeutSettings,
+)
 
 
 class TestDeletePatient(APITestCase):

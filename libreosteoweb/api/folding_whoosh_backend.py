@@ -4,8 +4,8 @@ from whoosh.analysis import (
     LowercaseFilter,
     NgramFilter,
     RegexTokenizer,
-    StopFilter,
     StemFilter,
+    StopFilter,
 )
 from whoosh.support.charset import accent_map
 

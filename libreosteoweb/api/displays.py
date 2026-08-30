@@ -12,18 +12,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from django.shortcuts import render
-from django.forms.models import ModelForm
-from libreosteoweb import models
-from django.contrib.auth import get_user_model
-from django.conf import settings
-import libreosteoweb
-from .permissions import maintenance_available
-from django.views.decorators.cache import never_cache
-from libreosteoweb.api.version import version
-
 # import the logging library
 import logging
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.forms.models import ModelForm
+from django.shortcuts import render
+from django.views.decorators.cache import never_cache
+
+import libreosteoweb
+from libreosteoweb import models
+from libreosteoweb.api.version import version
+
+from .permissions import maintenance_available
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)

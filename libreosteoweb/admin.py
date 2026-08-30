@@ -14,7 +14,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 from django.contrib import admin
 
-from libreosteoweb.models import RegularDoctor, Children, Patient, Examination
+from libreosteoweb.models import Children, Examination, Patient, RegularDoctor
 
 admin.site.register(RegularDoctor)
 admin.site.register(Children)

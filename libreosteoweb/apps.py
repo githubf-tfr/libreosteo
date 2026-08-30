@@ -12,8 +12,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from django.apps import AppConfig
 import logging
+
+from django.apps import AppConfig
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -24,7 +25,6 @@ class LibreosteoConfig(AppConfig):
     verbose_name = "Libreosteo WebApp"
 
     def ready(self):
-        import libreosteoweb.api.receivers
         import libreosteoweb.models as models
 
         file_import_list = models.FileImport.objects.all()

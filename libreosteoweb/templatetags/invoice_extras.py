@@ -13,15 +13,16 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # Invoice Extras filter
-from django import template
-from django.utils.translation import to_locale, get_language
 import locale
+
+from django import template
+
 from libreosteoweb.api.utils import _unicode
 
 register = template.Library()
 
-import re
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ def templatize(value, obj):
             elif hasattr(obj, "keys"):
                 todisplay = obj.get(val, None)
             if type(todisplay) is float:
-                locale_desc = to_locale(get_language())
                 return _unicode(locale.str(todisplay))
             else:
                 return _unicode(todisplay)

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import datetime
 import locale
+import sqlite3
+
 from django.utils.dateparse import parse_datetime
 from robot.api import logger
-import sqlite3
-import datetime
 
 FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 

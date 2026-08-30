@@ -1,7 +1,8 @@
 import json
-from urllib.request import urlopen, URLError
+from urllib.request import URLError, urlopen
 
 from django.core.management.base import BaseCommand, CommandError
+
 from ...models import ZipcodeMapping
 
 # https://www.data.gouv.fr/en/datasets/codes-postaux/

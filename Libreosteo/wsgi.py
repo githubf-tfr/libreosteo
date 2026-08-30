@@ -21,7 +21,8 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.6/howto/deployment/wsgi/
 """
 
-import os, sys
+import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 if not os.environ.get("DJANGO_SETTINGS_MODULE"):

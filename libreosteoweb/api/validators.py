@@ -12,9 +12,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from rest_framework.validators import UniqueTogetherValidator
-from rest_framework.exceptions import ValidationError
 import logging
+
+from rest_framework.exceptions import ValidationError
+from rest_framework.validators import UniqueTogetherValidator
 
 logger = logging.getLogger(__name__)
 

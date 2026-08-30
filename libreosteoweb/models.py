@@ -12,17 +12,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from django.conf import settings
-from django.db import models
-from django.utils.translation import gettext_lazy as _
-from datetime import date
-from django.utils import timezone
-from libreosteoweb.api.utils import enum
-import mimetypes
-from protected_media.models import ProtectedFileField
-
 # import the logging library
 import logging
+import mimetypes
+from datetime import date
+
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+
+from libreosteoweb.api.utils import enum
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)

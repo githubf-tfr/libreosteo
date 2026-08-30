@@ -12,8 +12,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from rest_framework_csv import renderers
 from drf_excel import renderers as xlsxrenderers
+from rest_framework_csv import renderers
 
 
 class PatientCSVRenderer(renderers.CSVRenderer):

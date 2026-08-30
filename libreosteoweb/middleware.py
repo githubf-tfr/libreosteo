@@ -12,16 +12,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from django.http import HttpResponseRedirect
-from django.conf import settings
+import logging
 from re import compile
+
+from django.conf import settings
 from django.contrib.auth import get_user_model, logout
 from django.contrib.sessions.models import Session
+from django.http import HttpResponseRedirect
 from django.urls import reverse
-import logging
 from django.utils.deprecation import MiddlewareMixin
-from libreosteoweb.models import OfficeSettings, LoggedInUser
 from django.utils.module_loading import import_string
+
+from libreosteoweb.models import LoggedInUser, OfficeSettings
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +110,7 @@ class LoginRequiredMiddleware(MiddlewareMixin):
             # Try to authenticate the request
             try:
                 get_authenticator().authenticate(request)
-            except Exception as ex:
+            except Exception:
                 logger.error(
                     "Request on %s %s, but authentication failed on authenticator"
                     % (request.method, request.path)

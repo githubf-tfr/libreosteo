@@ -14,9 +14,11 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.import urllib.request
 import json
 import logging
-import libreosteoweb
-from packaging.version import parse
 import urllib
+
+from packaging.version import parse
+
+import libreosteoweb
 
 logger = logging.getLogger(__name__)
 

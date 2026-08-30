@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
+
 from django.urls import re_path
+
 from . import views
 
 urlpatterns = [

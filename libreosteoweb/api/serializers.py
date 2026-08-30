@@ -12,26 +12,40 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from rest_framework import serializers
-from libreosteoweb.models import *
-from django.contrib.auth import get_user_model
-from django.utils.translation import gettext_lazy as _
-from datetime import date
-from django.utils import timezone
-from .validators import UniqueTogetherIgnoreCaseValidator
-from .filter import get_name_filters, get_firstname_filters
-from django.core.exceptions import ObjectDoesNotExist
-from .file_integrator import Extractor
 import logging
-from django.conf import settings
-from .utils import NetworkHelper
-from django.db.models import Max
-from .utils import convert_to_long
-from django.utils.dateparse import parse_datetime
-from libreosteoweb.api.utils import _unicode
-from libreosteoweb.api.demonstration import get_demonstration_file
 import re
+from datetime import date
+
 import pytz
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Max
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
+
+from libreosteoweb.api.demonstration import get_demonstration_file
+from libreosteoweb.api.utils import _unicode
+from libreosteoweb.models import (
+    Document,
+    Examination,
+    ExaminationComment,
+    FileImport,
+    Invoice,
+    OfficeEvent,
+    OfficeSettings,
+    PaimentMean,
+    Patient,
+    PatientDocument,
+    RegularDoctor,
+    TherapeutSettings,
+)
+
+from .file_integrator import Extractor
+from .filter import get_firstname_filters, get_name_filters
+from .utils import NetworkHelper, convert_to_long
+from .validators import UniqueTogetherIgnoreCaseValidator
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +83,7 @@ class PatientSerializer(serializers.ModelSerializer):
 
     def to_internal_value(self, data):
         ret = super().to_internal_value(data)
-        if data["consent_check"] and not "id" in data:
+        if data["consent_check"] and "id" not in data:
             ret["consent"] = timezone.now().date()
         else:
             if self.instance:

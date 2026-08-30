@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from django.core.management.base import BaseCommand, CommandError
-from django.core.management import call_command
-from libreosteoweb import models
-import libreosteoweb
 import zipfile
 from io import BytesIO, StringIO
+
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
+
+import libreosteoweb
+from libreosteoweb import models
 
 
 def backup_db(

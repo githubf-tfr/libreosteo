@@ -1,5 +1,5 @@
-from django.db import models
 from django.core.validators import RegexValidator
+from django.db import models
 
 validate_french_zipcode = RegexValidator(
     regex="\d{5}",

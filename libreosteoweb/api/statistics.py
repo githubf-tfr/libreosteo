@@ -12,11 +12,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from libreosteoweb.models import Patient, Examination
-from datetime import date, timedelta
-from django.utils import timezone
-import datetime
 import copy
+import datetime
+from datetime import timedelta
+
+from django.utils import timezone
+
+from libreosteoweb.models import Examination, Patient
 
 
 class Statistics(object):

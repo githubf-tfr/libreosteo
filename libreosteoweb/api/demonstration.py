@@ -12,9 +12,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from libreosteoweb import models
-from django.core.files.base import ContentFile
 from datetime import datetime
+
+from django.core.files.base import ContentFile
+
+from libreosteoweb import models
 
 
 def get_demonstration_file():

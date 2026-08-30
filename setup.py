@@ -1,5 +1,8 @@
-import sys, glob, os
+import glob
+import os
 import shutil
+import sys
+
 import libreosteoweb
 
 version = libreosteoweb.__version__
@@ -59,7 +62,6 @@ def get_zipcodes():
 def purge_static():
     purge_dir = ["components"]
     keep_path = ["components/webshim"]
-    to_remove_list = []
     # For each dir in purge dir from static :
     # delete each files
     for root, directories, files in os.walk("static"):
@@ -86,8 +88,9 @@ if sys.platform in ["win32"]:
 
     get_zipcodes()
 
-    from cx_Freeze import setup, Executable
     import zipfile
+
+    from cx_Freeze import Executable, setup
 
     # GUI applications require a different base on Windows (the default is for a
     # console application).
@@ -178,8 +181,6 @@ if sys.platform in ["win32"]:
                         + filename[0 : len(filename) - 3]
                     )
         return migration_files
-
-    from cx_Freeze import setup, Executable
 
     copyDependentFiles = True
     includes = [

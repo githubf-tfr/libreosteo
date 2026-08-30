@@ -15,9 +15,8 @@
 # Monkey Patch for django translation from 1.8 version
 # when frozen on application.
 
-import sys, os
-
 import logging
+import sys
 
 logger = logging.getLogger("patch")
 
@@ -27,13 +26,13 @@ def wr_long(f, x):
 
 
 def patch_file(module_name, file_name, patch_function, path_prefix):
-    import pkgutil
-    import imp
-    import time
-    import marshal
-    import glob, struct
-    import builtins
+    import glob
     import importlib
+    import marshal
+    import pkgutil
+    import time
+
+    import imp
 
     loader = pkgutil.get_loader(module_name)
     loader_file = glob.glob(path_prefix + file_name)[0]
@@ -44,7 +43,6 @@ def patch_file(module_name, file_name, patch_function, path_prefix):
         bytecode = importlib._bootstrap_external._code_to_timestamp_pyc(
             code, source_stats["mtime"], source_stats["size"]
         )
-        mode = importlib._bootstrap_external._calc_mode(loader.path)
         importlib._bootstrap_external._write_atomic(loader_file, bytecode)
     else:
         code = compile(patch_function(loader.get_source()), "<string>", "<exec>")

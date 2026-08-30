@@ -13,26 +13,28 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+from datetime import datetime
+
+from django.contrib.auth import get_user_model
+from django.db.models import signals
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.contrib.auth import get_user_model
-from libreosteoweb.models import (
-    TherapeutSettings,
-    OfficeSettings,
-    Invoice,
-    Patient,
-    Examination,
-    InvoiceStatus,
-    ExaminationStatus,
-)
-from datetime import datetime
-from django.utils import timezone
-from django.db.models import signals
+
 from libreosteoweb.api.receivers import (
     block_disconnect_all_signal,
     receiver_examination,
     receiver_newpatient,
+)
+from libreosteoweb.models import (
+    Examination,
+    ExaminationStatus,
+    Invoice,
+    InvoiceStatus,
+    OfficeSettings,
+    Patient,
+    TherapeutSettings,
 )
 
 

@@ -13,23 +13,22 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # Python stdlib imports
-import sys
+import configparser
 import logging
-import os, os.path
+import os
+import os.path
+import sys
 
 # Third-party imports
 import cherrypy
-from cherrypy.process import wspbus, plugins
-from cherrypy import _cplogging, _cperror
-from django.conf import settings
-from Libreosteo.standalone import application
-from django.http import HttpResponseServerError
-import configparser
-import pdb
 
 # For modulegraph import auto detect
-import rcssmin
-import rjsmin
+from cherrypy import _cperror, _cplogging
+from cherrypy.process import plugins
+from django.conf import settings
+from django.http import HttpResponseServerError
+
+from Libreosteo.standalone import application
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +120,7 @@ class Server(object):
 
         try:
             engine.start()
-        except Exception as e:
+        except Exception:
             logger.exception("Exception when starting server")
 
         if callback:

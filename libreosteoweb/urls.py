@@ -15,6 +15,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.urls import path
+
 from libreosteoweb.api import displays
 
 urlpatterns = [

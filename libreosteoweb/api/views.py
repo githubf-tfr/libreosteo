@@ -13,91 +13,90 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import unicode_literals
-from django.utils import timezone
-import libreosteoweb
+
+import importlib
 import logging
 import os
 import tempfile
+import uuid
 import zipfile
+from io import StringIO
+
+import django_filters.rest_framework
 import pytz
-from libreosteoweb.management.commands.backup_db import backup_db
-from rest_framework import pagination, viewsets, status
+from django.conf import settings
+from django.contrib.auth import REDIRECT_FIELD_NAME, get_user_model
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.core.exceptions import SuspiciousOperation
+from django.core.files import File
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.core.management import call_command
+from django.db import connection
+from django.db.models import Max, signals
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponseForbidden,
+    HttpResponseRedirect,
+)
+from django.shortcuts import resolve_url
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.text import format_lazy
+from django.utils.translation import gettext_lazy as _
+from django.views import View
+from django.views.decorators.cache import never_cache
+from django.views.generic.base import TemplateView
+from drf_excel.mixins import XLSXFileMixin
+from drf_excel.renderers import XLSXRenderer
+from haystack.query import SearchQuerySet
+from haystack.views import SearchView
+from rest_framework import pagination, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError, PermissionDenied, ParseError
-from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import ParseError, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 
-from haystack.query import SearchQuerySet
-from haystack.views import SearchView
-from django.contrib.auth import get_user_model, REDIRECT_FIELD_NAME
-from django.contrib.auth.forms import UserCreationForm
-from django.conf import settings
-from django.core.files.base import ContentFile
-from django.core.files import File
-from django.core.management import call_command
-from django.db.models import signals
-from django.http import (
-    HttpResponse,
-    HttpResponseForbidden,
-    HttpResponseRedirect,
-    Http404,
-    HttpResponseBadRequest,
-)
-from django.core.exceptions import SuspiciousOperation
-from django.shortcuts import resolve_url
-from django.utils.http import url_has_allowed_host_and_scheme
-from django.utils.translation import gettext_lazy as _
-from django.utils.text import format_lazy
-from django.views import View
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import never_cache
-from django.views.generic.base import TemplateView
-from django.db.models import Max
-from django.db import connection
-from libreosteoweb.api import serializers as apiserializers
+import libreosteoweb
 from libreosteoweb import models
-from django.contrib.auth.mixins import PermissionRequiredMixin
+from libreosteoweb.api import serializers as apiserializers
+from libreosteoweb.api.events.settings import (
+    full_db_download,
+    full_retrieve_examination_list,
+    full_retrieve_patient_list,
+    settings_event_tracer,
+)
+from libreosteoweb.api.invoicing import generator as invoicing_generator
+from libreosteoweb.api.signals import post_reload_db
+from libreosteoweb.management.commands.backup_db import backup_db
+
 from .exceptions import Forbidden
-from .permissions import StaffRequiredMixin
+from .file_integrator import Extractor, IntegratorHandler
 from .permissions import (
-    IsStaffOrTargetUser,
-    IsStaffOrReadOnlyTargetUser,
-    maintenance_available,
-    IsStaffOrTargetUserFactory,
     IsDataAccessAllowed,
+    IsStaffOrReadOnlyTargetUser,
+    IsStaffOrTargetUser,
+    IsStaffOrTargetUserFactory,
+    StaffRequiredMixin,
+    maintenance_available,
 )
 from .receivers import (
     block_disconnect_all_signal,
     receiver_examination,
-    temp_disconnect_signal,
     receiver_newpatient,
+    temp_disconnect_signal,
 )
 from .renderers import (
     ExaminationCSVRenderer,
-    InvoiceCSVRenderer,
     InvoiceXLSXRenderer,
     PatientCSVRenderer,
 )
 from .statistics import Statistics
-from .file_integrator import Extractor, IntegratorHandler
-from .utils import convert_to_long, LoggerWriter
-from libreosteoweb.api.invoicing import generator as invoicing_generator
-from libreosteoweb.api.events.settings import (
-    settings_event_tracer,
-    full_db_download,
-    full_retrieve_patient_list,
-    full_retrieve_examination_list,
-)
-from django.core.files.storage import default_storage
-from libreosteoweb.api.signals import post_reload_db
-import django_filters.rest_framework
-from drf_excel.mixins import XLSXFileMixin
-from drf_excel.renderers import XLSXRenderer
-import uuid
-from io import StringIO
-import importlib
+from .utils import LoggerWriter, convert_to_long
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)

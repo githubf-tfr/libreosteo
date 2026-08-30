@@ -13,10 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 
-from libreosteoweb.models import OfficeSettings, OfficeEvent
-from django.utils.translation import gettext_lazy as _
-from libreosteoweb.api.utils import _unicode
 import logging
+
+from django.utils.translation import gettext_lazy as _
+
+from libreosteoweb.api.utils import _unicode
+from libreosteoweb.models import OfficeEvent, OfficeSettings
 
 logger = logging.getLogger(__name__)
 
