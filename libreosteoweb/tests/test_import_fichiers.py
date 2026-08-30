@@ -17,6 +17,7 @@ import csv
 import io
 import tempfile
 import unittest
+from datetime import date
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
@@ -356,6 +357,7 @@ class TestIntegrationConsultations(APITestCase):
         self.assertEqual(reponse.data["examination"]["imported"], 1)
         consultation = Examination.objects.get()
         self.assertEqual(consultation.patient.family_name, "Picard")
+        self.assertEqual(consultation.date.astimezone().date(), date(2020, 2, 1))
         self.assertEqual(consultation.conclusion, "Amélioration")
         self.assertEqual(consultation.therapeut, self.user)
 
@@ -379,5 +381,9 @@ class TestIntegrationConsultations(APITestCase):
             [ligne_patient(1)], [ligne_consultation(1, date="32/13/2020")]
         )
         self.assertEqual(reponse.data["examination"]["imported"], 0)
-        self.assertEqual(len(reponse.data["examination"]["errors"]), 1)
+        erreurs = reponse.data["examination"]["errors"]
+        self.assertEqual(len(erreurs), 1)
+        # Une date invalide lève ValueError, qui produit le code "general_problem"
+        # comme pour un patient inconnu.
+        self.assertIn("general_problem", erreurs[0][1])
         self.assertEqual(Examination.objects.count(), 0)
