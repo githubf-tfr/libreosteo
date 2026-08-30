@@ -17,7 +17,7 @@ import csv
 import io
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
@@ -25,7 +25,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from libreosteoweb.api.file_integrator import FileContentProxy
+from libreosteoweb.api.file_integrator import (
+    FileContentProxy,
+    FilePatientFactory,
+    IntegratorExamination,
+)
 from libreosteoweb.models import Examination, FileImport, OfficeEvent, Patient
 from libreosteoweb.tests.fixtures import (
     cree_praticien,
@@ -387,3 +391,46 @@ class TestIntegrationConsultations(APITestCase):
         # comme pour un patient inconnu.
         self.assertIn("general_problem", erreurs[0][1])
         self.assertEqual(Examination.objects.count(), 0)
+
+
+class TestConversions(unittest.TestCase):
+    def setUp(self):
+        self.fabrique = FilePatientFactory()
+        self.integrateur = IntegratorExamination()
+
+    def test_sexe(self):
+        self.assertEqual(self.fabrique.get_sex_value("F"), "F")
+        self.assertEqual(self.fabrique.get_sex_value("f"), "F")
+        self.assertEqual(self.fabrique.get_sex_value("M"), "M")
+        self.assertEqual(self.fabrique.get_sex_value("inconnu"), "M")
+
+    def test_lateralite(self):
+        self.assertEqual(self.fabrique.get_laterality_value("G"), "L")
+        self.assertEqual(self.fabrique.get_laterality_value("l"), "L")
+        self.assertEqual(self.fabrique.get_laterality_value("D"), "R")
+        self.assertEqual(self.fabrique.get_laterality_value(""), "R")
+
+    def test_booleen(self):
+        for vrai in ["o", "OUI", "true", "T"]:
+            self.assertTrue(self.fabrique.get_boolean_value(vrai))
+        for faux in ["n", "non", "false", ""]:
+            self.assertFalse(self.fabrique.get_boolean_value(faux))
+
+    def test_date_sans_heure(self):
+        self.assertEqual(self.fabrique.get_date("13/07/1935"), date(1935, 7, 13))
+
+    def test_date_invalide_leve_une_valeur_erronee(self):
+        with self.assertRaises(ValueError):
+            self.fabrique.get_date("32/13/2020")
+
+    def test_date_par_defaut(self):
+        self.assertEqual(self.fabrique.get_default_date(), date(2011, 1, 1))
+
+    def test_date_de_consultation_avec_heure(self):
+        self.assertEqual(
+            self.integrateur.get_date("01/02/2020", with_time=True),
+            datetime(2020, 2, 1, 0, 0),
+        )
+
+    def test_date_de_consultation_sans_heure(self):
+        self.assertEqual(self.integrateur.get_date("01/02/2020"), date(2020, 2, 1))
