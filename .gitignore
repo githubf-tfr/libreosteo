@@ -41,3 +41,10 @@ yarn.lock
 output.xml
 /log.html
 /report.html
+
+# Claude Code local settings (sandbox-specific paths)
+.claude/settings.local.json
+
+# Local development tooling (sandbox-specific, never distributed)
+.tools/
+.uv-python/
