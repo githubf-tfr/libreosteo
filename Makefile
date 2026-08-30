@@ -33,4 +33,20 @@ run:
 run-pg:
 	docker-compose --env-file=.env -f Docker/deploy/pg/docker-compose.yml up
 
+PYTHON := ./.venv/bin/python
+
+lint:
+	@echo "Analyse statique"
+	$(PYTHON) -m ruff check .
+	$(PYTHON) -m ruff format --check .
+	$(PYTHON) -m mypy
+
+test:
+	@echo "Tests unitaires et couverture"
+	$(PYTHON) -m pytest
+
+check: lint test
+
+.PHONY: lint test check
+
 .DEFAULT_GOAL := help

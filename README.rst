@@ -220,6 +220,24 @@ To change the default port of the server, write a file server.cfg like this  (to
 .. _standalone : LibreOsteo/settings/standalone.py
 .. _CherryPy : https://cherrypy.org/
 
+Development
+===========
+
+This fork runs on Python 3.13. Install the runtime and the development
+dependencies in your virtualenv ::
+
+    pip install -r requirements/requirements.txt
+    pip install -r requirements/requ-dev.txt
+
+Three targets are available, all of them expecting the virtualenv in ``.venv`` ::
+
+    make lint    # ruff check, ruff format --check, mypy
+    make test    # pytest, unit tests and coverage floor
+    make check   # both, to be run before any commit
+
+``make check`` reproduces exactly the ``quality`` job of the continuous
+integration : what passes locally passes there.
+
 Contributing code
 =================
 
