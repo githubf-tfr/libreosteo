@@ -119,12 +119,14 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## En cours
 
-_(rien)_
+- **2026-08-30** — **S2, couverture métier**, prochain sous-chantier. S1 est clos (livré,
+  poussé, CI verte). Rien n'est encore écrit : S2 repart de `superpowers:brainstorming`,
+  puis spec, puis plan. Périmètre et motif ci-dessous, § Suite du projet.
 
 ## Terminé
 
-- **2026-08-30** — **S1, socle de test et de qualité** livré (10 tâches, spec et plan
-  sous `docs/superpowers/`). Ce que le dépôt a gagné :
+- **2026-08-30** — **S1, socle de test et de qualité** livré (10 tâches ; la spec reste sous
+  `docs/superpowers/specs/`, le plan a été supprimé une fois achevé). Ce que le dépôt a gagné :
   - **Python 3.13** prouvé : 29/29 unitaires et 24/24 fonctionnels. `cherrypy` monté de
     18.8.0 à 18.10.0 par nécessité — 18.8.0 importe `cgi`, supprimé en 3.13, le serveur
     ne démarrait plus. Seule montée de dépendance du chantier.
