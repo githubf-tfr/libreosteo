@@ -21,6 +21,7 @@ from libreosteoweb.models import (
     ExaminationStatus,
     Invoice,
     InvoiceStatus,
+    Paiment,
 )
 from libreosteoweb.tests.fixtures import (
     cree_consultation,
@@ -170,3 +171,74 @@ class TestNumerotationFacture(APITestCase):
         self.assertEqual(facture.office_identifier, "PRAT")
         self.assertEqual(facture.footer, "Pied praticien")
         self.assertEqual(facture.professional_id, "12345")
+
+
+class TestEncaissement(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet()
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+
+    def encaisse(self, **kwargs):
+        return self.client.post(
+            reverse("examination-update-paiement", kwargs={"pk": self.consultation.id}),
+            data=facturation(**kwargs),
+            format="json",
+        )
+
+    def test_encaisser_une_consultation_sans_facture_est_refuse(self):
+        self.assertEqual(self.encaisse().status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_encaisser_avec_un_statut_non_facture_est_refuse(self):
+        self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(paiment_mode="notpaid"),
+            format="json",
+        )
+        reponse = self.encaisse(
+            status="notinvoiced", amount=None, paiment_mode=None, reason="motif"
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_encaisser_une_facture_deja_payee_est_refuse(self):
+        self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+        self.assertEqual(self.encaisse().status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_encaisser_en_non_paye_ne_modifie_rien(self):
+        creation = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(paiment_mode="notpaid"),
+            format="json",
+        )
+        reponse = self.encaisse(paiment_mode="notpaid")
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(reponse.data["not modified"], creation.data["invoiced"])
+        self.assertEqual(
+            Invoice.objects.get(id=creation.data["invoiced"]).status,
+            InvoiceStatus.WAITING_FOR_PAIEMENT,
+        )
+
+    def test_encaisser_une_facture_en_attente_cree_le_paiement(self):
+        creation = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(paiment_mode="notpaid"),
+            format="json",
+        )
+        reponse = self.encaisse(paiment_mode="cash")
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        facture = Invoice.objects.get(id=creation.data["invoiced"])
+        self.assertEqual(facture.status, InvoiceStatus.INVOICED_PAID)
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.status, ExaminationStatus.INVOICED_PAID)
+        paiement = Paiment.objects.get(invoice=facture)
+        self.assertEqual(paiement.amount, facture.amount)
+        self.assertEqual(paiement.currency, "EUR")
+        self.assertEqual(paiement.paiment_mode, "cash")
