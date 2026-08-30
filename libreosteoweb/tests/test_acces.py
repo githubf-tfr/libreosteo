@@ -13,8 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponse
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory, APITestCase
 
@@ -25,9 +26,12 @@ from libreosteoweb.api.permissions import (
     IsStaffOrTargetUserFactory,
     maintenance_available,
 )
+from libreosteoweb.middleware import OfficeSettingsMiddleware
+from libreosteoweb.models import OfficeSettings
 from libreosteoweb.tests.fixtures import (
     cree_praticien,
     cree_reglages_praticien,
+    regle_cabinet,
     sans_receivers,
 )
 
@@ -230,3 +234,47 @@ class TestLoginRequiredMiddleware(APITestCase):
         reponse = self.client.get("/")
         self.assertEqual(reponse.status_code, 302)
         self.assertEqual(reponse.url, reverse("login"))
+
+
+class TestOfficeSettingsMiddleware(TestCase):
+    def setUp(self):
+        self.fabrique = RequestFactory()
+        self.middleware = OfficeSettingsMiddleware(lambda requete: None)
+        with sans_receivers():
+            self.user = cree_praticien()
+            self.cabinet = regle_cabinet(office_name="Cabinet principal")
+
+    def requete(self, session=None):
+        requete = self.fabrique.get("/")
+        requete.user = self.user
+        requete.session = session if session is not None else {}
+        return requete
+
+    def test_cabinet_unique_est_pose_sur_la_requete(self):
+        requete = self.requete()
+        self.assertIsNone(self.middleware.process_request(requete))
+        self.assertEqual(requete.officesettings, self.cabinet)
+        self.assertFalse(requete.has_multiple_office)
+
+    def test_cabinets_multiples_sans_choix_menent_au_formulaire(self):
+        OfficeSettings.objects.create(office_name="Cabinet secondaire", currency="EUR")
+        requete = self.requete()
+        reponse = self.middleware.process_request(requete)
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("officesettings-set"))
+        self.assertTrue(requete.has_multiple_office)
+
+    def test_cabinets_multiples_le_choix_en_session_est_respecte(self):
+        second = OfficeSettings.objects.create(
+            office_name="Cabinet secondaire", currency="EUR"
+        )
+        requete = self.requete(session={"officesettings": second.id})
+        self.assertIsNone(self.middleware.process_request(requete))
+        self.assertEqual(requete.officesettings, second)
+
+    def test_utilisateur_non_connecte_n_est_pas_concerne(self):
+        requete = self.fabrique.get("/")
+        requete.user = AnonymousUser()
+        requete.session = {}
+        self.assertIsNone(self.middleware.process_request(requete))
+        self.assertFalse(hasattr(requete, "officesettings"))
