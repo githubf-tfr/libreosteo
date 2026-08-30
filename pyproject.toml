@@ -40,3 +40,29 @@ ignore = ["E722", "E402"]
 [tool.ruff.lint.per-file-ignores]
 # Les modules de réglages sont bâtis sur `from .base import *`, motif voulu par Django.
 "Libreosteo/settings/*.py" = ["F403", "F405"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+# Périmètre volontairement restreint : seuls les modules qui passent déjà figurent
+# ici. Un module rejoint la liste quand il est annoté. Même cliquet que la couverture.
+files = [
+    "Libreosteo/__init__.py",
+    "libreosteoweb/__init__.py",
+    "libreosteoweb/api/__init__.py",
+    "libreosteoweb/api/events/__init__.py",
+    "libreosteoweb/api/exceptions.py",
+    "libreosteoweb/api/filter.py",
+    "libreosteoweb/api/folding_whoosh_backend.py",
+    "libreosteoweb/api/invoicing/__init__.py",
+    "libreosteoweb/api/renderers.py",
+    "libreosteoweb/api/signals.py",
+    "libreosteoweb/api/validators.py",
+    "libreosteoweb/api/version/__init__.py",
+    "libreosteoweb/api/version/version.py",
+    "libreosteoweb/templatetags/__init__.py",
+]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "Libreosteo.settings"
