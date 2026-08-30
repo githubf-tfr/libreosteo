@@ -10,6 +10,16 @@ Tenu à la main.
   (branche `master`, 2026-08-30). Historique Git repris à zéro ; remote `upstream`
   conservé pour suivre les évolutions amont. Objectif : compatibilité maintenue autant
   que possible, cf. `CLAUDE.md`.
+- (2026-08-30) **Cadrage du chantier « amélioration des tests »**, découpé en cinq
+  sous-chantiers exécutés dans l'ordre S1 → S5 (cf. « Suite du projet » plus bas). Cinq
+  décisions actées pour S1, détail dans
+  `docs/superpowers/specs/2026-08-30-socle-tests-qualite-design.md` :
+  - **Divergence amont assumée** — la compatibilité cesse d'être un objectif, elle
+    devient une prudence. `CLAUDE.md` § Politique amont réécrit en conséquence.
+  - **Python 3.13 unique**, au lieu de la matrice 3.8 / 3.9 / 3.10 héritée.
+  - **`pytest` comme lanceur**, `manage.py test` restant fonctionnel.
+  - **Plancher de couverture à cliquet**, qui ne descend pas.
+  - **`ruff` et `mypy` bloquants**, sur un périmètre déclaré qui ne rétrécit pas.
 
 ## À faire
 
@@ -30,14 +40,6 @@ Tenu à la main.
   `True` — c'est pourtant le mode de déploiement principal côté praticien.
 - Données de santé stockées dans un SQLite non chiffré par défaut. Enjeu RGPD à
   qualifier (le chiffrement au repos relève peut-être de l'hôte plutôt que de l'app).
-
-### Intégration continue
-
-- `.github/workflows/main.yml` se déclenche sur `master` et `develop` ; la branche de ce
-  fork est `main`. La CI ne s'exécute donc jamais en l'état.
-- Matrice Python 3.8 / 3.9 / 3.10, alors que l'environnement de développement tourne en
-  Python 3.14. L'écart n'est couvert par aucun test.
-- L'étape « Translations state » a son contenu commenté : elle ne vérifie plus rien.
 
 ### Suivi amont
 
@@ -106,6 +108,14 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 - Dépendances frontend référencées par branche ou tag Git chez des tiers (`#*` pour une
   dizaine d'entre elles) et `yarn.lock` ignoré par `.gitignore` : le build n'est pas
   reproductible.
+- (S1) 18 `except:` nus et 10 imports hors en-tête, neutralisés par `ignore = ["E722",
+  "E402"]` dans la configuration `ruff`. Les corriger change la gestion d'erreurs sans
+  filet de test : c'est du ressort de S2.
+- (S1) **L'état des traductions n'est plus vérifié.** L'étape « Translations state » du
+  workflow a été supprimée ; son contenu était déjà commenté en amont, elle ne vérifiait
+  donc plus rien depuis longtemps. À reconstruire quand les traductions bougeront.
+- (S1) Périmètre `mypy` de départ : 14 modules sur ~60, ceux qui passaient déjà sans
+  annotation. Le reste attend d'être annoté, module par module.
 
 ## En cours
 
@@ -113,11 +123,65 @@ _(rien)_
 
 ## Terminé
 
-_(vide)_
+- **2026-08-30** — **S1, socle de test et de qualité** livré (10 tâches, spec et plan
+  sous `docs/superpowers/`). Ce que le dépôt a gagné :
+  - **Python 3.13** prouvé : 29/29 unitaires et 24/24 fonctionnels. `cherrypy` monté de
+    18.8.0 à 18.10.0 par nécessité — 18.8.0 importe `cgi`, supprimé en 3.13, le serveur
+    ne démarrait plus. Seule montée de dépendance du chantier.
+  - **`pytest` comme lanceur**, `manage.py test` toujours valide.
+  - **Plancher de couverture** à cliquet, `fail_under` dans `pyproject.toml`. Descendu
+    **une seule fois**, de 62 à 61, en activant `ruff` : le retrait des imports morts
+    supprime des lignes *couvertes* et rétrécit le dénominateur (62,07 % sur 2494 lignes,
+    61,94 % sur 2483). Aucun test perdu — c'est le dénominateur qui a bougé.
+  - **`ruff`** (formatage du dépôt entier, puis `E4`, `E7`, `E9`, `F`, `I` bloquants) et
+    **`mypy`** sur 14 modules déclarés.
+  - **`make lint` / `make test` / `make check`**, documentés dans `README.rst`.
+  - **CI réécrite** : déclenchement sur `main` (elle ne tournait jamais, elle écoutait
+    `master` et `develop`), Python 3.13 unique, `geckodriver` 0.21.0 (2018) → 0.37.1,
+    étape « Translations state » inerte supprimée.
+  - **Trois défauts avérés corrigés**, cf. « Pièges rencontrés ».
 
 ## Pièges rencontrés
 
-_(vide)_
+- **2026-08-30 (S1)** — `ruff` a trouvé trois `F821` qui étaient de vrais défauts, pas du
+  bruit ; tous les trois vivaient derrière un `except:` nu, ce qui explique qu'aucun ne se
+  soit jamais vu :
+  - `convert_to_long` appelait `long()`, disparu en Python 3. Le `NameError` était rattrapé
+    par le `except:` nu qui renvoyait `int(...)` : la fonction ne marchait que par accident.
+  - `server.py` référençait `states` sans l'importer dans son remplacement de `Bus.exit` :
+    **l'arrêt du serveur ne publiait jamais son événement `exit`**, depuis toujours.
+    Vérifié après correction sur un démarrage réel — `Bus EXITING` / `Bus EXITED` au
+    SIGTERM.
+  - Effet de bord à connaître : `ruff` avait retiré l'import `wspbus` comme mort,
+    précisément parce que le défaut le rendait inutilisé. Un lint qui nettoie autour d'un
+    bug peut effacer la trace du bug.
+- **2026-08-30 (S1)** — la suite Robot amont est **non déterministe** : quatre exécutions
+  du même code ont donné 20, 16, 17 puis 24 sur 24. Cause identifiée :
+  `FileContentProxy.unproxy` écrit `None` dans son cache au lieu de supprimer la clé
+  (`libreosteoweb/api/file_integrator.py:294`). Correctif hors périmètre S1 (code métier,
+  donc S2) ; S3 remplace la suite de toute façon.
+
+## Suite du projet — S2 à S5
+
+Chantier « amélioration des tests », ordonnancement A décidé au cadrage du 2026-08-30.
+Chaque sous-chantier repart de `superpowers:brainstorming`, produit sa spec puis son plan
+sous `docs/superpowers/` ; **ne pas enchaîner deux sous-chantiers dans une seule spec**,
+le découpage est une décision de cadrage, pas une commodité.
+
+- **S2 — Couverture métier.** Le gros du travail, et ce qui donne sa valeur au plancher
+  posé en S1. Cible : `libreosteoweb/api/views.py` (971 lignes), `file_integrator.py`
+  (582), `serializers.py` (510), `permissions.py`, `invoicing/`. Tests d'intégration
+  Django, sans navigateur. C'est aussi ce qui rendra abordables les correctifs de sécurité
+  en attente ci-dessus (`SECRET_KEY` en dur, `DEBUG` actif en standalone), qu'on ne veut
+  pas toucher sans filet.
+- **S3 — Fonctionnels Playwright.** Réécriture des 24 tests Robot, suppression de
+  Selenium, de geckodriver, de la dépendance à la locale `fr_FR.UTF-8` et de la tâche
+  `functional` du workflow. À vérifier tôt : le CDN Playwright répond depuis la sandbox,
+  mais l'installation effective d'un navigateur n'a jamais été prouvée.
+- **S4 — Cahier de recette.** Niveau 3 du `~/claude/CLAUDE.md` : fonctionnel, exécuté par
+  un humain, couvrant tous les cas d'usage, y compris ceux déjà couverts en automatique.
+- **S5 — Maintenabilité.** Découpage des gros modules pour les rendre testables. En
+  dernier de propos délibéré : refactorer avant S2, c'est refactorer sans filet.
 
 ## Suivi amont
 

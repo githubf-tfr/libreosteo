@@ -37,6 +37,7 @@ Libreosteo/settings/local.py*
 
 # Tests / tooling artefacts
 selenium-screenshot-*.png
+.coverage
 yarn.lock
 output.xml
 /log.html
