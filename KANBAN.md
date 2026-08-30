@@ -145,6 +145,12 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## Pièges rencontrés
 
+- **2026-08-30 (S2, L3T5)** — Suppression en cascade du `PatientDocument` levait une
+  exception `RelatedObjectDoesNotExist`. Le receiver `delete_document` (ligne 104 de
+  `api/receivers.py`) supprime déjà le Document associé ; la méthode `delete()` du modèle
+  `PatientDocument` (ligne 626 de `models.py`) tentait de le supprimer une seconde fois,
+  lequel avait déjà été supprimé. Correction : retrait de l'appel `self.document.delete()`
+  de la méthode `delete()` — le receiver suffit.
 - **2026-08-30 (S1)** — `ruff` a trouvé trois `F821` qui étaient de vrais défauts, pas du
   bruit ; tous les trois vivaient derrière un `except:` nu, ce qui explique qu'aucun ne se
   soit jamais vu :

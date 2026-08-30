@@ -625,7 +625,6 @@ class PatientDocument(models.Model):
 
     def delete(self, *args, **kwargs):
         super(PatientDocument, self).delete(*args, **kwargs)
-        self.document.delete()
 
 
 class LoggedInUser(models.Model):

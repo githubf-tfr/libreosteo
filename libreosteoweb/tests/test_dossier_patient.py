@@ -13,22 +13,30 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+import tempfile
 from datetime import timedelta
 
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from libreosteoweb.api import serializers as apiserializers
 from libreosteoweb.api.serializers import PatientSerializer
 from libreosteoweb.api.validators import UniqueTogetherIgnoreCaseValidator
+from libreosteoweb.api.views import PatientDocumentViewSet
 from libreosteoweb.models import (
+    Document,
     Examination,
+    ExaminationComment,
     ExaminationStatus,
     ExaminationType,
+    LoggedInUser,
     OfficeEvent,
     Patient,
+    PatientDocument,
 )
 from libreosteoweb.tests.fixtures import (
     cree_consultation,
@@ -317,3 +325,107 @@ class TestConsultation(APITestCase):
             [c["id"] for c in reponse.data],
             [recente.data["id"], ancienne.data["id"]],
         )
+
+
+class TestCommentaires(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+
+    def commente(self, texte):
+        return self.client.post(
+            reverse("examinationcomment-list"),
+            data={"comment": texte, "examination": self.consultation.id},
+            format="json",
+        )
+
+    def test_l_auteur_et_la_date_sont_poses_par_le_serveur(self):
+        reponse = self.commente("Première séance")
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        commentaire = ExaminationComment.objects.get(id=reponse.data["id"])
+        self.assertEqual(commentaire.user, self.user)
+        self.assertIsNotNone(commentaire.date)
+
+    def test_les_commentaires_sont_rendus_du_plus_recent(self):
+        premier = self.commente("Première séance")
+        second = self.commente("Deuxième séance")
+        reponse = self.client.get(
+            reverse("examination-comments", kwargs={"pk": self.consultation.id})
+        )
+        self.assertEqual(
+            [c["id"] for c in reponse.data],
+            [second.data["id"], premier.data["id"]],
+        )
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class TestDocumentsPatient(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+            self.patient = cree_patient()
+        self.client.login(username="test", password="testpw")
+
+    def depose_un_document(self):
+        fichier = SimpleUploadedFile(
+            "compte-rendu.txt", b"contenu du compte rendu", content_type="text/plain"
+        )
+        return self.client.post(
+            reverse("PatientDocuments-list"),
+            data={
+                "patient": self.patient.id,
+                "attachment_type": PatientDocument.AttachmentType.MEDICAL,
+                "document.title": "Compte rendu",
+                "document.document_file": fichier,
+            },
+            format="multipart",
+        )
+
+    def test_supprimer_un_document_patient_efface_le_document(self):
+        depot = self.depose_un_document()
+        self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Document.objects.count(), 1)
+        document_id = Document.objects.get().id
+        self.client.delete(
+            reverse(
+                "PatientDocuments-detail", kwargs={"pk": depot.data["document"]["id"]}
+            )
+        )
+        self.assertFalse(Document.objects.filter(id=document_id).exists())
+
+    @override_settings(DEMONSTRATION=True)
+    def test_en_demonstration_le_serialiseur_de_demonstration_est_retenu(self):
+        reponse = self.client.get(
+            reverse("PatientDocuments-list"), {"patient": self.patient.id}
+        )
+        # La vue rend 400 tant qu'aucun document n'existe : ce qui est vérifié ici est le
+        # sérialiseur retenu, obtenu depuis la vue elle-même.
+        vue = PatientDocumentViewSet()
+        vue.request = reponse.wsgi_request
+        self.assertIs(
+            vue.get_serializer_class(),
+            apiserializers.PatientDocumentDemonstrationSerializer,
+        )
+
+
+class TestSessionUtilisateur(APITestCase):
+    def setUp(self):
+        with sans_receivers():
+            cree_praticien()
+            regle_cabinet()
+
+    def test_la_connexion_cree_l_enregistrement_de_session(self):
+        self.client.login(username="test", password="testpw")
+        self.assertEqual(LoggedInUser.objects.count(), 1)
+
+    def test_la_deconnexion_le_supprime(self):
+        self.client.login(username="test", password="testpw")
+        self.client.logout()
+        self.assertEqual(LoggedInUser.objects.count(), 0)
