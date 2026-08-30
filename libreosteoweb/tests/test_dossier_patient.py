@@ -75,7 +75,10 @@ class TestCreationPatient(APITestCase):
         )
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         self.assertEqual(reponse.data["job"], "Capitaine")
-        # Un seul événement : celui de la création. La mise à jour n'en enregistre pas.
+        # Comportement figé, pas voulu : la mise à jour ne trace aucun événement parce
+        # que `receiver_newpatient` n'appelle pas `save()` sur l'événement qu'il
+        # construit. Le point est ouvert dans KANBAN.md § Points en suspens — ce test
+        # empêche seulement qu'il change par accident.
         self.assertEqual(OfficeEvent.objects.filter(clazz="Patient").count(), 1)
 
     def test_le_patient_est_visible_apres_creation(self):
