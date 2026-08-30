@@ -1,0 +1,7 @@
+# Configuration de l'outillage de qualite uniquement.
+# L'emballage du paquet reste decrit par setup.py et setup.cfg.
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "Libreosteo.settings"
+testpaths = ["libreosteoweb/tests", "zipcode_lookup"]
+python_files = ["test_*.py", "tests.py"]

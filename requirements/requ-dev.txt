@@ -1,0 +1,12 @@
+# Outillage de developpement : tests, couverture et analyse statique.
+# Les suites Robot Framework ont leurs propres dependances dans requ-testing.txt.
+coverage==7.16.0
+django-stubs==6.1.0
+django-stubs-ext==6.1.0
+mypy==2.3.1
+mypy-extensions==1.1.0
+pytest==9.1.1
+pytest-cov==7.1.0
+pytest-django==4.14.0
+ruff==0.16.5
+types-pyyaml==6.0.12.20260815
