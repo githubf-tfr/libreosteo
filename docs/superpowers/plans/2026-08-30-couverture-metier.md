@@ -296,9 +296,7 @@ class TestFacturation(APITestCase):
         self.facture(paiment_mode="notpaid")
         reponse = self.client.get(reverse("examination-unpaid"))
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            [c["id"] for c in reponse.data], [self.consultation.id]
-        )
+        self.assertEqual([c["id"] for c in reponse.data], [self.consultation.id])
 
     def test_clore_sans_facturer_conserve_le_motif(self):
         reponse = self.client.post(
@@ -619,9 +617,7 @@ class TestAnnulationFacture(APITestCase):
             }
         )
         self.assertEqual(reponse.status_code, status.HTTP_202_ACCEPTED)
-        corrective = Invoice.objects.get(
-            id=reponse.data["corrective_invoice"]["id"]
-        )
+        corrective = Invoice.objects.get(id=reponse.data["corrective_invoice"]["id"])
         self.assertEqual(corrective.amount, 60.0)
         self.assertEqual(corrective.replace, self.facture.number)
         self.facture.refresh_from_db()
@@ -719,9 +715,7 @@ class TestListeFactures(APITestCase):
         reponse = self.client.get(
             reverse("invoice-list"), {"therapeut_id": self.user.id}
         )
-        self.assertEqual(
-            [f["id"] for f in reponse.data], [self.ma_facture.id]
-        )
+        self.assertEqual([f["id"] for f in reponse.data], [self.ma_facture.id])
 
     def test_filtrer_par_cabinet(self):
         reponse = self.client.get(reverse("invoice-list"), {"office_settings_id": 1})
@@ -737,9 +731,7 @@ class TestListeFactures(APITestCase):
         )
         self.assertEqual(len(reponse.data), 2)
         avant_hier = (timezone.now() - timedelta(days=2)).date().isoformat()
-        reponse = self.client.get(
-            reverse("invoice-list"), {"date__lte": avant_hier}
-        )
+        reponse = self.client.get(reverse("invoice-list"), {"date__lte": avant_hier})
         self.assertEqual(len(reponse.data), 0)
 
     def test_export_xlsx(self):
@@ -845,7 +837,9 @@ class TestTemplatize(TestCase):
         )
 
     def test_remplace_une_cle_de_dictionnaire(self):
-        self.assertEqual(templatize("Bonjour <nom>", {"nom": "Picard"}), "Bonjour Picard")
+        self.assertEqual(
+            templatize("Bonjour <nom>", {"nom": "Picard"}), "Bonjour Picard"
+        )
 
     def test_valeur_flottante_rendue_selon_la_locale(self):
         self.assertEqual(templatize("<amount>", {"amount": 50.0}), locale.str(50.0))
@@ -1089,7 +1083,9 @@ class TestIsStaffOrTargetUser(TestCase):
     def test_action_hors_liste_reservee_au_personnel(self):
         permission = IsStaffOrTargetUser()
         self.assertFalse(
-            permission.has_permission(self.requete_de(self.simple), VueFactice("destroy"))
+            permission.has_permission(
+                self.requete_de(self.simple), VueFactice("destroy")
+            )
         )
         self.assertTrue(
             permission.has_permission(
@@ -1108,7 +1104,9 @@ class TestIsStaffOrTargetUser(TestCase):
         classe = IsStaffOrTargetUserFactory.additional_methods(["list"])
         permission = classe()
         self.assertFalse(
-            permission.has_permission(self.requete_de(self.simple), VueFactice("destroy"))
+            permission.has_permission(
+                self.requete_de(self.simple), VueFactice("destroy")
+            )
         )
 
     def test_get_by_user_est_permis_sans_declaration(self):
@@ -1199,20 +1197,21 @@ Ne garder dans le `try` que l'interrogation de la base, pour que la vue décoré
 de ses propres erreurs. Remplacer le corps de `_decorator` par :
 
 ```python
-    @wraps(func)
-    def _decorator(*args, **kwargs):
-        UserModel = get_user_model()
-        try:
-            aucun_utilisateur = UserModel.objects.all().count() == 0
-        except DatabaseError:
-            # Base injoignable ou non migrée : on refuse, on ne devine pas.
-            logger.exception("Impossible de compter les utilisateurs")
-            return HttpResponseForbidden()
-        if aucun_utilisateur:
-            return func(*args, **kwargs)
+@wraps(func)
+def _decorator(*args, **kwargs):
+    UserModel = get_user_model()
+    try:
+        aucun_utilisateur = UserModel.objects.all().count() == 0
+    except DatabaseError:
+        # Base injoignable ou non migrée : on refuse, on ne devine pas.
+        logger.exception("Impossible de compter les utilisateurs")
         return HttpResponseForbidden()
+    if aucun_utilisateur:
+        return func(*args, **kwargs)
+    return HttpResponseForbidden()
 
-    return _decorator
+
+return _decorator
 ```
 
 Ajouter `from django.db import DatabaseError` à l'en-tête d'imports de
@@ -1458,9 +1457,7 @@ class TestOneSessionPerUser(APITestCase):
         second.login(username="test", password="testpw")
         second.get("/jsi18n/")
 
-        self.assertFalse(
-            Session.objects.filter(session_key=premiere_session).exists()
-        )
+        self.assertFalse(Session.objects.filter(session_key=premiere_session).exists())
         self.assertEqual(
             LoggedInUser.objects.get().session_key, second.session.session_key
         )
@@ -1782,9 +1779,7 @@ class TestSuppressionPatient(APITestCase):
         )
         self.assertEqual(reponse.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Patient.objects.filter(id=self.patient.id).exists())
-        self.assertFalse(
-            Examination.objects.filter(patient=self.patient.id).exists()
-        )
+        self.assertFalse(Examination.objects.filter(patient=self.patient.id).exists())
         self.assertEqual(OfficeEvent.objects.count(), 0)
 ```
 
@@ -2008,9 +2003,7 @@ class TestConsultation(APITestCase):
             reverse("examination-detail", kwargs={"pk": creation.data["id"]})
         )
         self.assertEqual(reponse.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertTrue(
-            Examination.objects.filter(id=creation.data["id"]).exists()
-        )
+        self.assertTrue(Examination.objects.filter(id=creation.data["id"]).exists())
 
     def test_les_consultations_du_patient_sont_rendues_de_la_plus_recente(self):
         ancienne = self.cree_par_l_api(
@@ -2506,64 +2499,63 @@ git commit -m "test: couvrir l'analyse d'un couple de fichiers d'import valide"
 Ajouter à `TestAnalyseImport` :
 
 ```python
-    def test_fichiers_fournis_dans_le_mauvais_ordre_sont_permutes(self):
-        reponse = self.depose(
-            csv_televerse(
-                "consultations.csv", ENTETE_CONSULTATION, [ligne_consultation(1)]
-            ),
-            csv_televerse("patients.csv", ENTETE_PATIENT, [ligne_patient(1)]),
-        )
-        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
-        depot = FileImport.objects.get(id=reponse.data["id"])
-        self.assertIn("patients", depot.file_patient.name)
-        self.assertIn("consultations", depot.file_examination.name)
-        self.assertEqual(depot.status, 1)
+def test_fichiers_fournis_dans_le_mauvais_ordre_sont_permutes(self):
+    reponse = self.depose(
+        csv_televerse(
+            "consultations.csv", ENTETE_CONSULTATION, [ligne_consultation(1)]
+        ),
+        csv_televerse("patients.csv", ENTETE_PATIENT, [ligne_patient(1)]),
+    )
+    self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+    depot = FileImport.objects.get(id=reponse.data["id"])
+    self.assertIn("patients", depot.file_patient.name)
+    self.assertIn("consultations", depot.file_examination.name)
+    self.assertEqual(depot.status, 1)
 
-    def test_fichier_consultation_seul_est_refuse(self):
-        reponse = self.depose(
-            csv_televerse(
-                "consultations.csv", ENTETE_CONSULTATION, [ligne_consultation(1)]
-            )
-        )
-        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_mauvais_entete_est_rejete(self):
-        reponse = self.depose(
-            csv_televerse(
-                "inconnu.csv", ["colonne a", "colonne b"], [["valeur", "autre"]]
-            )
-        )
-        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
+def test_fichier_consultation_seul_est_refuse(self):
+    reponse = self.depose(
+        csv_televerse("consultations.csv", ENTETE_CONSULTATION, [ligne_consultation(1)])
+    )
+    self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_fichier_vide_est_rejete(self):
-        reponse = self.depose(
-            SimpleUploadedFile("vide.csv", b"", "text/csv")
-        )
-        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
 
-    def test_fichier_non_csv_est_rejete(self):
-        reponse = self.depose(
-            SimpleUploadedFile("image.bin", b"\x00\x01\x02\x03", "application/octet-stream")
-        )
-        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
+def test_mauvais_entete_est_rejete(self):
+    reponse = self.depose(
+        csv_televerse("inconnu.csv", ["colonne a", "colonne b"], [["valeur", "autre"]])
+    )
+    self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
 
-    def test_encodage_non_supporte_produit_une_erreur_explicite(self):
-        reponse = self.depose(
-            csv_televerse(
-                "patients.csv",
-                ENTETE_PATIENT,
-                [ligne_patient(1, nom="Crémieux")],
-                encodage="iso-8859-1",
-            )
+
+def test_fichier_vide_est_rejete(self):
+    reponse = self.depose(SimpleUploadedFile("vide.csv", b"", "text/csv"))
+    self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
+
+
+def test_fichier_non_csv_est_rejete(self):
+    reponse = self.depose(
+        SimpleUploadedFile("image.bin", b"\x00\x01\x02\x03", "application/octet-stream")
+    )
+    self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+    self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
+
+
+def test_encodage_non_supporte_produit_une_erreur_explicite(self):
+    reponse = self.depose(
+        csv_televerse(
+            "patients.csv",
+            ENTETE_PATIENT,
+            [ligne_patient(1, nom="Crémieux")],
+            encodage="iso-8859-1",
         )
-        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
-        depot = FileImport.objects.get(id=reponse.data["id"])
-        self.assertEqual(depot.status, 0)
-        # L'analyse échoue explicitement : un motif est remonté, ce n'est pas un silence.
-        self.assertTrue(reponse.data["analyze"]["patient"][3])
+    )
+    self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+    depot = FileImport.objects.get(id=reponse.data["id"])
+    self.assertEqual(depot.status, 0)
+    # L'analyse échoue explicitement : un motif est remonté, ce n'est pas un silence.
+    self.assertTrue(reponse.data["analyze"]["patient"][3])
 ```
 
 Le fichier est ouvert en `encoding="utf-8"` par `FileContentAdapter._get_reader` : un contenu
@@ -2636,7 +2628,9 @@ class TestIntegrationPatients(APITestCase):
         reponse = self.depose_et_integre(
             [
                 ligne_patient(1),
-                ligne_patient(2, nom="Crusher", prenom="Beverly", naissance="13/10/1924"),
+                ligne_patient(
+                    2, nom="Crusher", prenom="Beverly", naissance="13/10/1924"
+                ),
             ]
         )
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
@@ -2829,9 +2823,7 @@ class TestConversions(TestCase):
             self.assertFalse(self.fabrique.get_boolean_value(faux))
 
     def test_date_sans_heure(self):
-        self.assertEqual(
-            self.fabrique.get_date("13/07/1935"), date(1935, 7, 13)
-        )
+        self.assertEqual(self.fabrique.get_date("13/07/1935"), date(1935, 7, 13))
 
     def test_date_invalide_leve_une_valeur_erronee(self):
         with self.assertRaises(ValueError):
@@ -2847,9 +2839,7 @@ class TestConversions(TestCase):
         )
 
     def test_date_de_consultation_sans_heure(self):
-        self.assertEqual(
-            self.integrateur.get_date("01/02/2020"), date(2020, 2, 1)
-        )
+        self.assertEqual(self.integrateur.get_date("01/02/2020"), date(2020, 2, 1))
 ```
 
 Compléter les imports : `from datetime import date, datetime`, et depuis
@@ -3333,9 +3323,7 @@ class TestTracabilite(APITestCase):
     def test_consulter_la_liste_des_patients_est_trace(self):
         reponse = self.client.get(reverse("patient-list"))
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
-        evenement = OfficeEvent.objects.get(
-            type=OfficeSettings.DOWNLOAD_PATIENT_LIST
-        )
+        evenement = OfficeEvent.objects.get(type=OfficeSettings.DOWNLOAD_PATIENT_LIST)
         self.assertEqual(evenement.user, self.user)
         self.assertEqual(evenement.clazz, "OfficeSettings")
 
@@ -3361,9 +3349,7 @@ class TestTracabilite(APITestCase):
             [e for e in par_defaut.data["results"] if e["clazz"] == "Patient"], []
         )
         tous = self.client.get(reverse("officeevent-list"), {"all": "1"})
-        self.assertTrue(
-            [e for e in tous.data["results"] if e["clazz"] == "Patient"]
-        )
+        self.assertTrue([e for e in tous.data["results"] if e["clazz"] == "Patient"])
 ```
 
 Compléter les imports : `from django.utils import timezone`,
@@ -3458,9 +3444,7 @@ class TestStatistiques(APITestCase):
         with sans_receivers():
             patient = cree_patient()
             cree_consultation(patient, therapeut=self.user)
-            cree_consultation(
-                patient, therapeut=self.user, type=ExaminationType.RETURN
-            )
+            cree_consultation(patient, therapeut=self.user, type=ExaminationType.RETURN)
         reponse = self.client.get(reverse("statistics_view"))
         self.assertEqual(reponse.data["week"]["nb_new_patient"], 1)
         self.assertEqual(reponse.data["week"]["nb_examination"], 2)
