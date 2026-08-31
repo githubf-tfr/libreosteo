@@ -211,6 +211,22 @@ Aucun code touché à ce stade.
   `main` redevient vert. `tests/core/`, `.tools/geckodriver`, `.tools/firefox/` et
   `README.md` restent en l'état, propriété du reste de la tâche 11.
 
+- **2026-08-31 (S3, tâche 4, tour de correctifs 1, suite)** — Le commentaire de
+  `tests/functional/test_patient.py` attribuant le format JJ/MM/AAAA du widget de date de
+  document à « Chromium headless sans locale système » était non fondé
+  (`libreosteoweb/static/js/app/app.js:173-179` configure webshim de la même façon pour
+  tout navigateur de bureau, `getAutoEnhance` par défaut vrai) et a été remplacé par ce qui
+  est établi : c'est le widget webshim configuré là qui fixe ce format. Soupçon d'un défaut
+  applicatif réel consigné ci-dessous, § Points en suspens — non tranché par cette suite.
+  De plus, `test_edition_du_dossier_patient` saisissait `select[name=sex]` et les quatre
+  champs du panneau d'antécédents (`surgical_history`, `medical_history`,
+  `family_history`, `trauma_history`, jamais soumis explicitement — persistance reposant
+  sur `save-on-lost-focus="true"` au changement d'onglet) ainsi que `important_info` et
+  `current_treatment`, sans jamais les relire par l'ORM. Assertions ajoutées pour les sept
+  champs ; toutes passent, y compris après une mutation délibérée d'une valeur saisie
+  (`trauma_history`) qui fait échouer le test comme attendu — le mécanisme implicite de
+  sauvegarde des antécédents fonctionne bien.
+
 - **2026-08-31 (S3, tâche 3, tour de correctifs 1)** — Deux changements de code
   applicatif, hors périmètre du brief de tâche 3 (deux modules de test +
   `pyproject.toml`), retenus après revue :
@@ -422,3 +438,23 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   L'appel est en commentaire dans `perform_update` (`libreosteoweb/api/views.py`). Une
   consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
   changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
+
+### Soupçon non tranché, relevé en S3 (tâche 4, tour de correctifs 1)
+
+- **Le widget de date d'un document patient pourrait inverser jour et mois pour un
+  utilisateur français, hors de toute question de locale système.** Établi : le champ de
+  date du formulaire de pièce jointe (`filemanager.html`) est remplacé par le polyfill
+  webshim configuré dans `libreosteoweb/static/js/app/app.js:173-179`
+  (`webshim.setOptions('forms-ext', {replaceUI: 'auto', types: 'date', ...})`) ; ce widget
+  accepte ici le format JJ/MM/AAAA (`"01/10/2012"` → 10 janvier 2012, vérifié par la suite
+  fonctionnelle). Établi aussi : `getAutoEnhance` (`polyfiller.js`) ne désactive ce
+  remplacement que si `webCFG.enhanceAuto` est faux, or sa valeur par défaut est vraie pour
+  tout navigateur de bureau de largeur normale, headless ou non — et `index.html` ne porte
+  aucun attribut `lang` sur lequel le chargeur de locale de webshim pourrait s'appuyer. Ce
+  qui n'est **pas** établi : le format effectivement accepté par ce même widget dans un
+  vrai navigateur de bureau (Firefox, Chrome non headless), avec ou sans locale système fr.
+  Si ce format s'avère être MM/JJ/AAAA en pratique (anglo-saxon) alors qu'un utilisateur
+  français saisit spontanément JJ/MM/AAAA, un « 10/01/2012 » tapé pour le 10 janvier
+  s'enregistrerait comme le 1er octobre — un défaut de saisie silencieux. À vérifier dans
+  un vrai navigateur ; hors périmètre de S3 (suite Playwright/Chromium headless
+  uniquement), pas de correction applicative prise ici.

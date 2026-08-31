@@ -95,11 +95,12 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
         "patients_1.csv"
     )
     page.fill("input[placeholder*='Titre']", "Licence LibreOsteo")
-    # Le champ de date, remplace par un input texte webshim (filemanager.html), est
-    # interprete dans le format anglo-saxon MM/JJ/AAAA : Chromium headless n'a pas de
-    # locale systeme fr (le mot-cle Robot d'origine, en environnement Selenium/Firefox
-    # avec une locale systeme fr, tapait "10/01/2012" en JJ/MM/AAAA pour le meme 10
-    # janvier 2012).
+    # Le champ de date (filemanager.html) est remplace par le widget webshim configure
+    # dans static/js/app/app.js (webshim.setOptions('forms-ext', {replaceUI: 'auto',
+    # types: 'date', ...})). Ce format-la, JJ/MM/AAAA "01/10/2012" pour le 10 janvier 2012,
+    # est celui que ce widget accepte ici ; "10/01/2012" est interprete comme le 1er
+    # octobre. Voir KANBAN.md pour le soupcon, non tranche par cette suite, que ce meme
+    # comportement s'applique aussi hors Chromium headless.
     page.fill("input[placeholder*='Date']:visible", "01/10/2012")
     page.fill("p.help-block ~ div", "Licence GNU GPLv3")
     page.click("button.btn.label.label-info")
@@ -118,6 +119,17 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     assert patient.hobbies == "Ski, Roller, Musique"
     assert patient.smoker is True
     assert patient.laterality == "L"
+    assert patient.sex == "M"
+    assert patient.important_info == "WARNING"
+    assert patient.current_treatment == "Traitement H2O"
+    # Panneau d'antecedents (`form.historyForm`) : jamais soumis explicitement dans ce
+    # parcours, sa persistance repose sur `save-on-lost-focus="true"` (patient-detail.html)
+    # au changement d'onglet declenche par le clic sur `#medicalreports` qui suit. Ces
+    # assertions sont donc aussi la preuve que ce mecanisme implicite fonctionne.
+    assert patient.surgical_history == "Surgical history"
+    assert patient.medical_history == "Medical History"
+    assert patient.family_history == "Family History"
+    assert patient.trauma_history == "Trauma history"
 
     document = PatientDocument.objects.get(patient=patient)
     assert document.document.title == "Licence LibreOsteo"
