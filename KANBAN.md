@@ -21,6 +21,17 @@ Tenu à la main.
   - **Plancher de couverture à cliquet**, qui ne descend pas.
   - **`ruff` et `mypy` bloquants**, sur un périmètre déclaré qui ne rétrécit pas.
 
+- (2026-08-31) **Cadrage de S3, tests fonctionnels Playwright.** Spec validée :
+  `docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md`. Deux décisions
+  tranchées au cadrage :
+  - **Socle semé, puis tests indépendants** — une fixture autouse crée l'utilisateur, le
+    cabinet et le thérapeute pour chaque test, la base étant tronquée entre deux tests. La
+    chaîne ordonnée `001` → `012` disparaît, et avec elle les identifiants en dur.
+  - **`live_server` de `pytest-django` à la place de `server.py` et de la base du dépôt** —
+    l'arrangement passe par l'ORM, l'index Whoosh est dirigé vers un répertoire temporaire de
+    session. Le montage actuel, cause du non-déterminisme et du piège `MAIN_WRITELOCK`, n'est
+    pas reconduit.
+
 ## À faire
 
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non
@@ -128,7 +139,10 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## En cours
 
-_(vide — S3 n'a pas encore de spec)_
+**S3 — tests fonctionnels Playwright.** Spec écrite et validée le 2026-08-31
+(`docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md`, commit `cb9a736`).
+Prochaine étape : le plan d'implémentation (`superpowers:writing-plans`), pas encore écrit.
+Aucun code touché à ce stade.
 
 ## Terminé
 
@@ -332,8 +346,12 @@ le découpage est une décision de cadrage, pas une commodité.
   pas toucher sans filet.
 - **S3 — Fonctionnels Playwright.** Réécriture des 24 tests Robot, suppression de
   Selenium, de geckodriver, de la dépendance à la locale `fr_FR.UTF-8` et de la tâche
-  `functional` du workflow. À vérifier tôt : le CDN Playwright répond depuis la sandbox,
-  mais l'installation effective d'un navigateur n'a jamais été prouvée.
+  `functional` du workflow. **Prérequis levé le 2026-08-31** : `cdn.playwright.dev` était
+  bloqué par la politique réseau (403), une règle d'autorisation a été posée côté hôte ;
+  `playwright install chromium` télécharge alors Chrome Headless Shell 151.0.7922.34, dont
+  le lancement exige dix-sept bibliothèques partagées absentes, installées par
+  `playwright install-deps chromium` (paquets système non persistants, à rejouer par
+  `.tools/libreosteo-devenv.sh`). Lancement headless vérifié de bout en bout.
   **Le non-déterminisme n'a pas disparu avec le correctif de `unproxy` en S2.** Le
   2026-08-31, la CI a échoué sur `008 Invoice Functionality` (4 tests sur 5), précédée de
   trois `OSError: [Errno 9] Bad file descriptor`, puis a été verte au rejeu du même commit
