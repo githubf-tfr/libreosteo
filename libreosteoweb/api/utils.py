@@ -57,7 +57,7 @@ class NetworkHelper:
                 for it in netifaces.interfaces()
                 if netifaces.AF_INET in netifaces.ifaddresses(it)
             ]
-        except:
+        except (OSError, ValueError, KeyError):
             logger.exception("Cannot obtain address on the host")
         return addresses
 
