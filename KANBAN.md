@@ -131,14 +131,18 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   - **Lots 1 à 3 clos** : facturation (31 tests), accès et middlewares (25 tests), dossier
     patient (26 tests). Plancher de couverture monté de 61 à 72.
   - **Lot 4 clos** : import de fichiers (8 tâches). Plancher monté de 72 à 80.
-  - **Lot 5, exploitation** : 2 tâches sur 8 faites (séquence de facturation et réglages,
-    traçabilité des consultations de données).
+  - **Lot 5, exploitation** : 5 tâches sur 8 faites (séquence de facturation et réglages,
+    traçabilité, statistiques, sauvegarde, restauration). Reprise à la tâche 6
+    (reconstruction d'index et utilitaires). Plancher de couverture à 80, 174 tests.
   - **Défauts de production corrigés en chemin** : `maintenance_available` et
     `OneSessionPerUserMiddleware` (`except:` nus), `PatientDocument.delete` (double
     suppression du Document), `FileContentProxy.unproxy` (écrivait `None` dans le cache au
     lieu de retirer la clé — cause du non-déterminisme de la suite fonctionnelle en S1),
     l'encodage ISO-8859-1 importé comme valide (`except:` nus de `file_integrator.py`, cf.
-    « Pièges rencontrés »), `PasswordSerializer` sans mot de passe (500 au lieu de 400).
+    « Pièges rencontrés »), `PasswordSerializer` sans mot de passe (500 au lieu de 400),
+    la restauration non zippée de `LoadDump` (morte depuis toujours : répertoire temporaire
+    jamais créé, puis écriture de `bytes` en mode texte) et le `dump.json` corrompu qui
+    rendait 500 au lieu de 412.
 
 ## Terminé
 
