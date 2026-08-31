@@ -28,6 +28,6 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 if not os.environ.get("DJANGO_SETTINGS_MODULE"):
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Libreosteo.settings.demonstration")
 print("Use the settings = %s" % os.environ.get("DJANGO_SETTINGS_MODULE"))
-from django.core.wsgi import get_wsgi_application
+from django.core.wsgi import get_wsgi_application  # noqa: E402 — après django.setup()
 
 application = get_wsgi_application()

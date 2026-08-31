@@ -65,7 +65,7 @@ def _exit(self):
         # This isn't strictly necessary, but it's better than seeing
         # "Waiting for child threads to terminate..." and then nothing.
         self.log("Bus EXITED")
-    except:
+    except Exception:
         # This method is often called asynchronously (whether thread,
         # signal handler, console handler, or atexit handler), so we
         # can't just let exceptions propagate out unhandled.
@@ -176,7 +176,7 @@ class HTTPLogger(_cplogging.LogManager):
             response = self.app(environ, start_response)
             self.access(environ, response)
             return response
-        except:
+        except Exception:
             self.error(traceback=True)
             return HttpResponseServerError(_cperror.format_exc())
 
@@ -221,7 +221,7 @@ class HTTPLogger(_cplogging.LogManager):
             atoms[k] = v.replace('"', '\\"')
         try:
             self.access_log.log(logging.INFO, self.access_log_format.format(**atoms))
-        except:
+        except Exception:
             self.error(traceback=True)
 
 

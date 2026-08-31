@@ -36,10 +36,10 @@ extend-exclude = ["libreosteoweb/migrations", "node_modules", ".venv", ".tools"]
 # et de sémantique (E4, E7, E9) et tri des imports (I). Il s'élargit au même
 # principe de cliquet que le plancher de couverture.
 select = ["E4", "E7", "E9", "F", "I"]
-# Dette héritée, consignée au KANBAN : 18 `except:` nus et 10 imports hors en-tête.
-# Les corriger changerait la gestion d'erreurs sans filet de test — c'est du ressort
-# de S2, pas de S1.
-ignore = ["E722", "E402"]
+# Dette soldée par S2 : les 17 `except:` nus ont été remplacés par les exceptions réellement
+# attendues, et les 7 imports hors en-tête imposés par Django portent un `noqa: E402` justifié
+# en ligne. Cette liste doit rester vide.
+ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 # Les modules de réglages sont bâtis sur `from .base import *`, motif voulu par Django.
