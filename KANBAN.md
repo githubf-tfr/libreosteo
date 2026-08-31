@@ -262,3 +262,12 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   L'appel est en commentaire dans `perform_update` (`libreosteoweb/api/views.py`). Une
   consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
   changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
+- **2026-08-31 — `invoice_start_sequence` nul réinitialise la séquence à la valeur par défaut,
+  il ne la laisse pas inchangée.** Le brief L5T1 prévoyait qu'une valeur nulle se comporte
+  comme une valeur non numérique (« abc » : séquence inchangée, cf. `perform_update` dans
+  `libreosteoweb/api/views.py`). En réalité `OfficeSettingsSerializer.validate` traite `None`
+  comme une valeur vide et retombe sur le dernier numéro de facture ou 10000 — exactement le
+  comportement déjà couvert et commenté (« Reset to the default value ») par
+  `test_no_set_start_invoice_sequence_on_already_set_value` de `test_invoice.py` pour la chaîne
+  vide. `test_exploitation.py::test_une_valeur_nulle_reinitialise_a_la_valeur_par_defaut` a été
+  ajusté sur ce comportement établi plutôt que sur l'hypothèse du brief.

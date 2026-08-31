@@ -364,6 +364,12 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
     network_list = serializers.SerializerMethodField()
     invoice_min_sequence = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
+    # allow_null : `validate` traite explicitement une valeur nulle comme une chaîne vide
+    # (cf. ci-dessous, réinitialisation de la séquence), il faut donc que le champ la laisse
+    # passer plutôt que de la rejeter avant que `validate` ne s'exécute.
+    invoice_start_sequence = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True
+    )
 
     def validate(self, data):
         try:
@@ -442,7 +448,7 @@ class UserOfficeSerializer(WithPkMixin, serializers.ModelSerializer):
 
 
 class PasswordSerializer(serializers.Serializer):
-    password = serializers.CharField(required=False)
+    password = serializers.CharField(required=True)
 
 
 class FileImportSerializer(WithPkMixin, serializers.ModelSerializer):
