@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
@@ -117,3 +119,49 @@ def socle(request, transactional_db, environnement_isole) -> Socle | None:  # no
         )
 
     return Socle(utilisateur=utilisateur, cabinet=cabinet, therapeute=therapeute)
+
+
+def _rejoindre_threads_de_requete_serveur(delai_max: float = 5.0) -> None:
+    """Rejoint les threads de requete du `live_server` encore actifs.
+
+    `ThreadedWSGIServer.daemon_threads = True` (Django) fait que ces threads ne sont
+    jamais ajoutes a la liste jointe par `server_close()` :
+    `socketserver.ThreadingMixIn._Threads.append` ignore silencieusement tout thread
+    daemon (`if thread.daemon: return`, avant le `super().append(thread)`). La fixture
+    de session `live_server` (pytest-django) revoque donc le partage de connexion SQLite
+    entre threads (`dec_thread_sharing`) sans jamais avoir attendu qu'un thread de
+    requete encore actif ait fini de fermer sa propre connexion — d'ou l'exception
+    intermittente `DatabaseWrapper objects created in a thread can only be used in
+    that same thread`, reproduite et tracee jusqu'ici par instrumentation directe de
+    `validate_thread_sharing`. On rejoint nous-memes ces threads, par nom :
+    `threading.Thread` suffixe le nom du thread du nom de sa fonction cible depuis
+    Python 3.10 (`threading.py`, `Thread.__init__`), d'ou `Thread-N
+    (process_request_thread)`, confirme dans cet environnement par la meme
+    instrumentation. `join(timeout=...)` est une attente conditionnelle, pas une
+    temporisation : elle rend la main des que le thread termine.
+    """
+    limite = time.monotonic() + delai_max
+    for thread in threading.enumerate():
+        if "process_request_thread" not in thread.name:
+            continue
+        thread.join(timeout=max(0.0, limite - time.monotonic()))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _assainir_le_serveur(live_server) -> Iterator[None]:  # noqa: ANN001
+    """Assainit `live_server` juste avant que sa propre fixture ne se termine.
+
+    Session-scope et **depend explicitement de `live_server`** : cette dependance
+    garantit, via l'ordre pile (LIFO) des fixtures, deux choses a la fois —
+    (1) notre nettoyage tourne apres le teardown de `page`/`context` de *tous* les
+    tests de la session (fixtures fonction-scope, forcement terminees avant la
+    finalisation d'une fixture session-scope), donc les connexions HTTP keep-alive
+    ouvertes par le navigateur sont deja closes cote client a ce moment-la ; (2) notre
+    nettoyage tourne avant `live_server.stop()` (puisque nous en dependons, cf. regle
+    LIFO), donc avant la revocation du partage de connexion. Un essai anterieur en
+    fonction-scope, sans cette dependance explicite, rejoignait par erreur des threads
+    de requete encore legitimement vivants (connexions HTTP/1.1 persistantes en
+    attente d'une prochaine requete) et bloquait inutilement jusqu'au delai maximal.
+    """
+    yield
+    _rejoindre_threads_de_requete_serveur()

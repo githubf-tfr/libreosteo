@@ -20,6 +20,13 @@ def connexion(
     page.fill("input[name=password]", mot_de_passe)
     page.click("button[type=submit]")
     expect(page).to_have_title("LibreOsteo")
+    # Le tableau de bord declenche plusieurs appels $http asynchrones (profil, reglages,
+    # statistiques, evenements) que ce clic n'attend pas : sans cette attente, ils peuvent
+    # encore etre en vol quand `live_server` (fixture de session) s'arrete a la fin de la
+    # session, ce qui fait echouer le thread de requete restant sur le partage de connexion
+    # SQLite entre threads. `angular-loading-bar` intercepte tous les appels `$http` de
+    # l'application (cf. static/js/app/app.js) : attendre sa disparition ici les attend tous.
+    attendre_page_prete(page)
 
 
 def attendre_page_prete(page: Page) -> None:
