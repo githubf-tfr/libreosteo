@@ -279,7 +279,9 @@ def socle(request, transactional_db, environnement_isole) -> Socle | None:  # no
     if request.node.get_closest_marker("sans_socle") is not None:
         return None
 
-    utilisateur = get_user_model().objects.create_superuser("test", "test@test.com", "test")
+    utilisateur = get_user_model().objects.create_superuser(
+        "test", "test@test.com", "test"
+    )
     therapeute = TherapeutSettings.objects.create(
         user=utilisateur,
         professional_id="67654684",
@@ -307,7 +309,9 @@ def socle(request, transactional_db, environnement_isole) -> Socle | None:  # no
         ("cash", "Espèces", True),
         ("ecard", "Carte Bancaire", False),
     ):
-        PaimentMean.objects.get_or_create(code=code, defaults={"text": texte, "enable": actif})
+        PaimentMean.objects.get_or_create(
+            code=code, defaults={"text": texte, "enable": actif}
+        )
 
     return Socle(utilisateur=utilisateur, cabinet=cabinet, therapeute=therapeute)
 ```
@@ -741,7 +745,9 @@ from tests.functional.helpers import (
 )
 
 
-def test_reglage_du_therapeute(page: Page, live_server: LiveServer, socle: Socle) -> None:
+def test_reglage_du_therapeute(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
     socle.therapeute.professional_id = ""
     socle.therapeute.save()
 
@@ -851,7 +857,7 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
 
     # Informations generales : les boutons disent dans quel mode on est.
     page.click("button:has-text('Éditer')")
-    expect(page.locator("button:has-text(\"Fin d'édition\")")).to_be_visible()
+    expect(page.locator('button:has-text("Fin d\'édition")')).to_be_visible()
     expect(page.locator("button:has-text('Supprimer')")).to_be_visible()
     page.fill("#original_name", "dupont")
     page.select_option("#sex", label="Masculin")
@@ -868,7 +874,7 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     page.fill("#hobbies", "Ski, Roller, Musique")
     page.fill("#important_info", "WARNING")
     page.fill("#current_treatment", "Traitement H2O")
-    page.click("button:has-text(\"Fin d'édition\")")
+    page.click('button:has-text("Fin d\'édition")')
     attendre_page_prete(page)
     expect(page.locator("button:has-text('Éditer')")).to_be_visible()
 
@@ -884,9 +890,11 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     page.click("#medicalreports")
     page.click("button:has-text('Éditer')")
     page.fill("#medical_reports", "Medical Reports")
-    page.click("button:has-text(\"Fin d'édition\")")
+    page.click('button:has-text("Fin d\'édition")')
     page.set_input_files("#addDocumentMedicalReport", CHEMIN_DOCUMENT)
-    expect(page.locator("div.form-group.document_create")).to_contain_text("patients_1.csv")
+    expect(page.locator("div.form-group.document_create")).to_contain_text(
+        "patients_1.csv"
+    )
     page.fill("input[placeholder*='Titre']", "Licence LibreOsteo")
     page.fill("input[placeholder*='Date']:visible", "10/01/2012")
     page.fill("p.help-block ~ div", "Licence GNU GPLv3")
@@ -1202,7 +1210,7 @@ def test_changement_de_date_accepte(
     )
     page.click("button.btn-default:has-text('Éditer')")
     page.fill("input.ws-date.examinationdate", nouvelle_date.strftime("%d/%m/%Y"))
-    page.click("button.btn-default:has-text(\"Fin d'édition\")")
+    page.click('button.btn-default:has-text("Fin d\'édition")')
 
     expect(page.locator("#examinationDate")).to_have_text(
         libelle_date_longue(nouvelle_date)
@@ -1231,7 +1239,7 @@ def test_changement_de_date_dans_le_futur_refuse(
         "input.ws-date.examinationdate",
         (date_initiale + timedelta(days=13)).strftime("%d/%m/%Y"),
     )
-    page.click("button.btn-default:has-text(\"Fin d'édition\")")
+    page.click('button.btn-default:has-text("Fin d\'édition")')
 
     expect(page.locator("div.editable-error")).to_contain_text("La date est invalide")
     consultation.refresh_from_db()
@@ -1259,7 +1267,7 @@ def test_date_posterieure_a_la_facture_refusee(
         "input.ws-date.examinationdate",
         (date_initiale + timedelta(days=20)).strftime("%d/%m/%Y"),
     )
-    page.click("button.btn-default:has-text(\"Fin d'édition\")")
+    page.click('button.btn-default:has-text("Fin d\'édition")')
 
     expect(page.locator("div.editable-error")).to_contain_text("La date est invalide")
     consultation_facturee.refresh_from_db()
@@ -1280,7 +1288,7 @@ def test_date_anterieure_a_la_facture_acceptee(
     )
     page.click("button.btn-default:has-text('Éditer')")
     page.fill("input.ws-date.examinationdate", nouvelle_date.strftime("%d/%m/%Y"))
-    page.click("button.btn-default:has-text(\"Fin d'édition\")")
+    page.click('button.btn-default:has-text("Fin d\'édition")')
 
     expect(page.locator("#examinationDate")).to_have_text(
         libelle_date_longue(nouvelle_date)
@@ -1535,9 +1543,7 @@ def test_annulation_et_refacturation(
     attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient)
 
-    page.goto(
-        f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}"
-    )
+    page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
     page.click("#cancelInvoiceBtn")
     page.click("#modal-btn-ok")
     expect(page.locator("#invoiceExaminationBtn")).to_be_visible()
@@ -1573,9 +1579,7 @@ def test_facture_impayee_puis_reglee(
     page.goto(f"{live_server.url}/invoice/{facture.id}")
     expect(page.locator("#main")).to_contain_text("Non réglée en date de facture")
 
-    page.goto(
-        f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}"
-    )
+    page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
     page.click("#finishPaimentBtn")
     expect(page.locator("#amount")).to_have_value("55")
     page.check("input[value=check]")
@@ -1619,9 +1623,7 @@ def test_avoir_sur_facture_deja_emise(
     consultation = Examination.objects.get(patient=patient)
     facture_initiale = Invoice.objects.get()
 
-    page.goto(
-        f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}"
-    )
+    page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
     page.click("#cancelInvoiceBtn")
     page.click("#modal-btn-ok")
     page.check("input[value=cash]")
@@ -1692,7 +1694,11 @@ from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import Examination, Patient
-from tests.functional.helpers import attendre_page_prete, connexion, ouvrir_menu_utilisateur
+from tests.functional.helpers import (
+    attendre_page_prete,
+    connexion,
+    ouvrir_menu_utilisateur,
+)
 
 FICHIER_PATIENTS = "tests/functional/resources/patients_1.csv"
 FICHIER_CONSULTATIONS = "tests/functional/resources/examinations_1.csv"
@@ -1702,7 +1708,7 @@ def ouvrir_import(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
     page.click("#import-file")
     expect(page.locator("h1.page-header")).to_contain_text("Gestion de l'import/export")
-    page.click("a:has-text(\"Importer d'un système externe\")")
+    page.click('a:has-text("Importer d\'un système externe")')
     expect(page.locator("div.well")).to_contain_text("Note")
 
 
@@ -1714,7 +1720,9 @@ def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
     attendre_page_prete(page)
 
     expect(page.locator("#patient-file-analyze p > span.text-success")).to_be_visible()
-    expect(page.locator("#patient-file-analyze table")).to_contain_text("Nom de famille")
+    expect(page.locator("#patient-file-analyze table")).to_contain_text(
+        "Nom de famille"
+    )
 
     page.click("button.btn-success:has-text('Importer')")
     attendre_page_prete(page)
@@ -1743,7 +1751,9 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     page.set_input_files("#examination-file", FICHIER_CONSULTATIONS)
     page.click("button:has-text('Analyser')")
     attendre_page_prete(page)
-    expect(page.locator("#examination-file-analyze p > span.text-success")).to_be_visible()
+    expect(
+        page.locator("#examination-file-analyze p > span.text-success")
+    ).to_be_visible()
     expect(page.locator("#examination-file-analyze table")).to_contain_text("Motif")
 
     page.click("button.btn-success:has-text('Importer')")
