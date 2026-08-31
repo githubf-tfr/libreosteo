@@ -128,6 +128,7 @@ files = [
     "tests/functional/helpers.py",
     "tests/functional/test_authentification.py",
     "tests/functional/test_cabinet.py",
+    "tests/functional/test_consultation.py",
     "tests/functional/test_installation.py",
     "tests/functional/test_patient.py",
     "tests/functional/test_therapeute.py",

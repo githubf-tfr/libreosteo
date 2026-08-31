@@ -20,6 +20,17 @@ def connexion(
     page.fill("input[name=password]", mot_de_passe)
     page.click("button[type=submit]")
     expect(page).to_have_title("LibreOsteo")
+    # A cet instant, l'URL est encore celle du redirect Django brut (sans "#/") :
+    # `$urlRouterProvider.otherwise('/')` (static/js/app/app.js) ne l'a pas encore reecrite.
+    # Un geste qui depend de ui-router (ici, la recherche : `$location.path(...)` dans
+    # SearchCtrl.search(), static/js/app/search.js) avant cette reecriture est absorbe par
+    # la resolution initiale encore en vol, qui ecrase silencieusement le changement d'URL
+    # une fois qu'elle se termine (retour muet au tableau de bord, sans erreur visible ni
+    # requete reseau — confirme par instrumentation directe des evenements `request` de
+    # Playwright). Meme famille de course que celle documentee dans
+    # `ouvrir_reglages_cabinet` pour les liens ui-sref ; ici la barriere est l'URL
+    # elle-meme, puisque aucun lien ui-sref n'est implique.
+    expect(page).to_have_url(f"{serveur.url}/#/")
     # Le tableau de bord declenche plusieurs appels $http asynchrones (profil, reglages,
     # statistiques, evenements) que ce clic n'attend pas : sans cette attente, ils peuvent
     # encore etre en vol quand `live_server` (fixture de session) s'arrete a la fin de la
