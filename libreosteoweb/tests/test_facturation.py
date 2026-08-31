@@ -368,13 +368,20 @@ class TestListeFactures(APITestCase):
         self.assertEqual(len(reponse.data), 0)
 
     def test_filtrer_par_intervalle_de_dates(self):
-        hier = (timezone.now() - timedelta(days=1)).date().isoformat()
-        demain = (timezone.now() + timedelta(days=1)).date().isoformat()
+        # `timezone.now().date()` est le jour calendaire UTC ; `date__gte`/`date__lte`
+        # sur un `DateTimeField` avec `USE_TZ=True` interpretent une borne date-seule
+        # dans le fuseau local (`TIME_ZONE = "Europe/Paris"`, cf. `Libreosteo/settings`).
+        # Entre 22h et minuit UTC (heure d'ete), les deux jours divergent d'un jour et
+        # « demain » borne la fenetre une journee trop tot, excluant les factures
+        # creees a l'instant meme. `timezone.localdate()` suit le jour local et evite
+        # cette fenetre, quelle que soit l'heure du lancement.
+        hier = (timezone.localdate() - timedelta(days=1)).isoformat()
+        demain = (timezone.localdate() + timedelta(days=1)).isoformat()
         reponse = self.client.get(
             reverse("invoice-list"), {"date__gte": hier, "date__lte": demain}
         )
         self.assertEqual(len(reponse.data), 2)
-        avant_hier = (timezone.now() - timedelta(days=2)).date().isoformat()
+        avant_hier = (timezone.localdate() - timedelta(days=2)).isoformat()
         reponse = self.client.get(reverse("invoice-list"), {"date__lte": avant_hier})
         self.assertEqual(len(reponse.data), 0)
 

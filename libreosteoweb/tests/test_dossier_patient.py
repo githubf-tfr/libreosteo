@@ -228,7 +228,13 @@ class TestValidationPatient(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_date_de_naissance_future_est_refusee(self):
-        future = (timezone.now().date() + timedelta(days=1)).isoformat()
+        # `timezone.now().date()` est le jour calendaire UTC, pas le jour local que
+        # `check_birth_date` compare (`date.today()`, PyPI stdlib, donc horloge locale
+        # du systeme) : entre 22h et minuit UTC (heure d'ete), les deux divergent d'un
+        # jour et « demain en UTC » redevient « aujourd'hui en local », donc plus une
+        # date future. `timezone.localdate()` suit le jour local (Europe/Paris) et evite
+        # cette fenetre, quelle que soit l'heure du lancement.
+        future = (timezone.localdate() + timedelta(days=1)).isoformat()
         reponse = self.cree(birth_date=future)
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Patient.objects.count(), 0)

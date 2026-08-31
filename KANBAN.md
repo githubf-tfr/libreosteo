@@ -202,6 +202,51 @@ Aucun code touché à ce stade.
 
 ## Pièges rencontrés
 
+- **2026-08-31 (S3, tâche 5)** — Trois tests unitaires échouent de façon déterministe
+  entre 22h et minuit UTC (heure d'été), tous les jours : `test_dossier_patient.py::
+  TestValidationPatient::test_date_de_naissance_future_est_refusee`,
+  `test_exploitation.py::TestStatistiques::test_les_donnees_du_jour_sont_comptees`,
+  `test_facturation.py::TestListeFactures::test_filtrer_par_intervalle_de_dates`.
+  Découverts en pleine fenêtre (session ouverte à 22h03 UTC / minuit heure de Paris),
+  d'abord pris pour un inconvénient d'horaire à attendre — corrigé sur intervention de
+  l'utilisateur : « trois tests qui échouent deux heures par jour sont un défaut de ces
+  tests, pas une gêne de planning ». Cause commune aux deux premiers : les trois tests
+  calculaient leur notion de « demain »/« hier » avec `timezone.now().date()`, qui rend
+  le jour calendaire **UTC**, puis comparaient cette date à un code applicatif qui
+  raisonne en jour **local** (`Europe/Paris`, `TIME_ZONE` de `Libreosteo/settings`) :
+  `check_birth_date` (`libreosteoweb/api/serializers.py`) via `date.today()` (horloge
+  locale du système), et le filtre `date__gte`/`date__lte` de `invoice-list` via
+  l'interprétation Django d'une borne date-seule sur un `DateTimeField` sous
+  `USE_TZ=True`. Entre 22h et minuit UTC, le jour UTC est encore hier alors que le jour
+  local est déjà demain : « demain en UTC » retombe sur « aujourd'hui en local » (plus
+  une date future), et « demain » comme borne de facture exclut une facture qui vient
+  d'être créée. Remplacé `timezone.now().date()` par `timezone.localdate()` (jour local
+  Django) dans ces deux tests — comportement asserté inchangé, simple correction du
+  calcul de date.
+  Le troisième test est un cas distinct et plus retors : `libreosteoweb/api/
+  statistics.py` (`Statistics.get_statistics`, `WeekPeriod.get_start_of_period`, etc.)
+  nomme sa fenêtre du jour d'après les composantes année/mois/jour d'un `timezone.now()`
+  **UTC** (donc déjà le jour calendaire UTC, pas local), puis réinterprète ce même jour
+  comme minuit/23:59 **local** pour ses bornes horaires — sa borne de fin de journée
+  tombe donc jusqu'à deux heures avant minuit UTC réel, tous les jours, toute l'année
+  (pas seulement dans la fenêtre 22h-minuit). C'est un défaut applicatif réel, mais hors
+  périmètre de cette tâche (fichier hors `tests/`, correctif applicatif jamais demandé) :
+  non corrigé, seulement contourné côté test en ancrant les objets créés à midi UTC
+  (`timezone.now().date()` + `time(12, 0)`, fuseau UTC explicite), suffisamment loin des
+  deux bornes horaires quel que soit le décalage (2 h l'été, 1 h l'hiver) et quelle que
+  soit l'heure de lancement du test. `creation_date` reste calé sur le jour calendaire
+  UTC : c'est celui que l'application utilise réellement pour nommer sa fenêtre.
+  Grep de `libreosteoweb/tests/` pour `now().date()`/`date.today()`/équivalents : un
+  seul autre usage relevé (`test_exploitation.py::test_le_telechargement_rend_une_
+  archive_horodatee`, comparaison de l'année via `timezone.now().year`), écarté — le nom
+  de fichier téléchargé embarque lui aussi `timezone.now().isoformat()` côté application
+  (`DbDump.get`, `libreosteoweb/api/views.py`), les deux appels sont en UTC de façon
+  cohérente, pas de mélange fuseau/UTC : ne casse qu'à la seconde du réveillon UTC, non
+  reproduit, non corrigé.
+  Preuve rouge/vert consignée dans `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
+  task-5-report.md` : les trois tests rouges dans la fenêtre avant correctif, verts
+  après, dans la même fenêtre.
+
 - **2026-08-31 (S3, tâche 4, tour de correctifs 1)** — Le job CI `functional` lançait
   `robot -X -P . tests` après avoir installé `requirements/requ-testing.txt`, réécrit par
   la tâche 1 sans plus porter `robotframework` ni `robotframework-seleniumlibrary` : rouge
