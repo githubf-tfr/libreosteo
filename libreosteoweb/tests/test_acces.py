@@ -15,8 +15,14 @@
 # -*- coding: utf-8 -*-
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.models import Session
+from django.db import connection
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import (
+    RequestFactory,
+    TestCase,
+    TransactionTestCase,
+    override_settings,
+)
 from django.urls import reverse
 from rest_framework.test import APIClient, APIRequestFactory, APITestCase
 
@@ -182,6 +188,27 @@ class TestMaintenanceAvailable(TestCase):
     def test_une_erreur_de_la_vue_decoree_n_est_pas_avalee(self):
         with self.assertRaises(ValueError):
             vue_de_maintenance_qui_echoue(None)
+
+
+class TestMaintenanceAvailableBaseEnPanne(TransactionTestCase):
+    """La panne de base est simulée en renommant la table des utilisateurs : le comptage
+    lève alors une vraie `DatabaseError`, sans qu'aucun rouage interne soit espionné.
+    `TransactionTestCase` est nécessaire, l'échec cassant l'enveloppe transactionnelle
+    qu'un `TestCase` maintient autour du test. `serialized_rollback` restaure ce que le
+    vidage de fin de `TransactionTestCase` tronquerait sinon — données semées par les
+    migrations, dont dépendent les tests qui suivent."""
+
+    serialized_rollback = True
+
+    def test_une_base_injoignable_refuse_au_lieu_de_crasher(self):
+        with connection.cursor() as curseur:
+            curseur.execute("ALTER TABLE auth_user RENAME TO auth_user_absente")
+        try:
+            reponse = vue_de_maintenance(None)
+        finally:
+            with connection.cursor() as curseur:
+                curseur.execute("ALTER TABLE auth_user_absente RENAME TO auth_user")
+        self.assertEqual(reponse.status_code, 403)
 
 
 class TestStaffRequiredMixin(APITestCase):
