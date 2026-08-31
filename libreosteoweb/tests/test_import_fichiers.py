@@ -15,6 +15,7 @@
 # -*- coding: utf-8 -*-
 import csv
 import io
+import shutil
 import tempfile
 import unittest
 from datetime import date, datetime
@@ -156,8 +157,16 @@ def csv_televerse(nom, entete, lignes, encodage="utf-8", quoting=csv.QUOTE_MINIM
     return SimpleUploadedFile(nom, tampon.getvalue().encode(encodage), "text/csv")
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class TestAnalyseImport(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        repertoire_media_temp = tempfile.mkdtemp()
+        cls.addClassCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
+        remplacement_media_root = override_settings(MEDIA_ROOT=repertoire_media_temp)
+        remplacement_media_root.enable()
+        cls.addClassCleanup(remplacement_media_root.disable)
+
     def setUp(self):
         FileContentProxy.file_content = {}
         with sans_receivers():
@@ -261,8 +270,16 @@ class TestAnalyseImport(APITestCase):
         self.assertTrue(reponse.data["analyze"]["patient"][3])
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class TestIntegrationPatients(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        repertoire_media_temp = tempfile.mkdtemp()
+        cls.addClassCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
+        remplacement_media_root = override_settings(MEDIA_ROOT=repertoire_media_temp)
+        remplacement_media_root.enable()
+        cls.addClassCleanup(remplacement_media_root.disable)
+
     def setUp(self):
         FileContentProxy.file_content = {}
         with sans_receivers():
@@ -347,8 +364,16 @@ class TestIntegrationPatients(APITestCase):
         self.assertEqual(Patient.objects.count(), 1)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class TestIntegrationConsultations(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        repertoire_media_temp = tempfile.mkdtemp()
+        cls.addClassCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
+        remplacement_media_root = override_settings(MEDIA_ROOT=repertoire_media_temp)
+        remplacement_media_root.enable()
+        cls.addClassCleanup(remplacement_media_root.disable)
+
     def setUp(self):
         FileContentProxy.file_content = {}
         with sans_receivers():
@@ -496,8 +521,16 @@ class TestConversions(unittest.TestCase):
             self.integrateur.get_date("")
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class TestCacheDeContenu(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        repertoire_media_temp = tempfile.mkdtemp()
+        cls.addClassCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
+        remplacement_media_root = override_settings(MEDIA_ROOT=repertoire_media_temp)
+        remplacement_media_root.enable()
+        cls.addClassCleanup(remplacement_media_root.disable)
+
     def setUp(self):
         FileContentProxy.file_content = {}
         with sans_receivers():

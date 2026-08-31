@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+import shutil
 import tempfile
 from datetime import timedelta
 
@@ -379,8 +380,16 @@ class TestCommentaires(APITestCase):
         )
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class TestDocumentsPatient(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        repertoire_media_temp = tempfile.mkdtemp()
+        cls.addClassCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
+        remplacement_media_root = override_settings(MEDIA_ROOT=repertoire_media_temp)
+        remplacement_media_root.enable()
+        cls.addClassCleanup(remplacement_media_root.disable)
+
     def setUp(self):
         with sans_receivers():
             self.user = cree_praticien()
@@ -430,8 +439,14 @@ class TestDocumentsPatient(APITestCase):
         )
         self.assertFalse(Document.objects.filter(id=patient_doc_id).exists())
 
-    @override_settings(DEMONSTRATION=True, MEDIA_ROOT=tempfile.mkdtemp())
     def test_en_demonstration_le_contenu_televerse_est_remplace(self):
+        repertoire_media_temp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
+        remplacement_reglages = override_settings(
+            DEMONSTRATION=True, MEDIA_ROOT=repertoire_media_temp
+        )
+        remplacement_reglages.enable()
+        self.addCleanup(remplacement_reglages.disable)
         contenu_original = b"ceci ne doit pas etre enregistre"
         fichier = SimpleUploadedFile(
             "secret.txt", contenu_original, content_type="text/plain"
