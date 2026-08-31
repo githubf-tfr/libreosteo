@@ -12,10 +12,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
+from typing import cast
+
 from .base import *
 
 DEBUG = False
-TEMPLATES[0]["OPTIONS"]["debug"] = False
+cast(dict, TEMPLATES[0]["OPTIONS"])["debug"] = False
 COMPRESS_ENABLED = True
 
 try:

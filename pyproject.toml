@@ -52,20 +52,29 @@ python_version = "3.13"
 plugins = ["mypy_django_plugin.main"]
 # Périmètre volontairement restreint : seuls les modules qui passent déjà figurent
 # ici. Un module rejoint la liste quand il est annoté. Même cliquet que la couverture.
-# 2026-08-31 : blocage levé. `libreosteoweb/api/utils.py` annoté (`_instances`) et débarrassé
-# de son résidu Python 2 (`unicode`, comportement fixé par test) ; `models.py` annoté
-# (`invoices`, `invoice`) ; `Libreosteo/settings/dev.py` corrigé (indexation castée). Ces trois
-# préalables levés, le reste du dépôt (hors `libreosteoweb/api/views.py` et
-# `libreosteoweb/tests/test_exploitation.py`, en cours ailleurs) passe déjà : périmètre
-# resserré d'autant.
+# Restent hors périmètre, faute d'annotation en amont (la liste suit, elle ne corrige
+# pas) : `libreosteoweb/api/permissions.py` (`extra_actions` non typé) et
+# `libreosteoweb/api/file_integrator.py` (`Analyzer.identifier`/`.type` valent `None`,
+# réassignés en `str` dans les sous-classes ; `file_content` non typé) — et tout ce qui
+# les importe : `libreosteoweb/api/{views,serializers,displays}.py`, `Libreosteo/urls.py`,
+# `libreosteoweb/urls.py`, `libreosteoweb/tests/test_{acces,dossier_patient,
+# import_fichiers,file_integrator}.py` (ce dernier a aussi son propre résidu Python 2/3
+# sur l'import de `mock`). `setup.py` reste hors périmètre aussi : `sys.winver`, qui
+# n'existe que sous Windows, est utilisé dans des fonctions imbriquées dans un bloc
+# `if sys.platform == "win32":` — narrowing que mypy ne fait pas traverser jusqu'aux
+# corps de fonctions qui y sont définies.
 files = [
     "Libreosteo/__init__.py",
     "Libreosteo/settings/__init__.py",
     "Libreosteo/settings/base.py",
+    "Libreosteo/settings/container.py",
+    "Libreosteo/settings/demonstration.py",
     "Libreosteo/settings/dev.py",
+    "Libreosteo/settings/standalone.py",
     "Libreosteo/standalone.py",
     "Libreosteo/wsgi.py",
     "Libreosteo/zip_loader.py",
+    "application.py",
     "libreosteoweb/__init__.py",
     "libreosteoweb/admin.py",
     "libreosteoweb/api/__init__.py",
@@ -95,12 +104,19 @@ files = [
     "libreosteoweb/tests/__init__.py",
     "libreosteoweb/tests/fixtures.py",
     "libreosteoweb/tests/test_delete_patient.py",
+    "libreosteoweb/tests/test_exploitation.py",
     "libreosteoweb/tests/test_facturation.py",
     "libreosteoweb/tests/test_filter.py",
     "libreosteoweb/tests/test_invoice.py",
     "libreosteoweb/tests/test_utils.py",
+    "manage.py",
+    "patch.py",
+    "server.py",
+    "tests/core/keywords/utils.py",
+    "winserver.py",
     "zipcode_lookup/__init__.py",
     "zipcode_lookup/management/commands/__init__.py",
+    "zipcode_lookup/management/commands/import_zipcodes.py",
     "zipcode_lookup/models.py",
     "zipcode_lookup/tests.py",
     "zipcode_lookup/urls.py",

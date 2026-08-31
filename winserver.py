@@ -18,6 +18,7 @@ Requires Mark Hammond's pywin32 package.
 
 # Python stdlib imports
 import logging
+import logging.config
 import os
 import os.path
 import sys

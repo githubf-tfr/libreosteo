@@ -15,6 +15,7 @@
 # Python stdlib imports
 import configparser
 import logging
+import logging.config
 import os
 import os.path
 import sys

@@ -1,5 +1,6 @@
 import json
-from urllib.request import URLError, urlopen
+from urllib.error import URLError
+from urllib.request import urlopen
 
 from django.core.management.base import BaseCommand, CommandError
 
