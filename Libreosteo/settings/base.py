@@ -27,6 +27,8 @@ import logging
 import os
 import sys
 
+from django.utils.translation import gettext_lazy as _
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if getattr(sys, "frozen", False):
     logger = logging.getLogger(__name__)
@@ -54,10 +56,6 @@ else:
     DATA_FOLDER = os.path.join(SITE_ROOT, "data")
     if not os.path.exists(DATA_FOLDER):
         os.makedirs(DATA_FOLDER)
-
-from django.utils.translation import (  # noqa: E402 — dépend d'une constante définie plus haut
-    gettext_lazy as _,
-)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/

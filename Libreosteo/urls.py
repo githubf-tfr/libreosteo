@@ -17,18 +17,14 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import include, re_path
+from django.views.generic.base import TemplateView
+from django.views.i18n import JavaScriptCatalog
+from rest_framework import routers
+from rest_framework.urlpatterns import format_suffix_patterns
+
+from libreosteoweb.api import displays, views
 
 admin.autodiscover()
-
-from django.views.generic.base import (  # noqa: E402 — après admin.autodiscover()
-    TemplateView,
-)
-from rest_framework import routers  # noqa: E402 — après admin.autodiscover()
-from rest_framework.urlpatterns import (  # noqa: E402 — après admin.autodiscover()
-    format_suffix_patterns,
-)
-
-from libreosteoweb.api import displays, views  # noqa: E402 — après admin.autodiscover()
 
 # Routers provide an easy way of automatically determining the URL conf
 router = routers.SimpleRouter(trailing_slash=False)
@@ -132,10 +128,6 @@ urlpatterns = [
     ),
     re_path(r"^files/", include("protected_media.urls")),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-
-from django.views.i18n import (  # noqa: E402 — après la construction d'urlpatterns
-    JavaScriptCatalog,
-)
 
 js_info_dict = {"domain": "djangojs", "packages": ("libreosteoweb",)}
 
