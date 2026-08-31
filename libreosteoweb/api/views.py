@@ -34,6 +34,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.core.serializers.base import DeserializationError
 from django.db import DatabaseError, connection
 from django.db.models import Max, signals
 from django.http import (
@@ -882,6 +883,9 @@ class LoadDump(View):
                 filename = "dump.json"
                 tmpdir = os.path.join(tempfile.gettempdir(), str(uuid.uuid4()))
                 fixture = os.path.join(tmpdir, filename)
+                # The zip branch gets tmpdir for free from zf.extract(); the
+                # non-zip branch below needs it created explicitly.
+                os.makedirs(tmpdir, exist_ok=True)
 
                 # Check if zip file
                 if zipfile.is_zipfile(file_content):
@@ -913,7 +917,7 @@ class LoadDump(View):
                         raise KeyError("dump.json")
                 else:
                     # old fashioned style of import archive
-                    tmp_dump = open(fixture, "w")
+                    tmp_dump = open(fixture, "wb")
                     f = File(tmp_dump)
                     for chunk in file_content.chunks():
                         f.write(chunk)
@@ -973,6 +977,7 @@ class LoadDump(View):
             OSError,
             CommandError,
             UnicodeDecodeError,
+            DeserializationError,
         ):
             logger.exception("Import failed")
             return HttpResponse(

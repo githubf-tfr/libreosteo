@@ -170,13 +170,38 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   transaction réelle (Django émet son propre `BEGIN` pour l'atomic block) : le
   `BEGIN;` rejoué entre en conflit — `sqlite3.OperationalError: cannot start a
   transaction within a transaction`, avalé jusqu'ici par le `except:` nu de la
-  ligne 963. **Ce n'est pas un défaut de production** : c'est une contrainte du
+  ligne 969. **Ce n'est pas un défaut de production** : c'est une contrainte du
   véhicule de test, à ne jamais « corriger » côté vue. `TestRestauration`
   (`test_exploitation.py`) tourne donc sur `APITransactionTestCase`, sans
   transaction englobante, avec `serialized_rollback = True` — sinon
   `TransactionTestCase` tronque en fin de test les données semées par les
   migrations (`OfficeSettings` id=1, moyens de paiement), que `LoadDump` vide
   d'ailleurs lui-même en cours de test.
+- **2026-08-31 (S2, L5T5)** — La restauration « à l'ancienne » (fichier posté
+  non zippé, juste `dump.json`) de `LoadDump.post` n'a jamais pu fonctionner :
+  deux défauts indépendants s'y enchaînaient. D'abord `tmpdir`
+  (`os.path.join(tempfile.gettempdir(), str(uuid.uuid4()))`) n'était jamais créé
+  — la branche zip s'en tirait parce que `zf.extract()` crée les répertoires
+  manquants au passage, mais `open(fixture, "w")` sur cette branche non zippée
+  levait aussitôt `FileNotFoundError`. Une fois `os.makedirs(tmpdir,
+  exist_ok=True)` ajouté, le second défaut est apparu : ce `open(fixture, "w")`
+  ouvrait en mode texte alors que `file_content.chunks()` ne rend que des
+  `bytes` — `TypeError: write() argument must be str, not bytes`. **C'est bien
+  un défaut de production**, resté invisible parce qu'aucun test n'avait jamais
+  posté de payload non zippé sur ce endpoint ; les deux causes trouvées et
+  corrigées par les tests de L5T5 (`open(fixture, "wb")`). Le chemin est
+  maintenant exercé par `test_archive_non_zippee_valide_est_rechargee`.
+- **2026-08-31 (S2, L5T5)** — Piège d'outillage : `libreosteoweb/api/views.py`
+  est en fins de ligne CRLF (`\r\n`), contrairement au reste du dépôt. Un script
+  d'édition Python qui ouvre puis réécrit le fichier en mode texte normalise
+  silencieusement les `\r\n` en `\n` — un changement de 5 lignes est devenu un
+  diff d'environ 2000 lignes (`git diff --stat`), repéré avant tout commit
+  uniquement parce que la taille du diff ne correspondait pas à l'édition faite.
+  Vérifié ensuite par `cmp -l` contre `git show HEAD:...`. Correction : fichier
+  restauré (`git checkout --`) et les changements réappliqués en lisant/écrivant
+  en binaire pour préserver les `\r\n`. **À vérifier systématiquement sur ce
+  fichier** : après toute édition, `git diff --stat` doit annoncer un nombre de
+  lignes proche de l'intention, jamais le fichier entier.
 - **2026-08-30 (S2, L4T1)** — `test_file_integrator.py::TestFileIntegrator.setUp`
   démarre `patch("libreosteoweb.api.file_integrator.open", mock_open(), create=True)`
   mais son `tearDown` était un `pass` : le patch n'était jamais arrêté. Le mock fuyait
