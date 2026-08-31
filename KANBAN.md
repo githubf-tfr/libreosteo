@@ -188,6 +188,21 @@ _(vide — S3 n'a pas encore de spec)_
 
 ## Pièges rencontrés
 
+- **2026-08-31 (clôture de S2)** — **Un seul `pytest` peut tourner à la fois sur ce
+  dépôt**, et un `pytest` interrompu laisse le dépôt piégé. La suite partage une base
+  SQLite en mémoire (`file:memorydb_default?mode=memory&cache=shared`) et l'index Whoosh
+  de `data/whoosh_index`, que `HAYSTACK_SIGNAL_PROCESSOR = RealtimeSignalProcessor` fait
+  écrire à chaque enregistrement de modèle. Deux exécutions concurrentes s'interbloquent.
+  Pire, une exécution tuée laisse un `MAIN_WRITELOCK` derrière elle : **toute** exécution
+  ultérieure se fige alors indéfiniment sur la première suppression de patient, y compris
+  sur un arbre propre — le symptôme désigne le code en cours de modification, qui n'y est
+  pour rien. Remède : supprimer `data/whoosh_index/MAIN_WRITELOCK` et `MAIN.tmp`, ou vider
+  `data/whoosh_index` (gitignoré, régénérable par `rebuild_index`). Rencontré en faisant
+  travailler deux sous-agents en parallèle, chacun lançant `make check` en tâche de fond :
+  six `pytest` concurrents, interblocage complet, puis blocage persistant après le
+  nettoyage des processus. **Tout brief de sous-agent sur ce dépôt doit interdire les
+  lancements en tâche de fond et rappeler cette exclusion mutuelle.**
+
 - **2026-08-31 (S2, L5T5)** — `LoadDump.post` (`libreosteoweb/api/views.py`)
   rejoue en base la sortie de `sqlflush`, `BEGIN;` compris (le filtrage de la
   boucle ne retient que `COMMIT`, pas `BEGIN`). En production, aucune requête
