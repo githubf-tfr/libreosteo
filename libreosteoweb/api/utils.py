@@ -46,9 +46,7 @@ class Singleton(type):
 # 3.13, cf. `target-version` dans ce fichier) : le corps du `try` levait donc un
 # `NameError` à chaque import du module, systématiquement rattrapé — un
 # `NameError` latent, pas une simple remarque de typage. Équivalent direct sous
-# Python 3 : `str` est le type texte natif, donc `UNICODE_EXISTS` vaut toujours
-# `True` et `_unicode` vaut `str`.
-UNICODE_EXISTS = True
+# Python 3 : `str` est le type texte natif, donc `_unicode` vaut `str`.
 _unicode = str
 
 
