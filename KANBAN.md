@@ -131,9 +131,10 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   - **Lots 1 à 3 clos** : facturation (31 tests), accès et middlewares (25 tests), dossier
     patient (26 tests). Plancher de couverture monté de 61 à 72.
   - **Lot 4 clos** : import de fichiers (8 tâches). Plancher monté de 72 à 80.
-  - **Lot 5, exploitation** : 5 tâches sur 8 faites (séquence de facturation et réglages,
-    traçabilité, statistiques, sauvegarde, restauration). Reprise à la tâche 6
-    (reconstruction d'index et utilitaires). Plancher de couverture à 80, 174 tests.
+  - **Lot 5, exploitation** : 6 tâches sur 8 faites (séquence de facturation et réglages,
+    traçabilité, statistiques, sauvegarde, restauration, index et utilitaires). Reprise à la
+    tâche 7 (`server.py` et fermeture de la dette lint). Plancher de couverture à 80, 180 tests ;
+    `E722` 17 -> 3, les trois derniers dans `server.py`.
   - **Défauts de production corrigés en chemin** : `maintenance_available` et
     `OneSessionPerUserMiddleware` (`except:` nus), `PatientDocument.delete` (double
     suppression du Document), `FileContentProxy.unproxy` (écrivait `None` dans le cache au
