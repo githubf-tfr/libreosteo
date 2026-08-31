@@ -52,29 +52,59 @@ python_version = "3.13"
 plugins = ["mypy_django_plugin.main"]
 # Périmètre volontairement restreint : seuls les modules qui passent déjà figurent
 # ici. Un module rejoint la liste quand il est annoté. Même cliquet que la couverture.
-# 2026-08-31 (clôture de S2) : les quatre candidats des lots 4 et 5 mesurés, aucun ne passe.
-# `libreosteoweb/api/utils.py` échoue seul sur 3 erreurs (`_instances` sans annotation à la
-# ligne 34, `unicode` non défini — résidu Python 2 — aux lignes 43 et 44, dans du code non
-# couvert). `statistics.py`, `events/settings.py` et `management/commands/backup_db.py`
-# héritent ces 3 erreurs par leurs imports, plus `models.py:181` et `:389` (annotation
-# manquante) et `Libreosteo/settings/dev.py:18` (affectation indexée non supportée) : 6
-# erreurs chacun. Aucun ne peut rejoindre le périmètre avant que `models.py` soit annoté et
-# le résidu `unicode` retiré — ne pas remesurer sans que l'un de ces deux préalables ait bougé.
+# 2026-08-31 : blocage levé. `libreosteoweb/api/utils.py` annoté (`_instances`) et débarrassé
+# de son résidu Python 2 (`unicode`, comportement fixé par test) ; `models.py` annoté
+# (`invoices`, `invoice`) ; `Libreosteo/settings/dev.py` corrigé (indexation castée). Ces trois
+# préalables levés, le reste du dépôt (hors `libreosteoweb/api/views.py` et
+# `libreosteoweb/tests/test_exploitation.py`, en cours ailleurs) passe déjà : périmètre
+# resserré d'autant.
 files = [
     "Libreosteo/__init__.py",
+    "Libreosteo/settings/__init__.py",
+    "Libreosteo/settings/base.py",
+    "Libreosteo/settings/dev.py",
+    "Libreosteo/standalone.py",
+    "Libreosteo/wsgi.py",
+    "Libreosteo/zip_loader.py",
     "libreosteoweb/__init__.py",
+    "libreosteoweb/admin.py",
     "libreosteoweb/api/__init__.py",
+    "libreosteoweb/api/demonstration.py",
     "libreosteoweb/api/events/__init__.py",
+    "libreosteoweb/api/events/settings.py",
     "libreosteoweb/api/exceptions.py",
     "libreosteoweb/api/filter.py",
     "libreosteoweb/api/folding_whoosh_backend.py",
     "libreosteoweb/api/invoicing/__init__.py",
+    "libreosteoweb/api/invoicing/generator.py",
+    "libreosteoweb/api/receivers.py",
     "libreosteoweb/api/renderers.py",
     "libreosteoweb/api/signals.py",
+    "libreosteoweb/api/statistics.py",
+    "libreosteoweb/api/utils.py",
     "libreosteoweb/api/validators.py",
     "libreosteoweb/api/version/__init__.py",
     "libreosteoweb/api/version/version.py",
+    "libreosteoweb/apps.py",
+    "libreosteoweb/management/commands/backup_db.py",
+    "libreosteoweb/middleware.py",
+    "libreosteoweb/models.py",
+    "libreosteoweb/search_indexes.py",
     "libreosteoweb/templatetags/__init__.py",
+    "libreosteoweb/templatetags/invoice_extras.py",
+    "libreosteoweb/tests/__init__.py",
+    "libreosteoweb/tests/fixtures.py",
+    "libreosteoweb/tests/test_delete_patient.py",
+    "libreosteoweb/tests/test_facturation.py",
+    "libreosteoweb/tests/test_filter.py",
+    "libreosteoweb/tests/test_invoice.py",
+    "libreosteoweb/tests/test_utils.py",
+    "zipcode_lookup/__init__.py",
+    "zipcode_lookup/management/commands/__init__.py",
+    "zipcode_lookup/models.py",
+    "zipcode_lookup/tests.py",
+    "zipcode_lookup/urls.py",
+    "zipcode_lookup/views.py",
 ]
 ignore_missing_imports = true
 
