@@ -5,8 +5,22 @@ from datetime import date
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
-from libreosteoweb.models import Patient, PatientDocument
-from tests.functional.helpers import attendre_page_prete, connexion, creer_patient
+from libreosteoweb.models import (
+    Examination,
+    Invoice,
+    OfficeEvent,
+    Patient,
+    PatientDocument,
+)
+from tests.functional.helpers import (
+    attendre_page_prete,
+    cloturer_consultation,
+    connexion,
+    creer_patient,
+    ouvrir_nouvelle_consultation,
+    rechercher_patient,
+    saisir_consultation,
+)
 
 CHEMIN_DOCUMENT = "tests/functional/resources/patients_1.csv"
 
@@ -135,3 +149,39 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     assert document.document.title == "Licence LibreOsteo"
     assert document.document.notes == "Licence GNU GPLv3"
     assert document.document.document_date == date(2012, 1, 10)
+
+
+def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
+    """Cas repris de tests/core/007_gdpr_conformity.robot."""
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="invoiced", moyen="check")
+
+    page.goto(live_server.url)
+    rechercher_patient(page, "Picard")
+    expect(page.locator("h1.page-header")).to_contain_text("Picard")
+
+    page.click("button:has-text('Supprimer')")
+    expect(page.locator("div.modal-content h3")).to_contain_text("Confirmer")
+    expect(page.locator("#modal-btn-ok")).to_be_disabled()
+    page.click("#agreeGdpr")
+    expect(page.locator("#modal-btn-ok")).to_be_enabled()
+    page.click("#modal-btn-ok")
+    expect(page).to_have_url(f"{live_server.url}/#/")
+
+    # Ce que l'interface ne montre pas : la purge est complete cote base. Le cas Robot
+    # d'origine attendait un evenement de journal survivant (type 4) ; ce n'est plus le
+    # comportement de l'application (verifie ici, et fige par
+    # libreosteoweb/tests/test_dossier_patient.py::TestSuppressionPatient::
+    # test_supprimer_un_patient_avec_gdpr_efface_tout) : `PatientViewSet.perform_destroy`
+    # supprime aussi bien l'evenement de creation du patient (clazz=Patient) que celui de
+    # la consultation (clazz=Examination), donc plus aucun evenement ne subsiste. Seule la
+    # facture survit.
+    assert not Patient.objects.filter(id=patient.id).exists()
+    assert Examination.objects.count() == 0
+    assert Invoice.objects.count() == 1
+    assert OfficeEvent.objects.count() == 0
