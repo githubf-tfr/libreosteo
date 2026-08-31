@@ -17,6 +17,7 @@ from __future__ import unicode_literals
 import importlib
 import logging
 import os
+import shutil
 import tempfile
 import uuid
 import zipfile
@@ -878,6 +879,12 @@ class LoadDump(View):
     @maintenance_available
     def post(self, request, *args, **kwargs):
         # Retrieve the content of the file uploaded.
+        # tmpdir et previous ne sont affectés que dans le bloc "file" ci-dessous ; les
+        # initialiser à None permet au "finally" de savoir s'il y a quelque chose à
+        # nettoyer, même quand un retour anticipé (412) ou une exception survient avant
+        # leur affectation réelle.
+        tmpdir = None
+        previous = None
         try:
             if "file" in request.FILES.keys():
                 logger.info("Load a dump from a sent file.")
@@ -999,3 +1006,12 @@ class LoadDump(View):
                 ),
                 status=500,
             )
+        finally:
+            # Le nettoyage ne doit jamais devenir une nouvelle source d'échec ni changer
+            # la réponse déjà déterminée : shutil.rmtree(ignore_errors=True) ignore un
+            # répertoire déjà absent ou non supprimable au lieu de lever une exception qui
+            # remplacerait la réponse 200/412/500 par une 500 accidentelle.
+            if previous is not None:
+                settings.FIXTURE_DIRS = previous
+            if tmpdir is not None:
+                shutil.rmtree(tmpdir, ignore_errors=True)
