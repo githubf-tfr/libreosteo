@@ -127,6 +127,7 @@ files = [
     "tests/functional/conftest.py",
     "tests/functional/helpers.py",
     "tests/functional/test_authentification.py",
+    "tests/functional/test_installation.py",
     "winserver.py",
     "zipcode_lookup/__init__.py",
     "zipcode_lookup/management/commands/__init__.py",
