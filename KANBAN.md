@@ -334,6 +334,12 @@ le découpage est une décision de cadrage, pas une commodité.
   Selenium, de geckodriver, de la dépendance à la locale `fr_FR.UTF-8` et de la tâche
   `functional` du workflow. À vérifier tôt : le CDN Playwright répond depuis la sandbox,
   mais l'installation effective d'un navigateur n'a jamais été prouvée.
+  **Le non-déterminisme n'a pas disparu avec le correctif de `unproxy` en S2.** Le
+  2026-08-31, la CI a échoué sur `008 Invoice Functionality` (4 tests sur 5), précédée de
+  trois `OSError: [Errno 9] Bad file descriptor`, puis a été verte au rejeu du même commit
+  sans aucune modification. Un travail sain apparaît donc cassé une fois sur deux, ce qui
+  est le pire état possible pour une barrière : on prend l'habitude de la rejouer, et le
+  jour où elle a raison, on ne l'écoute plus.
 - **S4 — Cahier de recette.** Niveau 3 du `~/claude/CLAUDE.md` : fonctionnel, exécuté par
   un humain, couvrant tous les cas d'usage, y compris ceux déjà couverts en automatique.
 - **S5 — Maintenabilité.** Découpage des gros modules pour les rendre testables. En
