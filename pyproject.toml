@@ -25,7 +25,8 @@ omit = [
 # 2026-08-30 : relevé à 66 par le lot 2 de S2 (accès et session), couverture constatée 66,81 %.
 # 2026-08-30 : relevé à 72 par le lot 3 de S2 (dossier patient), couverture constatée 72,34 %.
 # 2026-08-31 : relevé à 80 par le lot 4 de S2 (import de fichiers), couverture constatée 80,55 %.
-fail_under = 80
+# 2026-08-31 : relevé à 89 à la clôture de S2 (lot 5), couverture constatée 89,24 %.
+fail_under = 89
 
 [tool.ruff]
 target-version = "py313"
@@ -37,8 +38,9 @@ extend-exclude = ["libreosteoweb/migrations", "node_modules", ".venv", ".tools"]
 # principe de cliquet que le plancher de couverture.
 select = ["E4", "E7", "E9", "F", "I"]
 # Dette soldée par S2 : les 17 `except:` nus ont été remplacés par les exceptions réellement
-# attendues, et les 7 imports hors en-tête imposés par Django portent un `noqa: E402` justifié
-# en ligne. Cette liste doit rester vide.
+# attendues, et seul un import hors en-tête (`Libreosteo/wsgi.py`) reste justifié par un
+# `noqa: E402` en ligne — les six autres ont été ramenés en tête de fichier, un audit ayant
+# prouvé que leur dépendance déclarée n'existait pas. Cette liste doit rester vide.
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
@@ -50,6 +52,14 @@ python_version = "3.13"
 plugins = ["mypy_django_plugin.main"]
 # Périmètre volontairement restreint : seuls les modules qui passent déjà figurent
 # ici. Un module rejoint la liste quand il est annoté. Même cliquet que la couverture.
+# 2026-08-31 (clôture de S2) : les quatre candidats des lots 4 et 5 mesurés, aucun ne passe.
+# `libreosteoweb/api/utils.py` échoue seul sur 3 erreurs (`_instances` sans annotation à la
+# ligne 34, `unicode` non défini — résidu Python 2 — aux lignes 43 et 44, dans du code non
+# couvert). `statistics.py`, `events/settings.py` et `management/commands/backup_db.py`
+# héritent ces 3 erreurs par leurs imports, plus `models.py:181` et `:389` (annotation
+# manquante) et `Libreosteo/settings/dev.py:18` (affectation indexée non supportée) : 6
+# erreurs chacun. Aucun ne peut rejoindre le périmètre avant que `models.py` soit annoté et
+# le résidu `unicode` retiré — ne pas remesurer sans que l'un de ces deux préalables ait bougé.
 files = [
     "Libreosteo/__init__.py",
     "libreosteoweb/__init__.py",

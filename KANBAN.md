@@ -125,27 +125,42 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## En cours
 
-- **2026-08-30** — **S2, couverture métier**, en cours d'exécution. Spec et plan écrits
-  (`docs/superpowers/{specs,plans}/2026-08-30-couverture-metier*`), 35 tâches en 5 lots,
-  exécutées sur `main` une par une avec revue.
-  - **Lots 1 à 3 clos** : facturation (31 tests), accès et middlewares (25 tests), dossier
-    patient (26 tests). Plancher de couverture monté de 61 à 72.
-  - **Lot 4 clos** : import de fichiers (8 tâches). Plancher monté de 72 à 80.
-  - **Lot 5, exploitation** : 6 tâches sur 8 faites (séquence de facturation et réglages,
-    traçabilité, statistiques, sauvegarde, restauration, index et utilitaires). Reprise à la
-    tâche 7 (`server.py` et fermeture de la dette lint). Plancher de couverture à 80, 180 tests ;
-    `E722` 17 -> 3, les trois derniers dans `server.py`.
-  - **Défauts de production corrigés en chemin** : `maintenance_available` et
-    `OneSessionPerUserMiddleware` (`except:` nus), `PatientDocument.delete` (double
-    suppression du Document), `FileContentProxy.unproxy` (écrivait `None` dans le cache au
-    lieu de retirer la clé — cause du non-déterminisme de la suite fonctionnelle en S1),
-    l'encodage ISO-8859-1 importé comme valide (`except:` nus de `file_integrator.py`, cf.
-    « Pièges rencontrés »), `PasswordSerializer` sans mot de passe (500 au lieu de 400),
-    la restauration non zippée de `LoadDump` (morte depuis toujours : répertoire temporaire
-    jamais créé, puis écriture de `bytes` en mode texte) et le `dump.json` corrompu qui
-    rendait 500 au lieu de 412.
+_(vide — S3 n'a pas encore de spec)_
 
 ## Terminé
+
+- **2026-08-31** — **S2, couverture métier** livré (35 tâches en 5 lots ; la spec reste sous
+  `docs/superpowers/specs/2026-08-30-couverture-metier*`, le plan a été supprimé une fois
+  achevé). Couverture 61,9 % → **89,24 %**, tests 32 → **183**, plancher de couverture
+  (`fail_under`) 61 → **89**.
+  - **Dette lint soldée** : les 17 `except:` nus (`E722`) sont remplacés par les exceptions
+    réellement attendues ; `E402` ne compte plus qu'une exemption justifiée en ligne
+    (`Libreosteo/wsgi.py:31`, imposée par l'ordre `DJANGO_SETTINGS_MODULE` avant l'import
+    Django) ; `ignore = []` est vide dans `pyproject.toml` pour la première fois du chantier.
+  - **Défauts de production corrigés en chemin** :
+    - `maintenance_available` et `OneSessionPerUserMiddleware` — `except:` nus qui
+      avalaient toute erreur.
+    - `PatientDocument.delete` — supprimait le `Document` une seconde fois.
+    - `FileContentProxy.unproxy` — écrivait `None` dans le cache au lieu de retirer la clé,
+      cause du non-déterminisme de la suite fonctionnelle constaté en S1.
+    - `file_integrator.py` — un fichier encodé en ISO-8859-1 était accepté comme valide en
+      silence, et `FilePatientFactory.get_serializer` plantait sur une ligne CSV tronquée.
+    - `PasswordSerializer` — répondait 500 au lieu de 400 quand aucun mot de passe n'était
+      fourni.
+    - `LoadDump` — le chemin de restauration non zippée était mort de bout en bout
+      (répertoire temporaire jamais créé, puis écriture de `bytes` en mode texte), et un
+      `dump.json` corrompu répondait 500 au lieu de 412.
+    - `NetworkHelper.get_all_addresses` — `except:` nu.
+    - **`PatientViewSet.perform_destroy`** (trouvé par la revue de branche finale, commit
+      `da59c0d`) — `ExaminationComment.examination` est `on_delete=PROTECT`, et la vue
+      supprimait les `Examination` d'un patient sans purger leurs commentaires au préalable.
+      Toute suppression RGPD d'un patient dont une consultation portait un commentaire levait
+      un `ProtectedError` non rattrapé, répondait 500, et **laissait la donnée personnelle en
+      base** alors que son effacement venait d'être demandé. C'est le défaut le plus grave
+      trouvé par le chantier.
+  - **Clôture par revue croisée** : cinq branches de travail relues en parallèle, un
+    relecteur par lot — c'est cette revue qui a trouvé le défaut ci-dessus et les branches
+    non testées qui l'entouraient.
 
 - **2026-08-30** — **S1, socle de test et de qualité** livré (10 tâches ; la spec reste sous
   `docs/superpowers/specs/`, le plan a été supprimé une fois achevé). Ce que le dépôt a gagné :
@@ -323,3 +338,9 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   L'appel est en commentaire dans `perform_update` (`libreosteoweb/api/views.py`). Une
   consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
   changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
+- **2026-08-31 — `LoadDump` laisse un répertoire temporaire derrière chaque restauration.**
+  `libreosteoweb/api/views.py:887` construit `tmpdir = os.path.join(tempfile.gettempdir(),
+  str(uuid.uuid4()))` et ne le supprime jamais, en production comme en test. Non corrigé
+  délibérément à la clôture de S2 : la vue a plusieurs `return` précoces qui répondent 412, et
+  un nettoyage correct suppose un `try`/`finally` qui la restructure — c'est un travail de S5,
+  pas un correctif à glisser dans une clôture.
