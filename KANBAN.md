@@ -116,6 +116,12 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   donc plus rien depuis longtemps. À reconstruire quand les traductions bougeront.
 - (S1) Périmètre `mypy` de départ : 14 modules sur ~60, ceux qui passaient déjà sans
   annotation. Le reste attend d'être annoté, module par module.
+- (S2, L5T2) `OfficeEventViewSet` déclare `pagination_class = pagination.LimitOffsetPagination`
+  (`libreosteoweb/api/views.py:599`), mais `REST_FRAMEWORK` (`Libreosteo/settings/base.py:211`)
+  n'a pas de `PAGE_SIZE`. `LimitOffsetPagination.default_limit` revient donc à `None`, et
+  `paginate_queryset` retourne `None` : l'endpoint répond une liste brute non paginée sauf si
+  le client passe `?limit=`. Toute client qui attend l'enveloppe `results` reçoit une liste nue ;
+  tout ajout global de `PAGE_SIZE` changerait silencieusement la forme de ces réponses.
 
 ## En cours
 
