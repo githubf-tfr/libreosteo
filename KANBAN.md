@@ -162,6 +162,21 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## Pièges rencontrés
 
+- **2026-08-31 (S2, L5T5)** — `LoadDump.post` (`libreosteoweb/api/views.py`)
+  rejoue en base la sortie de `sqlflush`, `BEGIN;` compris (le filtrage de la
+  boucle ne retient que `COMMIT`, pas `BEGIN`). En production, aucune requête
+  n'est enveloppée dans une transaction (`ATOMIC_REQUESTS` commenté), donc ce
+  `BEGIN;` est légitime. Mais sous `APITestCase`, chaque test ouvre déjà une
+  transaction réelle (Django émet son propre `BEGIN` pour l'atomic block) : le
+  `BEGIN;` rejoué entre en conflit — `sqlite3.OperationalError: cannot start a
+  transaction within a transaction`, avalé jusqu'ici par le `except:` nu de la
+  ligne 963. **Ce n'est pas un défaut de production** : c'est une contrainte du
+  véhicule de test, à ne jamais « corriger » côté vue. `TestRestauration`
+  (`test_exploitation.py`) tourne donc sur `APITransactionTestCase`, sans
+  transaction englobante, avec `serialized_rollback = True` — sinon
+  `TransactionTestCase` tronque en fin de test les données semées par les
+  migrations (`OfficeSettings` id=1, moyens de paiement), que `LoadDump` vide
+  d'ailleurs lui-même en cours de test.
 - **2026-08-30 (S2, L4T1)** — `test_file_integrator.py::TestFileIntegrator.setUp`
   démarre `patch("libreosteoweb.api.file_integrator.open", mock_open(), create=True)`
   mais son `tearDown` était un `pass` : le patch n'était jamais arrêté. Le mock fuyait

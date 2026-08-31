@@ -33,7 +33,8 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.management import call_command
-from django.db import connection
+from django.core.management.base import CommandError
+from django.db import DatabaseError, connection
 from django.db.models import Max, signals
 from django.http import (
     Http404,
@@ -909,7 +910,7 @@ class LoadDump(View):
                         ]:
                             zf.extract(d, default_storage.location)
                     else:
-                        raise Exception("This zipfile does not contain the db dump")
+                        raise KeyError("dump.json")
                 else:
                     # old fashioned style of import archive
                     tmp_dump = open(fixture, "w")
@@ -966,11 +967,27 @@ class LoadDump(View):
                 return HttpResponse(content="reloaded")
             else:
                 return HttpResponse()
-        except:
+        except (
+            zipfile.BadZipFile,
+            KeyError,
+            OSError,
+            CommandError,
+            UnicodeDecodeError,
+        ):
             logger.exception("Import failed")
             return HttpResponse(
                 content=_(
                     "This archive file seems to be incorrect. Impossible to load it."
                 ),
                 status=412,
+            )
+        except DatabaseError:
+            # La base a échoué en cours de rechargement : ce n'est pas l'archive qui est en
+            # cause, et le dire évite d'envoyer l'opérateur chercher au mauvais endroit.
+            logger.exception("Database failure while reloading the dump")
+            return HttpResponse(
+                content=_(
+                    "The database failed while loading this archive. Restore a backup."
+                ),
+                status=500,
             )
