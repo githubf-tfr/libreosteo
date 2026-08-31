@@ -52,17 +52,10 @@ python_version = "3.13"
 plugins = ["mypy_django_plugin.main"]
 # Périmètre volontairement restreint : seuls les modules qui passent déjà figurent
 # ici. Un module rejoint la liste quand il est annoté. Même cliquet que la couverture.
-# Restent hors périmètre, faute d'annotation en amont (la liste suit, elle ne corrige
-# pas) : `libreosteoweb/api/permissions.py` (`extra_actions` non typé) et
-# `libreosteoweb/api/file_integrator.py` (`Analyzer.identifier`/`.type` valent `None`,
-# réassignés en `str` dans les sous-classes ; `file_content` non typé) — et tout ce qui
-# les importe : `libreosteoweb/api/{views,serializers,displays}.py`, `Libreosteo/urls.py`,
-# `libreosteoweb/urls.py`, `libreosteoweb/tests/test_{acces,dossier_patient,
-# import_fichiers,file_integrator}.py` (ce dernier a aussi son propre résidu Python 2/3
-# sur l'import de `mock`). `setup.py` reste hors périmètre aussi : `sys.winver`, qui
-# n'existe que sous Windows, est utilisé dans des fonctions imbriquées dans un bloc
-# `if sys.platform == "win32":` — narrowing que mypy ne fait pas traverser jusqu'aux
-# corps de fonctions qui y sont définies.
+# Seul `setup.py` reste hors périmètre : `sys.winver`, qui n'existe que sous Windows,
+# est utilisé dans des fonctions imbriquées dans un bloc `if sys.platform == "win32":`
+# — narrowing que mypy ne fait pas traverser jusqu'aux corps de fonctions qui y sont
+# définies. Le corriger demanderait un `# type: ignore`, pire qu'une exclusion honnête.
 files = [
     "Libreosteo/__init__.py",
     "Libreosteo/settings/__init__.py",
@@ -72,6 +65,7 @@ files = [
     "Libreosteo/settings/dev.py",
     "Libreosteo/settings/standalone.py",
     "Libreosteo/standalone.py",
+    "Libreosteo/urls.py",
     "Libreosteo/wsgi.py",
     "Libreosteo/zip_loader.py",
     "application.py",
@@ -79,21 +73,26 @@ files = [
     "libreosteoweb/admin.py",
     "libreosteoweb/api/__init__.py",
     "libreosteoweb/api/demonstration.py",
+    "libreosteoweb/api/displays.py",
     "libreosteoweb/api/events/__init__.py",
     "libreosteoweb/api/events/settings.py",
     "libreosteoweb/api/exceptions.py",
+    "libreosteoweb/api/file_integrator.py",
     "libreosteoweb/api/filter.py",
     "libreosteoweb/api/folding_whoosh_backend.py",
     "libreosteoweb/api/invoicing/__init__.py",
     "libreosteoweb/api/invoicing/generator.py",
+    "libreosteoweb/api/permissions.py",
     "libreosteoweb/api/receivers.py",
     "libreosteoweb/api/renderers.py",
+    "libreosteoweb/api/serializers.py",
     "libreosteoweb/api/signals.py",
     "libreosteoweb/api/statistics.py",
     "libreosteoweb/api/utils.py",
     "libreosteoweb/api/validators.py",
     "libreosteoweb/api/version/__init__.py",
     "libreosteoweb/api/version/version.py",
+    "libreosteoweb/api/views.py",
     "libreosteoweb/apps.py",
     "libreosteoweb/management/commands/backup_db.py",
     "libreosteoweb/middleware.py",
@@ -103,12 +102,17 @@ files = [
     "libreosteoweb/templatetags/invoice_extras.py",
     "libreosteoweb/tests/__init__.py",
     "libreosteoweb/tests/fixtures.py",
+    "libreosteoweb/tests/test_acces.py",
     "libreosteoweb/tests/test_delete_patient.py",
+    "libreosteoweb/tests/test_dossier_patient.py",
     "libreosteoweb/tests/test_exploitation.py",
     "libreosteoweb/tests/test_facturation.py",
+    "libreosteoweb/tests/test_file_integrator.py",
     "libreosteoweb/tests/test_filter.py",
+    "libreosteoweb/tests/test_import_fichiers.py",
     "libreosteoweb/tests/test_invoice.py",
     "libreosteoweb/tests/test_utils.py",
+    "libreosteoweb/urls.py",
     "manage.py",
     "patch.py",
     "server.py",

@@ -16,6 +16,7 @@ import csv
 import logging
 import random
 from datetime import date, datetime
+from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
@@ -155,8 +156,8 @@ class Analyzer(object):
     It should be inherited.
     """
 
-    identifier = None
-    type = None
+    identifier: str | None = None
+    type: Any = None
 
     def __init__(self, content=None):
         self.content = content
@@ -276,7 +277,7 @@ class FileContentKey(object):
 
 class FileContentProxy(object):
     __metaclass__ = Singleton
-    file_content = {}
+    file_content: dict[FileContentKey, FileContentAdapter] = {}
 
     def get_content(self, ourfile, line_filter=None):
         key = FileContentKey(ourfile, line_filter)

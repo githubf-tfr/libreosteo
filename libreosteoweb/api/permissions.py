@@ -73,7 +73,7 @@ class IsStaffOrTargetUser(permissions.BasePermission):
         "get_by_user",
     ]
 
-    extra_actions = []
+    extra_actions: list[str] = []
 
     def permitted_actions(self):
         return self.all_user_actions + self.extra_actions

@@ -13,14 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+from unittest.mock import MagicMock, mock_open, patch
+
 from django.test import TestCase
 
 from libreosteoweb.api import file_integrator
-
-try:
-    from unittest.mock import MagicMock, mock_open, patch
-except ImportError:
-    from mock import MagicMock, mock_open, patch
 
 
 class TestFileIntegrator(TestCase):
