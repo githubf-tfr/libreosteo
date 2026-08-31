@@ -202,6 +202,15 @@ Aucun code touché à ce stade.
 
 ## Pièges rencontrés
 
+- **2026-08-31 (S3, tâche 4, tour de correctifs 1)** — Le job CI `functional` lançait
+  `robot -X -P . tests` après avoir installé `requirements/requ-testing.txt`, réécrit par
+  la tâche 1 sans plus porter `robotframework` ni `robotframework-seleniumlibrary` : rouge
+  depuis le commit `fe73949`, avant même le déplacement des CSV de la tâche 4. Plutôt que
+  d'accepter une fenêtre rouge jusqu'à la fin de S3, l'étape 3 de la tâche 11 (réécriture du
+  job en Playwright, sans Firefox/geckodriver/`locale-gen`/xvfb/`robot`) a été avancée ici ;
+  `main` redevient vert. `tests/core/`, `.tools/geckodriver`, `.tools/firefox/` et
+  `README.md` restent en l'état, propriété du reste de la tâche 11.
+
 - **2026-08-31 (S3, tâche 3, tour de correctifs 1)** — Deux changements de code
   applicatif, hors périmètre du brief de tâche 3 (deux modules de test +
   `pyproject.toml`), retenus après revue :
