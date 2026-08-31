@@ -24,7 +24,8 @@ omit = [
 # 2026-08-30 : relevé à 64 par le lot 1 de S2 (facturation), couverture constatée 64,68 %.
 # 2026-08-30 : relevé à 66 par le lot 2 de S2 (accès et session), couverture constatée 66,81 %.
 # 2026-08-30 : relevé à 72 par le lot 3 de S2 (dossier patient), couverture constatée 72,34 %.
-fail_under = 72
+# 2026-08-31 : relevé à 80 par le lot 4 de S2 (import de fichiers), couverture constatée 80,55 %.
+fail_under = 80
 
 [tool.ruff]
 target-version = "py313"
