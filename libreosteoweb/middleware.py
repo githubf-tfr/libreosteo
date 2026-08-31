@@ -209,8 +209,14 @@ class OneSessionPerUserMiddleware:
                 except Session.DoesNotExist:
                     LoggedInUser.objects.filter(user_id=request.user).delete()
 
-            request.user.logged_in_user.session_key = request.session.session_key
-            request.user.logged_in_user.save()
+            # N'ecrit que si la session a change : un enregistrement systematique a chaque
+            # requete authentifiee est une ecriture SQL en pure perte la plupart du temps,
+            # et entre en collision (« database table is locked ») quand plusieurs requetes
+            # de la meme session s'executent en parallele (ex. l'enregistrement des reglages
+            # du cabinet, qui declenche plusieurs PUT concurrents depuis le navigateur).
+            if stored_session_key != request.session.session_key:
+                request.user.logged_in_user.session_key = request.session.session_key
+                request.user.logged_in_user.save()
 
         response = self.get_response(request)
 

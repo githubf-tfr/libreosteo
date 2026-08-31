@@ -40,14 +40,31 @@ def ouvrir_menu_utilisateur(page: Page) -> None:
 
 def ouvrir_reglages_cabinet(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
+    # `#loading-bar` disparait des la fin des appels $http de connexion, mais ui-router n'a
+    # pas fini de resoudre son etat initial a ce moment-la : le lien ui-sref n'a pas encore
+    # son href, et un clic premature est absorbe par cette transition initiale encore en
+    # vol (retour silencieux au tableau de bord, sans aucune erreur visible).
+    expect(page.locator("#office-settings a")).to_have_attribute(
+        "href", "#/office/settings"
+    )
     page.click("#office-settings")
     expect(page.locator("h1.page-header")).to_contain_text("Paramètres du cabinet")
+    # Le titre s'affiche des que le partial est charge, avant que les $http de lecture du
+    # cabinet existant (GET /api/settings) n'aient rempli le formulaire : sans cette attente,
+    # une saisie trop rapide est ecrasee quand la reponse arrive et remplace le modele.
+    attendre_page_prete(page)
 
 
 def ouvrir_profil_therapeute(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
+    # Meme delai d'initialisation ui-router qu'au-dessus.
+    expect(page.locator("#user-profile a")).to_have_attribute(
+        "href", "#/accounts/user-profile"
+    )
     page.click("#user-profile")
     expect(page.locator("h1.page-header")).to_contain_text("Profil utilisateur")
+    # Meme risque de course qu'au-dessus (GET /myuserid, /api/users/:id, /api/profiles/get_by_user).
+    attendre_page_prete(page)
 
 
 def enregistrer_formulaire(page: Page) -> None:
