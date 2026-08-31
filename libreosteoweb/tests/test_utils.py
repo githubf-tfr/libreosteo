@@ -14,7 +14,12 @@
 # along with Libreosteo.  If not, see <http://www.gnu.org/licenses/>.
 from django.test import TestCase
 
-from libreosteoweb.api.utils import NetworkHelper, convert_to_long
+from libreosteoweb.api.utils import (
+    UNICODE_EXISTS,
+    NetworkHelper,
+    _unicode,
+    convert_to_long,
+)
 
 
 class ConvertToLongTest(TestCase):
@@ -50,3 +55,21 @@ class TestNetworkHelper(TestCase):
     def test_aucune_adresse_liee_sur_un_port_ferme(self):
         # Port 0 : jamais lié. Aucune connexion réseau sortante n'est tentée.
         self.assertEqual(NetworkHelper().get_bound_addresses(["127.0.0.1"], 0), [])
+
+
+class TestUnicode(TestCase):
+    # `_unicode` et `UNICODE_EXISTS` remplacent un idiome Python 2 (`unicode`
+    # n'existe pas sous Python 3). On pin ici l'équivalent Python 3 retenu :
+    # `_unicode` convertit en texte comme `str`, et le type texte natif existe
+    # toujours.
+    def test_unicode_existe_toujours_sous_python_3(self):
+        self.assertTrue(UNICODE_EXISTS)
+
+    def test_unicode_convertit_un_entier_en_texte(self):
+        self.assertEqual(_unicode(10000), "10000")
+
+    def test_unicode_convertit_une_exception_en_texte(self):
+        self.assertEqual(_unicode(ValueError("erreur")), "erreur")
+
+    def test_unicode_rend_une_chaine_telle_quelle(self):
+        self.assertEqual(_unicode("déjà du texte"), "déjà du texte")

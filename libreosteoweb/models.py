@@ -16,6 +16,7 @@
 import logging
 import mimetypes
 from datetime import date
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -178,7 +179,9 @@ class Examination(models.Model):
     # Type : 3 -> return of a previous examination
     # Type : 4 -> emergency examination
     type = models.SmallIntegerField(_("Type"))
-    invoices = models.ManyToManyField("Invoice", verbose_name=_("Invoice"), blank=True)
+    invoices: "models.ManyToManyField[Invoice, Any]" = models.ManyToManyField(
+        "Invoice", verbose_name=_("Invoice"), blank=True
+    )
     patient = models.ForeignKey(
         Patient, verbose_name=_("Patient"), on_delete=models.PROTECT
     )
@@ -386,7 +389,9 @@ class Paiment(models.Model):
     paiments (it is possible to have many paiments) of an invoice
     """
 
-    invoice = models.ManyToManyField("Invoice", verbose_name=_("Invoices"), blank=True)
+    invoice: "models.ManyToManyField[Invoice, Any]" = models.ManyToManyField(
+        "Invoice", verbose_name=_("Invoices"), blank=True
+    )
     amount = models.FloatField(_("Amount"))
     currency = models.CharField(_("Currency"), max_length=10)
     paiment_mode = models.CharField(_("Paiment mode"), max_length=10)

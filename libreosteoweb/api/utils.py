@@ -15,6 +15,7 @@
 import logging
 import re
 import socket
+from typing import Any
 
 import netifaces
 
@@ -31,7 +32,7 @@ def enum(enumName, *listValueNames):
 
 
 class Singleton(type):
-    _instances = {}
+    _instances: dict[Any, Any] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
@@ -39,13 +40,16 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-try:
-    UNICODE_EXISTS = bool(type(unicode))
-    _unicode = unicode
-except NameError:
-    # `str` directement, pas un `def` : la fonction ne serait jamais appelée sous
-    # le lanceur de tests et ferait redescendre le plancher de couverture.
-    _unicode = str
+# Résidu Python 2 : `unicode` était le type texte natif de cet interpréteur.
+# Le `try/except NameError` qui suivait visait à retomber sur `str` en Python 3,
+# mais `unicode` n'existe plus dans aucun Python 3 (le projet ne cible que la
+# 3.13, cf. `target-version` dans ce fichier) : le corps du `try` levait donc un
+# `NameError` à chaque import du module, systématiquement rattrapé — un
+# `NameError` latent, pas une simple remarque de typage. Équivalent direct sous
+# Python 3 : `str` est le type texte natif, donc `UNICODE_EXISTS` vaut toujours
+# `True` et `_unicode` vaut `str`.
+UNICODE_EXISTS = True
+_unicode = str
 
 
 class NetworkHelper:
