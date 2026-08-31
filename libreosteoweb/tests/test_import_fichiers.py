@@ -357,12 +357,14 @@ class TestIntegrationConsultations(APITestCase):
             regle_cabinet()
         self.client.login(username="test", password="testpw")
 
-    def depose_et_integre(self, lignes_patient, lignes_consultation):
+    def depose_et_integre(
+        self, lignes_patient, lignes_consultation, quoting=csv.QUOTE_MINIMAL
+    ):
         depot = self.client.post(
             reverse("fileimport-list"),
             data={
                 "file_patient": csv_televerse(
-                    "patients.csv", ENTETE_PATIENT, lignes_patient
+                    "patients.csv", ENTETE_PATIENT, lignes_patient, quoting=quoting
                 ),
                 "file_examination": csv_televerse(
                     "consultations.csv", ENTETE_CONSULTATION, lignes_consultation
@@ -412,6 +414,29 @@ class TestIntegrationConsultations(APITestCase):
         # comme pour un patient inconnu.
         self.assertIn("general_problem", erreurs[0][1])
         self.assertEqual(Examination.objects.count(), 0)
+
+    def test_ligne_patient_malformee_ne_bloque_pas_la_table_des_patients(self):
+        # Ligne 2 trop courte (comme test_ligne_tronquee_est_remontee_en_erreur) :
+        # FilePatientFactory.get_serializer renvoie {"errors": [...]} pour ce patient.
+        # _build_patient_table doit journaliser et sauter cette ligne, pas laisser
+        # planter la construction de la table pour les patients suivants ni pour les
+        # consultations déjà valides. QUOTE_ALL : cf.
+        # test_ligne_tronquee_est_remontee_en_erreur, csv.Sniffer ne devine plus le
+        # délimiteur sur une ligne de longueur irrégulière sans lui.
+        tronquee = ligne_patient(2)[:10]
+        reponse = self.depose_et_integre(
+            [ligne_patient(1), tronquee],
+            [ligne_consultation(1, conclusion="Amélioration"), ligne_consultation(2)],
+            quoting=csv.QUOTE_ALL,
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(reponse.data["examination"]["imported"], 1)
+        erreurs = reponse.data["examination"]["errors"]
+        self.assertEqual(len(erreurs), 1)
+        self.assertIn("general_problem", erreurs[0][1])
+        consultation = Examination.objects.get()
+        self.assertEqual(consultation.patient.family_name, "Picard")
+        self.assertEqual(consultation.conclusion, "Amélioration")
 
 
 class TestConversions(unittest.TestCase):

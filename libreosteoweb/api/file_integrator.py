@@ -577,6 +577,15 @@ class IntegratorExamination(AbstractIntegrator):
         for c in content["content"]:
             try:
                 serializer = factory.get_serializer(c)
+                if isinstance(serializer, dict):
+                    # Ligne patient malformée (FilePatientFactory.get_serializer a
+                    # renvoyé {"errors": [...]} plutôt que de lever) : on la
+                    # journalise et on continue, sans traiter le dict comme un
+                    # sérialiseur (`.validators` n'existe pas dessus).
+                    logger.error(
+                        "Could not load patient %s : %s" % (c[0], serializer["errors"])
+                    )
+                    continue
                 # remove validators to get a validated data through filters
                 serializer.validators = []
                 serializer.is_valid()
@@ -587,5 +596,5 @@ class IntegratorExamination(AbstractIntegrator):
                 ).first()
 
                 logger.info("found patient %s " % self.patient_table[int(c[0])])
-            except (KeyError, IndexError, ValueError, TypeError):
+            except (KeyError, IndexError, ValueError, TypeError, AttributeError):
                 logger.exception("Could not load patient %s" % c[0])

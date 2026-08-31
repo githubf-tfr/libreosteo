@@ -195,7 +195,7 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   1. `file_integrator.py:76` — `except:` nu avalait l'`UnicodeDecodeError` levée par
      `FileContentAdapter._get_reader()` (lecture en UTF-8 d'un flux ISO-8859-1) ;
      `Extractor.analyze_file` renvoyait un `type_file` vide en silence.
-  2. `views.py:716` (`FileImportViewSet.perform_create`) — la boucle ne combinait
+  2. `views.py:715` (`FileImportViewSet.perform_create`) — la boucle ne combinait
      `is_valid` que sous `if type_file in ["examination", "patient"]` ; un `type_file`
      vide n'entrait dans aucune branche, `is_all_valid` restait à `True` par défaut. Corrigé
      en testant la présence réelle du fichier (`instance.file_patient` /
