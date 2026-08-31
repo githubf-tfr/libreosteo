@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+import os
 import shutil
 import tempfile
 from datetime import timedelta
@@ -417,19 +418,23 @@ class TestDocumentsPatient(APITestCase):
         depot = self.depose_un_document()
         self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Document.objects.count(), 1)
-        document_id = Document.objects.get().id
+        document = Document.objects.get()
+        document_id = document.id
+        chemin_fichier = document.document_file.path
         self.client.delete(
             reverse(
                 "PatientDocuments-detail", kwargs={"pk": depot.data["document"]["id"]}
             )
         )
         self.assertFalse(Document.objects.filter(id=document_id).exists())
+        self.assertFalse(os.path.exists(chemin_fichier))
 
     def test_supprimer_un_patient_avec_document_efface_tout(self):
         depot = self.depose_un_document()
         self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Document.objects.count(), 1)
         patient_doc_id = depot.data["document"]["id"]
+        chemin_fichier = Document.objects.get(id=patient_doc_id).document_file.path
         reponse = self.client.delete(
             reverse("patient-detail", kwargs={"pk": self.patient.id}) + "?gdpr=true"
         )
@@ -438,6 +443,7 @@ class TestDocumentsPatient(APITestCase):
             PatientDocument.objects.filter(document_id=patient_doc_id).exists()
         )
         self.assertFalse(Document.objects.filter(id=patient_doc_id).exists())
+        self.assertFalse(os.path.exists(chemin_fichier))
 
     def test_en_demonstration_le_contenu_televerse_est_remplace(self):
         repertoire_media_temp = tempfile.mkdtemp()
