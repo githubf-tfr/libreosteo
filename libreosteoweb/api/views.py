@@ -277,6 +277,9 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
             models.OfficeEvent.objects.filter(
                 reference=e.id, clazz=models.Examination.__name__
             ).delete()
+        models.ExaminationComment.objects.filter(
+            examination__patient=instance.id
+        ).delete()
         models.Examination.objects.filter(patient=instance.id).delete()
         models.PatientDocument.objects.filter(patient=instance.id).delete()
         instance.set_request(self.request)

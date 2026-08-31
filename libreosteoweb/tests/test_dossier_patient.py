@@ -165,6 +165,24 @@ class TestSuppressionPatient(APITestCase):
         self.assertFalse(Examination.objects.filter(patient=self.patient.id).exists())
         self.assertEqual(OfficeEvent.objects.count(), 0)
 
+    def test_supprimer_un_patient_dont_la_consultation_est_commentee_efface_tout(self):
+        consultation = cree_consultation(self.patient, therapeut=self.user)
+        commentaire = self.client.post(
+            reverse("examinationcomment-list"),
+            data={"comment": "Seance de suivi", "examination": consultation.id},
+            format="json",
+        )
+        self.assertEqual(commentaire.status_code, status.HTTP_201_CREATED)
+        reponse = self.client.delete(
+            reverse("patient-detail", kwargs={"pk": self.patient.id}) + "?gdpr=true"
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Patient.objects.filter(id=self.patient.id).exists())
+        self.assertFalse(Examination.objects.filter(patient=self.patient.id).exists())
+        self.assertFalse(
+            ExaminationComment.objects.filter(examination=consultation.id).exists()
+        )
+
 
 class TestValidationPatient(APITestCase):
     def setUp(self):
