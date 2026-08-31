@@ -45,8 +45,14 @@ test:
 	@echo "Tests unitaires et couverture"
 	$(PYTHON) -m pytest
 
+test-functional:
+	@echo "Tests fonctionnels Playwright"
+	PLAYWRIGHT_BROWSERS_PATH=$(PWD)/.tools/playwright-browsers \
+	$(PYTHON) -m pytest tests/functional --no-cov \
+	  --tracing=retain-on-failure --screenshot=only-on-failure --output=test-results
+
 check: lint test
 
-.PHONY: lint test check
+.PHONY: lint test test-functional check
 
 .DEFAULT_GOAL := help

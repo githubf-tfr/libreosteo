@@ -1,6 +1,9 @@
-robotframework
-robotframework-seleniumlibrary==6.0.0
-selenium==4.9.1
+# Dependances de la suite fonctionnelle Playwright.
+# L'outillage de qualite (pytest, couverture, ruff, mypy) est dans requ-dev.txt ;
+# ce fichier est celui qu'installe le job CI `functional`, il porte donc aussi pytest
+# et pytest-django.
+pytest==9.1.1
+pytest-django==4.14.0
+pytest-playwright==0.9.0
+playwright==1.62.0
 requests
-robotframework-requests
-robotframework-requestslogger

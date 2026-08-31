@@ -33,5 +33,5 @@ def ask_for_new_version():
             if parse(version["version"]) > parse(libreosteoweb.__version__):
                 return (True, version["version"])
     except Exception as ex:
-        logger.error("Cannot access to version checking", ex)
+        logger.error("Cannot access to version checking: %s", ex)
     return (False, None)
