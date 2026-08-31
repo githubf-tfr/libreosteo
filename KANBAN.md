@@ -202,6 +202,36 @@ Aucun code touché à ce stade.
 
 ## Pièges rencontrés
 
+- **2026-08-31 (S3, tâche 3, tour de correctifs 1)** — Deux changements de code
+  applicatif, hors périmètre du brief de tâche 3 (deux modules de test +
+  `pyproject.toml`), retenus après revue :
+  - `libreosteoweb/middleware.py` (`OneSessionPerUserMiddleware.__call__`) — n'écrit
+    `LoggedInUser.session_key` que si la session a changé, au lieu de l'écrire à chaque
+    requête authentifiée (écriture en pure perte la plupart du temps). Vérifié correct
+    par la revue, couvert par `libreosteoweb/tests/test_acces.py:317-345`.
+  - `libreosteoweb/templates/index.html` — id `user-toggle` dupliqué sur deux menus
+    déroulants distincts, renommé en `help-toggle` sur le second (menu d'aide). Tenu
+    pour la validité HTML ; aucun CSS/JS ne référençait spécifiquement ce second id.
+  - **Tentative rejetée** : `libreosteoweb/apps.py` avait reçu, dans le même tour, une
+    boucle de réessai bornée sur `sqlite3.OperationalError` (`time.sleep` dans le thread
+    de requête, branchée sans périmètre sur le signal `connection_created`) pour absorber
+    « database table is locked » sous les PUT concurrents du formulaire cabinet. La revue
+    a montré que ce verrou (`SQLITE_LOCKED`, verrou de cache partagé) n'existe que sur la
+    base de test par défaut de Django (`file:memorydb_default?...cache=shared`,
+    `sqlite3/creation.py`) : la production (`Libreosteo/settings/base.py`) est un fichier
+    sans cache partagé et ne peut pas le lever ; le correctif partait donc chez chaque
+    installation réelle pour un problème qu'elle ne peut pas avoir, en plus d'avaler une
+    exhaustion `SQLITE_BUSY` réelle après les 5 s de busy timeout et de rejouer en bloc un
+    `executemany` déjà partiellement appliqué. `apps.py` reverté à `1b44dcd`. Le verrou
+    est réel : reproduit empiriquement (5 échecs sur 7 lancements de `test_cabinet.py`,
+    tous `database table is locked`, avec le seul correctif du middleware). Corrigé à la
+    bonne source : `tests/functional/conftest.py` bascule la base de test elle-même sur
+    un fichier hors dépôt (`DATABASES["default"]["TEST"]["NAME"]`, sous un dossier
+    temporaire) avec `OPTIONS = {"timeout": 20}` — sans cache partagé, la même contention
+    dégénère en `SQLITE_BUSY` ordinaire, que le busy handler de `sqlite3` retente déjà.
+    39 lancements consécutifs de `test_cabinet.py` verts après correction (0 échec),
+    contre 5 échecs sur 7 avant.
+
 - **2026-08-31 (clôture de S2)** — **Un seul `pytest` peut tourner à la fois sur ce
   dépôt**, et un `pytest` interrompu laisse le dépôt piégé. La suite partage une base
   SQLite en mémoire (`file:memorydb_default?mode=memory&cache=shared`) et l'index Whoosh

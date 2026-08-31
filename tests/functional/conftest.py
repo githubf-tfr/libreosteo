@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import os
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator, cast
 
 import pytest
 from django.conf import settings as reglages_django
@@ -42,6 +43,36 @@ reglages_django.STATICFILES_DIRS = [str(RACINE / "static")]
 # django-stubs type `get_finder` comme une fonction nue ; a l'execution c'est un
 # `functools.lru_cache`, qui porte bien `cache_clear`.
 finders.get_finder.cache_clear()  # type: ignore[attr-defined]
+
+# La base de test par defaut de Django, sous sqlite3, est en memoire mais **a cache
+# partage entre threads** (`sqlite3/creation.py` la nomme
+# `file:memorydb_default?mode=memory&cache=shared`). Ce cache partage a son propre verrou
+# de table, `SQLITE_LOCKED` / « database table is locked » : contrairement a `SQLITE_BUSY`
+# / « database is locked » (verrou de fichier ordinaire), le busy handler de `sqlite3` ne
+# le retente jamais. `OneSessionPerUserMiddleware` corrige, l'enregistrement du cabinet
+# declenche encore trois PUT HTTP reellement concurrents (`officesettings.js`, un par
+# moyen de paiement) sur la meme table, threads de requete differents : reproduit
+# empiriquement (5 echecs sur 7 lancements de `test_cabinet.py`, tous portant
+# `sqlite3.OperationalError: database table is locked`). Une base de production
+# (`Libreosteo/settings/base.py`) est un fichier sans cache partage et ne peut pas subir
+# cette erreur precise ; le correctif reste donc cantonne a la configuration de la base de
+# test, jamais au code applicatif. Bascule sur un fichier hors dossier de travail (verrou
+# de fichier ordinaire, retente par le busy handler) avec un delai d'attente genereux.
+_dossier_base_de_test = tempfile.mkdtemp(prefix="libreosteo-test-db-")
+# `AppConfig.ready()` (libreosteoweb/apps.py) interroge deja la base a l'import de
+# l'application, avant meme que ce module ne s'execute : ca a deja fait passer
+# `django.db.connections` par sa mise en place des cles par defaut de `DATABASES`
+# (`ConnectionHandler.configure_settings`, `django/db/utils.py`), qui met en cache la
+# structure. Remplacer les sous-dictionnaires `TEST`/`OPTIONS` perdrait ce cache ; on les
+# met a jour en place (memes objets, cles ajoutees ou ecrasees) pour que la mutation soit
+# vue quel que soit l'ordre.
+# django-stubs type chaque connexion de `DATABASES` en `Dict[str, str]` : trop etroit pour
+# les sous-dictionnaires `TEST`/`OPTIONS`, deja presents dans la configuration Django reelle.
+_base_par_defaut = cast("dict[str, Any]", reglages_django.DATABASES["default"])
+_base_par_defaut.setdefault("TEST", {})["NAME"] = os.path.join(
+    _dossier_base_de_test, "test_db.sqlite3"
+)
+_base_par_defaut.setdefault("OPTIONS", {})["timeout"] = 20
 
 # Plafond des assertions Playwright. C'est un delai de garde, pas une temporisation :
 # `expect` rend la main des que l'etat attendu est atteint.

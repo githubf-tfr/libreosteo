@@ -25,36 +25,39 @@ def test_reglage_du_cabinet(page: Page, live_server: LiveServer, socle: Socle) -
     # L'etape « Therapeute » de la visite guidee est la premiere : c'est elle qui parle
     # d'identifiant (static/js/app/tour.js).
     expect(page.locator("div.popover-content")).to_contain_text("identifiant")
-    expect(page.locator("ul.dropdown-user")).to_be_attached()
+    # `to_be_attached()` ne prouverait rien : index.html rend ce `<ul>` inconditionnellement
+    # cote serveur, avant tout JavaScript. Seule sa visibilite prouve que la visite guidee a
+    # bien ouvert le menu.
+    expect(page.locator("ul.dropdown-user")).to_be_visible()
 
     ouvrir_reglages_cabinet(page)
-    # Ces six champs n'ont qu'un attribut `name`, pas d'`id` (office-settings.html) : le
-    # mot-cle Robot `Input Text` matchait id-ou-name implicitement, Playwright ne matche
-    # que l'id avec `#`.
-    page.fill("input[name=office_address_street]", "27 rue Haute")
-    page.fill("input[name=office_address_complement]", "")
-    page.fill("input[name=office_address_zipcode]", "87110")
-    page.fill("input[name=office_address_city]", "Le Vigen")
-    page.fill("input[name=office_phone]", "05 55 12 13 14")
-    page.fill("input[name=office_identifier]", "52282868700022")
-    page.fill("#amount", "55")
+    # Valeurs toutes distinctes de celles semees par le socle (tests/functional/conftest.py) :
+    # une assertion qui reassert une valeur deja en base passerait meme si l'enregistrement
+    # ne faisait rien.
+    page.fill("input[name=office_address_street]", "12 avenue de la Liberte")
+    page.fill("input[name=office_address_complement]", "Batiment B")
+    page.fill("input[name=office_address_zipcode]", "75001")
+    page.fill("input[name=office_address_city]", "Paris")
+    page.fill("input[name=office_phone]", "01 23 45 67 89")
+    page.fill("input[name=office_identifier]", "12345678901234")
+    page.fill("#amount", "75")
     page.fill("#currency", "EUR")
-    page.fill("#invoice_office_header", "Cabinet 1")
-    page.fill("#invoice_content", "Template with <amount> <currency>")
-    page.fill("#invoice_footer", "Footer")
+    page.fill("#invoice_office_header", "Cabinet Central")
+    page.fill("#invoice_content", "Facture <amount> <currency> emise")
+    page.fill("#invoice_footer", "Merci de votre visite")
     enregistrer_formulaire(page)
 
     # L'interface ne montre pas ce qui a ete reellement enregistre : on le lit par l'ORM,
     # la ou les suites Robot passaient par /api/settings.
     cabinet = OfficeSettings.objects.get(id=1)
-    assert cabinet.office_address_street == "27 rue Haute"
-    assert cabinet.office_address_complement == ""
-    assert cabinet.office_address_zipcode == "87110"
-    assert cabinet.office_address_city == "Le Vigen"
-    assert cabinet.office_phone == "05 55 12 13 14"
-    assert cabinet.office_identifier == "52282868700022"
-    assert cabinet.amount == 55
+    assert cabinet.office_address_street == "12 avenue de la Liberte"
+    assert cabinet.office_address_complement == "Batiment B"
+    assert cabinet.office_address_zipcode == "75001"
+    assert cabinet.office_address_city == "Paris"
+    assert cabinet.office_phone == "01 23 45 67 89"
+    assert cabinet.office_identifier == "12345678901234"
+    assert cabinet.amount == 75
     assert cabinet.currency == "EUR"
-    assert cabinet.invoice_office_header == "Cabinet 1"
-    assert cabinet.invoice_content == "Template with <amount> <currency>"
-    assert cabinet.invoice_footer == "Footer"
+    assert cabinet.invoice_office_header == "Cabinet Central"
+    assert cabinet.invoice_content == "Facture <amount> <currency> emise"
+    assert cabinet.invoice_footer == "Merci de votre visite"

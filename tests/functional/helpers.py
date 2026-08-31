@@ -35,7 +35,22 @@ def attendre_page_prete(page: Page) -> None:
 
 
 def ouvrir_menu_utilisateur(page: Page) -> None:
-    page.click("#user-toggle")
+    """Ouvre le menu utilisateur, sans jamais cliquer en aveugle.
+
+    La visite guidee (`static/js/app/tour.js`, `onShow` des pas « Thérapeute » et
+    « Paramétrer le cabinet ») ouvre ce menu par la classe CSS `open`, hors du
+    gestionnaire de clic Bootstrap, et le rouvre elle-meme sur l'evenement
+    `hidden.bs.dropdown`. Un clic sur #user-toggle quand le menu est deja ouvert par la
+    visite guidee entre en collision avec ce rouvre-automatique : Bootstrap capture l'etat
+    « deja ouvert » avant de le refermer, donc ne remet jamais `aria-expanded` a `true`,
+    meme si le rouvre-automatique du tour laisse le menu visuellement ouvert (confirme par
+    instrumentation directe des attributs DOM). Piloter l'etat reel du menu, plutot que de
+    cliquer sans le regarder, evite cette dependance a un comportement non garanti.
+    """
+    menu = page.locator("ul.dropdown-user")
+    if not menu.is_visible():
+        page.click("#user-toggle")
+    expect(menu).to_be_visible()
 
 
 def ouvrir_reglages_cabinet(page: Page) -> None:
@@ -49,10 +64,15 @@ def ouvrir_reglages_cabinet(page: Page) -> None:
     )
     page.click("#office-settings")
     expect(page.locator("h1.page-header")).to_contain_text("Paramètres du cabinet")
-    # Le titre s'affiche des que le partial est charge, avant que les $http de lecture du
-    # cabinet existant (GET /api/settings) n'aient rempli le formulaire : sans cette attente,
-    # une saisie trop rapide est ecrasee quand la reponse arrive et remplace le modele.
+    # `attendre_page_prete` ne barre pas un $http en vol : angular-loading-bar n'insere
+    # #loading-bar qu'apres son `latencyThreshold` de 100 ms (loading-bar.min.js), donc un
+    # GET /api/settings qui repond plus vite ne l'affiche jamais et l'attente rend la main
+    # avant que la reponse n'ait rempli le formulaire. `office_identifier` est rempli par
+    # cette reponse et le socle ne le vide jamais : une vraie barriere d'etat.
     attendre_page_prete(page)
+    expect(page.locator("input[name=office_identifier]")).to_have_value(
+        "52282868700022"
+    )
 
 
 def ouvrir_profil_therapeute(page: Page) -> None:
@@ -63,8 +83,12 @@ def ouvrir_profil_therapeute(page: Page) -> None:
     )
     page.click("#user-profile")
     expect(page.locator("h1.page-header")).to_contain_text("Profil utilisateur")
-    # Meme risque de course qu'au-dessus (GET /myuserid, /api/users/:id, /api/profiles/get_by_user).
+    # Meme risque de course qu'au-dessus (GET /myuserid, /api/users/:id,
+    # /api/profiles/get_by_user) : `email` est rempli par ces reponses et le socle ne le
+    # vide jamais, contrairement a `professional_id` ou `quality` que certains tests vident
+    # expres pour declencher la visite guidee.
     attendre_page_prete(page)
+    expect(page.locator("input[name=email]")).to_have_value("test@test.com")
 
 
 def enregistrer_formulaire(page: Page) -> None:

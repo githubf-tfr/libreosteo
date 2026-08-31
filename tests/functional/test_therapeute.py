@@ -24,12 +24,15 @@ def test_reglage_du_therapeute(
 
     ouvrir_profil_therapeute(page)
     # `last_name`, `first_name` et `email` n'ont qu'un attribut `name`, pas d'`id`
-    # (user-profile.html) : meme ecart que dans test_cabinet.py.
+    # (user-profile.html) : meme ecart que dans test_cabinet.py. `quality` est distinct de
+    # la valeur semee par le socle ("Ostéopathe DO", tests/functional/conftest.py) : une
+    # reassertion de la valeur deja en base passerait meme si l'enregistrement ne faisait
+    # rien.
     page.fill("input[name='last_name']", "Tester")
     page.fill("input[name=first_name]", "Robot")
     page.fill("input[name=email]", "test@robot.com")
     page.fill("#inputProfessionalId", "67654684")
-    page.fill("#inputQuality", "Ostéopathe DO")
+    page.fill("#inputQuality", "Kinésithérapeute")
     enregistrer_formulaire(page)
 
     utilisateur = get_user_model().objects.get(username="test")
@@ -39,4 +42,4 @@ def test_reglage_du_therapeute(
 
     profil = TherapeutSettings.objects.get(user=utilisateur)
     assert profil.professional_id == "67654684"
-    assert profil.quality == "Ostéopathe DO"
+    assert profil.quality == "Kinésithérapeute"
