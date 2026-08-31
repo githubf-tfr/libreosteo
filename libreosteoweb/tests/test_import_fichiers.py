@@ -140,11 +140,16 @@ def ligne_consultation(numero_patient, date="01/02/2020", conclusion="RAS"):
     return ligne
 
 
-def csv_televerse(nom, entete, lignes, encodage="utf-8"):
+def csv_televerse(nom, entete, lignes, encodage="utf-8", quoting=csv.QUOTE_MINIMAL):
     """Construit un vrai fichier CSV téléversable. csv.Sniffer doit pouvoir deviner le
-    dialecte : on écrit toujours au moins une ligne de données, séparateur virgule."""
+    dialecte : on écrit toujours au moins une ligne de données, séparateur virgule.
+
+    `quoting` reste à `QUOTE_MINIMAL` par défaut ; `QUOTE_ALL` sert aux lignes de
+    longueur irrégulière (nombre de colonnes variable), où le comptage de virgules par
+    ligne ne suffit plus à `csv.Sniffer` pour deviner le délimiteur, alors que le motif
+    guillemet-virgule-guillemet reste, lui, repérable."""
     tampon = io.StringIO()
-    redacteur = csv.writer(tampon, delimiter=",", quotechar='"')
+    redacteur = csv.writer(tampon, delimiter=",", quotechar='"', quoting=quoting)
     redacteur.writerow(entete)
     for ligne in lignes:
         redacteur.writerow(ligne)
@@ -240,12 +245,7 @@ class TestAnalyseImport(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
         self.assertEqual(FileImport.objects.get(id=reponse.data["id"]).status, 0)
 
-    @unittest.expectedFailure
     def test_encodage_non_supporte_produit_une_erreur_explicite(self):
-        # Défaut de gestion d'exception : UnicodeDecodeError est levée quand on lit un
-        # fichier ISO-8859-1 en UTF-8, mais un except: nu l'avale et laisse status=1
-        # (valide). Le comportement attendu est status=0 avec une liste d'erreurs non
-        # vide. Ce défaut est attribué à L4T7 (gestion des except: nus).
         reponse = self.depose(
             csv_televerse(
                 "patients.csv",
@@ -271,10 +271,12 @@ class TestIntegrationPatients(APITestCase):
             regle_cabinet()
         self.client.login(username="test", password="testpw")
 
-    def depose_et_integre(self, lignes_patient, lignes_consultation=None):
+    def depose_et_integre(
+        self, lignes_patient, lignes_consultation=None, quoting=csv.QUOTE_MINIMAL
+    ):
         donnees = {
             "file_patient": csv_televerse(
-                "patients.csv", ENTETE_PATIENT, lignes_patient
+                "patients.csv", ENTETE_PATIENT, lignes_patient, quoting=quoting
             )
         }
         if lignes_consultation is not None:
@@ -323,6 +325,23 @@ class TestIntegrationPatients(APITestCase):
 
     def test_un_doublon_dans_le_fichier_est_remonte_sans_interrompre(self):
         reponse = self.depose_et_integre([ligne_patient(1), ligne_patient(2)])
+        self.assertEqual(reponse.data["patient"]["imported"], 1)
+        self.assertEqual(len(reponse.data["patient"]["errors"]), 1)
+        self.assertEqual(Patient.objects.count(), 1)
+
+    def test_ligne_tronquee_est_remontee_en_erreur(self):
+        # QUOTE_ALL : une ligne plus courte que les autres fait varier le nombre de
+        # virgules par ligne, ce qui empêche csv.Sniffer de deviner le délimiteur (il se
+        # rabat sur le caractère de fin de ligne). Guillemeter systématiquement conserve
+        # le motif guillemet-virgule-guillemet, seul repère qu'il lui reste alors, pour
+        # isoler ici le défaut visé : `FilePatientFactory.get_serializer` sur une ligne
+        # trop courte, sans se heurter au problème plus large du Sniffer sur un CSV
+        # irrégulier (déjà couvert par ailleurs, cf. `file_integrator.py:76`).
+        tronquee = ligne_patient(2)[:10]
+        reponse = self.depose_et_integre(
+            [ligne_patient(1), tronquee], quoting=csv.QUOTE_ALL
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         self.assertEqual(reponse.data["patient"]["imported"], 1)
         self.assertEqual(len(reponse.data["patient"]["errors"]), 1)
         self.assertEqual(Patient.objects.count(), 1)

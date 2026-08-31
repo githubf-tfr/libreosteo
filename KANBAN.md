@@ -124,15 +124,13 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   exécutées sur `main` une par une avec revue.
   - **Lots 1 à 3 clos** : facturation (31 tests), accès et middlewares (25 tests), dossier
     patient (26 tests). Plancher de couverture monté de 61 à 72.
-  - **Lot 4, import de fichiers** : 6 tâches sur 8 faites, dernier commit `482e82c`.
-    Reprise à la tâche 7 (les `except:` nus de `file_integrator.py`).
+  - **Lot 4, import de fichiers** : 7 tâches sur 8 faites. Reprise à la tâche 8.
   - **Défauts de production corrigés en chemin** : `maintenance_available` et
     `OneSessionPerUserMiddleware` (`except:` nus), `PatientDocument.delete` (double
     suppression du Document), `FileContentProxy.unproxy` (écrivait `None` dans le cache au
-    lieu de retirer la clé — cause du non-déterminisme de la suite fonctionnelle en S1).
-  - **Défaut ouvert, non corrigé** : l'encodage ISO-8859-1 à l'import, cf. § Points en
-    suspens. Le test le grave en `expectedFailure` ; il se relèvera de lui-même à la
-    correction.
+    lieu de retirer la clé — cause du non-déterminisme de la suite fonctionnelle en S1),
+    l'encodage ISO-8859-1 importé comme valide (`except:` nus de `file_integrator.py`, cf.
+    « Pièges rencontrés »).
 
 ## Terminé
 
@@ -191,6 +189,36 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   `FileContentProxy.unproxy` écrit `None` dans son cache au lieu de supprimer la clé
   (`libreosteoweb/api/file_integrator.py:294`). Correctif hors périmètre S1 (code métier,
   donc S2) ; S3 remplace la suite de toute façon.
+- **2026-08-31 (S2, L4T7)** — **Fichier ISO-8859-1 importé comme valide, corrigé.** Deux
+  défaillances en série, toutes deux nécessaires pour reproduire puis corriger le
+  symptôme (status=1 au lieu de 0 sur un fichier CSV encodé en ISO-8859-1) :
+  1. `file_integrator.py:76` — `except:` nu avalait l'`UnicodeDecodeError` levée par
+     `FileContentAdapter._get_reader()` (lecture en UTF-8 d'un flux ISO-8859-1) ;
+     `Extractor.analyze_file` renvoyait un `type_file` vide en silence.
+  2. `views.py:716` (`FileImportViewSet.perform_create`) — la boucle ne combinait
+     `is_valid` que sous `if type_file in ["examination", "patient"]` ; un `type_file`
+     vide n'entrait dans aucune branche, `is_all_valid` restait à `True` par défaut. Corrigé
+     en testant la présence réelle du fichier (`instance.file_patient` /
+     `instance.file_examination`) plutôt que le `type_file` retourné par l'analyse, qui vaut
+     `""` aussi bien pour « fichier absent » (légitime) que pour « fichier illisible »
+     (à invalider) — les deux cas ne peuvent pas se distinguer par le seul `type_file`.
+  Corriger la première défaillance sans la seconde ne suffisait pas : le test
+  `test_encodage_non_supporte_produit_une_erreur_explicite`, marqué `expectedFailure`
+  depuis L4T2, serait resté rouge indéfiniment sans jamais lever d'« unexpected success ».
+  Les deux corrigées, la décoration est retirée et le test passe sur ses propres mérites.
+- **2026-08-31 (S2, L4T7)** — `csv.Sniffer().sniff()` ne devine pas le délimiteur d'un CSV
+  aux lignes de longueur irrégulière : une ligne plus courte que les autres change son
+  nombre de virgules, et le caractère au décompte le plus stable sur l'ensemble du fichier
+  devient alors le retour chariot du terminateur de ligne, pas la virgule. Reproduit hors
+  suite : un fichier bien formé + une ligne tronquée fait échouer `sniff()` avec
+  `_csv.Error: Could not determine delimiter`, quel que soit le nombre de lignes bien
+  formées autour. Rencontré en écrivant `test_ligne_tronquee_est_remontee_en_erreur`
+  (lot 4) : la ligne tronquée devait isoler le défaut de `FilePatientFactory.get_serializer`
+  (une `IndexError` sur `row[23]`), mais faisait d'abord échouer l'analyse du fichier entier
+  — un problème différent, déjà couvert par `file_integrator.py:76`. Contournement : générer
+  ce CSV avec `quoting=csv.QUOTE_ALL` (nouveau paramètre optionnel de `csv_televerse`), qui
+  laisse au Sniffer un motif guillemet-virgule-guillemet stable indépendant du nombre de
+  colonnes. N'a pas nécessité de découpage de `file_integrator.py`.
 
 ## Suite du projet — S2 à S5
 
@@ -221,33 +249,6 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
 _(vide — prochain `git fetch upstream` à faire avant divergence significative)_
 
 ## Points en suspens
-
-### Défauts de gestion d'exception (silence sur erreurs d'encodage)
-
-- **2026-08-30 — Fichier ISO-8859-1 importé comme valide (S2, L4T2 → L4T7).**
-  Symptôme observable : un fichier CSV encodé en ISO-8859-1 (encodage courant des vieux
-  logiciels) est accepté avec status=1 (valide) au lieu de status=0 (invalide).
-  
-  **Deux défaillances en série, toutes deux à corriger :**
-  
-  1. **`file_integrator.py:76`** — `except:` nu avale l'`UnicodeDecodeError` levée par
-     `FileContentAdapter._get_reader()` à la ligne 237 (lecture en UTF-8 d'un flux ISO-8859-1).
-     L'exception est silencieuse, et `Extractor.analyze_file` renvoie un `type_file` **vide**.
-  
-  2. **`libreosteoweb/api/views.py:715`** — La boucle ne combine `is_valid` que sous
-     `if type_file in ["examination", "patient"]`. Un `type_file` vide n'entre dans aucune
-     branche, `is_all_valid` reste à `True` par défaut, et le dépôt est déclaré valide
-     (status=1).
-  
-  **Important :** corriger la première défaillance sans la seconde ne suffira pas. Si L4T7
-  remplace l'`except:` nu par une exception nommée sans modifier `views.py:715`, le
-  `type_file` restera vide, le statut restera 1, et le test
-  `test_encodage_non_supporte_produit_une_erreur_explicite` continuera d'échouer indéfiniment
-  sans jamais lever un « unexpected success ».
-  
-  Risque pratique : un import silencieusement tronqué ou corrompu. Défaut documenté par le
-  test `test_encodage_non_supporte_produit_une_erreur_explicite` (L4T2), marqué
-  `@unittest.expectedFailure` en attente de correction à L4T7.
 
 ### Comportements figés par S2 sans avoir été tranchés
 

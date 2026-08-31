@@ -73,7 +73,7 @@ class Extractor(object):
         try:
             handler = AnalyzerHandler()
             report = handler.analyze(internal_file)
-        except:
+        except (OSError, UnicodeDecodeError, csv.Error):
             logger.exception("Analyze failed.")
             return ("", False, True, [_("Analyze failed on this file")])
 
@@ -96,7 +96,7 @@ class Extractor(object):
                 logger.info("indexes = %s " % idx)
                 for i in idx:
                     result["%s" % (i + 1)] = content["content"][i - 1]
-        except:
+        except (OSError, UnicodeDecodeError, csv.Error, KeyError):
             logger.exception("Extractor failed.")
         logger.info("result is %s" % result)
         return result
@@ -117,14 +117,14 @@ def filter(line):
     try:
         logger.debug("Try to decode against utf-8")
         result_line = line.decode("utf-8")
-    except:
+    except UnicodeDecodeError:
         logger.debug("Fail to decode against utf-8")
         pass
     if result_line is None:
         try:
             logger.debug("Try to decode against iso-8859-1")
             result_line = line.decode("iso-8859-1")
-        except:
+        except UnicodeDecodeError:
             logger.info("Fail to decode against iso-8859-1")
             result_line = _("Cannot read the content file. Check the encoding.")
     return result_line
@@ -316,12 +316,12 @@ class AnalyzerHandler(object):
         result_line = None
         try:
             result_line = line.decode("utf-8")
-        except:
+        except UnicodeDecodeError:
             pass
         if result_line is None:
             try:
                 result_line = line.decode("iso-8859-1")
-            except:
+            except UnicodeDecodeError:
                 result_line = _("Cannot read the content file. Check the encoding.")
         return result_line
 
@@ -409,8 +409,9 @@ class FilePatientFactory(object):
         except ValueError as e:
             logger.exception("Exception when creating patient %s ." % row[0])
             serializer = {"errors": ["%s" % e]}
-        except:
+        except (IndexError, TypeError, AttributeError) as e:
             logger.exception("Exception when creating patient %s ." % row[0])
+            serializer = {"errors": ["%s" % e]}
         return serializer
 
     def get_sex_value(self, value):
@@ -542,7 +543,7 @@ class IntegratorExamination(AbstractIntegrator):
                         },
                     )
                 )
-            except:
+            except (KeyError, IndexError, AttributeError, TypeError):
                 logger.exception("Exception when creating examination.")
                 errors.append(
                     (
@@ -586,5 +587,5 @@ class IntegratorExamination(AbstractIntegrator):
                 ).first()
 
                 logger.info("found patient %s " % self.patient_table[int(c[0])])
-            except:
+            except (KeyError, IndexError, ValueError, TypeError):
                 logger.exception("Could not load patient %s" % c[0])

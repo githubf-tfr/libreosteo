@@ -710,10 +710,16 @@ class FileImportViewSet(viewsets.ModelViewSet):
                 raise ValidationError("Missing patient file after analyze")
         logger.info("* Status after analyze is : %s " % (status))
         is_all_valid = True
+        fichiers = {
+            "patient": instance.file_patient,
+            "examination": instance.file_examination,
+        }
         for f in status:
             (type_file, is_valid, is_empty, errors) = status[f]
-            if type_file in ["examination", "patient"]:
-                is_all_valid = is_all_valid and is_valid and not (is_empty)
+            if not bool(fichiers[f]):
+                # Fichier optionnel absent : rien à valider pour lui.
+                continue
+            is_all_valid = is_all_valid and is_valid and not (is_empty)
         if is_all_valid:
             instance.status = 1
         else:
