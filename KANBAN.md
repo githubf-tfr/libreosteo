@@ -120,7 +120,7 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   (`libreosteoweb/api/views.py:599`), mais `REST_FRAMEWORK` (`Libreosteo/settings/base.py:211`)
   n'a pas de `PAGE_SIZE`. `LimitOffsetPagination.default_limit` revient donc à `None`, et
   `paginate_queryset` retourne `None` : l'endpoint répond une liste brute non paginée sauf si
-  le client passe `?limit=`. Toute client qui attend l'enveloppe `results` reçoit une liste nue ;
+  le client passe `?limit=`. Tout client qui attend l'enveloppe `results` reçoit une liste nue ;
   tout ajout global de `PAGE_SIZE` changerait silencieusement la forme de ces réponses.
 
 ## En cours
@@ -130,13 +130,15 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   exécutées sur `main` une par une avec revue.
   - **Lots 1 à 3 clos** : facturation (31 tests), accès et middlewares (25 tests), dossier
     patient (26 tests). Plancher de couverture monté de 61 à 72.
-  - **Lot 4, import de fichiers** : 7 tâches sur 8 faites. Reprise à la tâche 8.
+  - **Lot 4 clos** : import de fichiers (8 tâches). Plancher monté de 72 à 80.
+  - **Lot 5, exploitation** : 2 tâches sur 8 faites (séquence de facturation et réglages,
+    traçabilité des consultations de données).
   - **Défauts de production corrigés en chemin** : `maintenance_available` et
     `OneSessionPerUserMiddleware` (`except:` nus), `PatientDocument.delete` (double
     suppression du Document), `FileContentProxy.unproxy` (écrivait `None` dans le cache au
     lieu de retirer la clé — cause du non-déterminisme de la suite fonctionnelle en S1),
     l'encodage ISO-8859-1 importé comme valide (`except:` nus de `file_integrator.py`, cf.
-    « Pièges rencontrés »).
+    « Pièges rencontrés »), `PasswordSerializer` sans mot de passe (500 au lieu de 400).
 
 ## Terminé
 
