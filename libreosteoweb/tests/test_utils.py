@@ -14,7 +14,7 @@
 # along with Libreosteo.  If not, see <http://www.gnu.org/licenses/>.
 from django.test import TestCase
 
-from libreosteoweb.api.utils import convert_to_long
+from libreosteoweb.api.utils import NetworkHelper, convert_to_long
 
 
 class ConvertToLongTest(TestCase):
@@ -27,3 +27,26 @@ class ConvertToLongTest(TestCase):
     def test_keeps_prefix_when_not_asked(self):
         with self.assertRaises(ValueError):
             convert_to_long("FA2026")
+
+
+class TestConvertToLongCasLimites(TestCase):
+    def test_une_valeur_non_numerique_leve(self):
+        with self.assertRaises(ValueError):
+            convert_to_long("abc")
+
+    def test_un_prefixe_non_retire_leve(self):
+        with self.assertRaises(ValueError):
+            convert_to_long("FA-42")
+
+    def test_un_entier_est_rendu_tel_quel(self):
+        self.assertEqual(convert_to_long(42), 42)
+
+
+class TestNetworkHelper(TestCase):
+    def test_les_adresses_sont_rendues_sans_lever(self):
+        adresses = NetworkHelper().get_all_addresses()
+        self.assertIsInstance(adresses, list)
+
+    def test_aucune_adresse_liee_sur_un_port_ferme(self):
+        # Port 0 : jamais lié. Aucune connexion réseau sortante n'est tentée.
+        self.assertEqual(NetworkHelper().get_bound_addresses(["127.0.0.1"], 0), [])
