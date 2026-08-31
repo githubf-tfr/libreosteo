@@ -115,7 +115,10 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   workflow a été supprimée ; son contenu était déjà commenté en amont, elle ne vérifiait
   donc plus rien depuis longtemps. À reconstruire quand les traductions bougeront.
 - (S1) Périmètre `mypy` de départ : 14 modules sur ~60, ceux qui passaient déjà sans
-  annotation. Le reste attend d'être annoté, module par module.
+  annotation. Blocage levé le 2026-08-31 (résidu Python 2 dans `utils.py`,
+  `ManyToManyField` non annotés dans `models.py`, affectation indexée à caster dans
+  `dev.py`) : le périmètre est passé à 57 modules. Le reste, et sa raison, est consigné
+  dans le commentaire de `[tool.mypy] files` (`pyproject.toml`).
 - (S2, L5T2) `OfficeEventViewSet` déclare `pagination_class = pagination.LimitOffsetPagination`
   (`libreosteoweb/api/views.py:599`), mais `REST_FRAMEWORK` (`Libreosteo/settings/base.py:211`)
   n'a pas de `PAGE_SIZE`. `LimitOffsetPagination.default_limit` revient donc à `None`, et
@@ -151,6 +154,9 @@ _(vide — S3 n'a pas encore de spec)_
       (répertoire temporaire jamais créé, puis écriture de `bytes` en mode texte), et un
       `dump.json` corrompu répondait 500 au lieu de 412.
     - `NetworkHelper.get_all_addresses` — `except:` nu.
+    - `utils.py` — un `NameError` latent : `UNICODE_EXISTS = bool(type(unicode))` levait
+      l'exception à chaque import, systématiquement rattrapée par le `except NameError`
+      qui suivait ; trouvé en étendant le périmètre `mypy` (commit `1df16cb`).
     - **`PatientViewSet.perform_destroy`** (trouvé par la revue de branche finale, commit
       `da59c0d`) — `ExaminationComment.examination` est `on_delete=PROTECT`, et la vue
       supprimait les `Examination` d'un patient sans purger leurs commentaires au préalable.
@@ -338,9 +344,3 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   L'appel est en commentaire dans `perform_update` (`libreosteoweb/api/views.py`). Une
   consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
   changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
-- **2026-08-31 — `LoadDump` laisse un répertoire temporaire derrière chaque restauration.**
-  `libreosteoweb/api/views.py:887` construit `tmpdir = os.path.join(tempfile.gettempdir(),
-  str(uuid.uuid4()))` et ne le supprime jamais, en production comme en test. Non corrigé
-  délibérément à la clôture de S2 : la vue a plusieurs `return` précoces qui répondent 412, et
-  un nettoyage correct suppose un `try`/`finally` qui la restructure — c'est un travail de S5,
-  pas un correctif à glisser dans une clôture.
