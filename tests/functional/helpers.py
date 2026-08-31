@@ -106,8 +106,9 @@ def creer_patient(
 ) -> None:
     page.click("a:has-text('Nouveau patient')")
     expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
-    page.fill("#family_name", nom)
-    page.fill("#first_name", prenom)
+    # Ces deux champs n'ont pas d'id, seulement un attribut `name` (add-patient.html).
+    page.fill("input[name=family_name]", nom)
+    page.fill("input[name=first_name]", prenom)
     page.fill("input.dd", jour)
     page.fill("input.mm", mois)
     page.fill("input.yy", annee)
