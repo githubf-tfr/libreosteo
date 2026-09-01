@@ -145,6 +145,17 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   Non corrigés ici : toucher un réglage global et une migration est un changement
   d'application qui veut sa propre décision et son propre commit, hors périmètre d'un
   correctif de tests.
+- (S3, tâches 4 et 7) **Widget de date webshim : affiche en JOUR/MOIS/ANNÉE, lit en
+  MOIS/JOUR/ANNÉE.** Défaut avéré, preuve par assertion en base sur deux champs
+  indépendants ; détail et asymétrie affichage/saisie en « Points en suspens » ci-dessous.
+- (S3, tâche 8) **`#invoice_start_sequence` ignore silencieusement une saisie textuelle**
+  au lieu de la refuser (AngularJS ne recopie jamais une valeur en échec de validateur
+  dans le modèle ; le bouton d'enregistrement ne porte aucune garde de validité). Détail
+  en « Pièges rencontrés », tâche 8.
+- (S3, tâche 5) **`libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
+  jour calendaire UTC puis la borne en horaires locaux** : sa borne de fin de journée
+  tombe jusqu'à deux heures avant minuit UTC réel, tous les jours, toute l'année. Défaut
+  de production, hors périmètre de test ; détail en « Pièges rencontrés », tâche 5.
 
 ## En cours
 
@@ -597,11 +608,15 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
   changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
 
-### Format du widget de date webshim, établi sur deux champs (S3, tâches 4 et 7) — question applicative encore ouverte
+### Format du widget de date webshim (S3, tâches 4 et 7) — défaut avéré, non corrigé (au backlog)
 
-- **Établi avec certitude, sur deux champs indépendants, chacun vérifié par une assertion
-  en base : le widget webshim lit le texte tapé en MOIS/JOUR/ANNÉE, jamais en
-  JOUR/MOIS/ANNÉE.** Les deux champs sont remplacés par le même polyfill, configuré dans
+- **Défaut avéré, établi sur deux champs indépendants, chacun vérifié par une assertion en
+  base : le widget webshim affiche une date dans un ordre et la relit dans l'autre.**
+  `examination.html:17` pose `e-placeholder="{$ freezeExaminationDate() $}"`, et
+  `freezeExaminationDate` (`examination.js:390`) formate cette valeur affichée en
+  `"DD/MM/YYYY"` — jour puis mois, l'ordre français. Le widget qui reprend la saisie lit
+  pourtant le texte tapé mois d'abord, MOIS/JOUR/ANNÉE, jamais JOUR/MOIS/ANNÉE. Les deux
+  champs concernés sont remplacés par le même polyfill, configuré dans
   `libreosteoweb/static/js/app/app.js:173-179`
   (`webshim.setOptions('forms-ext', {replaceUI: 'auto', types: 'date', ...})`) :
   - Champ de date de document (`filemanager.html`, `tests/functional/test_patient.py`,
@@ -618,8 +633,13 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   Établi aussi : `getAutoEnhance` (`polyfiller.js`) ne désactive ce remplacement que si
   `webCFG.enhanceAuto` est faux, or sa valeur par défaut est vraie pour tout navigateur de
   bureau de largeur normale, headless ou non — et `index.html` ne porte aucun attribut
-  `lang` sur lequel le chargeur de locale de webshim pourrait s'appuyer.
-- Ce qui reste **non tranché** : le format effectivement accepté par ce même widget dans un
+  `lang` sur lequel le chargeur de locale de webshim pourrait s'appuyer. Un praticien qui
+  ressaisit une date dans le format que l'application vient de lui montrer (JJ/MM/AAAA)
+  enregistre donc une autre date, en silence, dans un dossier médical qui porte aussi la
+  facturation. Non corrigé dans S3 (correction applicative hors périmètre d'un chantier de
+  tests) ; porté au backlog, cf. « Dette technique » ci-dessus.
+- Ce qui reste **non tranché**, et ne conditionne pas la qualification du défaut ci-dessus :
+  le format effectivement accepté par ce même widget dans un
   vrai navigateur de bureau (Firefox, Chrome non headless), avec ou sans locale système fr —
   les deux vérifications ci-dessus tournent dans le même environnement Playwright/Chromium
   headless. Si ce format se confirme hors du véhicule de test, un utilisateur français
