@@ -878,7 +878,191 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 
 ### Consultation
 
+### R-CON-01 — Créer une consultation
+
+- **Domaine** : Consultation
+- **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_non_facturee
+- **État requis** : E2. Cette fiche crée durablement une troisième consultation (non
+  facturée) chez le patient Picard : remonter l'état E2 (chapitre 1) avant de jouer
+  une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations », bouton
+   « Démarrer une consultation ».
+   Attendu : un nouvel onglet « Consultation en cours » s'active ; panneau « Motif »
+   avec un champ vide (placeholder « Motif ») ; libellé « Examen médical : » suivi
+   d'une zone vide (placeholder « Examen médical ») ; bouton « Clôturer » visible en
+   bas de page.
+2. Saisir `Motif de consultation` dans le champ Motif, `Examen normal` dans la zone
+   Examen médical, cliquer « Clôturer ».
+   Attendu : une fenêtre « Facturation » s'ouvre, avec deux choix « Non facturée » et
+   « Facturée ».
+3. Choisir « Non facturée », saisir `Controle` dans le champ qui apparaît
+   (placeholder « Motif »), cliquer « Valider ».
+   Attendu : la fenêtre se ferme ; l'onglet « Consultation en cours » disparaît ; le
+   panneau affiche un encart « Non facturée » contenant `Controle`.
+4. Recharger complètement la page, revenir sur l'onglet « Consultations ».
+   Attendu : trois séances sont désormais listées (les deux de l'état E2, plus
+   celle-ci) — preuve d'une persistance réelle.
+
+### R-CON-02 — Éditer une consultation existante
+
+- **Domaine** : Consultation
+- **Couverture auto** : non (tests/functional/test_consultation.py couvre l'édition
+  de la date de consultation ; l'édition du motif et de l'examen médical n'a pas
+  d'équivalent automatisé)
+- **État requis** : E2. Cette fiche modifie durablement le motif et l'examen médical
+  de la première consultation (facturée) du patient Picard : à l'issue de son
+  exécution, remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
+  dépend.
+
+**Étapes**
+
+1. Rechercher `Picard`, onglet « Consultations », ouvrir la première séance
+   (facturée).
+   Attendu : panneau « Facture » affichant `n° 10000` ; panneau « Motif » affichant
+   `Motif de consultation` ; libellé « Examen médical : » suivi de `Examen normal` ;
+   bouton « Éditer » visible en haut de page, bouton « Supprimer » absent (la
+   consultation est déjà close).
+2. Cliquer « Éditer ».
+   Attendu : le bouton « Éditer » est remplacé par « Fin d'édition » ; le champ
+   Motif devient un champ de saisie ; la zone Examen médical devient éditable.
+3. Remplacer le contenu du champ Motif par `Motif modifie`, celui de la zone Examen
+   médical par `Examen modifie`, cliquer « Fin d'édition ».
+   Attendu : aucun message de confirmation ne s'affiche (contrairement aux
+   Paramètres du cabinet ou au Profil utilisateur) ; le panneau affiche
+   immédiatement `Motif modifie` et `Examen modifie`.
+4. Recharger complètement la page.
+   Attendu : le panneau affiche toujours `Motif modifie` et `Examen modifie` —
+   preuve d'une persistance réelle, pas seulement de l'affichage optimiste qui suit
+   l'enregistrement.
+
+### R-CON-03 — Clôturer une consultation avec facturation
+
+- **Domaine** : Consultation
+- **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_facturee
+- **État requis** : E2. Cette fiche facture durablement une nouvelle consultation,
+  consommant le numéro de facture suivant (`10001` depuis un état E2 fraîchement
+  reconstruit, cf. R-CAB-02) : remonter l'état E2 (chapitre 1) avant de jouer une
+  autre fiche qui en dépend — en particulier avant de jouer R-FAC-03, pour que le
+  numéro obtenu y soit bien `10001`.
+
+**Étapes**
+
+1. Rechercher `Picard`, onglet « Consultations », « Démarrer une consultation ».
+   Attendu : l'onglet « Consultation en cours » s'active.
+2. Saisir `Motif de consultation` (Motif), `Examen normal` (Examen médical),
+   cliquer « Clôturer ».
+   Attendu : la fenêtre « Facturation » s'ouvre.
+3. Choisir « Facturée » — le champ Montant se pré-remplit à `55` — choisir le moyen
+   de paiement « Espèces », cliquer « Valider ».
+   Attendu : la fenêtre se ferme ; le panneau affiche un encart « Facture » avec
+   deux boutons (imprimer, annuler) et le lien `n° 10001`.
+4. Cliquer « Comptabilité ».
+   Attendu : une nouvelle ligne apparaît en tête de liste : N° de facture `10001`,
+   Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de paiement `Espèces`, État
+   `Réglée`.
+
 ### Facturation
+
+### R-FAC-01 — Facture générée : numéro, montant, mentions
+
+- **Domaine** : Facturation
+- **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_facturee
+  (numéro de facture et contenu du gabarit de facture ; la mention « HONORAIRES »,
+  le mode de règlement affiché et la ligne Comptabilité n'ont pas d'équivalent
+  automatisé)
+- **État requis** : E2
+
+**Étapes**
+
+1. Sur la fiche patient Picard, onglet « Consultations », ouvrir la première séance
+   (facturée).
+   Attendu : panneau « Facture » affichant `n° 10000` ; deux boutons (icône
+   imprimante verte, icône interdiction rouge).
+2. Cliquer le bouton d'impression (icône imprimante verte).
+   Attendu : un nouvel onglet s'ouvre ; titre de page au format
+   `AAAA-MM-JJ-10000-Picard_Jean-Luc` (AAAA-MM-JJ = date du jour).
+3. Sur cette page, lire le contenu (les mentions du cabinet, de l'adresse et du
+   thérapeute sont déjà couvertes par R-THE-02 et ne sont pas reprises ici).
+   Attendu : le contenu affiche, entre ces mentions et le pied de page :
+   `Jean-Luc Picard` ; une ligne « À Le Vigen, le <date du jour> » ; `Facture 10000` ;
+   `Template with 55 EUR` ; `Règlement par chèque` ; une ligne « HONORAIRES » avec
+   le montant `55,00 EUR`.
+4. Menu « Comptabilité ».
+   Attendu : la ligne correspondante affiche N° de facture `10000`, Montant
+   `55 €`, État `Réglée` (déjà réglée par chèque, cf. état E2).
+
+### R-FAC-02 — Liste des factures : contenu et navigation
+
+- **Domaine** : Facturation
+- **Couverture auto** : non
+- **État requis** : E2
+
+**Étapes**
+
+1. Menu du haut, cliquer « Comptabilité ».
+   Attendu : titre de page « Comptabilité » ; un bouton de période affichant
+   l'intervalle du mois en cours (ex. « mardi 1 septembre 2026 → mercredi 30
+   septembre 2026 ») ; un bouton « Exporter » proposant une entrée « XLSX » ; une
+   ligne « Montant total sur la période sélectionnée : 55 » ; un tableau avec les
+   colonnes « N° de facture », « Date », « Patient », « Montant », « Moyen de
+   paiement », « État », « Par », « Actions » ; une seule ligne, celle de l'état
+   E2 : `10000`, `Jean-Luc Picard`, `55 €`, `Chèque`, `Réglée`.
+2. Sur cette ligne, ouvrir le menu « Actions ».
+   Attendu : un menu déroulant s'ouvre, avec deux entrées « Imprimer » et
+   « Annuler ».
+3. Cliquer « Imprimer ».
+   Attendu : un nouvel onglet s'ouvre sur la facture imprimée (contenu couvert par
+   R-FAC-01).
+
+### R-FAC-03 — Numérotation continue sur deux factures successives
+
+- **Domaine** : Facturation
+- **Couverture auto** : non
+- **État requis** : E2. Cette fiche facture durablement deux nouvelles consultations
+  à la suite, consommant les numéros `10001` et `10002` : remonter l'état E2
+  (chapitre 1) avant de jouer une autre fiche qui en dépend, en particulier avant de
+  jouer R-CON-03 ou R-FAC-01 (qui supposent tous deux un dernier numéro de facture
+  encore à `10000`).
+
+**Étapes**
+
+1. Depuis l'état E2, créer et clôturer une nouvelle consultation facturée, moyen de
+   paiement « Chèque » (mêmes gestes que R-CON-03, étapes 1 à 3).
+   Attendu : le panneau affiche un encart « Facture » avec le lien `n° 10001`.
+2. Immédiatement après, répéter l'opération : créer et clôturer une nouvelle
+   consultation facturée, moyen de paiement « Espèces ».
+   Attendu : le panneau affiche un encart « Facture » avec le lien `n° 10002`.
+3. Menu « Comptabilité ».
+   Attendu : trois lignes, triées par numéro décroissant : `10002` (Espèces,
+   Réglée), `10001` (Chèque, Réglée), `10000` (Chèque, Réglée) — les deux nouveaux
+   numéros se suivent sans trou ni réutilisation.
+
+### R-FAC-04 — Consultation clôturée sans honoraires
+
+- **Domaine** : Facturation
+- **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_non_facturee
+  (absence de toute facture en base : `Invoice.objects.count() == 0` ; l'absence de
+  ligne en Comptabilité et l'encart « Non facturée » affiché sur la consultation
+  n'ont pas d'équivalent automatisé)
+- **État requis** : E2
+
+**Étapes**
+
+1. Menu « Comptabilité ».
+   Attendu : une seule ligne, N° de facture `10000` — la seconde consultation
+   (non facturée) de l'état E2 n'a produit aucune ligne.
+2. Retour sur la fiche Picard, onglet « Consultations », ouvrir la seconde séance
+   (celle clôturée « Non facturée » à l'état E2).
+   Attendu : le panneau affiche un encart intitulé « Non facturée » contenant le
+   texte `Suivi` (la raison saisie à l'état E2) ; aucun encart « Facture » ne
+   s'affiche : ni numéro de facture, ni bouton d'impression, ni bouton d'annulation.
+3. Comportement produit constaté : une consultation clôturée sans honoraires ne
+   génère aucune facture, pas même à montant zéro — ni ligne en Comptabilité, ni
+   section Facture sur la consultation elle-même (à comparer à l'étape 1, où seule
+   la première consultation, facturée, apparaît).
 
 ### Médecins traitants
 
