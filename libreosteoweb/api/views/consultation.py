@@ -1,0 +1,214 @@
+# This file is part of LibreOsteo.
+#
+# LibreOsteo is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LibreOsteo is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
+import logging
+
+import pytz
+from django.core.exceptions import SuspiciousOperation
+from django.db import connection
+from django.http import Http404
+from django.utils import timezone
+from drf_excel.mixins import XLSXFileMixin
+from drf_excel.renderers import XLSXRenderer
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
+
+from libreosteoweb import models
+from libreosteoweb.api import serializers as apiserializers
+from libreosteoweb.api.events.settings import full_retrieve_examination_list
+from libreosteoweb.api.invoicing import generator as invoicing_generator
+
+from ..exceptions import Forbidden
+from ..renderers import ExaminationCSVRenderer
+
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
+
+
+class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
+    model = models.Examination
+    queryset = models.Examination.objects.all()
+    serializer_class = apiserializers.ExaminationSerializer
+    renderer_classes = api_settings.DEFAULT_RENDERER_CLASSES + [
+        ExaminationCSVRenderer,
+        XLSXRenderer,
+    ]
+    xlsx_use_labels = True
+    filename = "consultations.xlsx"
+
+    @action(detail=True, methods=["post"])
+    def invoice(self, request, pk=None):
+        current_examination = self.get_object()
+        serializer = apiserializers.ExaminationInvoicingSerializer(data=request.data)
+        return self._invoice_examination(
+            current_examination, serializer, request.officesettings
+        )
+
+    def _invoice_examination(
+        self, current_examination, invoicing_serializer, officesettings
+    ):
+        therapeutsettings = models.TherapeutSettings.objects.filter(
+            user=self.request.user
+        )[0]
+
+        invoicing_helper = invoicing_generator.ExaminationInvoiceHelper(
+            officesettings, therapeutsettings, self.request.user
+        )
+
+        result = invoicing_helper.invoice_examination(
+            invoicing_serializer, current_examination
+        )
+        if "errors" in result:
+            return Response(result["errors"], status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(result)
+
+    @action(detail=True, methods=["post"])
+    def update_paiement(self, request, pk=None):
+        current_examination = self.get_object()
+        serializer = apiserializers.ExaminationInvoicingSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        if (
+            serializer.data["status"] != "invoiced"
+            or current_examination.last_invoice is None
+        ):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        if serializer.data["paiment_mode"] == "notpaid":
+            return Response({"not modified": current_examination.last_invoice.id})
+        if (
+            current_examination.last_invoice.status
+            != models.InvoiceStatus.WAITING_FOR_PAIEMENT
+        ):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        current_examination.status = models.ExaminationStatus.INVOICED_PAID
+        invoice_to_update = models.Invoice.objects.get(
+            id=current_examination.last_invoice.id
+        )
+        invoice_to_update.status = models.InvoiceStatus.INVOICED_PAID
+        officesettings = request.officesettings
+        p = models.Paiment(
+            amount=invoice_to_update.amount,
+            currency=officesettings.currency,
+            date=timezone.now(),
+            paiment_mode=serializer.data["paiment_mode"],
+        )
+        p.save()
+        p.invoice.add(current_examination.last_invoice)
+        p.save()
+        invoice_to_update.save()
+        current_examination.save()
+        return Response({"invoiced": current_examination.last_invoice.id})
+
+    @action(detail=True, methods=["post"])
+    def close(self, request, pk=None):
+        current_examination = self.get_object()
+        serializer = apiserializers.ExaminationInvoicingSerializer(data=request.data)
+        return self._invoice_examination(
+            current_examination, serializer, request.officesettings
+        )
+
+    def perform_create(self, serializer):
+        if not self.request.user.is_authenticated:
+            raise Http404()
+        serializer.save(therapeut=self.request.user, office=self.request.officesettings)
+
+    def perform_update(self, serializer):
+        if not self.request.user.is_authenticated:
+            raise Http404()
+        # self._validate_examination_date(serializer)
+        if not serializer.instance.therapeut:
+            serializer.save(therapeut=self.request.user)
+        serializer.save(therapeut=serializer.instance.therapeut)
+
+    def perform_destroy(self, instance):
+        if not instance.status == 0:
+            raise Forbidden()
+        models.OfficeEvent.objects.filter(
+            reference=instance.id, clazz=models.Examination.__name__
+        ).delete()
+        return super(ExaminationViewSet, self).perform_destroy(instance)
+
+    def _validate_examination_date(self, serializer):
+        if not serializer.is_valid():
+            raise SuspiciousOperation("Invalid request: data is invalid")
+        if serializer.instance and not serializer.instance.last_invoice:
+            return
+
+        if (
+            serializer.validated_data["date"]
+            and serializer.instance
+            and serializer.instance.last_invoice
+        ):
+            provided_date = serializer.validated_data["date"]
+            if provided_date.tzinfo is None:
+                provided_date = pytz.utc.localize(provided_date)
+            last_invoice_date = serializer.instance.last_invoice.date
+            if last_invoice_date.tzinfo is None:
+                last_invoice_date = pytz.utc.localize(last_invoice_date)
+            if provided_date < last_invoice_date:
+                return
+        raise SuspiciousOperation("Invalid request : examination date is not allowed")
+
+    @action(detail=True, methods=["get"])
+    def comments(self, request, pk=None):
+        current_examination = self.get_object()
+        comments = models.ExaminationComment.objects.filter(
+            examination=current_examination
+        ).order_by("-date")
+        return Response(
+            apiserializers.ExaminationCommentSerializer(comments, many=True).data
+        )
+
+    @action(detail=False, methods=["get"])
+    def unpaid(self, request, pk=None):
+        unpaid_examinations = models.Examination.objects.filter(
+            status=models.ExaminationStatus.WAITING_FOR_PAIEMENT
+        ).order_by("-date")
+        return Response(
+            apiserializers.ExaminationSerializer(unpaid_examinations, many=True).data
+        )
+
+    def list(self, request, *args, **kwargs):
+        with connection.cursor() as cursor:
+            # Try to acquire a lock (non-blocking)
+            if connection.vendor == "postgresql":
+                cursor.execute("SELECT pg_try_advisory_lock(1);")
+                locked = cursor.fetchone()[0]
+            else:
+                locked = True
+
+            if not locked:
+                raise Exception("Operation already in progress")
+
+            try:
+                full_retrieve_examination_list(request.user)
+                response_list = super().list(request, args, kwargs)
+            finally:
+                if connection.vendor == "postgresql":
+                    cursor.execute("SELECT pg_advisory_unlock(1);")
+        return response_list
+
+
+class ExaminationCommentViewSet(viewsets.ModelViewSet):
+    model = models.ExaminationComment
+    serializer_class = apiserializers.ExaminationCommentSerializer
+    queryset = models.ExaminationComment.objects.all()
+
+    def perform_create(self, serializer):
+        if not self.request.user.is_authenticated:
+            raise Http404()
+        serializer.save(user=self.request.user, date=timezone.now())
