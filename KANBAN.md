@@ -287,29 +287,29 @@ _(vide — S4 clos, S5 pas encore cadré.)_
 
   | Fiche | Verdict | Fiche | Verdict | Fiche | Verdict |
   |---|---|---|---|---|---|
-  | R-INST-01 | passed | R-PAT-01 | passed | R-AGE-01 | passed |
-  | R-INST-02 | passed | R-PAT-02 | passed | R-AGE-02 | passed |
-  | R-INST-03 | passed | R-PAT-03 | passed | R-IMP-01 | **failed** |
-  | R-AUTH-01 | passed | R-PAT-04 | passed | R-IMP-02 | **failed** |
-  | R-AUTH-02 | passed | R-PAT-05 | passed | R-IMP-03 | passed |
-  | R-AUTH-03 | passed | R-DOC-01 | passed | R-SAU-01 | passed |
-  | R-AUTH-04 | passed | R-DOC-02 | passed | R-SAU-02 | passed |
-  | R-AUTH-05 | passed | R-DOC-03 | passed | R-RCH-01 | passed |
-  | R-CAB-01 | passed | R-DOC-04 | passed | R-RCH-02 | passed |
-  | R-CAB-02 | passed | R-CON-01 | passed | R-TAB-01 | passed |
-  | R-CAB-03 | passed | R-CON-02 | passed | R-TAB-02 | passed |
-  | R-THE-01 | passed | R-CON-03 | passed | | |
-  | R-THE-02 | passed | R-FAC-01 | passed | | |
-  | R-MED-01 | passed | R-FAC-02 | passed | | |
-  | R-MED-02 | passed | R-FAC-03 | passed | | |
-  | | | R-FAC-04 | passed | | |
+  | R-INST-01 | OK | R-PAT-01 | OK | R-AGE-01 | OK |
+  | R-INST-02 | OK | R-PAT-02 | OK | R-AGE-02 | OK |
+  | R-INST-03 | OK | R-PAT-03 | OK | R-IMP-01 | **KO** |
+  | R-AUTH-01 | OK | R-PAT-04 | OK | R-IMP-02 | **KO** |
+  | R-AUTH-02 | OK | R-PAT-05 | OK | R-IMP-03 | OK |
+  | R-AUTH-03 | OK | R-DOC-01 | OK | R-SAU-01 | OK |
+  | R-AUTH-04 | OK | R-DOC-02 | OK | R-SAU-02 | OK |
+  | R-AUTH-05 | OK | R-DOC-03 | OK | R-RCH-01 | OK |
+  | R-CAB-01 | OK | R-DOC-04 | OK | R-RCH-02 | OK |
+  | R-CAB-02 | OK | R-CON-01 | OK | R-TAB-01 | OK |
+  | R-CAB-03 | OK | R-CON-02 | OK | R-TAB-02 | OK |
+  | R-THE-01 | OK | R-CON-03 | OK | | |
+  | R-THE-02 | OK | R-FAC-01 | OK | | |
+  | R-MED-01 | OK | R-FAC-02 | OK | | |
+  | R-MED-02 | OK | R-FAC-03 | OK | | |
+  | | | R-FAC-04 | OK | | |
 
   **`R-AUTH-05`** a d'abord échoué à l'exécution (le champ Nom du profil affichait
   `Testermodifie` au lieu du `TesterModifie` littéralement attendu) : investigation
   en lecture a montré que la normalisation de casse est un mécanisme délibéré du
   produit (`UserInfoSerializer.validate_last_name`, cf. « À faire »). La fiche, et
   non le produit, était en tort — corrigée pour attendre `Testermodifie` ; verdict
-  final **passed**.
+  final **OK**.
 
   **`R-IMP-01`** (étape 4) et **`R-IMP-02`** (étape 1) restent en échec tels
   qu'écrits : l'import de 100 patients aboutit réellement côté serveur, mais le
@@ -317,8 +317,9 @@ _(vide — S4 clos, S5 pas encore cadré.)_
   « À faire » pour le détail et la piste de cause). Ce sont deux défauts produit, non
   corrigés — les fiches ne sont pas assouplies pour faire passer le décompte.
 
-  Quatre défauts du manuel corrigés dans `docs/recette.md` à l'occasion de ce
-  passage (jamais de date, de verdict ni de case cochée dans le cahier lui-même) :
+  Trois défauts du manuel corrigés dans `docs/recette.md` à l'occasion de ce
+  passage (jamais de date, de verdict ni de case cochée dans le cahier lui-même),
+  et un manque de couverture repéré sans être comblé :
   - « Titre de page » était employé pour deux choses distinctes sans jamais être
     qualifié — le titre d'onglet du navigateur (réel et variable sur les pages
     d'installation/connexion, figé sur « LibreOsteo » pour toute la session une fois

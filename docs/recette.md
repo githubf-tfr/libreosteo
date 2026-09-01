@@ -91,16 +91,19 @@ erreur.
 from .local import *
 ```
 
-`$SCRATCH/.env` (copier `Docker/deploy/pg/.env.example`, committé, et adapter les quatre
-chemins) :
+`$SCRATCH/.env` (contenu aligné sur `Docker/deploy/pg/.env.example`, committé, chemins
+substitués via `$SCRATCH` — un fichier `.env` n'est pas un script shell, la variable ne s'y
+interprète pas toute seule) :
 
 ```sh
+cat > "$SCRATCH/.env" <<EOF
 LIBREOSTEO_DB_STORAGE=$SCRATCH/db
 LIBREOSTEO_BAK_STORAGE=$SCRATCH/bak
 DATA=$SCRATCH/data
 SETTINGS=$SCRATCH/settings
 POSTGRES_USER=libreosteo
 POSTGRES_PASSWORD=recette
+EOF
 ```
 
 **Étape 4 — démarrage :**
@@ -164,6 +167,11 @@ Une fiche ne se joue qu'en observation. Un écart entre l'attendu et le constat�
 jamais corrigé pendant la recette** — ni dans le code, ni dans les données, ni en rejouant
 l'étape autrement que ce que la fiche décrit. Il est noté (verdict KO + description) et
 traité ensuite, hors de cette session de recette.
+
+Cette règle vise l'écart **produit** : un comportement de l'application qui ne correspond
+pas à l'attendu. Un écart **du manuel** — un libellé qui ne correspond plus à l'écran, une
+étape ambiguë, un état qui ne permet pas de jouer ses étapes — est un défaut du manuel, pas
+du produit : il se corrige au fil de la passe et ne donne jamais lieu à un KO.
 
 ### Consignation
 
@@ -346,14 +354,16 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
   Un nouvel onglet ouvert par l'application (impression de facture) a son propre titre
   d'onglet réel.
 
-### Exemple complet — R-AUTH-02
+### Exemple illustratif
 
+Squelette abrégé — champs dans l'ordre, et un pas montrant la forme geste/attendu ; fiche
+réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
+
+```
 ### R-AUTH-02 — Connexion
 
 - **Domaine** : Authentification
 - **Couverture auto** : oui — tests/functional/test_authentification.py::test_connexion_valide
-  (couvre la connexion réussie et l'ouverture du menu ; le refus d'un mauvais mot de
-  passe, à l'étape 2, est vérifié par test_connexion_invalide, propre à R-AUTH-04)
 - **État requis** : E1
 
 **Étapes**
@@ -362,21 +372,10 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
    Attendu : titre de page « Identifiez-vous sur LibreOsteo » ; formulaire avec un champ
    texte (placeholder « Votre nom d'utilisateur »), un champ mot de passe (placeholder
    « Mot de passe ») et un bouton « Identification ».
-2. Saisir un identifiant et un mot de passe erronés (ex. `demo` / `demo`), cliquer
-   « Identification ».
-   Attendu : reste sur la page de connexion (titre inchangé) ; message d'erreur affiché
-   « Votre nom d'utilisateur et mot de passe ne correspondent pas. Veuillez réessayer s'il
-   vous plaît. ».
-3. Saisir `test` / `test`, cliquer « Identification ».
-   Attendu : titre de page « LibreOsteo » ; le nom d'utilisateur `test` est visible en haut
-   à droite de l'écran.
-4. Cliquer sur le nom d'utilisateur en haut à droite.
-   Attendu : un menu se déplie, listant au moins « Profil utilisateur », « Paramètres » et
-   « Déconnexion ».
+...
+```
 
 ## Chapitre 3 — Domaines
-
-Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 
 ### Installation
 
@@ -1043,7 +1042,7 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
    l'intervalle du mois en cours, du premier au dernier jour de ce mois, au format
    « <jour de semaine> <jour> <mois> <année> → <jour de semaine> <jour> <mois>
    <année> » ; un bouton « Exporter » proposant une entrée « XLSX » ; une
-   ligne « Montant total sur la période sélectionnée : 55 » ; un tableau avec les
+   ligne « Montant total sur la période sélectionnée: 55 » ; un tableau avec les
    colonnes « N° de facture », « Date », « Patient », « Montant », « Moyen de
    paiement », « État », « Par », « Actions » ; une seule ligne, celle de l'état
    E2 : `10000`, `Jean-Luc Picard`, `55 €`, `Chèque`, `Réglée`.
@@ -1096,10 +1095,10 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
    Attendu : le panneau affiche un encart intitulé « Non facturée » contenant le
    texte `Suivi` (la raison saisie à l'état E2) ; aucun encart « Facture » ne
    s'affiche : ni numéro de facture, ni bouton d'impression, ni bouton d'annulation.
-3. Comportement produit constaté : une consultation clôturée sans honoraires ne
-   génère aucune facture, pas même à montant zéro — ni ligne en Comptabilité, ni
-   section Facture sur la consultation elle-même (à comparer à l'étape 1, où seule
-   la première consultation, facturée, apparaît).
+
+**Constat** : une consultation clôturée sans honoraires ne génère aucune facture, pas même
+à montant zéro — ni ligne en Comptabilité, ni section Facture sur la consultation elle-même
+(à comparer à l'étape 1, où seule la première consultation, facturée, apparaît).
 
 ### Médecins traitants
 
@@ -1241,9 +1240,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
    colonne dont « Nom de famille », « Prénom » et « Date de naissance
    (JJ/MM/AAAA) » ; bouton « Importer » actif (vert).
 4. Cliquer « Importer ».
-   Attendu (après un traitement qui peut dépasser la minute — 100 lignes, chacune
-   réindexée) : panneau « Importation réussie » ; texte « 100 lignes importées du
-   fichier patient ».
+   Attendu : panneau « Importation réussie » ; texte « 100 lignes importées du
+   fichier patient ». Le traitement peut dépasser la minute (100 lignes, chacune
+   réindexée).
 
 ### R-IMP-02 — Import de consultations liées aux patients importés
 
@@ -1259,10 +1258,10 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 1. Menu utilisateur → « Import/export », onglet « Importer d'un système externe ».
    Choisir `tests/functional/resources/patients_1.csv` comme fichier patient,
    cliquer « Analyser » puis « Importer ».
-   Attendu (après un traitement qui peut dépasser la minute) : panneau
-   « Importation réussie » ; texte « 100 lignes importées du fichier patient ».
-   Ces 100 patients sont le préalable nécessaire à l'étape suivante (le fichier de
-   consultations lie chaque ligne à l'un d'eux par un numéro).
+   Attendu : panneau « Importation réussie » ; texte « 100 lignes importées du
+   fichier patient ». Le traitement peut dépasser la minute. Ces 100 patients sont
+   le préalable nécessaire à l'étape suivante (le fichier de consultations lie
+   chaque ligne à l'un d'eux par un numéro).
 2. Rouvrir le panneau d'import (menu utilisateur → « Import/export », onglet
    « Importer d'un système externe »). Choisir à nouveau
    `tests/functional/resources/patients_1.csv` comme fichier patient, et
@@ -1294,11 +1293,16 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 1. Menu utilisateur → « Import/export », onglet « Importer d'un système externe ».
    Attendu : titre de page « Gestion de l'import/export » ; formulaire d'import
    affiché, bouton « Importer » absent tant qu'aucune analyse n'a été faite.
-2. Choisir comme fichier patient un fichier CSV structurellement invalide (par
-   exemple `tests/functional/resources/patients_1.csv` tronqué à 20 colonnes au
-   lieu des 24 attendues — pas le gabarit téléchargeable depuis l'application, qui
-   n'a aucune ligne de données et ne peut donc pas produire l'extrait à cellules
-   vides attendu ci-dessous), cliquer « Analyser ».
+2. Générer un fichier CSV structurellement invalide — `patients_1.csv` (séparateur
+   `;`, 24 colonnes) tronqué à 20 colonnes, pas le gabarit téléchargeable depuis
+   l'application, qui n'a aucune ligne de données et ne peut donc pas produire
+   l'extrait à cellules vides attendu ci-dessous :
+
+   ```sh
+   cut -d';' -f1-20 tests/functional/resources/patients_1.csv > "$SCRATCH/patients_1_20col.csv"
+   ```
+
+   Choisir ce fichier comme fichier patient, cliquer « Analyser ».
    Attendu : panneau « Résultats d'analyse » ; « Fichier patient ✗ » (croix rouge,
    à la place de la coche verte d'un fichier valide) ; l'extrait du fichier est
    quand même affiché, avec des cellules vides pour les colonnes manquantes ;
@@ -1442,7 +1446,10 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
   consultations —, les nouveaux patients et les consultations ; le compteur
   « Retour » n'est pas couvert avec les mêmes valeurs, et le rendu Angular des
   tuiles n'est pas exercé)
-- **État requis** : E2
+- **État requis** : E2. Les valeurs exactes ci-dessous supposent que l'état E2 a été
+  construit dans la semaine, le mois et l'année du passage — ces fenêtres démarrent au
+  lundi local, au 1er du mois et au 1er janvier (`libreosteoweb/api/statistics.py:144-176`) ;
+  un état E2 construit à cheval sur l'une de ces bornes fausserait le compte.
 
 **Étapes**
 
@@ -1462,6 +1469,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 - **Couverture auto** : oui —
   libreosteoweb/tests/test_exploitation.py::TestBorneDeFinDeJournee::
   test_un_acte_juste_apres_minuit_local_compte_dans_aujourdhui
+  (vérifie au niveau API que la borne de fin de journée est locale et non calendaire
+  UTC ; ni le rendu Angular de la tuile, ni l'étape de rechargement de cette fiche, ne
+  sont exercés)
 - **État requis** : E2. Dépend de la garantie posée au chapitre 1 : au moins une des
   deux consultations de l'état E2 reste datée du jour du passage.
 
