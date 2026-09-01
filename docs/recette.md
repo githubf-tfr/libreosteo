@@ -110,20 +110,27 @@ docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo
 ```
 
-**Contournement obligatoire sur un volume `db/` neuf** — `docker-compose.yml` n'a que
+**Contournement à prévoir sur un volume `db/` neuf** — `docker-compose.yml` n'a que
 `depends_on: - db` (attend le *démarrage* du conteneur pg, pas sa disponibilité TCP). Sur un
 volume neuf, `initdb` prend plus longtemps que le démarrage du conteneur http : la migration
 échoue (connexion refusée), le `CMD` du Dockerfile avale l'erreur et lance quand même
 `uwsgi` — l'instance répond alors en 500 (schéma absent), migrations jamais rejouées
-automatiquement. Vérifier, puis appliquer si besoin :
+automatiquement. Sur volume neuf, ce n'est pas une précaution rare : à l'usage, il a été
+nécessaire à chaque reconstruction sur volume neuf, parfois deux fois de suite (le premier
+`restart` peut lui-même arriver trop tôt, avant la fin de l'initialisation interne de
+Postgres, même si `pg_isready` a déjà répondu). Appliquer, puis vérifier :
 
 ```sh
 docker exec <conteneur_db> pg_isready   # attendre "accepting connections"
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
+docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo
 ```
 
-`restart` rejoue le `CMD` (donc `migrate`) proprement. Sur un volume déjà initialisé, pg
-démarre assez vite et ce contournement n'est pas nécessaire.
+`restart` rejoue le `CMD` (donc `migrate`) proprement. Le critère pour savoir s'il faut
+recommencer se lit dans ce dernier journal : tant qu'il ne montre pas les migrations
+`Applying ... OK` suivies de `WSGI app 0 (mountpoint='') ready`, refaire `pg_isready` puis
+`restart`. Sur un volume déjà initialisé (pg démarre vite), ce contournement n'est
+généralement pas nécessaire.
 
 Attendu (hors course ci-dessus) : toutes les migrations `Applying ... OK`, puis
 `WSGI app 0 (mountpoint='') ready`, `spawned uWSGI http 1`. `import_zipcodes` échoue
@@ -186,7 +193,8 @@ docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml
 ```
 
 Volume neuf : appliquer le contournement de l'étape 4 du montage (`pg_isready` puis
-`restart libreosteo`) si nécessaire.
+`restart libreosteo`, à répéter tant que le journal ne montre pas les migrations
+appliquées, cf. chapitre 0) — à prévoir, pas une simple option.
 
 Attendu : `GET /` redirige vers `/install/`, page « Installer LibreOsteo », boutons
 « Restaurer la base de données » et « Enregistrer l'administrateur ».
@@ -328,6 +336,15 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 - Chaque étape numérotée porte son propre attendu, littéral et vérifiable — jamais un
   verdict global en fin de fiche. Le verdict par fiche (OK/KO) se pose dans `KANBAN.md`, pas
   ici.
+- « Titre de page » : sur les pages hors application (installation, connexion), c'est le
+  titre d'onglet du navigateur (`<title>`), qui y change réellement d'un écran à l'autre —
+  y compris quand la valeur attendue est « LibreOsteo », qui reste ce même titre d'onglet
+  une fois connecté et pour toute la session (l'application est une page unique dont aucune
+  route ne modifie plus jamais `<title>`). Pour toute autre valeur attendue une fois dans
+  l'application (ex. « Nouveau patient », « Comptabilité », « Picard Jean-Luc »), « titre de
+  page » désigne le titre affiché en haut du contenu de la page, pas l'onglet du navigateur.
+  Un nouvel onglet ouvert par l'application (impression de facture) a son propre titre
+  d'onglet réel.
 
 ### Exemple complet — R-AUTH-02
 
@@ -529,7 +546,8 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
    `test@test.com` (valeurs du socle E1).
 2. Remplacer la valeur du champ Nom par `TesterModifie`, cliquer « Enregistrer ».
    Attendu : message affiché « Profil mis à jour » ; le champ Nom affiche
-   `TesterModifie`.
+   `Testermodifie` (l'application met en minuscule puis capitalise la première
+   lettre de chaque nom saisi, y compris une majuscule interne).
 3. Cliquer le bouton « Modifier le mot de passe ».
    Attendu : une fenêtre modale s'ouvre, titre « Modifier le mot de passe » ; champs
    « Mot de passe » et « Confirmation du mot de passe » ; boutons « Valider » et
@@ -1277,8 +1295,10 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
    Attendu : titre de page « Gestion de l'import/export » ; formulaire d'import
    affiché, bouton « Importer » absent tant qu'aucune analyse n'a été faite.
 2. Choisir comme fichier patient un fichier CSV structurellement invalide (par
-   exemple le gabarit patient tronqué à 20 colonnes au lieu des 24 attendues,
-   l'en-tête « Nom de famille » restant présent), cliquer « Analyser ».
+   exemple `tests/functional/resources/patients_1.csv` tronqué à 20 colonnes au
+   lieu des 24 attendues — pas le gabarit téléchargeable depuis l'application, qui
+   n'a aucune ligne de données et ne peut donc pas produire l'extrait à cellules
+   vides attendu ci-dessous), cliquer « Analyser ».
    Attendu : panneau « Résultats d'analyse » ; « Fichier patient ✗ » (croix rouge,
    à la place de la coche verte d'un fichier valide) ; l'extrait du fichier est
    quand même affiché, avec des cellules vides pour les colonnes manquantes ;

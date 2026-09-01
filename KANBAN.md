@@ -211,12 +211,134 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   Seule la couleur du badge varie, et elle reflète le type d'examen
   (normal/suite/retour/urgence), pas le statut de facturation. Constat utile, pas un
   défaut à corriger ici ; couvert par `R-PAT-04` du cahier de recette.
+- (S4, tâche 10) **Import CSV de 100 patients : le navigateur ne voit jamais la
+  réponse d'intégration, alors que l'import aboutit réellement côté serveur.**
+  Constaté deux fois en jouant `R-IMP-01` étape 4 et `R-IMP-02` étape 1 (même chemin
+  de code, `$scope.import` dans `libreosteoweb/static/js/app/fileimport.js`) sur une
+  instance conteneurisée fraîche : le serveur logue un succès complet
+  (`generated 81 bytes in 86086 msecs` puis `99221 msecs`, 100 patients corrects en
+  base à chaque fois, vérifié), mais côté navigateur la requête
+  `POST /api/file-import/<id>/integrate` n'aboutit jamais — une fois le panneau
+  « Importation réussie » reste indéfiniment masqué, une fois la requête échoue
+  explicitement avec `net::ERR_EMPTY_RESPONSE`. Un utilisateur réel n'a alors aucun
+  moyen de savoir que l'import a réussi et peut raisonnablement le retenter, ce qui
+  déclenche des rejets « Ce patient existe déjà » en cascade. La suite automatisée
+  (`tests/functional/test_import_csv.py::test_import_des_patients`) ne l'exerce pas :
+  elle tourne contre le serveur de développement Django (`LiveServer`), sans le
+  routeur HTTP intégré d'uWSGI (`uwsgi --http :8085`, cf.
+  `Docker/build/http-ready/Dockerfile`) qui est seul en place dans le déploiement
+  conteneurisé recetté. Piste plausible, non vérifiée plus avant : ce routeur coupe
+  la connexion avant la fin du traitement réel (86 à 99 s pour 100 lignes,
+  réindexation Whoosh en temps réel), et aucune option `--http-timeout` n'est fixée
+  dans le `Dockerfile`. Domaine Import CSV, non corrigé ici ; fait échouer `R-IMP-01`
+  et `R-IMP-02`, laissées telles quelles (cf. « Terminé »).
+- (S4, tâche 10) **Le champ Nom du profil utilisateur normalise silencieusement la
+  casse saisie.** `UserInfoSerializer.validate_last_name`
+  (`libreosteoweb/api/serializers.py:119-120`) applique délibérément
+  `get_name_filters()` (`libreosteoweb/api/filter.py` : `LowerNameFilter` puis
+  `CapitalizeNameFilter`, une chaîne de filtres nommée et déjà utilisée pour les noms
+  de patients et de médecins) : tout nom saisi est mis en minuscule puis seule sa
+  première lettre est remise en majuscule. Un comportement voulu, pas un bug — mais
+  la même règle écrase toute majuscule interne légitime d'un nom de famille
+  (« McDonald » deviendrait « Mcdonald », un nom à trait d'union verrait sa seconde
+  moitié perdre sa majuscule). Constat utile pour une décision future, pas un défaut
+  à corriger ici. C'est ce mécanisme qui a fait échouer une première lecture de
+  `R-AUTH-05` étape 2 (fiche corrigée pour attendre la valeur normalisée, cf.
+  « Terminé »).
+
+### Couverture du cahier de recette (à compléter, pas cette tâche)
+
+- (S4, tâche 10) Le champ « Nom de naissance » du formulaire patient (`R-PAT-01`
+  étape 1, placeholder vérifié) n'est rempli ni vérifié par aucune des 42 fiches
+  jouées à ce jour : une fiche couvrant un nom de naissance distinct du nom d'usage
+  manque au cahier. Ne pas renuméroter les fiches existantes pour la créer.
 
 ## En cours
 
-_(vide — S3 clôturé, S4 pas encore cadré.)_
+_(vide — S4 clos, S5 pas encore cadré.)_
 
 ## Terminé
+
+- **2026-09-01 — S4, cahier de recette livré** (10 tâches ; la spec reste sous
+  `docs/superpowers/specs/2026-09-01-cahier-recette-design.md`, le plan a été
+  supprimé une fois achevé). Ce que le dépôt a gagné : `docs/recette.md`, cahier de
+  recette intemporel de 42 fiches réparties sur treize domaines, chapitre 0
+  autosuffisant (montage conteneur + PostgreSQL) et trois états nommés (E0/E1/E2),
+  éprouvé par un premier passage complet (ci-dessous). Deux défauts produit
+  authentiques mis au jour et consignés en « À faire » sans être corrigés (import
+  CSV, normalisation de casse du nom), quatre défauts du manuel lui-même corrigés en
+  cours de route (vocabulaire « titre de page », fichier de référence de `R-IMP-03`,
+  réalité du contournement `pg_isready`/`restart` au chapitre 0, verdict de
+  `R-AUTH-05`), et un manque de couverture repéré sans être comblé (nom de
+  naissance). `S5` n'est pas encore cadré.
+
+- **2026-09-01 (S4, tâche 10)** — **Premier passage complet du cahier de recette :
+  40 fiches conformes sur 42, contre le commit `994181e`.** Passage mené par trois
+  exécutants sur trois instances isolées, en parallèle plutôt qu'en une seule
+  session séquentielle — un lecteur qui voudrait rejouer à l'identique doit savoir
+  qu'un seul des trois exécutants (Installation/Authentification/Cabinet/
+  Thérapeute/Médecins traitants) a monté l'instance canonique du chapitre 0 telle
+  qu'écrite (port 8085) ; les deux autres (Patient/Documents patient/Consultation/
+  Facturation ; Agenda/Import CSV/Sauvegarde-restauration/Recherche-index-tableau de
+  bord) ont dû prendre un nom de projet compose et un port HTTP différents pour
+  coexister sur la même machine (8086 et 8087) — un écart de montage propre à
+  l'exécution parallèle, hors du texte du chapitre 0, sans incidence sur les fiches
+  elles-mêmes. Chaque exécutant n'a lu que `docs/recette.md`.
+
+  | Fiche | Verdict | Fiche | Verdict | Fiche | Verdict |
+  |---|---|---|---|---|---|
+  | R-INST-01 | passed | R-PAT-01 | passed | R-AGE-01 | passed |
+  | R-INST-02 | passed | R-PAT-02 | passed | R-AGE-02 | passed |
+  | R-INST-03 | passed | R-PAT-03 | passed | R-IMP-01 | **failed** |
+  | R-AUTH-01 | passed | R-PAT-04 | passed | R-IMP-02 | **failed** |
+  | R-AUTH-02 | passed | R-PAT-05 | passed | R-IMP-03 | passed |
+  | R-AUTH-03 | passed | R-DOC-01 | passed | R-SAU-01 | passed |
+  | R-AUTH-04 | passed | R-DOC-02 | passed | R-SAU-02 | passed |
+  | R-AUTH-05 | passed | R-DOC-03 | passed | R-RCH-01 | passed |
+  | R-CAB-01 | passed | R-DOC-04 | passed | R-RCH-02 | passed |
+  | R-CAB-02 | passed | R-CON-01 | passed | R-TAB-01 | passed |
+  | R-CAB-03 | passed | R-CON-02 | passed | R-TAB-02 | passed |
+  | R-THE-01 | passed | R-CON-03 | passed | | |
+  | R-THE-02 | passed | R-FAC-01 | passed | | |
+  | R-MED-01 | passed | R-FAC-02 | passed | | |
+  | R-MED-02 | passed | R-FAC-03 | passed | | |
+  | | | R-FAC-04 | passed | | |
+
+  **`R-AUTH-05`** a d'abord échoué à l'exécution (le champ Nom du profil affichait
+  `Testermodifie` au lieu du `TesterModifie` littéralement attendu) : investigation
+  en lecture a montré que la normalisation de casse est un mécanisme délibéré du
+  produit (`UserInfoSerializer.validate_last_name`, cf. « À faire »). La fiche, et
+  non le produit, était en tort — corrigée pour attendre `Testermodifie` ; verdict
+  final **passed**.
+
+  **`R-IMP-01`** (étape 4) et **`R-IMP-02`** (étape 1) restent en échec tels
+  qu'écrits : l'import de 100 patients aboutit réellement côté serveur, mais le
+  navigateur ne reçoit jamais la réponse dans l'instance conteneurisée réelle (cf.
+  « À faire » pour le détail et la piste de cause). Ce sont deux défauts produit, non
+  corrigés — les fiches ne sont pas assouplies pour faire passer le décompte.
+
+  Quatre défauts du manuel corrigés dans `docs/recette.md` à l'occasion de ce
+  passage (jamais de date, de verdict ni de case cochée dans le cahier lui-même) :
+  - « Titre de page » était employé pour deux choses distinctes sans jamais être
+    qualifié — le titre d'onglet du navigateur (réel et variable sur les pages
+    d'installation/connexion, figé sur « LibreOsteo » pour toute la session une fois
+    connecté) et le titre affiché en haut du contenu de l'application (qui varie par
+    route). Deux exécutants sur trois ont dû lire le code pour lever l'ambiguïté
+    avant de juger une fiche. Corrigé par une définition unique au chapitre 2,
+    plutôt que de récrire chaque fiche.
+  - `R-IMP-03` renvoyait au gabarit patient téléchargeable comme exemple de fichier
+    à tronquer à 20 colonnes ; ce gabarit n'a qu'une ligne d'en-tête, aucune ligne de
+    donnée, et ne peut donc pas produire l'extrait à cellules vides que l'étape
+    attend. Corrigé pour désigner `tests/functional/resources/patients_1.csv`
+    tronqué à 20 colonnes, vérifié pour produire l'extrait attendu.
+  - Le chapitre 0 présentait le contournement `pg_isready` puis `restart` sur volume
+    neuf comme conditionnel (« si nécessaire ») ; en pratique il a été requis à
+    chacune des quatre reconstructions de cette passe, une fois deux fois de suite.
+    Réécrit comme une étape à prévoir, avec le critère de journal qui dit s'il faut
+    la répéter, sans prétendre qu'elle est garantie à chaque fois.
+  - Le champ « Nom de naissance » du formulaire patient n'est exercé par aucune
+    fiche : gap de couverture consigné en « À faire », pas comblé ici (pas de fiche
+    créée, pas de renumérotation).
 
 - **2026-09-01 (S3 bis, défaut A)** — **Le widget de date webshim affichait
   JJ/MM/AAAA et relisait MM/JJ/AAAA, corrigé.** Mécanisme (investigation en lecture
@@ -1014,18 +1136,17 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   `make check` vert (ruff, mypy 80 fichiers, 188 tests unitaires, couverture
   89.31 % ≥ 89.0 %).
 
-## Suite du projet — S4 à S5
+## Suite du projet — S5
 
 Chantier « amélioration des tests », ordonnancement A décidé au cadrage du 2026-08-30.
-S2 (couverture métier) et S3 (fonctionnels Playwright) sont clos, cf. « Terminé ».
-Chaque sous-chantier repart de `superpowers:brainstorming`, produit sa spec puis son plan
-sous `docs/superpowers/` ; **ne pas enchaîner deux sous-chantiers dans une seule spec**,
-le découpage est une décision de cadrage, pas une commodité.
+S2 (couverture métier), S3 (fonctionnels Playwright) et S4 (cahier de recette) sont clos,
+cf. « Terminé ». Chaque sous-chantier repart de `superpowers:brainstorming`, produit sa
+spec puis son plan sous `docs/superpowers/` ; **ne pas enchaîner deux sous-chantiers dans
+une seule spec**, le découpage est une décision de cadrage, pas une commodité.
 
-- **S4 — Cahier de recette.** Niveau 3 du `~/claude/CLAUDE.md` : fonctionnel, exécuté par
-  un humain, couvrant tous les cas d'usage, y compris ceux déjà couverts en automatique.
 - **S5 — Maintenabilité.** Découpage des gros modules pour les rendre testables. En
-  dernier de propos délibéré : refactorer avant S2, c'est refactorer sans filet.
+  dernier de propos délibéré : refactorer avant S2, c'était refactorer sans filet.
+  Pas encore cadré.
 
 ## Suivi amont
 
