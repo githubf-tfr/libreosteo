@@ -358,8 +358,8 @@ def test_date_affichee_suit_le_jour_local_meme_quand_lutc_differe(
     decalage horaire Europe/Paris (+1h l'hiver, +2h l'ete), 23h30 UTC franchit toujours
     minuit local — le jour local est donc systematiquement le lendemain du jour UTC, quels
     que soient la date choisie ou l'instant reel d'execution de ce test. Preuve red/green
-    consignee dans
-    `.superpowers/sdd/2026-08-31-fonctionnels-playwright/preuve-fuseau.md`.
+    obtenue en revenant au calcul fautif (`consultation.date.date()`) sur cet arrangement :
+    la page affiche « 1 septembre 2026 » la ou l'assertion attend « 31 aout 2026 ».
     """
     connexion(page, live_server)
     rechercher_patient(page, "Picard")
