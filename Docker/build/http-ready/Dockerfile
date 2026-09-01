@@ -71,4 +71,6 @@ RUN apk add --no-cache \
     && apk add uwsgi-python3 uwsgi-http
 
 EXPOSE 8085
-CMD python3 ./manage.py migrate --settings=Libreosteo.settings.container && python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || test 1=1 && export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container && uwsgi --plugin http,python --http :8085 --module Libreosteo.wsgi --master --processes 1 --threads 1 --static-map /files=/Libreosteo/data/media --static-map /static=/Libreosteo/static -H /Libreosteo/venv
+# --http-timeout 180 : l'import CSV de 100 patients observe 86-99s en interne ; le routeur http
+# d'uwsgi coupe a 60s par defaut, avant que la reponse ne parte (defaut de deploiement constate).
+CMD python3 ./manage.py migrate --settings=Libreosteo.settings.container && python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || test 1=1 && export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container && uwsgi --plugin http,python --http :8085 --http-timeout 180 --module Libreosteo.wsgi --master --processes 1 --threads 1 --static-map /files=/Libreosteo/data/media --static-map /static=/Libreosteo/static -H /Libreosteo/venv
