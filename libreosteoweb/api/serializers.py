@@ -84,7 +84,7 @@ class PatientSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         ret = super().to_internal_value(data)
         if data["consent_check"] and "id" not in data:
-            ret["consent"] = timezone.now().date()
+            ret["consent"] = timezone.localdate()
         else:
             if self.instance:
                 ret["consent"] = self.instance.consent

@@ -16,7 +16,9 @@
 import os
 import shutil
 import tempfile
-from datetime import timedelta
+from datetime import date, datetime, timedelta
+from datetime import timezone as fuseau_utc
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -72,6 +74,21 @@ class TestCreationPatient(APITestCase):
         self.assertEqual(patient.family_name, "Picard")
         self.assertIsNotNone(patient.consent)
         self.assertIsNotNone(patient.creation_date)
+
+    def test_le_consentement_est_date_au_jour_local_pas_utc(self):
+        # Mercredi 15 juillet 2020 a 00:30 heure de Paris (CEST, UTC+2) = mardi 14
+        # juillet 2020 22:30 UTC. Jour calendaire UTC : mardi 14. Jour calendaire local
+        # Paris : deja mercredi 15 — meme mecanisme que la fenetre du jour des
+        # statistiques (defaut C, `libreosteoweb.api.statistics`), corrige ici pour
+        # `PatientSerializer.to_internal_value`.
+        instant = datetime(2020, 7, 14, 22, 30, tzinfo=fuseau_utc.utc)
+        with patch("libreosteoweb.api.serializers.timezone.now", return_value=instant):
+            reponse = self.client.post(
+                reverse("patient-list"), data=PATIENT_MINIMAL, format="json"
+            )
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
+        patient = Patient.objects.get(id=reponse.data["id"])
+        self.assertEqual(patient.consent, date(2020, 7, 15))
 
     def test_la_creation_trace_un_evenement_au_nom_du_praticien(self):
         reponse = self.client.post(

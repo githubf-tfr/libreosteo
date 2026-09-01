@@ -260,6 +260,21 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
   rapport-defaut-B.md`.
 
+- **2026-09-01 (item annexe au défaut B)** — **`PatientSerializer.to_internal_value`
+  datait le consentement en UTC, corrigé.** `libreosteoweb/api/serializers.py:87`
+  (`ret["consent"] = timezone.now().date()`) partage le motif jour-calendaire-UTC-pris-
+  pour-jour-local déjà corrigé pour le défaut C (signalé, non traité, dans l'entrée défaut
+  C ci-dessus — hors du périmètre nommé pour `statistics.py`) : entre minuit local et
+  minuit UTC, le consentement est daté un jour trop tôt. Corrigé en
+  `timezone.localdate()`. Nouveau test
+  `test_le_consentement_est_date_au_jour_local_pas_utc`
+  (`libreosteoweb/tests/test_dossier_patient.py::TestCreationPatient`), même patron que
+  `TestBornesDePeriode` (instant UTC construit en dur, jour calendaire UTC et jour local
+  Paris dans deux jours civils différents) ; rouge constaté avant correctif
+  (`2020-07-14` retenu au lieu de `2020-07-15`).
+  Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
+  rapport-defaut-B.md`.
+
 - **2026-09-01** — **S3, tests fonctionnels Playwright** livré (11 tâches ; la spec reste
   sous `docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md`, le plan est
   supprimé une fois achevé, cf. `~/claude/CLAUDE.md`). Les 24 cas Robot/Selenium repris un
