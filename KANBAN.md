@@ -219,6 +219,26 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   Conception : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/design-defaut-A.md`.
   Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
   rapport-defaut-A.md`.
+  **Tour de correctifs (même jour, sur relecture)** : la couverture livrée ci-dessus
+  s'écartait de deux recommandations du design sans le dire (§6 du rapport corrigé —
+  « Aucun écart » était faux). Fermé : `test_changement_de_date_accepte`
+  (`test_consultation.py`) fixe désormais `consultation.date` par l'ORM (même idiome que
+  `deplace_dates`) plutôt que de la dériver de « maintenant », garantissant un quantième
+  > 12 sur toute date d'exécution — la couverture ne dépend plus du calendrier. Nouveau
+  test `test_edition_de_la_date_de_naissance` (`test_patient.py`) : ferme le seul des
+  quatre sites ambigus jamais exercé par la suite (date de naissance en fiche patient,
+  `patient-detail.html:40-42`). Une exécution complète de la suite a montré ce nouveau
+  test en échec une fois, aux côtés d'un test préexistant sans lien
+  (`test_edition_du_dossier_patient`) sur le même chemin de sauvegarde — investigué
+  (`systematic-debugging`) : chargement de la locale française écarté par preuve
+  (déjà chargée avant la frappe), reset du widget par webshim écarté par preuve (artefact
+  d'instrumentation, `outerHTML` ne reflète pas la propriété `.value` réelle). Cause non
+  identifiée avec certitude ; cohérent avec l'aléa déjà documenté ci-dessous plutôt
+  qu'avec un défaut propre à ce test — cinq exécutions ciblées ultérieures, toutes
+  vertes. Mécanisme du test non modifié faute de cause avérée. Laissé pour mémoire, pas
+  masqué : à surveiller si l'aléa se reproduit sur ce test précisément.
+  Reste ouvert, hors périmètre de ce tour : T2 (quantième > 12 sur la date de document,
+  non-régression, design §7.2) n'a jamais été écrit, ni au premier tour ni à celui-ci.
 
 - **2026-09-01 (S3 bis, défaut C)** — **`libreosteoweb/api/statistics.py` calculait sa
   fenêtre du jour en UTC, corrigé.** Défaut de production identifié à la tâche 5 de S3

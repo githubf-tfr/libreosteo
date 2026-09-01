@@ -171,6 +171,43 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     assert document.document.document_date == date(2012, 1, 10)
 
 
+def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) -> None:
+    """Ferme le site laisse sans couverture par le defaut A (design, T4).
+
+    `patient-detail.html:40-42` (`e-class="polyfill-updatable birthdate"`,
+    `editable-date="patient.birth_date"`) est l'un des quatre champs ambigus que
+    corrige `<html lang>` (`index.html:8`) : aucun test ne le traversait, la seule
+    saisie de date de naissance couverte etant les trois cases non ambigues
+    d'`add-patient.html` (`creer_patient`, `input.dd|.mm|.yy`). Une corruption
+    silencieuse de ce champ precis serait une erreur de date de naissance dans un
+    dossier medical.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+
+    page.click("button:has-text('Éditer')")
+    # Meme widget, meme risque de propagation que `saisir_date_examen`
+    # (`tests/functional/test_consultation.py`) : ce champ passe lui aussi par
+    # `editable-date` (xeditable) puis webshim (`onshow="updateComponentPolyfill()"`)
+    # sur le meme chemin de code que la date de consultation, pas par le chemin
+    # `page.fill()` deja eprouve pour la date de document (chemin sans xeditable).
+    champ = page.locator("input.ws-date.birthdate")
+    champ.click()
+    champ.press("Control+a")
+    champ.press_sequentially("24/02/1935")
+    champ.press("Tab")
+    attendre_enregistrement_patient(
+        page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
+    )
+
+    # Quantieme > 12 : non-regression du seul cas que l'heuristique de rattrapage de
+    # webshim (form-number-date-ui.js:605) corrigeait deja par accident avant le
+    # correctif, desormais lu directement par la locale francaise du document.
+    patient.refresh_from_db()
+    assert patient.birth_date == date(1935, 2, 24)
+
+
 def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
     """Cas repris de tests/core/007_gdpr_conformity.robot."""
     connexion(page, live_server)

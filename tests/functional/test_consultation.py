@@ -202,9 +202,19 @@ def test_changement_de_date_accepte(
     cloturer_consultation(page, mode="notinvoiced", raison="Test")
     attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient_existant)
+    # Date fixee par l'ORM (meme idiome que `deplace_dates`), plutot que derivee de
+    # « maintenant » : sans cela, que `nouvelle_date` traverse ou non le quantieme 12
+    # dependrait du jour d'execution de la suite. Or c'est precisement le cas que
+    # l'ancien `jour_sans_ambiguite` construisait a la main pour retomber dans le seul
+    # cas ou le widget n'a plus besoin de l'heuristique de rattrapage de webshim
+    # (`form-number-date-ui.js:605`) pour lire juste : garanti ici sur toute date
+    # d'execution, pas seulement « en pratique aujourd'hui ».
+    consultation.date = datetime(2026, 3, 20, 10, 0, tzinfo=UTC)
+    consultation.save()
     date_initiale = timezone.localtime(consultation.date).date()
 
     nouvelle_date = date_initiale + timedelta(days=-3)
+    assert nouvelle_date.day > 12  # barriere de l'arrangement : sinon rien ne le prouve
     naviguer_vers_examen(
         page, live_server, patient_existant.id, consultation.id, date_initiale
     )
