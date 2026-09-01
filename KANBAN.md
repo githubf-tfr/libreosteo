@@ -211,27 +211,13 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   Seule la couleur du badge varie, et elle reflète le type d'examen
   (normal/suite/retour/urgence), pas le statut de facturation. Constat utile, pas un
   défaut à corriger ici ; couvert par `R-PAT-04` du cahier de recette.
-- (S4, tâche 10) **Import CSV de 100 patients : le navigateur ne voit jamais la
-  réponse d'intégration, alors que l'import aboutit réellement côté serveur.**
-  Constaté deux fois en jouant `R-IMP-01` étape 4 et `R-IMP-02` étape 1 (même chemin
-  de code, `$scope.import` dans `libreosteoweb/static/js/app/fileimport.js`) sur une
-  instance conteneurisée fraîche : le serveur logue un succès complet
-  (`generated 81 bytes in 86086 msecs` puis `99221 msecs`, 100 patients corrects en
-  base à chaque fois, vérifié), mais côté navigateur la requête
-  `POST /api/file-import/<id>/integrate` n'aboutit jamais — une fois le panneau
-  « Importation réussie » reste indéfiniment masqué, une fois la requête échoue
-  explicitement avec `net::ERR_EMPTY_RESPONSE`. Un utilisateur réel n'a alors aucun
-  moyen de savoir que l'import a réussi et peut raisonnablement le retenter, ce qui
-  déclenche des rejets « Ce patient existe déjà » en cascade. La suite automatisée
-  (`tests/functional/test_import_csv.py::test_import_des_patients`) ne l'exerce pas :
-  elle tourne contre le serveur de développement Django (`LiveServer`), sans le
-  routeur HTTP intégré d'uWSGI (`uwsgi --http :8085`, cf.
-  `Docker/build/http-ready/Dockerfile`) qui est seul en place dans le déploiement
-  conteneurisé recetté. Piste plausible, non vérifiée plus avant : ce routeur coupe
-  la connexion avant la fin du traitement réel (86 à 99 s pour 100 lignes,
-  réindexation Whoosh en temps réel), et aucune option `--http-timeout` n'est fixée
-  dans le `Dockerfile`. Domaine Import CSV, non corrigé ici ; fait échouer `R-IMP-01`
-  et `R-IMP-02`, laissées telles quelles (cf. « Terminé »).
+- ~~(S4, tâche 10) Import CSV de 100 patients : le navigateur ne voit jamais la
+  réponse d'intégration, alors que l'import aboutit réellement côté serveur
+  (`R-IMP-01` étape 4, `R-IMP-02` étape 1) — routeur http uwsgi sans
+  `--http-timeout`, valeur implicite de 60 s coupant la connexion avant la fin
+  d'un import réel de 86 à 99 s.~~ — **corrigé le 2026-09-01 (suivi post-S4)**,
+  `--http-timeout 180` sur la commande `uwsgi` de
+  `Docker/build/http-ready/Dockerfile`, cf. « Terminé ».
 - (S4, tâche 10) **Le champ Nom du profil utilisateur normalise silencieusement la
   casse saisie.** `UserInfoSerializer.validate_last_name`
   (`libreosteoweb/api/serializers.py:119-120`) applique délibérément
@@ -340,6 +326,37 @@ _(vide — S4 clos, S5 pas encore cadré.)_
   - Le champ « Nom de naissance » du formulaire patient n'est exercé par aucune
     fiche : gap de couverture consigné en « À faire », pas comblé ici (pas de fiche
     créée, pas de renumérotation).
+
+- **2026-09-01 (suivi post-S4, hors sprint)** — **Défaut de déploiement de l'import
+  CSV corrigé, `R-IMP-01` et `R-IMP-02` rejouées avec verdict OK.** S4 est clos
+  (cf. ci-dessus) ; ce constat est un suivi ultérieur, pas une réouverture. Cause
+  confirmée : le routeur http intégré d'uWSGI (`Docker/build/http-ready/Dockerfile`,
+  commande `uwsgi --plugin http,python --http :8085 …`) ne recevait aucune option
+  `--http-timeout` et retombait donc sur la valeur implicite de 60 s, inférieure aux
+  86–99 s réellement nécessaires pour intégrer 100 patients — confirmé qu'aucun ini
+  uwsgi, variable d'environnement ni réglage du `docker-compose.yml` ne fixait ce
+  délai ailleurs. Corrigé par `--http-timeout 180` (commit `db061e3`), marge réelle
+  au-delà des 99 s observées.
+
+  Rejoué contre le commit `db061e3`, image `libreosteo/libreosteo-http` reconstruite,
+  instance montée puis réinitialisée en E0/E1 entre les deux fiches (chapitre 0 et 1
+  de `docs/recette.md`) :
+
+  | Fiche | Verdict |
+  |---|---|
+  | R-IMP-01 | OK |
+  | R-IMP-02 | OK |
+
+  `R-IMP-01` étape 4 : import terminé en 81,3 s, panneau « Importation réussie »,
+  texte « 100 lignes importées du fichier patient » — conforme à l'attendu.
+  `R-IMP-02` : étape 1 identique (82,6 s, même panneau et même texte) ; étape 3,
+  panneau orange « Importation réussie avec des erreurs », « 0 lignes importées du
+  fichier patient », le titre « Erreurs lors de l'importation des patients » suivi
+  de 100 entrées (`ligne : 2` à `ligne : 101`, message « Ce patient existe déjà »
+  chacune), puis « 50 lignes importées du fichier consultation » et le titre
+  « Erreurs lors de l'importation des consultations » sans ligne d'erreur en
+  dessous (défaut `ng-rshow` déjà consigné en « À faire », toujours présent, non
+  visé par ce correctif) — conforme à l'attendu, verdict OK.
 
 - **2026-09-01 (S3 bis, défaut A)** — **Le widget de date webshim affichait
   JJ/MM/AAAA et relisait MM/JJ/AAAA, corrigé.** Mécanisme (investigation en lecture
