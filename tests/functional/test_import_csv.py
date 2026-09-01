@@ -1,5 +1,8 @@
 """Cas repris de tests/core/009_import_patient_csv.robot."""
 
+from datetime import date
+
+from django.utils import timezone
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -9,6 +12,20 @@ from tests.functional.helpers import (
     connexion,
     ouvrir_menu_utilisateur,
 )
+
+# Ligne 1 de resources/patients_1.csv : numero;nom de famille;...;first_name;birth_date
+# vaut 1;Lester;Original Name;Abel;05/02/1918 — colonnes lues dans cet ordre par
+# `FilePatientFactory.get_serializer` (libreosteoweb/api/file_integrator.py), dates au
+# format %d/%m/%Y (jour/mois/annee, celui du CSV — sans rapport avec le format
+# mois/jour du widget webshim de saisie manuelle, etabli ailleurs dans ce dossier).
+FAMILLE_REPERE = "Lester"
+PRENOM_REPERE = "Abel"
+NAISSANCE_REPERE = date(1918, 2, 5)
+# Ligne 1 de resources/examinations_1.csv : numero;date;reason;... vaut
+# 1;02/03/2020;natoque;... — meme `numero` que le patient repere ci-dessus, donc
+# `IntegratorExamination._build_patient_table` doit la relier a ce meme Patient.
+MOTIF_REPERE = "natoque"
+DATE_CONSULTATION_REPERE = date(2020, 3, 2)
 
 FICHIER_PATIENTS = "tests/functional/resources/patients_1.csv"
 FICHIER_CONSULTATIONS = "tests/functional/resources/examinations_1.csv"
@@ -80,6 +97,13 @@ def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
         "100 lignes importées du fichier patient"
     )
     assert Patient.objects.count() == 100
+    # Un comptage a 100 passerait meme si les colonnes etaient mal mappees (prenom et
+    # nom de famille intervertis, date de naissance lue depuis la mauvaise colonne) :
+    # on relit une ligne concrete par l'ORM pour le prouver.
+    patient_repere = Patient.objects.get(
+        family_name=FAMILLE_REPERE, first_name=PRENOM_REPERE
+    )
+    assert patient_repere.birth_date == NAISSANCE_REPERE
 
 
 def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
@@ -134,3 +158,18 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     )
     assert Patient.objects.count() == 100
     assert Examination.objects.count() == 50
+    # Meme non-complaisance que ci-dessus : une ligne concrete, plus le lien de cle
+    # etrangere vers le bon patient (`IntegratorExamination.get_patient`, jamais verifie
+    # jusqu'ici) — une consultation attribuee au mauvais patient laisserait le compte a 50.
+    consultation_reperee = Examination.objects.get(reason=MOTIF_REPERE)
+    patient_repere = Patient.objects.get(
+        family_name=FAMILLE_REPERE, first_name=PRENOM_REPERE
+    )
+    assert consultation_reperee.patient == patient_repere
+    # `Examination.date` est un DateTimeField sous USE_TZ=True/TIME_ZONE=Europe/Paris :
+    # `localtime()` reconvertit vers l'heure locale avant d'en tirer la date, l'inverse
+    # exact de l'interpretation faite a l'ecriture (datetime naif du CSV pris pour de
+    # l'heure locale) — comparer `.date()` brut, en UTC, tomberait sur la veille.
+    assert timezone.localtime(consultation_reperee.date).date() == (
+        DATE_CONSULTATION_REPERE
+    )
