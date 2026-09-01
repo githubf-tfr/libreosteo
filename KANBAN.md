@@ -173,6 +173,17 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   sans aucun message, alors que le cas nom+prénom+date de naissance identiques est refusé
   avec le message « Ce patient existe déjà » (HTTP 400). Attendu : un comportement cohérent
   entre les deux cas. Domaine Patient, hors périmètre de la tâche 4.
+- (S4, tâche 5) **Détection de doublon patient à la création : résultat instable hors
+  du parcours retenu par `R-PAT-03`.** Constaté en construisant et en rejouant cette
+  fiche : créer un patient en doublon exact (même nom, prénom et date de naissance
+  qu'un patient déjà existant) sans repasser par le tableau de bord entre la création
+  du premier patient et la tentative de doublon a donné un résultat variable d'un
+  essai à l'autre — refus avec le message « Ce patient existe déjà », ou création
+  silencieuse sans le moindre message, sans changement de saisie entre les essais.
+  `R-PAT-03` couvre délibérément le seul parcours où le refus a été observé de façon
+  reproductible — retour explicite sur l'URL racine de l'instance entre les deux
+  tentatives (étape 2 de la fiche) — pour que son verdict reste déterministe. Cause
+  non recherchée ici.
 - (S4, tâche 7) **Coquille dans le texte d'introduction de l'onglet « Archiver la base
   de données ».** `locale/fr/LC_MESSAGES/django.po`, msgid « This system helps you to
   archive and restore the full system. » : la traduction « Cette fonction vous aider à
@@ -218,19 +229,21 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   d'un import réel de 86 à 99 s.~~ — **corrigé le 2026-09-01 (suivi post-S4)**,
   `--http-timeout 180` sur la commande `uwsgi` de
   `Docker/build/http-ready/Dockerfile`, cf. « Terminé ».
-- (S4, tâche 10) **Le champ Nom du profil utilisateur normalise silencieusement la
-  casse saisie.** `UserInfoSerializer.validate_last_name`
-  (`libreosteoweb/api/serializers.py:119-120`) applique délibérément
-  `get_name_filters()` (`libreosteoweb/api/filter.py` : `LowerNameFilter` puis
-  `CapitalizeNameFilter`, une chaîne de filtres nommée et déjà utilisée pour les noms
-  de patients et de médecins) : tout nom saisi est mis en minuscule puis seule sa
-  première lettre est remise en majuscule. Un comportement voulu, pas un bug — mais
-  la même règle écrase toute majuscule interne légitime d'un nom de famille
-  (« McDonald » deviendrait « Mcdonald », un nom à trait d'union verrait sa seconde
-  moitié perdre sa majuscule). Constat utile pour une décision future, pas un défaut
-  à corriger ici. C'est ce mécanisme qui a fait échouer une première lecture de
-  `R-AUTH-05` étape 2 (fiche corrigée pour attendre la valeur normalisée, cf.
-  « Terminé »).
+### Défauts produit à corriger
+
+- (S4, tâche 10) **Le filtre de casse des noms écrase toute majuscule interne
+  légitime — à corriger.** `UserInfoSerializer.validate_last_name`
+  (`libreosteoweb/api/serializers.py:119-120`) applique `get_name_filters()`
+  (`libreosteoweb/api/filter.py` : `LowerNameFilter` puis `CapitalizeNameFilter`),
+  la même chaîne de filtres déjà utilisée pour les noms de patients et de médecins :
+  tout nom saisi est mis en minuscule puis seule sa première lettre est remise en
+  majuscule. Un nom comme « McDonald » devient « Mcdonald », et la seconde moitié
+  d'un nom à trait d'union perd sa majuscule. La normalisation reste voulue pour la
+  saisie ordinaire (elle ne doit pas être supprimée) : le correctif porte sur les
+  exceptions — particules et traits d'union — pas sur le mécanisme lui-même. C'est
+  ce filtre qui a fait échouer une première lecture de `R-AUTH-05` étape 2 (fiche
+  corrigée pour attendre la valeur normalisée, cf. « Terminé »). Non corrigé ici,
+  sprint à déterminer.
 
 ### Couverture du cahier de recette (à compléter, pas cette tâche)
 

@@ -883,11 +883,13 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 ### R-DOC-04 — Suppression du patient : documents supprimés en cascade
 
 - **Domaine** : Documents patient
-- **Couverture auto** : non (tests/functional/test_patient.py::test_suppression_rgpd
-  et libreosteoweb/tests/test_dossier_patient.py::TestSuppressionPatient::
-  test_supprimer_un_patient_avec_gdpr_efface_tout couvrent la cascade sur les
-  consultations, factures et événements, mais aucun des deux ne joint de document au
-  patient supprimé)
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
+  test_supprimer_un_patient_avec_document_efface_tout (joint un document réel au
+  patient avant une suppression RGPD, puis vérifie la disparition du patient, de
+  l'objet Document et du fichier stocké ; le rendu de la fenêtre de confirmation, la
+  case à cocher qui déverrouille le bouton « Ok », et la survie de la facture à la
+  cascade — étape 4 de cette fiche — ne sont pas exercés par ce test)
 - **État requis** : E2. Fiche destructive par nature : elle supprime le patient
   Picard et l'intégralité de son dossier — reconstruire l'état E2 (chapitre 1) avant
   de jouer une autre fiche qui en dépend.
@@ -1473,24 +1475,22 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
   (vérifie au niveau API que la borne de fin de journée est locale et non calendaire
   UTC ; ni le rendu Angular de la tuile, ni l'étape de rechargement de cette fiche, ne
   sont exercés)
-- **État requis** : E2. Dépend de la garantie posée au chapitre 1 : au moins une des
-  deux consultations de l'état E2 reste datée du jour du passage.
+- **État requis** : E2, construit sans chevaucher minuit local. Le chapitre 1 ne
+  garantit au minimum qu'une des deux consultations datée du jour du passage ; sans
+  chevauchement de minuit entre les deux clôtures, aucune des deux ne peut retomber
+  sur la veille ou le lendemain, donc les deux le sont. Un état E2 construit à cheval
+  sur minuit fausserait le compte exact ci-dessous.
 
 **Étapes**
 
 1. Depuis l'état E2, sur le tableau de bord, vue « Semaine » (sélectionnée par
    défaut).
-   Attendu : la tuile « Consultations » affiche une valeur non nulle (`2` dans le
-   cas nominal où les deux consultations de l'état E2 sont closes le même jour) ;
-   en toute hypothèse, elle compte au moins la consultation close en dernier à
-   l'état E2 — celle-ci est nécessairement datée du jour du passage, quelle que
-   soit l'heure locale à laquelle la clôture puis cette fiche sont jouées (fenêtre
-   du jour bornée en heure locale, jamais en jour calendaire UTC). Cette fiche
-   vérifie donc une borne basse et non un compte exact, à la différence de
-   R-TAB-01 dont les compteurs ne sont pas bornés au jour : c'est la seule
-   garantie qui survive à un état E2 construit à cheval sur minuit.
+   Attendu : la tuile « Consultations » affiche `2` — les deux consultations de
+   l'état E2 sont datées du jour du passage (condition posée en État requis), et la
+   fenêtre du jour, bornée en heure locale et non en jour calendaire UTC, les compte
+   toutes les deux.
 2. Recharger la page (touche F5 ou équivalent), sans repasser par une nouvelle
    connexion.
    Attendu : après le rechargement, la tuile « Consultations » de la vue « Semaine »
-   affiche la même valeur qu'à l'étape 1 — la consultation du jour reste comptée de
-   façon stable, pas seulement au moment de sa clôture.
+   affiche toujours `2` — la consultation du jour reste comptée de façon stable, pas
+   seulement au moment de sa clôture.

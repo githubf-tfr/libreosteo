@@ -462,6 +462,7 @@ class TestDocumentsPatient(APITestCase):
             reverse("patient-detail", kwargs={"pk": self.patient.id}) + "?gdpr=true"
         )
         self.assertEqual(reponse.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Patient.objects.filter(id=self.patient.id).exists())
         self.assertFalse(
             PatientDocument.objects.filter(document_id=patient_doc_id).exists()
         )
