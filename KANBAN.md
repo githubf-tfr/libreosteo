@@ -169,6 +169,14 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
     vert après que la tâche 1 a sorti Robot Framework de `requ-testing.txt`), reste
     inchangé à la clôture — vérifié à jour avec les 25 tests. `CONTRIBUTING.md` et
     `README.rst` mis à jour en conséquence.
+  - **Coût de mise en place du navigateur** (prérequis levé le 2026-08-31) :
+    `cdn.playwright.dev` était bloqué par la politique réseau (403), une règle
+    d'autorisation a dû être posée côté hôte pour le débloquer. `playwright install
+    chromium` télécharge alors Chrome Headless Shell `151.0.7922.34`, dont le
+    lancement exigeait dix-sept bibliothèques partagées absentes ; installées par
+    `playwright install-deps chromium`, rejoué à chaque session par
+    `.tools/libreosteo-devenv.sh` (paquets système non persistants). Le montage
+    survit dans ce script, non versionné ; ce bullet en garde la raison.
   - **Durée mesurée** : deux exécutions consécutives de `make test-functional` sans
     nettoyage entre les deux, 218,32 s puis 215,29 s (25/25 verts les deux fois),
     `data/db.sqlite3` et `data/whoosh_index` inchangés (hash identique avant/après,
