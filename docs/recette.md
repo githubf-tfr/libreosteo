@@ -1137,9 +1137,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 - **Domaine** : Recherche, index, tableau de bord
 - **Couverture auto** : oui —
   tests/functional/test_consultation.py::test_recherche_puis_ouverture_de_consultation
-  (via l'utilitaire `rechercher_patient`, `tests/functional/helpers.py`) couvre la
+  (via l'utilitaire `rechercher_patient`, `tests/functional/helpers.py` ; couvre la
   recherche par nom de famille et l'ouverture du résultat, mais pas la recherche par
-  seul prénom ni le cas sans résultat, ajoutés ici
+  seul prénom ni le cas sans résultat)
 - **État requis** : E2
 
 **Étapes**
@@ -1187,7 +1187,12 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-TAB-01 — Compteurs du tableau de bord
 
 - **Domaine** : Recherche, index, tableau de bord
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_exploitation.py::TestStatistiques::test_les_donnees_du_jour_sont_comptees
+  (compte, sur une construction équivalente à l'état E2 — un patient, deux
+  consultations —, les nouveaux patients et les consultations ; le compteur
+  « Retour » n'est pas couvert avec les mêmes valeurs, et le rendu Angular des
+  tuiles n'est pas exercé)
 - **État requis** : E2
 
 **Étapes**
@@ -1202,7 +1207,7 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 3. Cliquer « Année ».
    Attendu : les trois tuiles affichent les mêmes valeurs : `1`, `2`, `0`.
 
-### R-TAB-02 — Statistiques du jour (régression défaut C, S3 bis)
+### R-TAB-02 — Statistiques du jour
 
 - **Domaine** : Recherche, index, tableau de bord
 - **Couverture auto** : oui —
