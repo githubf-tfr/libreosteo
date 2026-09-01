@@ -170,7 +170,8 @@ traité ensuite, hors de cette session de recette.
 
 Cette règle vise l'écart **produit** : un comportement de l'application qui ne correspond
 pas à l'attendu. Un écart **du manuel** — un libellé qui ne correspond plus à l'écran, une
-étape ambiguë, un état qui ne permet pas de jouer ses étapes — est un défaut du manuel, pas
+étape ambiguë, un état qui ne permet pas de jouer ses étapes, un résultat attendu inexact
+parce qu'il omet un comportement délibéré de l'application — est un défaut du manuel, pas
 du produit : il se corrige au fil de la passe et ne donne jamais lieu à un KO.
 
 ### Consignation
@@ -1448,7 +1449,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
   tuiles n'est pas exercé)
 - **État requis** : E2. Les valeurs exactes ci-dessous supposent que l'état E2 a été
   construit dans la semaine, le mois et l'année du passage — ces fenêtres démarrent au
-  lundi local, au 1er du mois et au 1er janvier (`libreosteoweb/api/statistics.py:144-176`) ;
+  lundi local, au 1er du mois et au 1er janvier (`libreosteoweb/api/statistics.py:147-190`) ;
   un état E2 construit à cheval sur l'une de ces bornes fausserait le compte.
 
 **Étapes**
