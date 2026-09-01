@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 
 import pytest
+from django.utils import timezone
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -113,6 +114,8 @@ def test_consultation_non_facturee(
     consultation = Examination.objects.get(patient=patient_existant)
     assert consultation.status == ExaminationStatus.NOT_INVOICED
     assert consultation.status_reason == "Test"
+    assert consultation.reason == "Motif de consultation"
+    assert consultation.medical_examination == "Examen normal"
     assert Invoice.objects.count() == 0
 
 
@@ -128,6 +131,10 @@ def test_consultation_facturee(
 
     facture = Invoice.objects.get()
     assert facture.number == "10000"
+
+    consultation = Examination.objects.get(patient=patient_existant)
+    assert consultation.reason == "Motif de consultation"
+    assert consultation.medical_examination == "Examen normal"
 
     page.goto(f"{live_server.url}/invoice/{facture.id}")
     expect(page.locator("#patient")).to_contain_text("Jean-Luc Picard")
@@ -216,7 +223,7 @@ def test_changement_de_date_accepte(
     cloturer_consultation(page, mode="notinvoiced", raison="Test")
     attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient_existant)
-    date_initiale = consultation.date.date()
+    date_initiale = timezone.localtime(consultation.date).date()
 
     nouvelle_date = jour_sans_ambiguite(date_initiale, -3)
     naviguer_vers_examen(
@@ -237,7 +244,7 @@ def test_changement_de_date_accepte(
         libelle_date_longue(nouvelle_date)
     )
     consultation.refresh_from_db()
-    assert consultation.date.date() == nouvelle_date
+    assert timezone.localtime(consultation.date).date() == nouvelle_date
 
 
 def test_changement_de_date_dans_le_futur_refuse(
@@ -251,7 +258,7 @@ def test_changement_de_date_dans_le_futur_refuse(
     cloturer_consultation(page, mode="notinvoiced", raison="Test")
     attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient_existant)
-    date_initiale = consultation.date.date()
+    date_initiale = timezone.localtime(consultation.date).date()
 
     naviguer_vers_examen(
         page, live_server, patient_existant.id, consultation.id, date_initiale
@@ -264,7 +271,7 @@ def test_changement_de_date_dans_le_futur_refuse(
         "La date est invalide"
     )
     consultation.refresh_from_db()
-    assert consultation.date.date() == date_initiale
+    assert timezone.localtime(consultation.date).date() == date_initiale
 
 
 def test_date_posterieure_a_la_facture_refusee(
@@ -272,12 +279,17 @@ def test_date_posterieure_a_la_facture_refusee(
 ) -> None:
     """Cas repris de tests/core/011, « Change Date On Invoiced Examination Future ».
 
-    La consultation et sa facture sont reculees de 15 jours ; la redater plus tard la
-    ferait passer apres la facture, ce que l'application refuse.
+    La consultation et sa facture sont reculees de 40 jours ; la cible visee (+20, donc
+    encore 20 jours avant aujourd'hui) reste dans le passe. `maxExaminationDate()`
+    (examination.js) refuse deja toute date future *que la facture existe ou non*, avec
+    le meme message : une cible future ne prouverait donc rien de propre a la regle de
+    facture, elle serait refusee de toute facon par la regle « pas de date future ». En
+    visant une date strictement entre la facture et aujourd'hui, seule la regle de
+    facture peut motiver le refus.
     """
-    deplace_dates(consultation_facturee, jours=15)
+    deplace_dates(consultation_facturee, jours=40)
     consultation_facturee.refresh_from_db()
-    date_initiale = consultation_facturee.date.date()
+    date_initiale = timezone.localtime(consultation_facturee.date).date()
 
     naviguer_vers_examen(
         page,
@@ -294,7 +306,7 @@ def test_date_posterieure_a_la_facture_refusee(
         "La date est invalide"
     )
     consultation_facturee.refresh_from_db()
-    assert consultation_facturee.date.date() == date_initiale
+    assert timezone.localtime(consultation_facturee.date).date() == date_initiale
 
 
 def test_date_anterieure_a_la_facture_acceptee(
@@ -303,7 +315,7 @@ def test_date_anterieure_a_la_facture_acceptee(
     """Cas repris de tests/core/011, « Change Date On Invoiced Examination »."""
     deplace_dates(consultation_facturee, jours=5)
     consultation_facturee.refresh_from_db()
-    date_initiale = consultation_facturee.date.date()
+    date_initiale = timezone.localtime(consultation_facturee.date).date()
     nouvelle_date = jour_sans_ambiguite(date_initiale, -2)
 
     naviguer_vers_examen(
@@ -323,4 +335,4 @@ def test_date_anterieure_a_la_facture_acceptee(
         libelle_date_longue(nouvelle_date)
     )
     consultation_facturee.refresh_from_db()
-    assert consultation_facturee.date.date() == nouvelle_date
+    assert timezone.localtime(consultation_facturee.date).date() == nouvelle_date

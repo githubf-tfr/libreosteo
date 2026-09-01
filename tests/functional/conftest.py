@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -59,6 +61,11 @@ finders.get_finder.cache_clear()  # type: ignore[attr-defined]
 # test, jamais au code applicatif. Bascule sur un fichier hors dossier de travail (verrou
 # de fichier ordinaire, retente par le busy handler) avec un delai d'attente genereux.
 _dossier_base_de_test = tempfile.mkdtemp(prefix="libreosteo-test-db-")
+# Django efface le fichier de base en fin de session (`_destroy_test_db`), pas le
+# repertoire qui le contient : sans ce nettoyage, chaque run laisse un repertoire
+# `/tmp/libreosteo-test-db-*` vide derriere lui. `atexit` plutot qu'une fixture, puisque
+# ce repertoire est cree a l'import du module, avant qu'aucune fixture n'existe.
+atexit.register(shutil.rmtree, _dossier_base_de_test, ignore_errors=True)
 # `AppConfig.ready()` (libreosteoweb/apps.py) interroge deja la base a l'import de
 # l'application, avant meme que ce module ne s'execute : ca a deja fait passer
 # `django.db.connections` par sa mise en place des cles par defaut de `DATABASES`
@@ -89,7 +96,7 @@ class Socle:
 
 
 @pytest.fixture(autouse=True)
-def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:  # noqa: ANN001
+def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
     """Sort les medias et l'index Whoosh du depot, pour chaque test."""
     settings.MEDIA_ROOT = str(tmp_path / "media")
     settings.PROTECTED_MEDIA_ROOT = str(tmp_path / "media")
@@ -105,7 +112,7 @@ def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:  # noqa: AN
 
 
 @pytest.fixture(autouse=True)
-def socle(request, transactional_db, environnement_isole) -> Socle | None:  # noqa: ANN001
+def socle(request, transactional_db, environnement_isole) -> Socle | None:
     """Seme l'utilisateur, le cabinet et le therapeute avant chaque test.
 
     `transactional_db` tronque les tables apres chaque test : les lignes semees par les
@@ -179,7 +186,7 @@ def _rejoindre_threads_de_requete_serveur(delai_max: float = 5.0) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _assainir_le_serveur(live_server) -> Iterator[None]:  # noqa: ANN001
+def _assainir_le_serveur(live_server) -> Iterator[None]:
     """Assainit `live_server` juste avant que sa propre fixture ne se termine.
 
     Session-scope et **depend explicitement de `live_server`** : cette dependance

@@ -3,7 +3,7 @@
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
-from tests.functional.helpers import connexion
+from tests.functional.helpers import connexion, ouvrir_menu_utilisateur
 
 
 def test_connexion_valide(page: Page, live_server: LiveServer) -> None:
@@ -11,7 +11,15 @@ def test_connexion_valide(page: Page, live_server: LiveServer) -> None:
     expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
     connexion(page, live_server)
     expect(page).to_have_title("LibreOsteo")
-    expect(page.locator("ul.dropdown-user")).to_be_attached()
+    # `to_be_attached()` ne prouverait rien : index.html rend `ul.dropdown-user`
+    # inconditionnellement cote serveur, avant tout JavaScript — meme un rendu non
+    # authentifie de ce gabarit le porterait. Mais `to_be_visible()` seul ne convient pas
+    # non plus ici : a la difference de `test_cabinet.py` (ou la visite guidee ouvre le
+    # menu toute seule), rien n'ouvre ce menu apres une connexion nue — constate a
+    # l'execution (menu reste `hidden`). `ouvrir_menu_utilisateur` l'ouvre reellement :
+    # la encore, seule sa visibilite apres un clic reussi prouve que le navbar
+    # authentifie fonctionne.
+    ouvrir_menu_utilisateur(page)
 
 
 def test_connexion_invalide(page: Page, live_server: LiveServer) -> None:
