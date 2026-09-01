@@ -33,7 +33,7 @@ ruff, mypy (+ `django-stubs`), Playwright pour la suite fonctionnelle.
 - **Cliquets** (`CLAUDE.md` § Tests et qualité) : `fail_under = 89` ne descend pas,
   chaque module créé rejoint `[tool.mypy] files`, `[tool.ruff.lint] ignore` reste vide.
 - **Référence mesurée le 2026-09-01** sur `main` : `194 passed` en ~71 s, couverture
-  89,35 %, mypy 80 fichiers, `make test-functional` `26 passed` en ~285 s.
+  89,35 %, mypy 80 fichiers, `make test-functional` `27 passed` en ~240 s.
 - **`KANBAN.md` n'est modifié que par la tâche 6**, qui y écrit l'entrée de journal de
   S5. `README.md` et `CLAUDE.md` ne sont modifiés par aucune tâche. La session S4 a rendu
   la main le 2026-09-01 : le dépôt n'est plus partagé.
@@ -292,7 +292,7 @@ symbole absent d'`__all__`.
 - [ ] **Step 8: Vérifier par la suite fonctionnelle (fin du lot 1)**
 
 Run: `make test-functional`
-Expected: `26 passed`, ~285 s. C'est le filet décisif : il traverse les vues par HTTP
+Expected: `27 passed`, ~240 s. C'est le filet décisif : il traverse les vues par HTTP
 réel, là où les tests unitaires importent les symboles nommément.
 
 - [ ] **Step 9: Commiter**
@@ -481,7 +481,7 @@ Expected: mypy `Success` sur 91 fichiers (86 − 1 + 6), `197 passed`, couvertur
 - [ ] **Step 8: Vérifier par la suite fonctionnelle (fin du lot 2)**
 
 Run: `make test-functional`
-Expected: `26 passed`.
+Expected: `27 passed`.
 
 - [ ] **Step 9: Commiter**
 
@@ -1033,7 +1033,9 @@ class TestRestauration(TestCase):
 
     def test_un_fichier_qui_n_est_pas_une_archive_est_refuse(self):
         with self.assertRaises(ArchiveInvalide):
-            restaurer(ContentFile(b"ceci n'est pas une archive"), libreosteoweb.__version__)
+            restaurer(
+                ContentFile(b"ceci n'est pas une archive"), libreosteoweb.__version__
+            )
 ```
 
 Le troisième test suit la branche « ancien format » (fichier non-zip écrit tel quel puis
@@ -1149,7 +1151,7 @@ Run: `make check`
 Expected: `208 passed`, couverture ≥ 89 %.
 
 Run: `make test-functional`
-Expected: `26 passed`.
+Expected: `27 passed`.
 
 ```bash
 git add libreosteoweb/api/services/sauvegarde.py libreosteoweb/api/views/administration.py libreosteoweb/tests/test_service_sauvegarde.py pyproject.toml
