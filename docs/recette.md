@@ -1131,3 +1131,101 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### Sauvegarde/restauration
 
 ### Recherche, index, tableau de bord
+
+### R-RCH-01 — Recherche d'un patient par nom
+
+- **Domaine** : Recherche, index, tableau de bord
+- **Couverture auto** : oui —
+  tests/functional/test_consultation.py::test_recherche_puis_ouverture_de_consultation
+  (via l'utilitaire `rechercher_patient`, `tests/functional/helpers.py`) couvre la
+  recherche par nom de famille et l'ouverture du résultat, mais pas la recherche par
+  seul prénom ni le cas sans résultat, ajoutés ici
+- **État requis** : E2
+
+**Étapes**
+
+1. Dans le champ de recherche (en haut de l'écran, placeholder « Recherche... »), saisir
+   `Picard`, valider.
+   Attendu : titre « Recherche de "Picard" » affiché ; un seul résultat, lien
+   `Picard Jean-Luc`, avec un extrait affichant `Picard Jean-Luc`.
+2. Vider le champ de recherche, saisir `Jean-Luc` (le prénom seul), valider.
+   Attendu : titre « Recherche de "Jean-Luc" » affiché ; le même résultat
+   `Picard Jean-Luc` est retrouvé (l'index couvre aussi bien le nom que le prénom).
+3. Cliquer sur le résultat `Picard Jean-Luc`.
+   Attendu : la fiche du patient s'affiche, onglet « Infos générales » actif, date de
+   naissance `13/07/1935`.
+4. Revenir sur le champ de recherche, saisir un terme absent de la base, ex.
+   `Zzznotfound`, valider.
+   Attendu : titre « Recherche de "Zzznotfound" » affiché ; texte « Aucun résultat
+   trouvé. » ; aucun lien de résultat affiché.
+
+### R-RCH-02 — Reconstruction de l'index
+
+- **Domaine** : Recherche, index, tableau de bord
+- **Couverture auto** : non (libreosteoweb/tests/test_exploitation.py::
+  TestReconstructionIndex::test_le_personnel_peut_reconstruire_l_index vérifie qu'un
+  membre du personnel peut déclencher la reconstruction et reçoit une réponse
+  positive, mais ne vérifie pas qu'une recherche redevient probante ensuite)
+- **État requis** : E2
+
+**Étapes**
+
+1. Menu utilisateur (nom d'utilisateur en haut à droite) → « Réindexer ».
+   Attendu : titre de page « Réindexer » ; texte « Cette fonction permet de
+   reconstruire l'indexation de la base quand, pour des raisons diverses, la
+   recherche ne fonctionne pas ou plus Soyez certain que personne n'est en train
+   d'ajouter de patient ou de consultation avant de faire ceci. » ; panneau
+   « Réindexer » avec un bouton « réindexer ».
+2. Cliquer le bouton « réindexer ».
+   Attendu : à côté du bouton apparaissent une coche et le texte « Terminé » ; aucun
+   message d'échec ne s'affiche.
+3. Dans le champ de recherche, saisir `Picard`, valider.
+   Attendu : titre « Recherche de "Picard" » affiché ; le résultat `Picard Jean-Luc`
+   est toujours présent — la reconstruction n'a pas fait disparaître le patient de
+   l'index, la recherche reste probante.
+
+### R-TAB-01 — Compteurs du tableau de bord
+
+- **Domaine** : Recherche, index, tableau de bord
+- **Couverture auto** : non
+- **État requis** : E2
+
+**Étapes**
+
+1. Depuis l'état E2, cliquer sur « LibreOsteo » (lien en haut à gauche) ou revenir sur
+   l'URL racine de l'instance.
+   Attendu : titre de page « Tableau de bord » ; le libellé « Semaine » est
+   sélectionné par défaut (mis en évidence) ; trois tuiles affichées : « Nouveaux
+   patients » = `1`, « Consultations » = `2`, « Retour » = `0`.
+2. Cliquer « Mois ».
+   Attendu : les trois tuiles affichent les mêmes valeurs : `1`, `2`, `0`.
+3. Cliquer « Année ».
+   Attendu : les trois tuiles affichent les mêmes valeurs : `1`, `2`, `0`.
+
+### R-TAB-02 — Statistiques du jour (régression défaut C, S3 bis)
+
+- **Domaine** : Recherche, index, tableau de bord
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_exploitation.py::TestBorneDeFinDeJournee::
+  test_un_acte_juste_apres_minuit_local_compte_dans_aujourdhui
+- **État requis** : E2. Dépend de la garantie posée au chapitre 1 : au moins une des
+  deux consultations de l'état E2 reste datée du jour du passage.
+
+**Étapes**
+
+1. Depuis l'état E2, sur le tableau de bord, vue « Semaine » (sélectionnée par
+   défaut).
+   Attendu : la tuile « Consultations » affiche une valeur non nulle (`2` dans le
+   cas nominal où les deux consultations de l'état E2 sont closes le même jour) ;
+   en toute hypothèse, elle compte au moins la consultation close en dernier à
+   l'état E2 — celle-ci est nécessairement datée du jour du passage, quelle que
+   soit l'heure locale à laquelle la clôture puis cette fiche sont jouées (fenêtre
+   du jour bornée en heure locale, jamais en jour calendaire UTC). Cette fiche
+   vérifie donc une borne basse et non un compte exact, à la différence de
+   R-TAB-01 dont les compteurs ne sont pas bornés au jour : c'est la seule
+   garantie qui survive à un état E2 construit à cheval sur minuit.
+2. Recharger la page (touche F5 ou équivalent), sans repasser par une nouvelle
+   connexion.
+   Attendu : après le rechargement, la tuile « Consultations » de la vue « Semaine »
+   affiche la même valeur qu'à l'étape 1 — la consultation du jour reste comptée de
+   façon stable, pas seulement au moment de sa clôture.
