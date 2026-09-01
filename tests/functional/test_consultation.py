@@ -1,6 +1,6 @@
 """Cas repris de tests/core/006_start_new_examination.robot et tests/core/011."""
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from django.utils import timezone
@@ -336,3 +336,46 @@ def test_date_anterieure_a_la_facture_acceptee(
     )
     consultation_facturee.refresh_from_db()
     assert timezone.localtime(consultation_facturee.date).date() == nouvelle_date
+
+
+def test_date_affichee_suit_le_jour_local_meme_quand_lutc_differe(
+    page: Page, live_server: LiveServer, patient_existant: Patient
+) -> None:
+    """Garde le defaut corrige par le commit 00c14f8 (jour UTC brut compare au rendu local).
+
+    `consultation.date` est un `DateTimeField` sous `USE_TZ=True` : son `.date()` nu rend
+    le jour calendaire **UTC**, alors que la page l'affiche en heure **locale**
+    (`examination.html:17`, `freezeExaminationDate` dans `examination.js` — Europe/Paris,
+    `TIME_ZONE` de `Libreosteo/settings`). Les deux jours ne divergent, en heure reelle,
+    qu'entre 00h et 02h a Paris (decalage 1h ou 2h selon la saison) : une fenetre de deux
+    heures par jour, jamais couverte par une suite qui ne s'execute qu'a l'heure ou un
+    humain la lance.
+
+    Arrangement volontairement independant de l'heure d'execution : la consultation est
+    reposee sur un instant UTC fixe et arbitraire, 23h30. Majore de n'importe quel
+    decalage horaire Europe/Paris (+1h l'hiver, +2h l'ete), 23h30 UTC franchit toujours
+    minuit local — le jour local est donc systematiquement le lendemain du jour UTC, quels
+    que soient la date choisie ou l'instant reel d'execution de ce test. Preuve red/green
+    consignee dans
+    `.superpowers/sdd/2026-08-31-fonctionnels-playwright/preuve-fuseau.md`.
+    """
+    connexion(page, live_server)
+    rechercher_patient(page, "Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="notinvoiced", raison="Test")
+    attendre_page_prete(page)
+
+    consultation = Examination.objects.get(patient=patient_existant)
+    instant_utc = datetime(2026, 8, 31, 23, 30, tzinfo=UTC)
+    consultation.date = instant_utc
+    consultation.save()
+
+    jour_utc = instant_utc.date()
+    jour_local = timezone.localtime(consultation.date).date()
+    # Barriere de l'arrangement lui-meme : sans cette divergence, le test ne prouverait rien.
+    assert jour_local != jour_utc
+
+    naviguer_vers_examen(
+        page, live_server, patient_existant.id, consultation.id, jour_local
+    )
