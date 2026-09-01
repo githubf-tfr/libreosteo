@@ -1,8 +1,12 @@
 # Dependances de la suite fonctionnelle Playwright.
-# L'outillage de qualite (pytest, couverture, ruff, mypy) est dans requ-dev.txt ;
-# ce fichier est celui qu'installe le job CI `functional`, il porte donc aussi pytest
-# et pytest-django.
+# L'outillage de qualite (couverture, ruff, mypy) est dans requ-dev.txt ; ce fichier est
+# celui qu'installe le job CI `functional`, il porte donc aussi pytest et pytest-django.
+# pytest-cov est requis ici bien que la suite fonctionnelle tourne toujours en --no-cov :
+# pyproject.toml pose addopts = "--cov --cov-report=term-missing" pour toute invocation
+# de pytest, et --no-cov vient du meme plugin. Sans lui, pytest refuse ces trois options
+# avant meme de collecter un test (`unrecognized arguments`).
 pytest==9.1.1
+pytest-cov==7.1.0
 pytest-django==4.14.0
 pytest-playwright==0.9.0
 playwright==1.62.0
