@@ -173,6 +173,33 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   sans aucun message, alors que le cas nom+prénom+date de naissance identiques est refusé
   avec le message « Ce patient existe déjà » (HTTP 400). Attendu : un comportement cohérent
   entre les deux cas. Domaine Patient, hors périmètre de la tâche 4.
+- (S4, tâche 7) **Coquille dans le texte d'introduction de l'onglet « Archiver la base
+  de données ».** `locale/fr/LC_MESSAGES/django.po`, msgid « This system helps you to
+  archive and restore the full system. » : la traduction « Cette fonction vous aider à
+  archiver et restaurer le système entier. » emploie l'infinitif après « vous » au lieu
+  de la troisième personne du singulier (« vous aide »). Cosmétique, non corrigé ici.
+- (S4, tâche 7) **`ng-rshow` au lieu de `ng-show` dans le compte-rendu d'import CSV.**
+  `libreosteoweb/templates/partials/import-file.html:228` : le paragraphe « Erreurs
+  lors de l'importation des consultations » porte `ng-rshow` (attribut sans effet,
+  silencieusement ignoré par AngularJS) au lieu de
+  `ng-show="import_error.examination.errors != null && import_error.examination.errors.length != 0"`
+  (ligne 219, la même garde pour les patients, correctement orthographiée).
+  Conséquence observée à la fiche `R-IMP-02` : ce titre d'erreur s'affiche
+  systématiquement dans le panneau « Importation réussie avec des erreurs », même
+  quand aucune consultation n'est réellement en erreur. Domaine Import CSV, hors
+  périmètre de la tâche 7.
+- (S4, tâche 7) **Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
+  sous forme de création manuelle.** Aucune fonction ne permet de créer à la main un
+  événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
+  (`libreosteoweb/api/views.py:601`) est un `ReadOnlyModelViewSet`, et les seules
+  écritures d'`OfficeEvent` viennent de récepteurs de signal
+  (`libreosteoweb/api/receivers.py:71,92`, à la création d'un patient ou d'une
+  consultation ; `libreosteoweb/api/events/settings.py`, pour les événements liés aux
+  réglages). Ce que le produit offre réellement sous ce nom est un journal
+  d'événements alimenté automatiquement et affiché sur le tableau de bord — c'est ce
+  que couvrent désormais les fiches `R-AGE-01` et `R-AGE-02`. Constat utile pour
+  cadrer un prochain sprint, pas un défaut à corriger ; le titre du domaine et les
+  fiches du cahier de recette restent inchangés.
 
 ## En cours
 

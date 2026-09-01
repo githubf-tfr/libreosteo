@@ -1126,9 +1126,213 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 
 ### Agenda
 
+### R-AGE-01 — Génération automatique d'un événement à la création d'un patient
+
+- **Domaine** : Agenda
+- **Couverture auto** : non
+- **État requis** : E1. Il n'existe pas de fonction dédiée pour créer manuellement un
+  événement d'agenda : chaque création de patient ou de consultation en dépose un
+  automatiquement, journalisé sur le tableau de bord (fiche suivante). Cette fiche
+  crée durablement un patient supplémentaire — remonter l'état E1 (chapitre 1) avant
+  de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Lien « Nouveau patient » (menu du haut), créer un patient quelconque (ex. Nom
+   `La Forge`, Prénom `Geordi`, date de naissance `16`/`02`/`1975`, case consentement
+   cochée), bouton « Initialiser la fiche patient ».
+   Attendu : la fiche du nouveau patient s'ouvre ; le titre de page affiche
+   « La Forge Geordi ».
+2. Cliquer le logo « LibreOsteo » (en haut à gauche) pour revenir au tableau de bord.
+   Attendu : titre de page « Tableau de bord » ; le panneau « Évènements » affiche
+   une entrée : nom du patient en gras « La Forge Geordi », texte « Nouveau patient
+   créé », une ancienneté relative (ex. « il y a moins d'une minute », variable selon
+   le délai écoulé depuis la création), signée « Robot Tester ».
+
+### R-AGE-02 — Regroupement et navigation depuis les événements du tableau de bord
+
+- **Domaine** : Agenda
+- **Couverture auto** : non
+- **État requis** : E2
+
+**Étapes**
+
+1. Aller sur l'URL racine de l'instance (ou cliquer le logo « LibreOsteo »).
+   Attendu : titre de page « Tableau de bord » ; le panneau « Évènements » (filtre
+   par défaut « Par jour ») affiche un en-tête de date (date du jour) sous lequel
+   figurent trois entrées classées de la plus récente à la plus ancienne : deux
+   « Nouvelle consultation » puis « Nouveau patient créé », toutes au nom de
+   « Picard Jean-Luc », signées « Robot Tester ».
+2. Cliquer le chevron du panneau « Évènements », puis l'entrée « Tout » du menu
+   déroulant.
+   Attendu : les trois mêmes entrées restent affichées, dans le même ordre, mais
+   sans l'en-tête de date.
+3. Cliquer sur l'entrée « Nouvelle consultation » la plus récente.
+   Attendu : la fiche de Jean-Luc Picard s'ouvre directement sur l'onglet
+   « Consultations » (actif) ; le panneau « Motif » affiche « Motif de
+   consultation ».
+4. Retourner au tableau de bord (logo « LibreOsteo »), cliquer sur l'entrée
+   « Nouveau patient créé ».
+   Attendu : la fiche de Jean-Luc Picard s'ouvre, titre de page « Picard Jean-Luc »,
+   onglet « Infos générales » actif.
+
 ### Import CSV
 
+### R-IMP-01 — Import d'un fichier de patients
+
+- **Domaine** : Import CSV
+- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_import_des_patients
+- **État requis** : E1. Cette fiche importe durablement 100 patients depuis
+  `tests/functional/resources/patients_1.csv` : remonter l'état E1 (chapitre 1)
+  avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur → « Import/export ».
+   Attendu : titre de page « Gestion de l'import/export » ; onglet « Archiver la
+   base de données » actif par défaut.
+2. Cliquer l'onglet « Importer d'un système externe ».
+   Attendu : panneau expliquant la marche à suivre ; deux liens de gabarit
+   (« Gabarit du fichier patient », « Gabarit du fichier consultation ») ; un champ
+   « Fichier patient », un champ « Fichier de consultation » et un bouton
+   « Analyser ».
+3. Choisir le fichier `tests/functional/resources/patients_1.csv` comme fichier
+   patient (laisser le fichier de consultation vide), cliquer « Analyser ».
+   Attendu : panneau « Résultats d'analyse » ; « Fichier patient ✔ » (coche verte) ;
+   un tableau affiche un extrait de 5 lignes du fichier, avec des en-têtes de
+   colonne dont « Nom de famille », « Prénom » et « Date de naissance
+   (JJ/MM/AAAA) » ; bouton « Importer » actif (vert).
+4. Cliquer « Importer ».
+   Attendu (après un traitement qui peut dépasser la minute — 100 lignes, chacune
+   réindexée) : panneau « Importation réussie » ; texte « 100 lignes importées du
+   fichier patient ».
+
+### R-IMP-02 — Import de consultations liées aux patients importés
+
+- **Domaine** : Import CSV
+- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_import_des_consultations
+- **État requis** : E1. Cette fiche importe durablement 100 patients puis 50
+  consultations depuis `tests/functional/resources/patients_1.csv` et
+  `examinations_1.csv` : remonter l'état E1 (chapitre 1) avant de jouer une autre
+  fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur → « Import/export », onglet « Importer d'un système externe ».
+   Choisir `tests/functional/resources/patients_1.csv` comme fichier patient,
+   cliquer « Analyser » puis « Importer ».
+   Attendu (après un traitement qui peut dépasser la minute) : panneau
+   « Importation réussie » ; texte « 100 lignes importées du fichier patient ».
+   Ces 100 patients sont le préalable nécessaire à l'étape suivante (le fichier de
+   consultations lie chaque ligne à l'un d'eux par un numéro).
+2. Rouvrir le panneau d'import (menu utilisateur → « Import/export », onglet
+   « Importer d'un système externe »). Choisir à nouveau
+   `tests/functional/resources/patients_1.csv` comme fichier patient, et
+   `tests/functional/resources/examinations_1.csv` comme fichier de consultation,
+   cliquer « Analyser ».
+   Attendu : « Fichier patient ✔ » et « Fichier de consultation ✔ » (coches
+   vertes) ; deux tableaux d'extrait, le second avec des en-têtes dont « Motif » et
+   « Examen médical » ; bouton « Importer » actif.
+3. Cliquer « Importer ».
+   Attendu : panneau orange « Importation réussie avec des erreurs » ; texte
+   « 0 lignes importées du fichier patient » ; titre « Erreurs lors de
+   l'importation des patients » suivi d'une entrée par ligne du fichier (numérotées
+   de `ligne : 2` à `ligne : 101`, l'en-tête comptant pour la ligne 1), chacune
+   portant le message « Ce patient existe déjà » (les 100 patients importés à
+   l'étape 1 sont déjà connus) ; puis texte « 50 lignes importées du fichier
+   consultation » ; le titre « Erreurs lors de l'importation des consultations »
+   apparaît également juste après, sans aucune ligne d'erreur en dessous — ce
+   titre s'affiche même en l'absence de toute erreur réelle sur les
+   consultations.
+
+### R-IMP-03 — Fichier CSV invalide refusé sans import partiel
+
+- **Domaine** : Import CSV
+- **Couverture auto** : non
+- **État requis** : E1
+
+**Étapes**
+
+1. Menu utilisateur → « Import/export », onglet « Importer d'un système externe ».
+   Attendu : titre de page « Gestion de l'import/export » ; formulaire d'import
+   affiché, bouton « Importer » absent tant qu'aucune analyse n'a été faite.
+2. Choisir comme fichier patient un fichier CSV structurellement invalide (par
+   exemple le gabarit patient tronqué à 20 colonnes au lieu des 24 attendues,
+   l'en-tête « Nom de famille » restant présent), cliquer « Analyser ».
+   Attendu : panneau « Résultats d'analyse » ; « Fichier patient ✗ » (croix rouge,
+   à la place de la coche verte d'un fichier valide) ; l'extrait du fichier est
+   quand même affiché, avec des cellules vides pour les colonnes manquantes ;
+   bouton « Importer » présent mais désactivé (non cliquable) — aucun message
+   d'erreur textuel n'accompagne la croix.
+3. Tenter de cliquer « Importer ».
+   Attendu : le bouton désactivé n'accepte pas le clic ; aucune requête d'import
+   n'est envoyée et aucun patient n'est créé en base.
+
 ### Sauvegarde/restauration
+
+### R-SAU-01 — Sauvegarde de l'instance (obtenir l'archive)
+
+- **Domaine** : Sauvegarde/restauration
+- **Couverture auto** : oui — libreosteoweb/tests/test_exploitation.py::TestSauvegarde
+  (teste le téléchargement et le contenu de l'archive au niveau API ; le parcours
+  écran — menu puis onglet — n'a pas d'équivalent automatisé)
+- **État requis** : E2
+
+**Étapes**
+
+1. Menu utilisateur → « Import/export ».
+   Attendu : titre de page « Gestion de l'import/export » ; onglet « Archiver la
+   base de données » actif par défaut ; texte « Cette fonction vous aider à
+   archiver et restaurer le système entier. » ; panneau « Archiver » avec un lien
+   « obtenir l'archive » et le texte « Ce fichier est le contenu complet de votre
+   base. Il peut uniquement être utilisé par LibreOsteo. Utilisez-le afin de
+   restaurer votre base de données ou pour transférer le contenu vers une autre
+   machine. ».
+2. Cliquer « obtenir l'archive ».
+   Attendu : téléchargement d'un fichier nommé `<horodatage ISO>-libreosteo.db`
+   (horodatage du téléchargement) ; ce fichier est une archive zip contenant
+   `dump.json` (le contenu de la base), `meta` (le numéro de version de
+   l'application) et les documents joints aux patients (ici,
+   `documents/patients_1.csv`, le document joint à l'état E2).
+
+### R-SAU-02 — Restauration de la sauvegarde sur une instance vierge
+
+- **Domaine** : Sauvegarde/restauration
+- **Couverture auto** : oui — libreosteoweb/tests/test_exploitation.py::TestRestauration
+  (teste le rechargement de l'archive au niveau API ; le parcours écran — page
+  d'installation puis formulaire de restauration — n'a pas d'équivalent automatisé)
+- **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
+  l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
+  instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,
+  l'instance contient les données de l'état E2 mais n'a pas été reconstruite par
+  la procédure du chapitre 1 — rejouer l'état visé (chapitre 1) avant de jouer une
+  autre fiche qui en dépend.
+
+**Étapes**
+
+1. Depuis l'état E2, obtenir une archive de l'instance (menu utilisateur →
+   « Import/export », onglet « Archiver la base de données », lien « obtenir
+   l'archive » — cf. R-SAU-01).
+   Attendu : un fichier `<horodatage ISO>-libreosteo.db` est téléchargé.
+2. Purger l'instance jusqu'à l'état E0 (chapitre 1).
+   Attendu : `GET /` redirige vers `/install/`, page « Installer LibreOsteo »,
+   boutons « Restaurer la base de données » et « Enregistrer l'administrateur ».
+3. Cliquer « Restaurer la base de données ».
+   Attendu : panneau « Restaurer la base de données » ; texte « Vous pouvez
+   restaurer une archive précédente de la base de données. Cette archive doit
+   être obtenue depuis le logiciel avec la fonction Importer/Exporter/Archiver. » ;
+   un champ de fichier (libellé « Fichier d'archive à restaurer ») et un bouton
+   « Restaurer ».
+4. Choisir le fichier téléchargé à l'étape 1, cliquer « Restaurer ».
+   Attendu : après un bref délai, retour à la page de connexion
+   (`/accounts/login/?next=/`, titre de page « Identifiez-vous sur LibreOsteo »).
+5. S'identifier avec `test` / `test`, saisir `Picard` dans le champ de recherche,
+   valider.
+   Attendu : la fiche de Jean-Luc Picard s'affiche ; l'onglet « Consultations »
+   liste les deux consultations créées à l'état E2 ; l'onglet « Compte-rendus
+   médicaux » liste le document « Radiographie lombaire » ; le menu
+   « Comptabilité » liste la facture N° `10000`, patient `Jean-Luc Picard`,
+   montant `55 €`, moyen de paiement `Chèque`, état `Réglée`.
 
 ### Recherche, index, tableau de bord
 
