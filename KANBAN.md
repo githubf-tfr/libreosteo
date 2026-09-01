@@ -264,10 +264,10 @@ Aucun code touché à ce stade.
   d'enregistrement (`ng-click="updateSettings(officesettings)"`, même fichier,
   lignes 248-250) ne porte aucune garde de validité de formulaire — son `ng-disabled` ne
   regarde que `user.is_staff`, jamais `form.$invalid` — et soumet donc une séquence vide.
-  Côté serveur, `OfficeSettingsSerializer.validate` (`libreosteoweb/api/serializers.py:368-374`)
+  Côté serveur, `OfficeSettingsSerializer.validate` (`libreosteoweb/api/serializers.py:377-383`)
   traite cette valeur vide exactement comme une clé absente, « non fournie », et lui
   substitue son repli par défaut (dernier numéro de facture, sinon 10000) ;
-  `OfficeSettingsView.perform_update` (`libreosteoweb/api/views.py:626-651`) suit alors la
+  `OfficeSettingsView.perform_update` (`libreosteoweb/api/views.py:626-654`) suit alors la
   même branche que pour une clé manquante et renvoie un 200. Constaté depuis l'extérieur
   par `tests/functional/test_facturation.py::test_numero_de_depart_textuel_ignore` (tâche 8) ;
   défaut applicatif réel, délibérément non corrigé dans S3 — la suite fonctionnelle prouve

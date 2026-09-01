@@ -12,6 +12,7 @@ from libreosteoweb.models import (
     InvoiceStatus,
     OfficeEvent,
     OfficeSettings,
+    Paiment,
     Patient,
 )
 from tests.functional.conftest import Socle
@@ -233,19 +234,16 @@ def test_facture_impayee_puis_reglee(
     facture.refresh_from_db()
     assert consultation.status == ExaminationStatus.INVOICED_PAID
     assert facture.status == InvoiceStatus.INVOICED_PAID
-    # `Paiment.invoice` est un ManyToManyField sans `related_name` : l'accesseur inverse
-    # par defaut est bien `paiment_set`, confirme par `Invoice.paiments_list` (models.py,
-    # `self.paiment_set.all()`) et par ce test lui-meme au premier lancement (sans l'ignore
-    # ci-dessous, `mypy` refuse l'attribut). Limite connue de `mypy_django_plugin` : la
-    # relation inverse d'un M2M n'est visible que dans le module qui definit le modele
-    # porteur du champ (`libreosteoweb/models.py`), jamais depuis un module externe, meme
-    # pour un `self` type explicitement annote `Invoice` — reproduit isolement (mypy sur un
-    # fichier de sonde hors de ce depot) avant d'ecrire cet ignore.
-    paiements = list(facture.paiment_set.all())  # type: ignore[attr-defined]
-    assert len(paiements) == 1
-    assert paiements[0].paiment_mode == "check"
-    assert paiements[0].currency == "EUR"
-    assert paiements[0].amount == 55.0
+    # `facture.paiment_set` (accesseur inverse par defaut de `Paiment.invoice`, un
+    # ManyToManyField sans `related_name`) ne type-checke pas hors de
+    # `libreosteoweb/models.py` (limite connue de `mypy_django_plugin` sur les relations
+    # inverses de M2M). `Paiment.objects.get(invoice=facture)`, deja utilise par
+    # `libreosteoweb/tests/test_facturation.py::test_encaisser_une_facture_en_attente_cree_le_paiement`,
+    # passe `mypy` sans ignore et lit le meme paiement.
+    paiement = Paiment.objects.get(invoice=facture)
+    assert paiement.paiment_mode == "check"
+    assert paiement.currency == "EUR"
+    assert paiement.amount == 55.0
 
 
 def test_avoir_sur_facture_deja_emise(
@@ -264,6 +262,7 @@ def test_avoir_sur_facture_deja_emise(
     # du template, pas seulement du brief.
     page.check("input[value=false]")
     enregistrer_formulaire(page)
+    assert OfficeSettings.objects.get(id=1).cancel_invoice_credit_note is False
 
     page.goto(live_server.url)
     creer_patient(page)
@@ -276,6 +275,11 @@ def test_avoir_sur_facture_deja_emise(
     facture_initiale = Invoice.objects.get()
 
     page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
+    # Preuve de presence avant l'annulation : sans elle, l'absence verifiee plus bas ne
+    # prouve rien (le lien pourrait n'avoir jamais porte ce numero).
+    expect(page.locator("#cancelInvoiceBtn + span a")).to_contain_text(
+        facture_initiale.number
+    )
     page.click("#cancelInvoiceBtn")
     page.click("#modal-btn-ok")
     page.check("input[value=cash]")
