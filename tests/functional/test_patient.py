@@ -13,12 +13,14 @@ from libreosteoweb.models import (
     PatientDocument,
 )
 from tests.functional.helpers import (
+    attendre_enregistrement_patient,
     attendre_page_prete,
     cloturer_consultation,
     connexion,
     creer_patient,
     ouvrir_nouvelle_consultation,
     rechercher_patient,
+    remplir_editeur_hallo,
     saisir_consultation,
 )
 
@@ -83,27 +85,40 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     page.check("input[name=smoker]")
     # job/hobbies/important_info/current_treatment sont des `div` `hallo-editor`
     # (contenteditable), reperes eux aussi par leur `name`, jamais par un `id`.
-    page.fill("div[name=job]", "Navigateur")
-    page.fill("div[name=hobbies]", "Ski, Roller, Musique")
-    page.fill("div[name=important_info]", "WARNING")
-    page.fill("div[name=current_treatment]", "Traitement H2O")
-    page.click('button:has-text("Fin d\'édition")')
+    # `remplir_editeur_hallo` (plutot que `page.fill()` seul) barre la course de
+    # commit documentee dans son docstring (helpers.py) et KANBAN.md.
+    remplir_editeur_hallo(page, "div[name=job]", "Navigateur")
+    remplir_editeur_hallo(page, "div[name=hobbies]", "Ski, Roller, Musique")
+    remplir_editeur_hallo(page, "div[name=important_info]", "WARNING")
+    remplir_editeur_hallo(page, "div[name=current_treatment]", "Traitement H2O")
+    # `attendre_enregistrement_patient` (plutot que le clic seul) barre la course de
+    # sauvegarde documentee dans son docstring (helpers.py) et KANBAN.md : le bouton
+    # « Éditer » revient des le clic, bien avant que le PUT n'ait reellement abouti,
+    # et une saisie faite sur un onglet suivant avant ce retour se perd en silence.
+    attendre_enregistrement_patient(
+        page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
+    )
     attendre_page_prete(page)
     expect(page.locator("button:has-text('Éditer')")).to_be_visible()
 
     # Antecedents (memes div `hallo-editor` reperees par `name`).
     page.click("#history")
     page.click("button:has-text('Éditer')")
-    page.fill("div[name=surgical_history]", "Surgical history")
-    page.fill("div[name=medical_history]", "Medical History")
-    page.fill("div[name=family_history]", "Family History")
-    page.fill("div[name=trauma_history]", "Trauma history")
+    remplir_editeur_hallo(page, "div[name=surgical_history]", "Surgical history")
+    remplir_editeur_hallo(page, "div[name=medical_history]", "Medical History")
+    remplir_editeur_hallo(page, "div[name=family_history]", "Family History")
+    remplir_editeur_hallo(page, "div[name=trauma_history]", "Trauma history")
 
-    # Comptes rendus et piece jointe.
-    page.click("#medicalreports")
+    # Comptes rendus et piece jointe. Le changement d'onglet declenche la sauvegarde
+    # implicite des antecedents (save-on-lost-focus) : meme course que ci-dessus.
+    attendre_enregistrement_patient(
+        page, patient.id, lambda: page.click("#medicalreports")
+    )
     page.click("button:has-text('Éditer')")
-    page.fill("div[name=medical_reports]", "Medical Reports")
-    page.click('button:has-text("Fin d\'édition")')
+    remplir_editeur_hallo(page, "div[name=medical_reports]", "Medical Reports")
+    attendre_enregistrement_patient(
+        page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
+    )
     page.set_input_files("#addDocumentMedicalReport", CHEMIN_DOCUMENT)
     expect(page.locator("div.form-group.document_create")).to_contain_text(
         "patients_1.csv"

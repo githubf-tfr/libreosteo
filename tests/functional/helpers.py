@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Callable
 
 from django.utils.formats import date_format
 from playwright.sync_api import Page, expect
@@ -205,3 +206,69 @@ def cloturer_consultation(
 def libelle_date_longue(jour: date) -> str:
     """Reproduit l'affichage de l'application : « 13 juillet 1935 »."""
     return date_format(jour, "j F Y")
+
+
+def remplir_editeur_hallo(page: Page, selecteur: str, valeur: str) -> None:
+    """Remplit un `div` `hallo-editor` (contenteditable) et force sa validation.
+
+    `hallo.js` (`node_modules/@components/hallo/dist/hallo.js`) ne committe le
+    contenu vers le `ngModel` Angular que sur l'evenement natif `blur` de l'element
+    (`_deactivated`, lie par `this.element.on("blur", ...)`), relaye en
+    `hallodeactivated` : c'est le seul declencheur ecoute par `read()`
+    (`halloeditor.js`). Or `page.fill()` sur un `[contenteditable]` focalise le
+    nouvel element via `selectText()` -> `element.focus()` (coreBundle.js de
+    Playwright), sans passer par `focusNode()` — le chemin qui, lui, blur
+    explicitement l'element actif precedent quand la cible est elle-meme
+    contenteditable. Entre deux appels `page.fill()` consecutifs sur deux
+    `hallo-editor`, le blur du premier n'est donc pas garanti par la simple
+    focalisation du second : course intermittente (non reproduite a la demande,
+    cf. KANBAN.md section « Pieges rencontres »), qui perd silencieusement la
+    saisie du champ quitte en premier. Cette fonction ajoute un `blur()` explicite
+    juste apres le `fill()` : une vraie barriere d'etat (l'evenement natif `blur`
+    est toujours synchrone, jamais une attente temporisee), qui garantit que
+    `read()` s'est execute avant de rendre la main.
+    """
+    page.fill(selecteur, valeur)
+    page.locator(selecteur).blur()
+
+
+def attendre_enregistrement_patient(
+    page: Page, patient_id: int, geste: Callable[[], None]
+) -> None:
+    """Execute `geste` (un clic qui declenche un `PUT /api/patients/:id`) et attend sa
+    reponse HTTP, avant de rendre la main.
+
+    `savePatient()` (`static/js/app/patient.js`) appelle `PatientServ.save(...)` — une
+    action **statique** `$resource` (`Resource.save(params, data, success, error)`),
+    pas une action d'instance (`instance.$save()`). `angular-resource.js` ne renvoie
+    la vraie promesse (`value.$promise`) que pour l'appel d'instance
+    (`Resource.prototype['$save']`, ligne ~846) ; l'appel statique renvoie
+    l'instance elle-meme (ligne ~825, branche `!isInstanceCall`), qui n'a pas de
+    methode `.then()` directement dessus. Or `angular-xeditable`
+    (`editablePromiseCollection.when()`, `xeditable.js`) traite tout objet sans
+    `.then()` comme une valeur deja resolue (`$q.when(objetNonThenable)` resout au
+    digest suivant, sans jamais attendre le vrai aller-retour reseau) : le
+    formulaire se referme (bouton « Éditer » revient) des le clic, bien avant que
+    la reponse du PUT ne soit revenue. Le callback de succes de `savePatient()`
+    remplace ensuite `$scope.patient` par la reponse serveur — un objet neuf, pris
+    au moment ou la requete a ete *envoyee*, donc sans les champs saisis
+    *depuis*. Si ce remplacement survient apres la saisie d'un onglet suivant sur
+    le meme `$scope.patient` (ex: les antecedents, dont la sauvegarde repose sur
+    `save-on-lost-focus` au changement d'onglet), ces saisies sont perdues en
+    silence : elles ont bien ete ecrites sur l'objet JS, mais sur une reference
+    que `$scope.patient` a entre-temps abandonnee. Attendre que le `Éditer`
+    reapparaisse (`attendre_page_prete` inclus) ne barre donc pas cette course, le
+    bouton n'etant pas lie a la fin reelle de la sauvegarde — meme defaut de
+    principe que celui deja documente pour `#loading-bar`
+    (`ouvrir_reglages_cabinet`, KANBAN.md tache 9). Reproduit ici (~1 echec sur 6
+    lancements de `test_edition_du_dossier_patient`, toujours sur le premier champ
+    « antecedents » saisi apres la sauvegarde des informations generales) : la
+    barriere reelle est la reponse HTTP du PUT lui-meme, jamais une temporisation.
+    """
+    with page.expect_response(
+        lambda reponse: (
+            reponse.request.method == "PUT"
+            and reponse.url.endswith(f"/api/patients/{patient_id}")
+        )
+    ):
+        geste()

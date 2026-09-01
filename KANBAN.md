@@ -592,6 +592,68 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   `test_no_set_start_invoice_sequence_on_already_set_value` de `test_invoice.py`. Le refus DRF
   est resté tel quel ; le test asserte le 400 et la séquence inchangée en base.
 
+- **2026-09-01 (S3, clôture — enquête `hallo-editor`)** — `test_patient.py::
+  test_edition_du_dossier_patient` a échoué une fois en suite complète
+  (`patient.job` revient vide en base). Enquête complète dans
+  `.superpowers/sdd/2026-08-31-fonctionnels-playwright/enquete-hallo.md`. **Deux
+  courses distinctes**, toutes deux prouvées par lecture directe des bundles
+  vendorisés (`node_modules/@components/`, jamais du code applicatif) :
+
+  1. **Commit `hallo-editor` -> `ngModel` manqué.** `hallo.js`
+     (`node_modules/@components/hallo/dist/hallo.js`) ne committe le contenu d'un
+     `div` `hallo-editor` vers le `ngModel` Angular que sur l'événement natif
+     `blur` de l'élément (`_deactivated`, lié par `this.element.on("blur",
+     ...)`), relayé en `hallodeactivated` et lu par `halloeditor.js::read()`. Or
+     `page.fill()` de Playwright sur un `[contenteditable]` focalise le nouvel
+     élément via `selectText()` -> `element.focus()` (`coreBundle.js`), sans
+     passer par `focusNode()` — le chemin que Playwright réserve aux actions
+     « dures » (`click`…) et qui, lui, blur explicitement l'élément actif
+     précédent quand la cible est elle-même contenteditable. Entre deux
+     `page.fill()` consécutifs sur deux `hallo-editor`, le blur du premier n'est
+     donc pas garanti par la simple focalisation du second. Non reproduit en 25
+     lancements solitaires du test (mécanisme pinné par lecture du code, pas par
+     un rouge/vert observé). **Correctif** : `tests/functional/helpers.py::
+     remplir_editeur_hallo` ajoute un `blur()` explicite après chaque `fill()`,
+     appliqué aux neuf champs `hallo-editor` de `test_patient.py` (`job`,
+     `hobbies`, `important_info`, `current_treatment`, les quatre `*_history`,
+     `medical_reports`) — pas seulement `job`, puisque le même mécanisme
+     s'applique à toute paire de `fill()` consécutifs sur deux `hallo-editor`.
+
+  2. **Sauvegarde `PUT /api/patients/:id` non attendue par sa propre UI.**
+     `savePatient()` (`static/js/app/patient.js`) appelle `PatientServ.save(...)`
+     en action **statique** `$resource` (`Resource.save(params, data, success,
+     error)`), pas en action d'instance. `angular-resource.js`
+     (`node_modules/@components/angular-resource/`) ne renvoie la vraie promesse
+     (`.$promise`) que pour l'appel d'instance ; l'appel statique renvoie
+     l'instance elle-même, sans `.then()`. `angular-xeditable`
+     (`editablePromiseCollection.when()`, `xeditable.js`) traite tout objet sans
+     `.then()` comme déjà résolu : le formulaire se ferme (bouton « Éditer »
+     revient) dès le clic, bien avant que la réponse du PUT ne soit revenue. Le
+     callback de succès remplace ensuite `$scope.patient` par la réponse serveur
+     — un objet pris au moment de l'*envoi*, donc sans les champs saisis
+     *depuis*. Si ce remplacement survient après la saisie d'un onglet suivant
+     sur le même `$scope.patient` (les antécédents, sauvegardés implicitement par
+     `save-on-lost-focus` au changement d'onglet), ces saisies sont perdues en
+     silence. **Reproduit** : ~1 échec sur 6 lancements solitaires du test après
+     le correctif 1 seul (2 sur 12 lancements), toujours sur `surgical_history`
+     (premier champ « antécédents » saisi après la sauvegarde des informations
+     générales) ; confirmé négativement par un test isolé qui édite directement
+     les antécédents sans passer par l'onglet général au préalable — 0 échec sur
+     20 lancements, cohérent avec une course qui exige une sauvegarde antérieure
+     encore en vol. **Correctif** : `tests/functional/helpers.py::
+     attendre_enregistrement_patient` encapsule chaque clic qui déclenche un
+     `PUT /api/patients/:id` (les deux « Fin d'édition » et le changement
+     d'onglet `#medicalreports`) dans `page.expect_response(...)`, qui attend la
+     réponse HTTP réelle avant de rendre la main.
+
+  Dans les deux cas, la barrière est un événement réellement observable
+  (évènement DOM synchrone, réponse HTTP), jamais une temporisation. Aucun code
+  applicatif touché. **Validation finale** : 20 lancements solitaires consécutifs
+  du test après les deux correctifs, 0 échec ; suite fonctionnelle complète, 2
+  lancements consécutifs, 0 échec (`26 passed` à chaque fois, ~285 s) ;
+  `make check` vert (ruff, mypy 80 fichiers, 188 tests unitaires, couverture
+  89.31 % ≥ 89.0 %).
+
 ## Suite du projet — S4 à S5
 
 Chantier « amélioration des tests », ordonnancement A décidé au cadrage du 2026-08-30.
