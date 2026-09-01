@@ -194,7 +194,18 @@ def saisir_date_examen(page: Page, valeur: date) -> None:
 def test_changement_de_date_accepte(
     page: Page, live_server: LiveServer, patient_existant: Patient
 ) -> None:
-    """Cas repris de tests/core/011, « Change Examination Date »."""
+    """Cas repris de tests/core/011, « Change Examination Date ».
+
+    Cible choisie ambigue (jour et mois tous deux <= 12 et distincts), suivant la
+    recommandation du design du defaut A (§ 7.2, T3) : avec le correctif `<html lang>`,
+    `04/03/2026` se relit jour-mois -> 4 mars 2026 ; sans lui (locale par defaut du
+    navigateur, anglaise en environnement de test), il se relirait mois-jour -> 3 avril
+    2026. C'est la seule cible qui distingue les deux lectures sur ce site (#3,
+    xeditable) ; un quantieme > 12 ne le ferait pas, l'heuristique de rattrapage de
+    webshim (`form-number-date-ui.js:605`, qui echange jour/mois des que le premier
+    groupe depasse 12) le corrigeant deja seule, avec ou sans le correctif — piege dans
+    lequel une version anterieure de ce test est tombee (quantieme 17, corrige ici).
+    """
     connexion(page, live_server)
     rechercher_patient(page, "Picard")
     ouvrir_nouvelle_consultation(page)
@@ -203,18 +214,20 @@ def test_changement_de_date_accepte(
     attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient_existant)
     # Date fixee par l'ORM (meme idiome que `deplace_dates`), plutot que derivee de
-    # « maintenant » : sans cela, que `nouvelle_date` traverse ou non le quantieme 12
-    # dependrait du jour d'execution de la suite. Or c'est precisement le cas que
-    # l'ancien `jour_sans_ambiguite` construisait a la main pour retomber dans le seul
-    # cas ou le widget n'a plus besoin de l'heuristique de rattrapage de webshim
-    # (`form-number-date-ui.js:605`) pour lire juste : garanti ici sur toute date
-    # d'execution, pas seulement « en pratique aujourd'hui ».
-    consultation.date = datetime(2026, 3, 20, 10, 0, tzinfo=UTC)
+    # « maintenant » : deterministe sur toute date d'execution, pas seulement « en
+    # pratique aujourd'hui » — et choisie pour que la cible retombe sur un jour et un
+    # mois tous deux <= 12 et distincts (cf. docstring).
+    consultation.date = datetime(2026, 3, 7, 10, 0, tzinfo=UTC)
     consultation.save()
     date_initiale = timezone.localtime(consultation.date).date()
 
     nouvelle_date = date_initiale + timedelta(days=-3)
-    assert nouvelle_date.day > 12  # barriere de l'arrangement : sinon rien ne le prouve
+    # Barriere de l'arrangement : sans cette ambiguite, l'assertion finale passerait
+    # aussi bien avec une lecture MM/JJ qu'avec JJ/MM (cf. docstring) et ne prouverait
+    # rien de propre a la locale.
+    assert nouvelle_date.day <= 12
+    assert nouvelle_date.month <= 12
+    assert nouvelle_date.day != nouvelle_date.month
     naviguer_vers_examen(
         page, live_server, patient_existant.id, consultation.id, date_initiale
     )

@@ -181,6 +181,19 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     d'`add-patient.html` (`creer_patient`, `input.dd|.mm|.yy`). Une corruption
     silencieuse de ce champ precis serait une erreur de date de naissance dans un
     dossier medical.
+
+    Deux saisies, qui ne prouvent pas la meme chose (relecture post-livraison, cf.
+    KANBAN.md defaut A) :
+    - **"03/02/1935" est le seul cas qui distingue une lecture francaise (JJ/MM) d'une
+      lecture americaine (MM/JJ)** : jour et mois y sont tous deux <= 12 et distincts
+      (3 != 2). Sans le correctif, ce texte se relit mois-jour -> 1935-03-02 ; avec, il
+      se relit jour-mois -> 1935-02-03. C'est la seule assertion de ce test qui
+      echouerait sans `<html lang>`.
+    - **"24/02/1935" (quantieme > 12) ne prouve rien sur le correctif** : l'heuristique
+      de rattrapage de webshim (`form-number-date-ui.js:605`, qui echange jour/mois des
+      que le premier groupe depasse 12) le lit correctement avec ou sans le correctif —
+      un jour > 12 n'est jamais discriminant. Gardee comme non-regression de ce
+      rattrapage, pas comme preuve du defaut A.
     """
     connexion(page, live_server)
     creer_patient(page)
@@ -193,6 +206,26 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     # sur le meme chemin de code que la date de consultation, pas par le chemin
     # `page.fill()` deja eprouve pour la date de document (chemin sans xeditable).
     champ = page.locator("input.ws-date.birthdate")
+
+    # Cas ambigu : la seule assertion de ce test qui echoue sans le correctif (cf.
+    # docstring). Preuve du defaut A sur ce site.
+    champ.click()
+    champ.press("Control+a")
+    champ.press_sequentially("03/02/1935")
+    champ.press("Tab")
+    attendre_enregistrement_patient(
+        page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
+    )
+    patient.refresh_from_db()
+    assert patient.birth_date == date(1935, 2, 3)
+    attendre_page_prete(page)
+    expect(page.locator("button:has-text('Éditer')")).to_be_visible()
+
+    # Quantieme > 12 : non-regression du seul cas que l'heuristique de rattrapage de
+    # webshim (form-number-date-ui.js:605) corrigeait deja par accident avant le
+    # correctif, desormais lu directement par la locale francaise du document — ne
+    # prouve pas le defaut A a elle seule (cf. docstring).
+    page.click("button:has-text('Éditer')")
     champ.click()
     champ.press("Control+a")
     champ.press_sequentially("24/02/1935")
@@ -200,10 +233,6 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     attendre_enregistrement_patient(
         page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
     )
-
-    # Quantieme > 12 : non-regression du seul cas que l'heuristique de rattrapage de
-    # webshim (form-number-date-ui.js:605) corrigeait deja par accident avant le
-    # correctif, desormais lu directement par la locale francaise du document.
     patient.refresh_from_db()
     assert patient.birth_date == date(1935, 2, 24)
 
