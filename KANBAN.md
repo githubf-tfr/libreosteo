@@ -240,6 +240,44 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   Reste ouvert, hors périmètre de ce tour : T2 (quantième > 12 sur la date de document,
   non-régression, design §7.2) n'a jamais été écrit, ni au premier tour ni à celui-ci.
 
+  **Troisième tour de correctifs (session distincte, 2026-09-01) — le quantième > 12 ne
+  discrimine rien, contrairement à ce que les deux tours précédents supposaient.** Une
+  relecture a établi que l'heuristique de rattrapage de webshim citée plus haut
+  (`form-number-date-ui.js:605`) échange jour/mois dès que le premier groupe dépasse 12,
+  **quelle que soit la locale active** : un quantième > 12 se lit donc juste avec ou sans
+  le correctif `<html lang>`, par ce seul rattrapage. Seule une date où jour **et** mois
+  sont tous deux <= 12 et distincts (ex. `03/02/1935`, lue `1935-03-02` sans le correctif
+  contre `1935-02-03` avec) distingue une lecture française d'une lecture américaine —
+  c'est la définition exacte de R1 (§3 du design), pas le quantième. Les deux tours
+  précédents avaient choisi des cibles > 12 en croyant fermer T3 et T4 par ce biais :
+  elles ne prouvaient en réalité rien de propre au correctif, seulement une
+  non-régression du rattrapage webshim — un test lancé contre le code d'avant le défaut A
+  (`index.html` sans `lang`, par un aller-retour `git checkout` sur ce seul fichier) les
+  passait identiquement, vérifié par exécution. Corrigé : `test_edition_de_la_date_de_
+  naissance` (`test_patient.py`) tape désormais `"03/02/1935"` en première frappe et
+  vérifie `patient.birth_date == date(1935, 2, 3)` — c'est cette assertion, et elle
+  seule, qui échoue sans le correctif (vérifié : rouge `date(1935, 3, 2)` sans `lang`,
+  vert `date(1935, 2, 3)` avec) ; `"24/02/1935"` reste tapé ensuite dans le même test,
+  gardé comme non-régression du rattrapage webshim, plus jamais présenté comme preuve du
+  défaut. Même correction sur `test_changement_de_date_accepte` (`test_consultation.py`,
+  site #3, xeditable, seul autre test à s'être appuyé sur un quantième > 12 pour
+  « prouver » le correctif) : `consultation.date` posée par l'ORM au 7 mars 2026 plutôt
+  qu'au 20, décalage `-3` jours inchangé (même frontière métier), cible désormais le 4
+  mars 2026 — `04/03/2026` se relit `3 avril 2026` sans le correctif (vérifié), barrière
+  de l'arrangement remplacée en conséquence (jour et mois <= 12 et distincts, plutôt que
+  jour > 12). Audit du reste de la suite (recherche de toute saisie de date tapée dans
+  `tests/functional/`) : `test_edition_du_dossier_patient` (`"10/01/2012"`, site #4)
+  était déjà discriminant, seul site correct avant ce tour — aucun changement. Les trois
+  autres tests de `test_consultation.py` qui tapent une date dérivée de « maintenant »
+  (`test_changement_de_date_dans_le_futur_refuse`, `test_date_posterieure_a_la_facture_
+  refusee`, `test_date_anterieure_a_la_facture_acceptee`) ne sont pas touchés : leur point
+  est une règle métier (refus/acceptation d'un changement de date), la date tapée y est
+  incidente et n'a jamais été présentée comme preuve du défaut A — les figer sur une
+  cible ambiguë romprait leur propre règle (dates dérivées du jour d'exécution) sans
+  rien ajouter à la preuve. `make check` vert (194 tests, couverture 89,35 % inchangée,
+  ruff/mypy sans régression) ; suite fonctionnelle complète vérifiée verte séparément.
+  Rapport : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/rapport-cloture.md`.
+
 - **2026-09-01 (S3 bis, défaut C)** — **`libreosteoweb/api/statistics.py` calculait sa
   fenêtre du jour en UTC, corrigé.** Défaut de production identifié à la tâche 5 de S3
   (cf. « Dette technique » ci-avant, alors non corrigé), repris avec les défauts A et B
@@ -533,6 +571,55 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   — garder la sortie intégrale de chaque exécution fonctionnelle (rediriger vers un
   fichier, comme fait l'enquête sous `repro-teardown/run-NN.log`, hors dépôt), pour que la
   prochaine `ERROR` laisse enfin un traceback exploitable.
+
+- **2026-09-01 (S3 bis, défaut A, tour de correctifs suivant)** — **Double échec
+  simultané sur le chemin de sauvegarde patient : NOT_REPRODUCED, budget d'enquête fermé
+  après 2 exécutions complètes.** Suite à l'échec conjoint constaté au tour précédent
+  (`test_edition_de_la_date_de_naissance` et `test_edition_du_dossier_patient`, cf.
+  entrée « S3 bis, défaut A » ci-dessus), une enquête dédiée
+  (`.superpowers/sdd/2026-08-31-fonctionnels-playwright/enquete-sauvegarde-patient.md`)
+  a repris la question sans rouvrir H1 (course de chargement de la locale française) ni
+  H2 (remplacement DOM du champ pendant la frappe), déjà infirmées par preuve
+  d'instrumentation directe au tour précédent (`{loading: false, active: 'fr'}` avant et
+  après la frappe pour H1 ; lecture `outerHTML` reconnue comme artefact de méthode,
+  identique sur passage vert et rouge, pour H2). Deux hypothèses formées par lecture de
+  code, cette fois : **H3**, l'absence de barrière entre deux tests consécutifs —
+  `live_server` de `pytest-django` est session-scope, ses threads de requête
+  (`daemon=True`) ne sont rejoints qu'en toute fin de session par `_assainir_le_serveur`
+  (tâche 1), jamais entre deux tests, alors que `transactional_db` (via `socle`, autouse)
+  tronque les tables à la fin de **chaque** test sur la même base fichier SQLite —
+  reste structurellement plausible mais **non confirmée, aucune preuve d'exécution** ;
+  **H4**, un post-traitement asynchrone après la réponse HTTP, **affaiblie** par lecture
+  de code (aucun `threading.Thread(`, aucun `transaction.on_commit` dans
+  `libreosteoweb/` ni `Libreosteo/` ; `HAYSTACK_SIGNAL_PROCESSOR =
+  "haystack.signals.RealtimeSignalProcessor"` indexe de façon synchrone, dans le thread
+  de requête, avant l'envoi de la réponse). Deux exécutions complètes de
+  `make test-functional` (`27 passed` chacune, 269,32 s puis 292,64 s, un seul `pytest`
+  actif à la fois vérifié par `ps aux`) : **0 reproduction**, budget fermé par le
+  commanditaire (coût, pas qualité) face à un aléa dont le taux de base ne permet pas de
+  conclusion sur deux tirages (1 occurrence connue sur 27 exécutions complètes toutes
+  sessions confondues). Aucun changement effectué (enquête en lecture seule).
+  **Piste relevée, non tranchée** : le rapport du tour précédent (`rapport-defaut-A.md`
+  §8.2) décrit l'échec conjoint de `test_edition_du_dossier_patient` avec des valeurs de
+  `patient.birth_date` (`1935-07-13` contre une autre valeur) — or ce test n'édite ni ne
+  lit jamais `birth_date` (seuls nom, adresse, éditeurs `hallo-editor` et document y
+  passent ; la date de naissance n'est éditée que par le test voisin,
+  `test_edition_de_la_date_de_naissance`). Aucun log brut ni traceback de cette
+  exécution n'a été conservé pour trancher entre deux lectures : une erreur de
+  rédaction du rapport précédent (valeurs du nouveau test recopiées sur la mauvaise
+  ligne), **ou** une trace textuelle d'une contamination inter-tests réelle (cohérente
+  avec H3 — le test préexistant aurait lu, via `Patient.objects.get(family_name=
+  "Picard")`, une ligne appartenant en réalité au patient du test suivant). **Non
+  résolu**, consigné pour la prochaine tentative : vérifier en priorité quel test porte
+  l'`AssertionError` (ligne de code exacte) avant de faire confiance à un résumé.
+  Rapprochement avec l'`ERROR` de teardown ci-dessus : symptômes et tests différents
+  (une `ERROR` de teardown sur le dernier test d'un module contre une `AssertionError`
+  sur deux tests consécutifs d'un autre module), mais H3 ici et l'hypothèse (c) de
+  `enquete-teardown.md` (teardown de la base fichier contre une écriture serveur encore
+  en vol) partagent la même racine structurelle — l'absence de barrière entre la fin
+  d'un test et le suivant sur un `live_server` session-scope. Aucune des deux ne s'appuie
+  sur une preuve dans un sens ou dans l'autre ; à rapprocher si l'une des deux se
+  confirme un jour par un traceback.
 
 - **2026-09-01 (S3, tâche 8, défaut applicatif constaté depuis l'extérieur)** — Taper une
   séquence de départ *textuelle* (ex. `FACT00001`) dans le champ `#invoice_start_sequence`
