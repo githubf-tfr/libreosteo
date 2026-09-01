@@ -533,7 +533,125 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 
 ### Cabinet
 
+### R-CAB-01 — Paramètres du cabinet
+
+- **Domaine** : Cabinet
+- **Couverture auto** : oui — tests/functional/test_cabinet.py
+- **État requis** : E1. Cette fiche modifie durablement l'adresse, le téléphone et
+  l'entête de facture du cabinet : à l'issue de son exécution, remonter l'état E1
+  (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur (nom d'utilisateur en haut à droite) → « Paramètres », onglet
+   « Général ».
+   Attendu : page « Paramètres du cabinet » affichée ; les champs affichent les valeurs
+   du socle E1 : Rue `27 rue Haute`, Code postal `87110`, Ville `Le Vigen`, Téléphone
+   `05 55 12 13 14` ; le champ sous le libellé « Entête de facture » affiche
+   `Cabinet 1`.
+2. Remplacer Rue par `9 place du Marché`, Code postal par `75002`, Ville par `Paris`,
+   Téléphone par `01 02 03 04 05`, Entête de facture par `Cabinet Recette`, cliquer
+   « Mettre à jour ».
+   Attendu : message affiché « Les paramètres ont été mis à jour ».
+3. Recharger la page (revenir sur Paramètres → Général).
+   Attendu : les champs affichent exactement les nouvelles valeurs saisies : Rue
+   `9 place du Marché`, Code postal `75002`, Ville `Paris`, Téléphone
+   `01 02 03 04 05`, Entête de facture `Cabinet Recette` — preuve d'une persistance
+   réelle, pas seulement de l'affichage optimiste qui suit l'enregistrement.
+
+### R-CAB-02 — Séquence de départ de facturation
+
+- **Domaine** : Cabinet
+- **Couverture auto** : oui — tests/functional/test_facturation.py::test_changement_du_numero_de_depart
+- **État requis** : E1. Cette fiche modifie durablement la séquence de départ de
+  facturation : à l'issue de son exécution, remonter l'état E1 (chapitre 1) avant de
+  jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur → « Paramètres », onglet « Général », repérer le champ sous le
+   libellé « Séquence de démarrage de facture ».
+   Attendu : champ affiche `10000` (valeur calculée par défaut, aucune saisie n'ayant
+   encore été faite sur ce champ depuis la construction du socle E1).
+2. Remplacer sa valeur par `20000`, cliquer « Mettre à jour ».
+   Attendu : message affiché « Les paramètres ont été mis à jour ».
+3. Recharger la page.
+   Attendu : le champ affiche `20000`.
+
+### R-CAB-03 — Refus d'une séquence de facturation non numérique
+
+- **Domaine** : Cabinet
+- **Couverture auto** : oui — tests/functional/test_facturation.py::test_numero_de_depart_textuel_refuse
+- **État requis** : E1
+
+**Étapes**
+
+1. Menu utilisateur → « Paramètres », onglet « Général », repérer le champ sous le
+   libellé « Séquence de démarrage de facture » (valeur `10000` au socle E1).
+   Attendu : champ à bordure grise normale ; bouton « Mettre à jour » actif
+   (cliquable).
+2. Remplacer sa valeur par `FACT00001` (texte non numérique), sans cliquer sur
+   « Mettre à jour ».
+   Attendu : le champ passe en bordure et texte rouges ; le bouton « Mettre à jour »
+   devient inactif (non cliquable) ; aucun message de succès ne s'affiche à l'écran.
+3. Passer le pointeur sur le champ, sans cliquer.
+   Attendu : une info-bulle apparaît, texte « La séquence de démarrage doit être
+   composée uniquement de chiffres ».
+
 ### Thérapeute
+
+### R-THE-01 — Compléter le profil thérapeute
+
+- **Domaine** : Thérapeute
+- **Couverture auto** : oui — tests/functional/test_therapeute.py (identifiant
+  professionnel et qualité ; l'identifiant de structure et le pied de page de facture
+  propres au thérapeute n'ont pas d'équivalent automatisé)
+- **État requis** : E1. Cette fiche modifie durablement le profil thérapeute
+  (identifiant professionnel, identifiant de structure, qualité, pied de page de
+  facture) : à l'issue de son exécution, remonter l'état E1 (chapitre 1) avant de
+  jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur → « Profil utilisateur », onglet « Utilisateur ».
+   Attendu : page « Profil utilisateur » affichée ; le champ sous le libellé
+   dynamique « Adeli » affiche `67654684` ; le champ sous le libellé dynamique
+   « SIRET » affiche `52282868700022` ; le champ sous le libellé « Qualité » affiche
+   `Ostéopathe DO` ; le champ sous le libellé « Pied de page de facture » est vide
+   (placeholder « Pied de page de facture » affiché en grisé).
+2. Remplacer l'identifiant professionnel (Adeli) par `99887766`, l'identifiant de
+   structure (SIRET) par `11122233300099`, la Qualité par `Ostéopathe animalier`, et
+   saisir `Merci de votre confiance` dans le pied de page de facture, cliquer
+   « Enregistrer ».
+   Attendu : message affiché « Profil mis à jour ».
+3. Recharger la page.
+   Attendu : les champs affichent exactement les nouvelles valeurs saisies :
+   `99887766`, `11122233300099`, `Ostéopathe animalier`, `Merci de votre confiance`
+   — preuve d'une persistance réelle, pas seulement de l'affichage optimiste qui
+   suit l'enregistrement.
+
+### R-THE-02 — Données du thérapeute et du cabinet reprises sur la facture
+
+- **Domaine** : Thérapeute
+- **Couverture auto** : non
+- **État requis** : E2
+
+**Étapes**
+
+1. Menu du haut, cliquer « Comptabilité ».
+   Attendu : page « Comptabilité » affichée ; le tableau liste une ligne unique :
+   N° de facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de
+   paiement `Chèque`, État `Réglée`.
+2. Sur cette ligne, ouvrir le menu « Actions », cliquer « Imprimer ».
+   Attendu : un nouvel onglet s'ouvre ; titre de page au format
+   `AAAA-MM-JJ-10000-Picard_Jean-Luc` (AAAA-MM-JJ = date du jour) ; le contenu
+   affiche exactement, dans l'ordre : entête `Cabinet 1` ; adresse `27 rue Haute`
+   puis `87110 Le Vigen` ; téléphone `05 55 12 13 14` ; `SIRET : 52282868700022` ;
+   thérapeute `Tester Robot` ; qualité `Ostéopathe DO` ; `Adeli : 67654684` ;
+   patient `Jean-Luc Picard` ; une ligne de lieu et date au format
+   « À Le Vigen, le <date du jour> » ; `Facture 10000` ; le contenu de facture
+   `Template with 55 EUR` ; `Règlement par chèque` ; `HONORAIRES 55,00 EUR` ; pied
+   de page `Footer`.
 
 ### Patient
 
@@ -544,6 +662,64 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### Facturation
 
 ### Médecins traitants
+
+### R-MED-01 — Créer un médecin traitant
+
+- **Domaine** : Médecins traitants
+- **Couverture auto** : non
+- **État requis** : E1. Le seul point d'accès du logiciel à la création d'un médecin
+  traitant est le sélecteur présent sur la fiche d'un patient : cette fiche crée un
+  patient supplémentaire dans la seule finalité d'atteindre ce sélecteur, et le
+  laisse en base à l'issue de son exécution — remonter l'état E1 (chapitre 1) avant
+  de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Lien « Nouveau patient » (menu du haut), créer un patient quelconque (ex. Nom
+   `Passager`, Prénom `Provisoire`, date de naissance `11`/`12`/`1992`, case
+   consentement cochée), bouton « Initialiser la fiche patient ».
+   Attendu : la fiche du nouveau patient s'ouvre ; dans l'onglet « Infos
+   générales », la ligne « Médecin traitant : non renseigné - non renseigné » est
+   affichée.
+2. Cliquer le bouton « Éditer » en haut de la fiche patient.
+   Attendu : la ligne « Médecin traitant » devient un menu déroulant vide,
+   accompagné d'un bouton « + ».
+3. Cliquer le bouton « + ».
+   Attendu : une fenêtre modale s'ouvre, titre « Ajouter un médecin » ; champs
+   « Nom de famille », « Prénom », « Téléphone » et « Ville » ; boutons « Ajouter »
+   et « Annuler ».
+4. Saisir `Lefevre` (Nom de famille), `Paul` (Prénom), `0555000001` (Téléphone),
+   `Limoges` (Ville), cliquer « Ajouter ».
+   Attendu : la fenêtre modale se ferme ; le menu déroulant « Médecin traitant »
+   affiche désormais `Lefevre - Limoges`.
+5. Cliquer le bouton « Fin d'édition ».
+   Attendu : la fiche repasse en lecture ; la ligne affiche
+   « Médecin traitant : Lefevre - Limoges ».
+
+### R-MED-02 — Rattacher un médecin traitant à un patient
+
+- **Domaine** : Médecins traitants
+- **Couverture auto** : non
+- **État requis** : E2. Cette fiche rattache durablement un médecin traitant au
+  patient Picard : à l'issue de son exécution, remonter l'état E2 (chapitre 1) avant
+  de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Rechercher `Picard` (champ de recherche en haut), ouvrir sa fiche, onglet
+   « Infos générales ».
+   Attendu : la ligne « Médecin traitant : non renseigné - non renseigné » est
+   affichée.
+2. Cliquer le bouton « Éditer », puis le bouton « + » à côté du menu déroulant
+   « Médecin traitant ».
+   Attendu : une fenêtre modale s'ouvre, titre « Ajouter un médecin ».
+3. Saisir `Girard` (Nom de famille), `Sophie` (Prénom), `0555000002` (Téléphone),
+   `Limoges` (Ville), cliquer « Ajouter ».
+   Attendu : la fenêtre modale se ferme ; le menu déroulant affiche
+   `Girard - Limoges`.
+4. Cliquer le bouton « Fin d'édition ».
+   Attendu : la fiche patient de Jean-Luc Picard affiche
+   « Médecin traitant : Girard - Limoges ».
 
 ### Agenda
 
