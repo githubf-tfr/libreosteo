@@ -243,12 +243,14 @@ Functional tests
 
 The functional suite (``tests/functional/``) drives the application through a real
 Chromium via `Playwright <https://playwright.dev/python/>`_ and ``pytest``. It is
-independent of ``make check`` and never enters its coverage. Install Chromium once ::
+independent of ``make check`` and never enters its coverage. Install its dependencies and
+Chromium once ::
 
-    playwright install chromium
+    pip install -r requirements/requ-testing.txt
+    playwright install --with-deps chromium
 
-(``.tools/libreosteo-devenv.sh`` does this for you, plus the system libraries Chromium
-needs.) Then run the suite ::
+(``--with-deps`` also installs the system libraries Chromium needs to launch ; Chromium
+itself lands in ``~/.cache/ms-playwright``.) Then run the suite ::
 
     make test-functional
 

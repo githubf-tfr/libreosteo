@@ -85,9 +85,10 @@ Running functional tests
 1. Ensure you have all requirements, including Chromium :
 ```
 pip install -r requirements/requ-testing.txt
-playwright install chromium
+playwright install --with-deps chromium
 ```
-(`.tools/libreosteo-devenv.sh` does this for you, plus the system libraries Chromium needs.)
+(`--with-deps` also installs the system libraries Chromium needs to launch ; Chromium
+itself lands in `~/.cache/ms-playwright`.)
 
 2. Execute the suite:
 ```

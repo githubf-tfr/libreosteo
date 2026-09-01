@@ -34,6 +34,7 @@ run-pg:
 	docker-compose --env-file=.env -f Docker/deploy/pg/docker-compose.yml up
 
 PYTHON := ./.venv/bin/python
+SHELL := /bin/bash
 
 lint:
 	@echo "Analyse statique"
@@ -47,9 +48,13 @@ test:
 
 test-functional:
 	@echo "Tests fonctionnels Playwright"
-	PLAYWRIGHT_BROWSERS_PATH=$(PWD)/.tools/playwright-browsers \
+	set -o pipefail; \
+	if [ -d "$(PWD)/.tools/playwright-browsers" ]; then \
+		export PLAYWRIGHT_BROWSERS_PATH="$(PWD)/.tools/playwright-browsers"; \
+	fi; \
 	$(PYTHON) -m pytest tests/functional --no-cov \
-	  --tracing=retain-on-failure --screenshot=only-on-failure --output=test-results
+	  --tracing=retain-on-failure --screenshot=only-on-failure --output=test-results \
+	  2>&1 | tee pytest-functional.log
 
 check: lint test
 
