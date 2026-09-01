@@ -111,10 +111,11 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     page.fill("input[placeholder*='Titre']", "Licence LibreOsteo")
     # Le champ de date (filemanager.html) est remplace par le widget webshim configure
     # dans static/js/app/app.js (webshim.setOptions('forms-ext', {replaceUI: 'auto',
-    # types: 'date', ...})). Ce format-la, JJ/MM/AAAA "01/10/2012" pour le 10 janvier 2012,
-    # est celui que ce widget accepte ici ; "10/01/2012" est interprete comme le 1er
-    # octobre. Voir KANBAN.md pour le soupcon, non tranche par cette suite, que ce meme
-    # comportement s'applique aussi hors Chromium headless.
+    # types: 'date', ...})). Ce format-la, MM/JJ/AAAA (americain) et non JJ/MM/AAAA,
+    # "01/10/2012" donne le 10 janvier 2012 (assertion plus bas) ; "10/01/2012" serait
+    # interprete comme le 1er octobre. Meme lecture mois-puis-jour que le champ de date de
+    # consultation (tests/functional/test_consultation.py, tache 7). Voir KANBAN.md pour ce
+    # qui reste non tranche : le comportement hors Chromium headless.
     page.fill("input[placeholder*='Date']:visible", "01/10/2012")
     page.fill("p.help-block ~ div", "Licence GNU GPLv3")
     page.click("button.btn.label.label-info")
