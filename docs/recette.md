@@ -188,7 +188,7 @@ docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml
 Volume neuf : appliquer le contournement de l'étape 4 du montage (`pg_isready` puis
 `restart libreosteo`) si nécessaire.
 
-Constaté : `GET /` redirige vers `/install/`, page « Installer LibreOsteo », boutons
+Attendu : `GET /` redirige vers `/install/`, page « Installer LibreOsteo », boutons
 « Restaurer la base de données » et « Enregistrer l'administrateur ».
 
 ### E1 — socle semé
@@ -243,7 +243,7 @@ inactif) sont déjà en place par les migrations — aucune saisie à faire.
 
 Bouton « Enregistrer ».
 
-Constaté : la visite guidée ne se redéclenche plus (professional_id et currency non vides).
+Attendu : la visite guidée ne se redéclenche plus (professional_id et currency non vides).
 
 ### E2 — dossier vivant
 
@@ -310,7 +310,7 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 ### <ID> — <Titre>
 
 - **Domaine** : <un des treize chapitres du cahier>
-- **Couverture auto** : non | oui — tests/functional/test_xxx.py
+- **Couverture auto** : non | oui — tests/functional/test_xxx.py::identifiant_du_test
 - **État requis** : E0 | E1 | E2
 
 **Étapes**
@@ -321,7 +321,10 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 ```
 
 - `ID` : préfixe du domaine + numéro (`R-AUTH-02`, `R-CAB-01`, ...).
-- `Couverture auto` : `non`, ou `oui` suivi du chemin exact du test qui couvre le même cas.
+- `Couverture auto` : `non`, ou `oui` suivi du chemin exact du test qui couvre le même cas,
+  jusqu'à l'identifiant de la fonction (`chemin/vers/test.py::nom_du_test`). Quand ce test ne
+  couvre qu'une partie de ce que la fiche vérifie, une parenthèse le précise — ce que le test
+  couvre, ce qu'il laisse de côté.
 - Chaque étape numérotée porte son propre attendu, littéral et vérifiable — jamais un
   verdict global en fin de fiche. Le verdict par fiche (OK/KO) se pose dans `KANBAN.md`, pas
   ici.
@@ -331,7 +334,9 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 ### R-AUTH-02 — Connexion
 
 - **Domaine** : Authentification
-- **Couverture auto** : oui — tests/functional/test_authentification.py
+- **Couverture auto** : oui — tests/functional/test_authentification.py::test_connexion_valide
+  (couvre la connexion réussie et l'ouverture du menu ; le refus d'un mauvais mot de
+  passe, à l'étape 2, est vérifié par test_connexion_invalide, propre à R-AUTH-04)
 - **État requis** : E1
 
 **Étapes**
@@ -361,7 +366,10 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-INST-01 — Première installation
 
 - **Domaine** : Installation
-- **Couverture auto** : oui — tests/functional/test_installation.py
+- **Couverture auto** : oui — tests/functional/test_installation.py::test_premiere_installation
+  (couvre le titre de la page d'installation et la création de l'administrateur ; le
+  texte d'accueil et les libellés exacts des deux boutons ne sont pas vérifiés
+  automatiquement)
 - **État requis** : E0
 
 **Étapes**
@@ -425,7 +433,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-AUTH-01 — Création du premier utilisateur
 
 - **Domaine** : Authentification
-- **Couverture auto** : oui — tests/functional/test_installation.py
+- **Couverture auto** : oui — tests/functional/test_installation.py::test_premiere_installation
+  (couvre la création de l'administrateur et le retour à la page de connexion ; le
+  contenu exact du formulaire d'enregistrement n'est pas vérifié automatiquement)
 - **État requis** : E0
 
 **Étapes**
@@ -443,7 +453,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-AUTH-02 — Connexion
 
 - **Domaine** : Authentification
-- **Couverture auto** : oui — tests/functional/test_authentification.py
+- **Couverture auto** : oui — tests/functional/test_authentification.py::test_connexion_valide
+  (couvre la connexion réussie et l'ouverture du menu ; le refus d'un mauvais mot de
+  passe, à l'étape 2, est vérifié par test_connexion_invalide, propre à R-AUTH-04)
 - **État requis** : E1
 
 **Étapes**
@@ -484,7 +496,8 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-AUTH-04 — Refus d'un mauvais mot de passe
 
 - **Domaine** : Authentification
-- **Couverture auto** : oui — tests/functional/test_authentification.py
+- **Couverture auto** : oui — tests/functional/test_authentification.py::test_connexion_invalide
+  (le message d'erreur n'est vérifié que par sa présence, pas par son texte exact)
 - **État requis** : E1
 
 **Étapes**
@@ -501,8 +514,8 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-AUTH-05 — Modification du profil utilisateur et du mot de passe
 
 - **Domaine** : Authentification
-- **Couverture auto** : oui — tests/functional/test_therapeute.py (modification du
-  profil ; le changement de mot de passe n'a pas d'équivalent automatisé)
+- **Couverture auto** : oui — tests/functional/test_therapeute.py::test_reglage_du_therapeute
+  (modification du profil ; le changement de mot de passe n'a pas d'équivalent automatisé)
 - **État requis** : E1. Cette fiche modifie durablement le nom et le mot de passe du
   compte `test` du socle E1 : à l'issue de son exécution, remonter l'état E1
   (chapitre 1) avant de jouer une autre fiche qui en dépend.
@@ -536,7 +549,10 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-CAB-01 — Paramètres du cabinet
 
 - **Domaine** : Cabinet
-- **Couverture auto** : oui — tests/functional/test_cabinet.py
+- **Couverture auto** : oui — tests/functional/test_cabinet.py::test_reglage_du_cabinet
+  (vérifie en base les nouvelles valeurs enregistrées ; ni les valeurs initiales du
+  socle, ni le message de confirmation, ni leur réaffichage après rechargement ne
+  sont vérifiés automatiquement)
 - **État requis** : E1. Cette fiche modifie durablement l'adresse, le téléphone et
   l'entête de facture du cabinet : à l'issue de son exécution, remonter l'état E1
   (chapitre 1) avant de jouer une autre fiche qui en dépend.
@@ -603,9 +619,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-THE-01 — Compléter le profil thérapeute
 
 - **Domaine** : Thérapeute
-- **Couverture auto** : oui — tests/functional/test_therapeute.py (identifiant
-  professionnel et qualité ; l'identifiant de structure et le pied de page de facture
-  propres au thérapeute n'ont pas d'équivalent automatisé)
+- **Couverture auto** : oui — tests/functional/test_therapeute.py::test_reglage_du_therapeute
+  (identifiant professionnel et qualité ; l'identifiant de structure et le pied de page de
+  facture propres au thérapeute n'ont pas d'équivalent automatisé)
 - **État requis** : E1. Cette fiche modifie durablement le profil thérapeute
   (identifiant professionnel, identifiant de structure, qualité, pied de page de
   facture) : à l'issue de son exécution, remonter l'état E1 (chapitre 1) avant de
@@ -841,8 +857,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
    Attendu : une fenêtre modale s'ouvre, titre « Confirmer », texte « Êtes-vous
    sûr(e) de supprimer ce document ? », boutons « Ok » et « Annuler ».
 3. Cliquer « Ok ».
-   Attendu : après un bref délai réseau, la vignette « Radiographie lombaire »
-   disparaît de la liste ; le document n'apparaît plus dans l'onglet.
+   Attendu : la modale se ferme ; la vignette « Radiographie lombaire » disparaît de
+   la liste sans qu'il soit nécessaire de recharger la page ; recharger complètement
+   la page pour confirmer : le document n'apparaît plus dans l'onglet.
 
 ### R-DOC-04 — Suppression du patient : documents supprimés en cascade
 
@@ -1004,8 +1021,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 
 1. Menu du haut, cliquer « Comptabilité ».
    Attendu : titre de page « Comptabilité » ; un bouton de période affichant
-   l'intervalle du mois en cours (ex. « mardi 1 septembre 2026 → mercredi 30
-   septembre 2026 ») ; un bouton « Exporter » proposant une entrée « XLSX » ; une
+   l'intervalle du mois en cours, du premier au dernier jour de ce mois, au format
+   « <jour de semaine> <jour> <mois> <année> → <jour de semaine> <jour> <mois>
+   <année> » ; un bouton « Exporter » proposant une entrée « XLSX » ; une
    ligne « Montant total sur la période sélectionnée : 55 » ; un tableau avec les
    colonnes « N° de facture », « Date », « Patient », « Montant », « Moyen de
    paiement », « État », « Par », « Actions » ; une seule ligne, celle de l'état
@@ -1330,8 +1348,8 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
    un champ de fichier (libellé « Fichier d'archive à restaurer ») et un bouton
    « Restaurer ».
 4. Choisir le fichier téléchargé à l'étape 1, cliquer « Restaurer ».
-   Attendu : après un bref délai, retour à la page de connexion
-   (`/accounts/login/?next=/`, titre de page « Identifiez-vous sur LibreOsteo »).
+   Attendu : retour à la page de connexion (`/accounts/login/?next=/`, titre de page
+   « Identifiez-vous sur LibreOsteo »).
 5. S'identifier avec `test` / `test`, saisir `Picard` dans le champ de recherche,
    valider.
    Attendu : la fiche de Jean-Luc Picard s'affiche ; l'onglet « Consultations »

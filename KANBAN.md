@@ -200,6 +200,17 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   que couvrent désormais les fiches `R-AGE-01` et `R-AGE-02`. Constat utile pour
   cadrer un prochain sprint, pas un défaut à corriger ; le titre du domaine et les
   fiches du cahier de recette restent inchangés.
+- (S4, tâche 9) **L'icône de statut d'une consultation, sur la timeline du patient, ne
+  distingue pas facturée de non facturée.** Vérifié sur
+  `libreosteoweb/templates/partials/timeline.html:14`
+  (`ng-class="{'fa-check': examination.status >= 2, 'fa-money': examination.status == 1,
+  'fa-play': examination.status == 0}"`) et les statuts définis en commentaire dans
+  `libreosteoweb/models.py:171-174` (`0` en cours, `1` facturée non réglée, `2` facturée
+  et réglée, `3` non facturée) : la condition `status >= 2` couvre à la fois `2`
+  (facturée et réglée) et `3` (non facturée), qui affichent donc la même coche verte.
+  Seule la couleur du badge varie, et elle reflète le type d'examen
+  (normal/suite/retour/urgence), pas le statut de facturation. Constat utile, pas un
+  défaut à corriger ici ; couvert par `R-PAT-04` du cahier de recette.
 
 ## En cours
 
