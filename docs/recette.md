@@ -239,7 +239,7 @@ inactif) sont déjà en place par les migrations — aucune saisie à faire.
 | Email | `test@test.com` |
 | Identifiant professionnel (sous le libellé dynamique « Adeli ») | `67654684` |
 | Identifiant de structure (sous le libellé dynamique « SIRET ») | `52282868700022` |
-| Qualité (champ suivant, sans libellé statique) | `Ostéopathe DO` |
+| Qualité (sous le libellé « Qualité ») | `Ostéopathe DO` |
 
 Bouton « Enregistrer ».
 

@@ -165,6 +165,14 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 - ~~(S3, tâche 5) `libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
   jour calendaire UTC puis la borne en horaires locaux~~ — **corrigé le 2026-09-01**,
   défaut C de S3 bis, cf. « Terminé ».
+- (S4, tâche 4) **Doublon patient non détecté si la date de naissance diffère.** Constaté
+  en construisant un patient jetable pour la fiche `R-MED-01` du cahier de recette : créer
+  un patient avec un nom+prénom strictement identiques à un patient déjà existant, mais
+  une date de naissance différente, n'est pas bloqué — la création aboutit, alors que le
+  même bandeau d'avertissement transitoire s'affiche que dans le cas bloqué (nom+prénom+
+  date de naissance identiques, refusé avec le message « Ce patient existe déjà »,
+  HTTP 400). Attendu : un comportement cohérent entre les deux cas. Domaine Patient, hors
+  périmètre de la tâche 4.
 
 ## En cours
 
