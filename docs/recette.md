@@ -858,8 +858,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
    sûr(e) de supprimer ce document ? », boutons « Ok » et « Annuler ».
 3. Cliquer « Ok ».
    Attendu : la modale se ferme ; la vignette « Radiographie lombaire » disparaît de
-   la liste sans qu'il soit nécessaire de recharger la page ; recharger complètement
-   la page pour confirmer : le document n'apparaît plus dans l'onglet.
+   la liste sans qu'il soit nécessaire de recharger la page.
+4. Recharger complètement la page (touche F5 ou équivalent).
+   Attendu : le document n'apparaît plus dans l'onglet.
 
 ### R-DOC-04 — Suppression du patient : documents supprimés en cascade
 
