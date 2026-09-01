@@ -358,7 +358,178 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 
 ### Installation
 
+### R-INST-01 — Première installation
+
+- **Domaine** : Installation
+- **Couverture auto** : oui — tests/functional/test_installation.py
+- **État requis** : E0
+
+**Étapes**
+
+1. Aller sur l'URL racine de l'instance.
+   Attendu : redirection vers `/install/` ; titre de page « Installer LibreOsteo » ;
+   texte « Merci d'avoir choisi LibreOsteo comme votre logiciel pour gérer vos
+   patients. » affiché ; deux boutons « Restaurer la base de données » et
+   « Enregistrer l'administrateur ».
+
+### R-INST-02 — Rejeu idempotent
+
+- **Domaine** : Installation
+- **Couverture auto** : non
+- **État requis** : E2. Cette fiche arrête puis relance les conteneurs sans purger les
+  volumes : son exécution laisse l'instance dans un état à reconstruire — remonter
+  l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Depuis l'état E2, arrêter les conteneurs sans purger les volumes puis les relancer
+   (`docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml
+   down` puis `up -d`, cf. chapitre 0 — sans les étapes de purge du chapitre 1).
+   Attendu : aucune erreur au démarrage ; `GET /` redirige vers
+   `/accounts/login/?next=/` (l'administrateur créé à l'état E1 est toujours présent,
+   aucune ré-installation n'est proposée).
+2. S'identifier avec `test` / `test`.
+   Attendu : titre de page « LibreOsteo » ; connexion acceptée.
+3. Dans le champ de recherche (en haut de l'écran), saisir `Picard`, valider.
+   Attendu : la fiche patient de Jean-Luc Picard s'affiche (titre de page contenant
+   « Picard Jean-Luc ») ; l'onglet « Consultations » liste les deux consultations créées
+   à l'état E2 ; l'onglet « Compte-rendus médicaux » liste le document
+   « Radiographie lombaire ».
+
+### R-INST-03 — Persistance au redémarrage
+
+- **Domaine** : Installation
+- **Couverture auto** : non
+- **État requis** : E2. Cette fiche redémarre les conteneurs en place (sans les
+  recréer) : son exécution laisse l'instance dans un état à reconstruire — remonter
+  l'état E2 (chapitre 1), avec une nouvelle connexion, avant de jouer une autre fiche
+  qui en dépend.
+
+**Étapes**
+
+1. Depuis l'état E2, s'identifier avec `test` / `test` dans un navigateur, sans fermer
+   la fenêtre ensuite.
+   Attendu : titre de page « LibreOsteo » ; connexion acceptée.
+2. Sans fermer cette fenêtre de navigateur, redémarrer les conteneurs en place
+   (`docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml
+   restart`, cf. chapitre 0).
+   Attendu : aucune erreur au redémarrage (migrations déjà appliquées, aucun
+   « Applying ... » dans les journaux).
+3. Dans la même fenêtre de navigateur, retourner sur l'URL racine de l'instance.
+   Attendu : titre de page « LibreOsteo » directement, sans repasser par la page de
+   connexion (la session reste valide) ; le patient `Picard` reste accessible depuis le
+   champ de recherche.
+
 ### Authentification
+
+### R-AUTH-01 — Création du premier utilisateur
+
+- **Domaine** : Authentification
+- **Couverture auto** : oui — tests/functional/test_installation.py
+- **État requis** : E0
+
+**Étapes**
+
+1. Sur la page d'installation, cliquer le bouton « Enregistrer l'administrateur ».
+   Attendu : un formulaire s'affiche dans le panneau latéral droit, titre
+   « Enregistrement » ; champ texte (placeholder « Votre nom d'utilisateur »), deux
+   champs mot de passe (placeholders « Mot de passe » et « Confirmation du mot de
+   passe ») et un bouton « Enregistrer ».
+2. Saisir `test` comme nom d'utilisateur et `test` dans les deux champs de mot de
+   passe, cliquer « Enregistrer ».
+   Attendu : titre de page « Identifiez-vous sur LibreOsteo » (retour à la page de
+   connexion) ; aucun message d'erreur affiché.
+
+### R-AUTH-02 — Connexion
+
+- **Domaine** : Authentification
+- **Couverture auto** : oui — tests/functional/test_authentification.py
+- **État requis** : E1
+
+**Étapes**
+
+1. Aller sur l'URL racine de l'instance.
+   Attendu : titre de page « Identifiez-vous sur LibreOsteo » ; formulaire avec un champ
+   texte (placeholder « Votre nom d'utilisateur »), un champ mot de passe (placeholder
+   « Mot de passe ») et un bouton « Identification ».
+2. Saisir un identifiant et un mot de passe erronés (ex. `demo` / `demo`), cliquer
+   « Identification ».
+   Attendu : reste sur la page de connexion (titre inchangé) ; message d'erreur affiché
+   « Votre nom d'utilisateur et mot de passe ne correspondent pas. Veuillez réessayer s'il
+   vous plaît. ».
+3. Saisir `test` / `test`, cliquer « Identification ».
+   Attendu : titre de page « LibreOsteo » ; le nom d'utilisateur `test` est visible en haut
+   à droite de l'écran.
+4. Cliquer sur le nom d'utilisateur en haut à droite.
+   Attendu : un menu se déplie, listant au moins « Profil utilisateur », « Paramètres » et
+   « Déconnexion ».
+
+### R-AUTH-03 — Déconnexion
+
+- **Domaine** : Authentification
+- **Couverture auto** : non
+- **État requis** : E1
+
+**Étapes**
+
+1. Depuis une session connectée (`test` / `test`), cliquer sur le nom d'utilisateur en
+   haut à droite puis, dans le menu qui se déplie, cliquer « Déconnexion ».
+   Attendu : titre de page « Identifiez-vous sur LibreOsteo » ; formulaire de connexion
+   affiché (champ texte placeholder « Votre nom d'utilisateur », champ mot de passe
+   placeholder « Mot de passe », bouton « Identification ») ; aucun message d'erreur.
+2. Retourner sur l'URL racine de l'instance.
+   Attendu : titre de page « Identifiez-vous sur LibreOsteo » (l'accès à l'application
+   reste refusé sans nouvelle identification).
+
+### R-AUTH-04 — Refus d'un mauvais mot de passe
+
+- **Domaine** : Authentification
+- **Couverture auto** : oui — tests/functional/test_authentification.py
+- **État requis** : E1
+
+**Étapes**
+
+1. Aller sur l'URL racine de l'instance.
+   Attendu : titre de page « Identifiez-vous sur LibreOsteo » ; formulaire de connexion
+   affiché.
+2. Saisir l'identifiant existant `test` et un mot de passe erroné (ex. `mauvais-mdp`),
+   cliquer « Identification ».
+   Attendu : reste sur la page de connexion (titre inchangé) ; message d'erreur affiché
+   « Votre nom d'utilisateur et mot de passe ne correspondent pas. Veuillez réessayer
+   s'il vous plaît. » ; aucun accès à l'application.
+
+### R-AUTH-05 — Modification du profil utilisateur et du mot de passe
+
+- **Domaine** : Authentification
+- **Couverture auto** : oui — tests/functional/test_therapeute.py (modification du
+  profil ; le changement de mot de passe n'a pas d'équivalent automatisé)
+- **État requis** : E1. Cette fiche modifie durablement le nom et le mot de passe du
+  compte `test` du socle E1 : à l'issue de son exécution, remonter l'état E1
+  (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Cliquer sur le nom d'utilisateur en haut à droite → « Profil utilisateur », onglet
+   « Utilisateur ».
+   Attendu : titre de page « LibreOsteo » ; page « Profil utilisateur » affichée ; les
+   champs Nom, Prénom et Email affichent respectivement `Tester`, `Robot` et
+   `test@test.com` (valeurs du socle E1).
+2. Remplacer la valeur du champ Nom par `TesterModifie`, cliquer « Enregistrer ».
+   Attendu : message affiché « Profil mis à jour » ; le champ Nom affiche
+   `TesterModifie`.
+3. Cliquer le bouton « Modifier le mot de passe ».
+   Attendu : une fenêtre modale s'ouvre, titre « Modifier le mot de passe » ; champs
+   « Mot de passe » et « Confirmation du mot de passe » ; boutons « Valider » et
+   « Annuler ».
+4. Saisir `nouveaumdp` dans les deux champs, cliquer « Valider ».
+   Attendu : la modale se ferme ; message affiché « Le mot de passe a été modifié. ».
+5. Cliquer sur le nom d'utilisateur en haut à droite → « Déconnexion », puis tenter de
+   s'identifier avec `test` / `test` (l'ancien mot de passe).
+   Attendu : reste sur la page de connexion ; message d'erreur affiché « Votre nom
+   d'utilisateur et mot de passe ne correspondent pas. Veuillez réessayer s'il vous
+   plaît. ».
+6. S'identifier avec `test` / `nouveaumdp`.
+   Attendu : titre de page « LibreOsteo » ; connexion acceptée.
 
 ### Cabinet
 
