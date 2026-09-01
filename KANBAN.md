@@ -229,6 +229,7 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   d'un import réel de 86 à 99 s.~~ — **corrigé le 2026-09-01 (suivi post-S4)**,
   `--http-timeout 180` sur la commande `uwsgi` de
   `Docker/build/http-ready/Dockerfile`, cf. « Terminé ».
+
 ### Défauts produit à corriger
 
 - (S4, tâche 10) **Le filtre de casse des noms écrase toute majuscule interne
