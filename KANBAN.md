@@ -152,16 +152,59 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   au lieu de la refuser (AngularJS ne recopie jamais une valeur en échec de validateur
   dans le modèle ; le bouton d'enregistrement ne porte aucune garde de validité). Détail
   en « Pièges rencontrés », tâche 8.
-- (S3, tâche 5) **`libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
-  jour calendaire UTC puis la borne en horaires locaux** : sa borne de fin de journée
-  tombe jusqu'à deux heures avant minuit UTC réel, tous les jours, toute l'année. Défaut
-  de production, hors périmètre de test ; détail en « Pièges rencontrés », tâche 5.
+- ~~(S3, tâche 5) `libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
+  jour calendaire UTC puis la borne en horaires locaux~~ — **corrigé le 2026-09-01**,
+  défaut C de S3 bis, cf. « Terminé ».
 
 ## En cours
 
 _(vide — S3 clôturé, S4 pas encore cadré.)_
 
 ## Terminé
+
+- **2026-09-01 (S3 bis, défaut C)** — **`libreosteoweb/api/statistics.py` calculait sa
+  fenêtre du jour en UTC, corrigé.** Défaut de production identifié à la tâche 5 de S3
+  (cf. « Dette technique » ci-avant, alors non corrigé), repris avec les défauts A et B
+  avant clôture de S3 bis (gel du code applicatif levé pour ces trois-là uniquement,
+  `docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md` remplacé par
+  `s3bis-defauts-applicatifs.md`). Mécanisme : `Statistics.get_statistics` (fin de
+  journée) et les trois `get_start_of_period` (`WeekPeriod`, `MonthPeriod`,
+  `YearPeriod`) passaient un `datetime` **déjà aware UTC** à `datetime.combine(x, ...)`,
+  qui prend `x.year/month/day` tels qu'exprimés dans le tzinfo de `x` (donc le jour
+  calendaire **UTC**) en ignorant son heure et son tzinfo, puis `timezone.make_aware()`
+  réinterprétait ce même jour comme minuit/23:59 **Europe/Paris** — un jour UTC combiné à
+  une horloge locale. Écart non nul en permanence (1 h l'hiver, 2 h l'été) : un acte
+  saisi entre minuit local et minuit UTC tombait hors de la fenêtre du jour/de la
+  semaine, et `WeekPeriod`/`MonthPeriod`/`YearPeriod` pouvaient choisir le mauvais
+  lundi/mois/an, pas seulement la mauvaise heure. Correctif : relocaliser l'instant
+  *avant* d'en extraire une date, jamais après — `timezone.localdate(start_date)` pour la
+  borne de fin de journée, `timezone.localtime(current_date)` (au lieu de
+  `copy.copy(current_date)`) en tête des trois `get_start_of_period`, `import copy`
+  devenu inutile supprimé. `timezone.localdate`/`timezone.localtime` lisent
+  `settings.TIME_ZONE` (`Europe/Paris`), jamais l'horloge/le fuseau du système qui
+  exécute le code.
+  Tests : trois nouveaux cas dans `TestBornesDePeriode`
+  (`libreosteoweb/tests/test_exploitation.py`), un par sous-classe de période, choisis
+  pour que le jour calendaire UTC et le jour local tombent dans des semaine/mois/année
+  différents (rouge avant correctif : `2020-01-01` retenu au lieu de `2021-01-01` pour le
+  cas année, entre autres) ; nouvelle classe `TestBorneDeFinDeJournee` isolant le bug de
+  fin de journée de celui de `WeekPeriod` (instant dont le jour UTC et le jour local
+  restent dans la même semaine calendaire). `test_les_donnees_du_jour_sont_comptees`
+  (ancré à midi UTC par le commit `1323c40` pour contourner ce défaut, cf. « Pièges
+  rencontrés », tâche 5) revient à `timezone.now()`/`timezone.localdate()` sans
+  contournement — il prouve désormais le comportement plutôt que de l'éviter. Tous les
+  cas nouveaux/changés construisent l'instant en dur (`datetime(..., tzinfo=timezone.utc)`),
+  jamais `timezone.now()` ni de mock d'horloge : indépendants de l'heure de lancement et
+  du fuseau de la machine qui exécute `pytest`.
+  Décision distincte : `libreosteoweb/api/serializers.py:87` (`ret["consent"] =
+  timezone.now().date()`) partage le même motif (jour calendaire UTC pris pour un jour
+  local) mais n'a pas été touché ici — hors du périmètre nommé pour le défaut C
+  (`statistics.py`), à traiter comme un défaut séparé s'il est retenu. `models.py:116` et
+  `serializers.py:59` (`date.today()`, horloge système plutôt que `TIME_ZONE`) sont un
+  motif apparenté mais distinct, déjà signalés en tâche 5 de S3, non repris non plus.
+  Conception : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/design-defaut-C.md`.
+  Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
+  rapport-defaut-C.md`.
 
 - **2026-09-01** — **S3, tests fonctionnels Playwright** livré (11 tâches ; la spec reste
   sous `docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md`, le plan est

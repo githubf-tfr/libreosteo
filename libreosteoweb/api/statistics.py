@@ -12,7 +12,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-import copy
 import datetime
 from datetime import timedelta
 
@@ -51,7 +50,7 @@ class Statistics(object):
             }
         period = self.subclass()
         end_date = timezone.make_aware(
-            datetime.datetime.combine(start_date, datetime.time.max)
+            datetime.datetime.combine(timezone.localdate(start_date), datetime.time.max)
         )
         return self.compute_statistics(
             period.get_start_of_period(start_date), end_date, statistics_obj
@@ -148,9 +147,9 @@ class Statistics(object):
 class WeekPeriod(object):
     def get_start_of_period(self, current_date=None):
         if current_date is None:
-            d = timezone.now()
+            d = timezone.localtime(timezone.now())
         else:
-            d = copy.copy(current_date)
+            d = timezone.localtime(current_date)
 
         while d.weekday() != 0:
             d = d - timedelta(days=1)
@@ -164,9 +163,9 @@ class WeekPeriod(object):
 class MonthPeriod(object):
     def get_start_of_period(self, current_date=None):
         if current_date is None:
-            d = timezone.now()
+            d = timezone.localtime(timezone.now())
         else:
-            d = copy.copy(current_date)
+            d = timezone.localtime(current_date)
 
         d = d.replace(day=1)
         return timezone.make_aware(datetime.datetime.combine(d, datetime.time.min))
@@ -179,9 +178,9 @@ class MonthPeriod(object):
 class YearPeriod(object):
     def get_start_of_period(self, current_date=None):
         if current_date is None:
-            d = timezone.now()
+            d = timezone.localtime(timezone.now())
         else:
-            d = copy.copy(current_date)
+            d = timezone.localtime(current_date)
 
         d = d.replace(day=1, month=1)
         return timezone.make_aware(datetime.datetime.combine(d, datetime.time.min))
