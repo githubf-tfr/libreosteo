@@ -28,4 +28,5 @@ def cree_facture(
         number=numero,
         patient_family_name="Picard",
         content_invoice=cabinet.invoice_content,
+        officesettings_id=cabinet.id,
     )

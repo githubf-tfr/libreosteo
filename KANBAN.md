@@ -252,6 +252,27 @@ Aucun code touché à ce stade.
   fichier, comme fait l'enquête sous `repro-teardown/run-NN.log`, hors dépôt), pour que la
   prochaine `ERROR` laisse enfin un traceback exploitable.
 
+- **2026-09-01 (S3, tâche 8, défaut applicatif constaté depuis l'extérieur)** — Taper une
+  séquence de départ *textuelle* (ex. `FACT00001`) dans le champ `#invoice_start_sequence`
+  des réglages du cabinet est silencieusement ignoré : l'utilisateur reçoit un growl de
+  succès, la valeur enregistrée n'est jamais celle tapée.
+  `ng-pattern='/^\d+$/'` (`libreosteoweb/templates/partials/office-settings.html:209`)
+  marque bien le champ `ng-invalid`, mais `$ngModelCtrl` ne recopie jamais, comportement
+  standard d'AngularJS, une valeur en échec de validateur dans
+  `officesettings.invoice_start_sequence` (`ng-model`, même fichier, ligne 202) : le
+  `$modelValue` reste à sa valeur précédente, vide au premier essai. Le bouton
+  d'enregistrement (`ng-click="updateSettings(officesettings)"`, même fichier,
+  lignes 248-250) ne porte aucune garde de validité de formulaire — son `ng-disabled` ne
+  regarde que `user.is_staff`, jamais `form.$invalid` — et soumet donc une séquence vide.
+  Côté serveur, `OfficeSettingsSerializer.validate` (`libreosteoweb/api/serializers.py:368-374`)
+  traite cette valeur vide exactement comme une clé absente, « non fournie », et lui
+  substitue son repli par défaut (dernier numéro de facture, sinon 10000) ;
+  `OfficeSettingsView.perform_update` (`libreosteoweb/api/views.py:626-651`) suit alors la
+  même branche que pour une clé manquante et renvoie un 200. Constaté depuis l'extérieur
+  par `tests/functional/test_facturation.py::test_numero_de_depart_textuel_ignore` (tâche 8) ;
+  défaut applicatif réel, délibérément non corrigé dans S3 — la suite fonctionnelle prouve
+  des parcours, elle ne répare pas l'application sous test.
+
 - **2026-08-31 (S3, tâche 5)** — Trois tests unitaires échouent de façon déterministe
   entre 22h et minuit UTC (heure d'été), tous les jours : `test_dossier_patient.py::
   TestValidationPatient::test_date_de_naissance_future_est_refusee`,
