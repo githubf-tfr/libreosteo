@@ -655,7 +655,226 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 
 ### Patient
 
+### R-PAT-01 — Créer un patient nominal
+
+- **Domaine** : Patient
+- **Couverture auto** : oui — tests/functional/test_patient.py::test_creation_patient_et_refus_du_doublon
+- **État requis** : E1. Cette fiche crée durablement le patient Jean-Luc Picard :
+  remonter l'état E1 (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Lien « Nouveau patient » (menu du haut).
+   Attendu : titre de page « Nouveau patient » ; formulaire avec un champ (placeholder
+   « Nom de famille »), un champ (placeholder « Nom de naissance »), un champ
+   (placeholder « Prénom »), un champ de date sous le libellé « Date de naissance »
+   (trois cases jour/mois/année), une case à cocher de consentement RGPD et un bouton
+   « Initialiser la fiche patient » désactivé (non cliquable).
+2. Saisir `Picard` (Nom de famille), `Jean-Luc` (Prénom), `13`/`07`/`1935` (date de
+   naissance), cocher la case de consentement.
+   Attendu : le bouton « Initialiser la fiche patient » devient actif (cliquable).
+3. Cliquer « Initialiser la fiche patient ».
+   Attendu : la fiche du nouveau patient s'ouvre, URL de la forme
+   `.../#/patient/<id>` ; le titre de page affiche « Picard Jean-Luc » suivi de l'âge
+   calculé (variable selon la date du jour).
+
+### R-PAT-02 — Éditer une fiche patient
+
+- **Domaine** : Patient
+- **Couverture auto** : oui — tests/functional/test_patient.py::test_edition_du_dossier_patient
+- **État requis** : E2. Cette fiche modifie durablement le sexe et l'adresse du
+  patient Picard : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui
+  en dépend.
+
+**Étapes**
+
+1. Rechercher `Picard` (champ de recherche en haut), ouvrir sa fiche, onglet « Infos
+   générales ».
+   Attendu : le panneau « Infos patient » affiche « Date de naissance : 13/07/1935 »
+   et « Sexe : non renseigné ».
+2. Cliquer « Éditer ».
+   Attendu : les boutons « Fin d'édition » et « Supprimer » deviennent visibles.
+3. Choisir « Masculin » dans le menu déroulant Sexe, saisir `4 rue de l'Angle` dans le
+   champ (placeholder « Rue »), `La Barre` dans le champ (placeholder « Ville »),
+   cliquer « Fin d'édition ».
+   Attendu : aucun message de confirmation ne s'affiche (contrairement aux
+   Paramètres du cabinet ou au Profil utilisateur) ; le panneau affiche
+   immédiatement « Sexe : Masculin », `4 rue de l'Angle` et `La Barre`.
+4. Recharger complètement la page.
+   Attendu : le panneau affiche toujours « Sexe : Masculin », `4 rue de l'Angle` et
+   `La Barre` — preuve d'une persistance réelle, pas seulement de l'affichage
+   optimiste qui suit l'enregistrement.
+
+### R-PAT-03 — Détection de doublon à la création
+
+- **Domaine** : Patient
+- **Couverture auto** : oui — tests/functional/test_patient.py::test_creation_patient_et_refus_du_doublon
+  (étape du doublon exact uniquement ; la seconde étape ci-dessous n'a pas
+  d'équivalent automatisé)
+- **État requis** : E2. Cette fiche laisse en base un second patient « Picard
+  Jean-Luc » (voir étape 2) : remonter l'état E2 (chapitre 1) avant de jouer une
+  autre fiche qui en dépend.
+
+**Étapes**
+
+1. Lien « Nouveau patient », saisir `Picard` (Nom de famille), `Jean-Luc` (Prénom),
+   `13`/`07`/`1935` (date de naissance, identique au patient déjà en base), cocher le
+   consentement, cliquer « Initialiser la fiche patient ».
+   Attendu : reste sur le formulaire « Nouveau patient » (aucune navigation) ;
+   message affiché « Ce patient existe déjà ».
+2. Retourner sur l'URL racine de l'instance, puis lien « Nouveau patient » à nouveau.
+   Saisir `Picard` (Nom de famille), `Jean-Luc` (Prénom), une date de naissance
+   différente (ex. `05`/`05`/`1945`), cocher le consentement, cliquer « Initialiser
+   la fiche patient ».
+   Attendu : la fiche du nouveau patient s'ouvre, URL de la forme
+   `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — à la différence de
+   l'étape 1, cette création aboutit alors que le nom et le prénom sont strictement
+   identiques à ceux d'un patient déjà existant.
+3. Dans le champ de recherche, saisir `Picard`, valider.
+   Attendu : la liste de résultats affiche deux entrées, toutes deux intitulées
+   « Picard Jean-Luc », strictement indiscernables l'une de l'autre dans la liste.
+
+### R-PAT-04 — Timeline du patient : consultations et documents
+
+- **Domaine** : Patient
+- **Couverture auto** : non
+- **État requis** : E2
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations ».
+   Attendu : deux entrées dans la timeline, chacune titrée « Séance du <date du
+   jour> » (date d'exécution de la fiche) ; les deux portent un badge vert avec une
+   icône de coche (l'icône ne distingue pas facturée de non facturée : seul le
+   statut de clôture est reflété) ; le corps de chaque entrée affiche « Motif de
+   consultation ».
+2. Cliquer l'onglet « Compte-rendus médicaux ».
+   Attendu : une vignette de document, titre en gras « Radiographie lombaire »,
+   date affichée `01-01-2024`, libellé « Notes » suivi du texte
+   « Document de recette ».
+
+### R-PAT-05 — Saisie et relecture de la date de naissance
+
+- **Domaine** : Patient
+- **Couverture auto** : oui — tests/functional/test_patient.py::test_edition_de_la_date_de_naissance
+- **État requis** : E1. Cette fiche crée un patient supplémentaire dans la seule
+  finalité de disposer d'une fiche éditable, et le laisse en base à l'issue de son
+  exécution — remonter l'état E1 (chapitre 1) avant de jouer une autre fiche qui en
+  dépend.
+
+**Étapes**
+
+1. Lien « Nouveau patient », créer un patient quelconque (ex. Nom `Crusher`, Prénom
+   `Beverly`, date de naissance `01`/`01`/`1950`, case consentement cochée), bouton
+   « Initialiser la fiche patient ».
+   Attendu : la fiche du nouveau patient s'ouvre ; le panneau « Infos patient »
+   affiche « Date de naissance : 01/01/1950 ».
+2. Cliquer « Éditer », puis dans le champ de saisie de la date de naissance (à droite
+   du libellé « Date de naissance »), sélectionner tout le contenu du champ et taper
+   `03/02/1935`.
+   Attendu : le champ affiche `03/02/1935`.
+3. Cliquer « Fin d'édition ».
+   Attendu : le panneau affiche « Date de naissance : 03/02/1935 » — jour `03`, mois
+   `02`, et non `02/03` qui serait une lecture jour/mois inversée.
+4. Recharger complètement la page.
+   Attendu : le panneau affiche toujours « Date de naissance : 03/02/1935 » — preuve
+   d'une persistance réelle, à la bonne valeur.
+
 ### Documents patient
+
+### R-DOC-01 — Joindre un document au patient
+
+- **Domaine** : Documents patient
+- **Couverture auto** : non
+- **État requis** : E2. Cette fiche joint durablement un second document au patient
+  Picard : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
+  dépend.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Compte-rendus médicaux ».
+   Attendu : une seule vignette de document affichée, « Radiographie lombaire » ;
+   texte d'aide « Ajouter des documents en tant que rapport médicaux. Cela peut-être
+   une image, un pdf, un fichier texte, ... » affiché sous le libellé « Ajouter des
+   documents ».
+2. Choisir le fichier `tests/functional/resources/patients_1.csv`.
+   Attendu : le nom `patients_1.csv` apparaît, suivi d'un bouton « Cliquer pour
+   envoyer », d'un champ (placeholder « Titre »), d'un champ (placeholder « Date »)
+   et d'une zone « Notes ».
+3. Saisir `Compte-rendu radio` (Titre), `15/03/2024` (Date), `Notes du document
+   ajouté` (Notes), cliquer « Cliquer pour envoyer ».
+   Attendu : le bouton passe à « en cours... » puis le formulaire d'envoi disparaît ;
+   une nouvelle vignette « Compte-rendu radio » apparaît dans la liste, avant
+   « Radiographie lombaire » (classement par date décroissante) ; deux vignettes au
+   total.
+
+### R-DOC-02 — Consulter et télécharger le document joint
+
+- **Domaine** : Documents patient
+- **Couverture auto** : non
+- **État requis** : E2
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Compte-rendus médicaux ».
+   Attendu : une vignette de document, titre en gras « Radiographie lombaire », date
+   affichée `01-01-2024`, libellé « Notes » suivi du texte « Document de recette ».
+2. Cliquer sur l'icône du document, dans la vignette.
+   Attendu : un nouvel onglet s'ouvre et le téléchargement du fichier
+   `patients_1.csv` démarre.
+
+### R-DOC-03 — Supprimer un document
+
+- **Domaine** : Documents patient
+- **Couverture auto** : non
+- **État requis** : E2. Cette fiche supprime durablement le document du patient
+  Picard : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
+  dépend.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Compte-rendus médicaux ». Sur la
+   vignette « Radiographie lombaire », cliquer le bouton d'édition (icône crayon).
+   Attendu : la vignette passe en mode édition ; des boutons de validation,
+   d'annulation et de suppression (icônes coche, croix, corbeille) apparaissent.
+2. Cliquer le bouton de suppression (icône corbeille).
+   Attendu : une fenêtre modale s'ouvre, titre « Confirmer », texte « Êtes-vous
+   sûr(e) de supprimer ce document ? », boutons « Ok » et « Annuler ».
+3. Cliquer « Ok ».
+   Attendu : après un bref délai réseau, la vignette « Radiographie lombaire »
+   disparaît de la liste ; le document n'apparaît plus dans l'onglet.
+
+### R-DOC-04 — Suppression du patient : documents supprimés en cascade
+
+- **Domaine** : Documents patient
+- **Couverture auto** : non (tests/functional/test_patient.py::test_suppression_rgpd
+  et libreosteoweb/tests/test_dossier_patient.py::TestSuppressionPatient::
+  test_supprimer_un_patient_avec_gdpr_efface_tout couvrent la cascade sur les
+  consultations, factures et événements, mais aucun des deux ne joint de document au
+  patient supprimé)
+- **État requis** : E2. Fiche destructive par nature : elle supprime le patient
+  Picard et l'intégralité de son dossier — reconstruire l'état E2 (chapitre 1) avant
+  de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche.
+   Attendu : le bouton « Supprimer » est visible en haut de la fiche.
+2. Cliquer « Supprimer ».
+   Attendu : une fenêtre modale s'ouvre, titre « Confirmer », texte « Pour la
+   conformité RGPD, un patient peut demander à supprimer toutes ses informations.
+   Cette fonction supprime toutes les infos ne laissant aucune trace excepté les
+   factures. Vous pouvez retrouver les factures dans la fonction Comptabilité.
+   Êtes-vous d'accord avec cette opération ? », case à cocher « Je comprends ce que
+   cela signifie », bouton « Ok » désactivé tant que la case n'est pas cochée.
+3. Cocher la case, cliquer « Ok ».
+   Attendu : aucune erreur ne s'affiche ; retour à l'URL racine de l'instance ; une
+   recherche `Picard` affiche « Aucun résultat trouvé. » (le patient, ses deux
+   consultations et son document joint ont disparu).
+4. Cliquer « Comptabilité » (menu du haut).
+   Attendu : la ligne de facturation créée à l'état E2 est toujours présente : N° de
+   facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de paiement
+   `Chèque`, État `Réglée` — la facture n'est pas supprimée par la cascade.
 
 ### Consultation
 
