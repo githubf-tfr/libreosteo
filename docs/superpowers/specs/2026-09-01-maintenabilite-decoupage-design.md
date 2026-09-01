@@ -80,7 +80,7 @@ un fichier de sérialiseurs.
 ## Lots
 
 **Lot 1 — `views` en paquet.** Déplacement pur, aucune ligne de logique touchée. Le
-`__init__.py` ré-exporte. Vérification ajoutée : un test qui résout les quinze routes
+`__init__.py` ré-exporte. Vérification ajoutée : un test qui résout les quatorze routes
 enregistrées par le routeur (`Libreosteo/urls.py:31-44`) et les compare à la liste
 attendue, de sorte qu'un symbole oublié au ré-export échoue en test plutôt qu'au
 démarrage.

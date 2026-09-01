@@ -34,9 +34,12 @@ ruff, mypy (+ `django-stubs`), Playwright pour la suite fonctionnelle.
   chaque module créé rejoint `[tool.mypy] files`, `[tool.ruff.lint] ignore` reste vide.
 - **Référence mesurée le 2026-09-01** sur `main` : `194 passed` en ~71 s, couverture
   89,35 %, mypy 80 fichiers, `make test-functional` `26 passed` en ~285 s.
-- **`KANBAN.md`, `README.md` et `CLAUDE.md` ne sont modifiés par aucune tâche de ce
-  plan** : une autre session travaille sur S4. La tâche 6 rédige l'entrée de journal dans
-  un fichier à part, à recopier quand S4 est clos.
+- **`KANBAN.md` n'est modifié que par la tâche 6**, qui y écrit l'entrée de journal de
+  S5. `README.md` et `CLAUDE.md` ne sont modifiés par aucune tâche. La session S4 a rendu
+  la main le 2026-09-01 : le dépôt n'est plus partagé.
+- **Chaque tâche passe par un relecteur indépendant avant d'être déclarée finie**, y
+  compris la tâche 6, qui garde sa propre revue au lieu d'être versée à une revue finale
+  de branche.
 - **Commandes** : `make check` (ruff + mypy + pytest + couverture) et
   `make test-functional`. Ne jamais annoncer un lot terminé sans avoir lu leur sortie.
 
@@ -1159,8 +1162,9 @@ git commit -m "refactor: extraire la sauvegarde et la restauration vers un servi
 
 **Files:**
 - Modify: `pyproject.toml` (`[tool.coverage.report] fail_under`, si mérité)
-- Create: `docs/superpowers/plans/2026-09-01-maintenabilite-kanban.md` (entrée de journal
-  à recopier dans `KANBAN.md`, fichier supprimé après recopie)
+- Modify: `KANBAN.md` (entrée « Terminé », section « En cours », « Suite du projet »)
+- Delete: `docs/superpowers/plans/2026-09-01-maintenabilite-decoupage.md` (un plan achevé
+  se fond dans la doc pérenne, puis se supprime ; la spec, elle, reste)
 
 - [ ] **Step 1: Mesurer la couverture atteinte**
 
@@ -1187,27 +1191,30 @@ Expected: `fail_under` ≥ 89 ; le périmètre mypy compte au moins 95 fichiers 
 +13 modules créés, +2 fichiers de test, −2 fichiers devenus paquets) ; `ignore = []`
 inchangé.
 
-- [ ] **Step 4: Rédiger l'entrée de `KANBAN.md` dans un fichier à part**
+- [ ] **Step 4: Écrire l'entrée de journal dans `KANBAN.md`**
 
-`KANBAN.md` n'est pas modifié par ce plan : une autre session travaille sur S4 et le
-fichier est commun. Écrire l'entrée dans
-`docs/superpowers/plans/2026-09-01-maintenabilite-kanban.md`, prête à recopier telle
-quelle sous « Terminé », avec : les trois lots livrés, la structure obtenue, le nombre de
-tests avant et après, la couverture avant et après, et le rappel que les défauts connus
-n'ont pas été corrigés.
+Sous « Terminé », en tête, une entrée datée du jour sur le modèle de celle de S4 : les
+trois lots livrés, la structure obtenue, le nombre de tests et la couverture avant et
+après, et le rappel que les défauts connus n'ont pas été corrigés — ils restent en « À
+faire ». Puis remplacer la ligne de « En cours »
+(`_(vide — S4 clos, S5 pas encore cadré.)_`) et refondre « Suite du projet — S5 », qui
+n'a plus d'objet : S5 était le dernier des cinq sous-chantiers.
 
-- [ ] **Step 5: Commiter**
+- [ ] **Step 5: Supprimer le plan**
 
 ```bash
-git add pyproject.toml docs/superpowers/plans/2026-09-01-maintenabilite-kanban.md
-git commit -m "chore: cloturer S5, relever les cliquets et preparer l'entree de journal"
+git rm docs/superpowers/plans/2026-09-01-maintenabilite-decoupage.md
 ```
 
-- [ ] **Step 6: Recopier dans `KANBAN.md` une fois S4 clos**
+Un plan achevé se fond dans la doc pérenne, puis se supprime (`~/claude/CLAUDE.md`
+§ Méthode). La spec reste sous `docs/superpowers/specs/`.
 
-À faire hors de ce plan, quand la session S4 a rendu la main : recopier l'entrée sous
-« Terminé », remplacer la ligne « En cours » (`_(vide — S4 clos, S5 pas encore cadré.)_`),
-mettre à jour « Suite du projet » puisque S5 est le dernier sous-chantier, supprimer
-`docs/superpowers/plans/2026-09-01-maintenabilite-kanban.md` et
-`docs/superpowers/plans/2026-09-01-maintenabilite-decoupage.md` — un plan achevé se fond
-dans la doc pérenne, puis se supprime. La spec, elle, reste.
+- [ ] **Step 6: Faire relire, puis commiter**
+
+Cette tâche garde sa propre revue par un relecteur indépendant : elle n'est pas versée à
+une revue finale de branche.
+
+```bash
+git add KANBAN.md pyproject.toml
+git commit -m "docs: cloturer S5, relever les cliquets et journaliser le decoupage"
+```
