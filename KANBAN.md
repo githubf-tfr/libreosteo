@@ -283,6 +283,24 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
 
 ## Pièges rencontrés
 
+- **2026-09-01 (S3, tâche 9, généralisé en revue finale)** — `Invoice.DoesNotExist`
+  intermittent : `attendre_page_prete` (`#loading-bar`) ne barre pas une requête `$http`
+  en vol répondant sous le seuil `latencyThreshold` (100 ms) d'`angular-loading-bar`,
+  course déjà documentée pour des `GET` dans `helpers.ouvrir_reglages_cabinet` et
+  `ouvrir_profil_therapeute`. La tâche 9 l'a rencontrée sur des `POST`
+  (`/api/invoices/:id/cancel`, `/api/examinations/:id/close`) dans
+  `tests/functional/test_facturation.py::test_annulation_et_refacturation` et
+  `test_avoir_sur_facture_deja_emise`, et l'a corrigée localement par deux barrières
+  d'état propres à chaque test (disparition de `#invoiceExaminationBtn`, changement du
+  numéro affiché). En revue finale, après clôture de S3, la même course s'est révélée
+  ouverte sur 8 des 10 appels à `cloturer_consultation` (`tests/functional/helpers.py`)
+  — dont un (`test_patient.py`) qui enchaînait un `page.goto` sans la moindre attente.
+  Corrigé en généralisant la barrière au helper lui-même : `cloturer_consultation`
+  termine désormais par `expect(page.locator("#current-examination")).to_be_hidden()`
+  (commit `b51aaba`) — une vraie barrière d'état, puisque le callback de succès commun
+  aux deux modes de clôture (`$scope.close`, `patient.js`) ne masque ce panneau qu'au
+  retour du POST de fermeture.
+
 - **2026-09-01 (S3, tâche 7)** — La suite fonctionnelle reprend `libreosteoweb.tests.
   fixtures.sans_receivers` (outillage des tests unitaires) pour ses arrangements par
   l'ORM, plutôt que d'en écrire une version propre. `receiver_newpatient` et

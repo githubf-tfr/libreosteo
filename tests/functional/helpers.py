@@ -188,7 +188,8 @@ def cloturer_consultation(
     `$scope.close`. Attendre sa disparition est donc une vraie barriere de fin, la ou
     `attendre_page_prete` seul (#loading-bar) ne l'est pas : documente deux fois dans ce
     depot, notamment par l'`Invoice.DoesNotExist` intermittent que ce depot a rencontre
-    (cf. KANBAN.md, tache 9 puis tache 11).
+    (cf. KANBAN.md, section « Pieges rencontres », entree tache 9, generalise en revue
+    finale).
     """
     page.click("#close-examination")
     page.check(f"input[value={mode}]")
