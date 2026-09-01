@@ -33,6 +33,7 @@ from libreosteoweb.api.invoicing import generator as invoicing_generator
 
 from ..exceptions import Forbidden
 from ..renderers import ExaminationCSVRenderer
+from ..services import facturation as services_facturation
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -82,36 +83,19 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         serializer = apiserializers.ExaminationInvoicingSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        if (
-            serializer.data["status"] != "invoiced"
-            or current_examination.last_invoice is None
-        ):
+        if serializer.data["status"] != "invoiced":
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        if serializer.data["paiment_mode"] == "notpaid":
-            return Response({"not modified": current_examination.last_invoice.id})
-        if (
-            current_examination.last_invoice.status
-            != models.InvoiceStatus.WAITING_FOR_PAIEMENT
-        ):
+        try:
+            resultat = services_facturation.encaisser(
+                current_examination,
+                serializer.data["paiment_mode"],
+                request.officesettings,
+            )
+        except services_facturation.EncaissementRefuse:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        current_examination.status = models.ExaminationStatus.INVOICED_PAID
-        invoice_to_update = models.Invoice.objects.get(
-            id=current_examination.last_invoice.id
-        )
-        invoice_to_update.status = models.InvoiceStatus.INVOICED_PAID
-        officesettings = request.officesettings
-        p = models.Paiment(
-            amount=invoice_to_update.amount,
-            currency=officesettings.currency,
-            date=timezone.now(),
-            paiment_mode=serializer.data["paiment_mode"],
-        )
-        p.save()
-        p.invoice.add(current_examination.last_invoice)
-        p.save()
-        invoice_to_update.save()
-        current_examination.save()
-        return Response({"invoiced": current_examination.last_invoice.id})
+        if resultat.encaissee:
+            return Response({"invoiced": resultat.facture_id})
+        return Response({"not modified": resultat.facture_id})
 
     @action(detail=True, methods=["post"])
     def close(self, request, pk=None):
