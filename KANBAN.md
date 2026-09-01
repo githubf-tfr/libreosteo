@@ -145,9 +145,8 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   Non corrigés ici : toucher un réglage global et une migration est un changement
   d'application qui veut sa propre décision et son propre commit, hors périmètre d'un
   correctif de tests.
-- (S3, tâches 4 et 7) **Widget de date webshim : affiche en JOUR/MOIS/ANNÉE, lit en
-  MOIS/JOUR/ANNÉE.** Défaut avéré, preuve par assertion en base sur deux champs
-  indépendants ; détail et asymétrie affichage/saisie en « Points en suspens » ci-dessous.
+- ~~(S3, tâches 4 et 7) Widget de date webshim : affiche en JOUR/MOIS/ANNÉE, lit en
+  MOIS/JOUR/ANNÉE~~ — **corrigé le 2026-09-01**, défaut A de S3 bis, cf. « Terminé ».
 - ~~(S3, tâche 8) `#invoice_start_sequence` ignore silencieusement une saisie textuelle
   au lieu de la refuser~~ — **corrigé le 2026-09-01**, défaut B de S3 bis, cf. « Terminé ».
 - ~~(S3, tâche 5) `libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
@@ -159,6 +158,67 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 _(vide — S3 clôturé, S4 pas encore cadré.)_
 
 ## Terminé
+
+- **2026-09-01 (S3 bis, défaut A)** — **Le widget de date webshim affichait
+  JJ/MM/AAAA et relisait MM/JJ/AAAA, corrigé.** Mécanisme (investigation en lecture
+  seule reprise et vérifiée par exécution) : `libreosteoweb/static/js/app/app.js`
+  charge le polyfill webshim (`form-number-date-ui.js`), dont l'ordre de lecture d'un
+  texte tapé vient de `curCfg.patterns.dObj`, sélectionné par
+  `document.documentElement.lang || navigator.language`
+  (`polyfiller.js:660`). `libreosteoweb/templates/index.html` ne portait aucun
+  attribut `lang` : sous Chromium (véhicule de test comme poste de bureau anglophone),
+  `navigator.language` vaut `en-US`, ce qui charge `formcfg['en-US']`
+  (`patterns.d = "mm/dd/yy"`) — mois d'abord. Le pack français
+  (`patterns.d = "dd/mm/yy"`) est pourtant livré et déclaré dans
+  `availableLangs`, jamais sélectionné faute d'attribut. Quatre champs partagent ce
+  même chemin (date de naissance en fiche patient, date de consultation, date de
+  document sur deux panneaux) ; un contournement de l'heuristique de rattrapage de
+  webshim (`form-number-date-ui.js:605`, qui échange jour/mois si le premier dépasse
+  12) faisait passer la suite malgré le défaut sur les quantièmes > 12.
+  **Précision par rapport à la formulation antérieure de ce défaut (« Points en
+  suspens » ci-dessous, maintenant retirée) : le défaut est conditionnel à la langue du
+  navigateur, pas absolu.** Un poste en `fr-FR` chargeait déjà `formcfg-fr` sans le
+  correctif (`navigator.language` aurait suffi) ; un poste en anglais corrompait la
+  date. Le même dossier médical se remplissait donc différemment selon le poste, sans
+  le moindre signal — ce qui aggrave le défaut plutôt que de l'atténuer : aucun signe
+  visible ne permet de savoir, a posteriori, si une date a été saisie correctement.
+  Correctif : `<html lang="{{ LANGUAGE_CODE }}">` sur `index.html` (variable déjà
+  chargée dans ce gabarit) et, par cohérence, sur `404.html` (page sans champ de date,
+  cosmétique). Rend le comportement déterministe — piloté par `LANGUAGE_CODE` du
+  serveur (`"fr"`), plus par la langue du navigateur du poste. Zéro ligne de JS
+  applicatif touchée, aucun fichier sous `libreosteoweb/static/components/` modifié
+  (jonction vers `node_modules`, effacée au prochain `yarn install`).
+  Preuve d'exécution (absente de la conception, qui n'avait pu lancer aucun
+  navigateur) : `test_edition_du_dossier_patient` tapant `"10/01/2012"` échoue avant
+  correctif (`date(2012, 10, 1)` enregistré) et passe après
+  (`date(2012, 1, 10)`), sur le même Chromium headless, par un simple aller-retour
+  `git stash`/`git stash pop` sur `index.html`.
+  Tests : `jour_sans_ambiguite` (`tests/functional/test_consultation.py`), qui ne
+  levait pas une ambiguïté mais s'alignait sur l'heuristique de rattrapage citée
+  ci-dessus, supprimée avec ses 4 appels — remplacés par
+  `date_initiale + timedelta(days=N)`, même N, désormais exercés sans filet sur des
+  quantièmes > 12 selon la date d'exécution. `test_patient.py` : saisie
+  `"01/10/2012"` → `"10/01/2012"` (miroir exact de l'ancienne, inversion lisible dans
+  le diff), assertion ORM inchangée (`date(2012, 1, 10)`, déjà correcte pour ce que
+  « 10 janvier » doit produire). Aucun autre site de la suite ne contournait l'ordre
+  américain (vérifié par recherche des sélecteurs de date).
+  Item annexe traité dans le même commit : `attendre_enregistrement_patient`
+  (`tests/functional/helpers.py`) attendait la réponse du PUT sans vérifier son statut
+  — un 4xx/5xx satisfaisait la barrière. Ajout d'une assertion sur `reponse.ok`.
+  Corrélation par identité de requête jugée non nécessaire ici (justifié en
+  commentaire) : tous les appelants de ce dépôt invoquent la fonction en séquence
+  stricte, jamais un second appel pendant qu'un premier PUT reste en vol. Dixième
+  champ `hallo-editor` sans `name` (`filemanager.html:18`, notes de document,
+  `test_patient.py`) audité : laissé en `page.fill()` simple, commentaire ajouté —
+  l'action suivante est un vrai clic Playwright, qui `blur` nativement l'élément avant
+  que `hallo.js` n'ait besoin de committer, et aucun second `hallo-editor` n'est rempli
+  après lui dans ce panneau (le risque de course documenté dans
+  `remplir_editeur_hallo` ne s'applique qu'entre deux `hallo-editor` consécutifs).
+  Couverture : `fail_under = 89` tenu, 89,35 % mesuré — le correctif ne touche aucun
+  fichier Python, dénominateur inchangé.
+  Conception : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/design-defaut-A.md`.
+  Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
+  rapport-defaut-A.md`.
 
 - **2026-09-01 (S3 bis, défaut C)** — **`libreosteoweb/api/statistics.py` calculait sa
   fenêtre du jour en UTC, corrigé.** Défaut de production identifié à la tâche 5 de S3
@@ -800,42 +860,3 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
   changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
 
-### Format du widget de date webshim (S3, tâches 4 et 7) — défaut avéré, non corrigé (au backlog)
-
-- **Défaut avéré, établi sur deux champs indépendants, chacun vérifié par une assertion en
-  base : le widget webshim affiche une date dans un ordre et la relit dans l'autre.**
-  `examination.html:17` pose `e-placeholder="{$ freezeExaminationDate() $}"`, et
-  `freezeExaminationDate` (`examination.js:390`) formate cette valeur affichée en
-  `"DD/MM/YYYY"` — jour puis mois, l'ordre français. Le widget qui reprend la saisie lit
-  pourtant le texte tapé mois d'abord, MOIS/JOUR/ANNÉE, jamais JOUR/MOIS/ANNÉE. Les deux
-  champs concernés sont remplacés par le même polyfill, configuré dans
-  `libreosteoweb/static/js/app/app.js:173-179`
-  (`webshim.setOptions('forms-ext', {replaceUI: 'auto', types: 'date', ...})`) :
-  - Champ de date de document (`filemanager.html`, `tests/functional/test_patient.py`,
-    tâche 4) : `"01/10/2012"` tapé donne `document.document_date == date(2012, 1, 10)`
-    (10 janvier), assertion en base à `tests/functional/test_patient.py:151`. Premier
-    groupe de chiffres = mois (01 = janvier), second = jour (10) — pas JJ/MM comme
-    l'ancienne rédaction de cette section le disait à tort, en citant pourtant ce même
-    exemple comme preuve.
-  - Champ de date de consultation (`input.ws-date.examinationdate`,
-    `tests/functional/test_consultation.py`, tâche 7) : confirmé indépendamment par lecture
-    directe du `<input type="date">` caché sous le widget (seul lu par le `ng-model`
-    Angular), au-delà du quantième 12 pour lever toute ambiguïté résiduelle — `06/09/2026`
-    tapé devient `2026-06-09` (9 juin), même lecture mois-puis-jour.
-  Établi aussi : `getAutoEnhance` (`polyfiller.js`) ne désactive ce remplacement que si
-  `webCFG.enhanceAuto` est faux, or sa valeur par défaut est vraie pour tout navigateur de
-  bureau de largeur normale, headless ou non — et `index.html` ne porte aucun attribut
-  `lang` sur lequel le chargeur de locale de webshim pourrait s'appuyer. Un praticien qui
-  ressaisit une date dans le format que l'application vient de lui montrer (JJ/MM/AAAA)
-  enregistre donc une autre date, en silence, dans un dossier médical qui porte aussi la
-  facturation. Non corrigé dans S3 (correction applicative hors périmètre d'un chantier de
-  tests) ; porté au backlog, cf. « Dette technique » ci-dessus.
-- Ce qui reste **non tranché**, et ne conditionne pas la qualification du défaut ci-dessus :
-  le format effectivement accepté par ce même widget dans un
-  vrai navigateur de bureau (Firefox, Chrome non headless), avec ou sans locale système fr —
-  les deux vérifications ci-dessus tournent dans le même environnement Playwright/Chromium
-  headless. Si ce format se confirme hors du véhicule de test, un utilisateur français
-  saisissant spontanément JJ/MM/AAAA (« 10/01/2012 » pour le 10 janvier) verrait sa saisie
-  enregistrée comme le 1er octobre — un défaut de saisie silencieux. À vérifier dans un vrai
-  navigateur ; hors périmètre de S3 (suite Playwright/Chromium headless uniquement), pas de
-  correction applicative prise ici.

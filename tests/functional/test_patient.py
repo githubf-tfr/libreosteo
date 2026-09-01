@@ -126,12 +126,16 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     page.fill("input[placeholder*='Titre']", "Licence LibreOsteo")
     # Le champ de date (filemanager.html) est remplace par le widget webshim configure
     # dans static/js/app/app.js (webshim.setOptions('forms-ext', {replaceUI: 'auto',
-    # types: 'date', ...})). Ce format-la, MM/JJ/AAAA (americain) et non JJ/MM/AAAA,
-    # "01/10/2012" donne le 10 janvier 2012 (assertion plus bas) ; "10/01/2012" serait
-    # interprete comme le 1er octobre. Meme lecture mois-puis-jour que le champ de date de
-    # consultation (tests/functional/test_consultation.py, tache 7). Voir KANBAN.md pour ce
-    # qui reste non tranche : le comportement hors Chromium headless.
-    page.fill("input[placeholder*='Date']:visible", "01/10/2012")
+    # types: 'date', ...})), qui lit desormais la locale du document (index.html,
+    # <html lang>) : ordre francais JJ/MM/AAAA. "10/01/2012" donne le 10 janvier 2012
+    # (assertion plus bas), pas le 1er octobre.
+    page.fill("input[placeholder*='Date']:visible", "10/01/2012")
+    # Div `hallo-editor` sans attribut `name` (filemanager.html) : seul champ de ce
+    # type non couvert par `remplir_editeur_hallo`. Sans danger ici — l'action
+    # suivante est un vrai clic (page.click plus bas), qui declenche un blur natif
+    # avant que hallo.js ne committe vers le ngModel, contrairement a un enchainement
+    # de deux page.fill() sur des hallo-editor consecutifs (cf. docstring de
+    # remplir_editeur_hallo).
     page.fill("p.help-block ~ div", "Licence GNU GPLv3")
     page.click("button.btn.label.label-info")
     expect(page.locator("button.btn.label")).to_have_count(0)

@@ -172,27 +172,6 @@ def naviguer_vers_examen(
     )
 
 
-def jour_sans_ambiguite(base: date, decalage_jours: int) -> date:
-    """`base` decalee de `decalage_jours` jours, ajustee pour eviter les quantiemes 1-12.
-
-    Le widget de saisie (webshim, `input.ws-date`) recopie le texte tape vers un vrai
-    `<input type="date">` cache derriere lui (`polyfill-updatable examinationdate`, seul
-    lu par le `ng-model` d'Angular) — mais lu en `MM/JJ/AAAA`, pas dans l'ordre francais
-    saisi : `06/09/2026` tape devient `2026-06-09` (9 juin), pas le 6 septembre attendu.
-    Au-dela du quantieme 12, l'inversion mois/jour est impossible (aucun mois 13+) : le
-    champ cache prend alors correctement le jour tape. Constate par lecture directe de ce
-    champ cache (`document.querySelectorAll(...)[0].value`), a l'identique en tapant au
-    clavier ou en recopiant la valeur d'un coup : ce n'est pas un effet de la methode de
-    saisie. Le sens du decalage est préservé (seul le quantieme exact est pousse plus
-    loin au besoin), donc aucun cas teste ne change de nature.
-    """
-    pas = timedelta(days=1 if decalage_jours >= 0 else -1)
-    cible = base + timedelta(days=decalage_jours)
-    while cible.day <= 12:
-        cible += pas
-    return cible
-
-
 def saisir_date_examen(page: Page, valeur: date) -> None:
     """Tape une date dans le champ d'edition de la consultation active.
 
@@ -225,7 +204,7 @@ def test_changement_de_date_accepte(
     consultation = Examination.objects.get(patient=patient_existant)
     date_initiale = timezone.localtime(consultation.date).date()
 
-    nouvelle_date = jour_sans_ambiguite(date_initiale, -3)
+    nouvelle_date = date_initiale + timedelta(days=-3)
     naviguer_vers_examen(
         page, live_server, patient_existant.id, consultation.id, date_initiale
     )
@@ -264,7 +243,7 @@ def test_changement_de_date_dans_le_futur_refuse(
         page, live_server, patient_existant.id, consultation.id, date_initiale
     )
     page.click("button.btn-default:has-text('Éditer')")
-    saisir_date_examen(page, jour_sans_ambiguite(date_initiale, 13))
+    saisir_date_examen(page, date_initiale + timedelta(days=13))
     page.click('button.btn-default:has-text("Fin d\'édition")')
 
     expect(page.locator(".tab-pane.active div.editable-error")).to_contain_text(
@@ -299,7 +278,7 @@ def test_date_posterieure_a_la_facture_refusee(
         date_initiale,
     )
     page.click("button.btn-default:has-text('Éditer')")
-    saisir_date_examen(page, jour_sans_ambiguite(date_initiale, 20))
+    saisir_date_examen(page, date_initiale + timedelta(days=20))
     page.click('button.btn-default:has-text("Fin d\'édition")')
 
     expect(page.locator(".tab-pane.active div.editable-error")).to_contain_text(
@@ -316,7 +295,7 @@ def test_date_anterieure_a_la_facture_acceptee(
     deplace_dates(consultation_facturee, jours=5)
     consultation_facturee.refresh_from_db()
     date_initiale = timezone.localtime(consultation_facturee.date).date()
-    nouvelle_date = jour_sans_ambiguite(date_initiale, -2)
+    nouvelle_date = date_initiale + timedelta(days=-2)
 
     naviguer_vers_examen(
         page,

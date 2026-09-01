@@ -264,11 +264,22 @@ def attendre_enregistrement_patient(
     lancements de `test_edition_du_dossier_patient`, toujours sur le premier champ
     « antecedents » saisi apres la sauvegarde des informations generales) : la
     barriere reelle est la reponse HTTP du PUT lui-meme, jamais une temporisation.
+
+    Pas de correlation par identifiant de requete : chaque appel de cette fonction
+    attend sa propre reponse avant de rendre la main, et tous les appelants
+    l'invoquent en sequence (jamais un second appel pendant qu'un premier PUT est
+    encore en vol) — aucun scenario de ce module ne peut donc presenter une reponse
+    perimee au meme signature (methode + URL) au moment ou `expect_response` se met
+    a l'ecoute.
     """
     with page.expect_response(
         lambda reponse: (
             reponse.request.method == "PUT"
             and reponse.url.endswith(f"/api/patients/{patient_id}")
         )
-    ):
+    ) as info_reponse:
         geste()
+    reponse = info_reponse.value
+    assert reponse.ok, (
+        f"PUT /api/patients/{patient_id} a echoue : {reponse.status} {reponse.status_text}"
+    )
