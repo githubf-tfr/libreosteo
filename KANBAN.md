@@ -216,9 +216,6 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   `remplir_editeur_hallo` ne s'applique qu'entre deux `hallo-editor` consécutifs).
   Couverture : `fail_under = 89` tenu, 89,35 % mesuré — le correctif ne touche aucun
   fichier Python, dénominateur inchangé.
-  Conception : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/design-defaut-A.md`.
-  Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
-  rapport-defaut-A.md`.
   **Tour de correctifs (même jour, sur relecture)** : la couverture livrée ci-dessus
   s'écartait de deux recommandations du design sans le dire (§6 du rapport corrigé —
   « Aucun écart » était faux). Fermé : `test_changement_de_date_accepte`
@@ -276,7 +273,6 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   cible ambiguë romprait leur propre règle (dates dérivées du jour d'exécution) sans
   rien ajouter à la preuve. `make check` vert (194 tests, couverture 89,35 % inchangée,
   ruff/mypy sans régression) ; suite fonctionnelle complète vérifiée verte séparément.
-  Rapport : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/rapport-cloture.md`.
 
 - **2026-09-01 (S3 bis, défaut C)** — **`libreosteoweb/api/statistics.py` calculait sa
   fenêtre du jour en UTC, corrigé.** Défaut de production identifié à la tâche 5 de S3
@@ -318,9 +314,6 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   (`statistics.py`), à traiter comme un défaut séparé s'il est retenu. `models.py:116` et
   `serializers.py:59` (`date.today()`, horloge système plutôt que `TIME_ZONE`) sont un
   motif apparenté mais distinct, déjà signalés en tâche 5 de S3, non repris non plus.
-  Conception : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/design-defaut-C.md`.
-  Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
-  rapport-defaut-C.md`.
 
 - **2026-09-01 (S3 bis, défaut B)** — **`#invoice_start_sequence` avalait une saisie
   textuelle avec un message de succès, corrigé.** Mécanisme (tâche 8 de S3, cf. « Pièges
@@ -374,9 +367,6 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   Couverture : `fail_under = 89` tenu, 89,35 % mesuré (`make check`) ; aucune ligne
   existante retirée de `views.py` ni d'ailleurs, périmètre `mypy` et `ruff`
   (`select`/`ignore`) inchangés.
-  Conception : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/design-defaut-B.md`.
-  Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
-  rapport-defaut-B.md`.
 
 - **2026-09-01 (item annexe au défaut B)** — **`PatientSerializer.to_internal_value`
   datait le consentement en UTC, corrigé.** `libreosteoweb/api/serializers.py:87`
@@ -390,8 +380,6 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   `TestBornesDePeriode` (instant UTC construit en dur, jour calendaire UTC et jour local
   Paris dans deux jours civils différents) ; rouge constaté avant correctif
   (`2020-07-14` retenu au lieu de `2020-07-15`).
-  Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
-  rapport-defaut-B.md`.
 
 - **2026-09-01** — **S3, tests fonctionnels Playwright** livré (11 tâches ; la spec reste
   sous `docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md`, le plan est
@@ -551,10 +539,11 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   connues** (12 pendant la tâche 7, 4 de plus lors d'une enquête dédiée), toujours sans
   traceback capturé. Rattachée les deux fois au dernier test du module
   `test_consultation.py`, sans que cela distingue « cause propre à ce test » de
-  « position dans l'ordre d'exécution » (une seule occurrence). Ce que l'enquête
-  (`.superpowers/sdd/2026-08-31-fonctionnels-playwright/enquete-teardown.md`) établit
-  avec preuve, par lecture de code plutôt que par reproduction : **la course fermée par la
-  tâche 1 ne peut plus se déclencher.** `LiveServer.__init__`
+  « position dans l'ordre d'exécution » (une seule occurrence). Ce qu'une enquête dédiée
+  établit avec preuve, par lecture de code plutôt que par reproduction (budget de
+  reproduction fermé par le commanditaire après 4 exécutions complètes supplémentaires,
+  aucune n'ayant reproduit l'`ERROR`) : **la course fermée par la tâche 1 ne peut plus se
+  déclencher.** `LiveServer.__init__`
   (`pytest_django/live_server_helper.py`) ne remplit `connections_override` que pour une
   base **en mémoire** (`is_in_memory_db`) ; or la tâche 3 a basculé la base de test vers un
   **fichier** (`tests/functional/conftest.py`, `TEST["NAME"]` sous un dossier temporaire).
@@ -567,18 +556,19 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   serveur encore en cours) reste une plausibilité structurelle, pas une preuve. **La
   tâche 7 augmente l'exposition plutôt que de la réduire** : ses quatre nouveaux tests
   élargissent la suite fonctionnelle de 12 à 16 tests, donc le nombre de requêtes en vol
-  par exécution. **Procédure pour la prochaine occurrence** : ne plus relancer à l'aveugle
-  — garder la sortie intégrale de chaque exécution fonctionnelle (rediriger vers un
-  fichier, comme fait l'enquête sous `repro-teardown/run-NN.log`, hors dépôt), pour que la
-  prochaine `ERROR` laisse enfin un traceback exploitable.
+  par exécution. **Procédure de capture, en vigueur depuis** : ne plus relancer à
+  l'aveugle en espérant attraper un traceback à l'œil — la cible `make test-functional`
+  (`Makefile`) redirige désormais la sortie intégrale de chaque exécution, via `tee`, vers
+  `pytest-functional.log` à la racine du dépôt, hors du dossier que `pytest-playwright`
+  vide en début de session, pour que la prochaine `ERROR` laisse enfin un traceback
+  exploitable au lieu de disparaître avec le terminal.
 
 - **2026-09-01 (S3 bis, défaut A, tour de correctifs suivant)** — **Double échec
   simultané sur le chemin de sauvegarde patient : NOT_REPRODUCED, budget d'enquête fermé
   après 2 exécutions complètes.** Suite à l'échec conjoint constaté au tour précédent
   (`test_edition_de_la_date_de_naissance` et `test_edition_du_dossier_patient`, cf.
-  entrée « S3 bis, défaut A » ci-dessus), une enquête dédiée
-  (`.superpowers/sdd/2026-08-31-fonctionnels-playwright/enquete-sauvegarde-patient.md`)
-  a repris la question sans rouvrir H1 (course de chargement de la locale française) ni
+  entrée « S3 bis, défaut A » ci-dessus), une enquête dédiée a repris la question sans
+  rouvrir H1 (course de chargement de la locale française) ni
   H2 (remplacement DOM du champ pendant la frappe), déjà infirmées par preuve
   d'instrumentation directe au tour précédent (`{loading: false, active: 'fr'}` avant et
   après la frappe pour H1 ; lecture `outerHTML` reconnue comme artefact de méthode,
@@ -683,9 +673,8 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   (`DbDump.get`, `libreosteoweb/api/views.py`), les deux appels sont en UTC de façon
   cohérente, pas de mélange fuseau/UTC : ne casse qu'à la seconde du réveillon UTC, non
   reproduit, non corrigé.
-  Preuve rouge/vert consignée dans `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
-  task-5-report.md` : les trois tests rouges dans la fenêtre avant correctif, verts
-  après, dans la même fenêtre.
+  Preuve rouge/vert constatée à l'exécution : les trois tests rouges dans la fenêtre
+  avant correctif, verts après, dans la même fenêtre.
 
 - **2026-08-31 (S3, tâche 4, tour de correctifs 1)** — Le job CI `functional` lançait
   `robot -X -P . tests` après avoir installé `requirements/requ-testing.txt`, réécrit par
@@ -873,10 +862,9 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
 
 - **2026-09-01 (S3, clôture — enquête `hallo-editor`)** — `test_patient.py::
   test_edition_du_dossier_patient` a échoué une fois en suite complète
-  (`patient.job` revient vide en base). Enquête complète dans
-  `.superpowers/sdd/2026-08-31-fonctionnels-playwright/enquete-hallo.md`. **Deux
-  courses distinctes**, toutes deux prouvées par lecture directe des bundles
-  vendorisés (`node_modules/@components/`, jamais du code applicatif) :
+  (`patient.job` revient vide en base). **Deux courses distinctes**, toutes deux
+  prouvées par lecture directe des bundles vendorisés (`node_modules/@components/`,
+  jamais du code applicatif) :
 
   1. **Commit `hallo-editor` -> `ngModel` manqué.** `hallo.js`
      (`node_modules/@components/hallo/dist/hallo.js`) ne committe le contenu d'un
