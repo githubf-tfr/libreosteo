@@ -514,6 +514,40 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
 
 ## Pièges rencontrés
 
+- **2026-09-01 (S4, tâche 1)** — Trois écarts trouvés en prouvant le montage
+  `Docker/deploy/pg/docker-compose.yml` de bout en bout (jamais monté en sandbox
+  avant cette tâche), détail complet dans
+  `docs/superpowers/plans/recette-montage.md` :
+  - **`uwsgi-http` manquant, corrigé.** Le stage `run` de
+    `Docker/build/http-ready/Dockerfile` installait `uwsgi-python3` mais pas
+    `uwsgi-http` (paquet Alpine séparé fournissant `http_plugin.so`), alors que le
+    `CMD` lance `uwsgi --http :8085`. Sans lui, uwsgi refuse de démarrer
+    (`UNABLE to load uWSGI plugin`) et le conteneur sort en erreur — reproduit puis
+    corrigé (`apk add uwsgi-python3 uwsgi-http`), rebuild vérifié vert.
+  - **`settings/__init__.py` indispensable, absent de tout template du dépôt.**
+    `Libreosteo.settings.container` fait `from settings import *` (import absolu du
+    paquet top-level monté en volume, pas `from .local import *` comme
+    `dev.py`/`standalone.py`) : sans `__init__.py` qui réexporte `local.py`, l'import
+    réussit silencieusement (paquet-espace de noms PEP 420) mais n'importe rien —
+    `DATABASES` retombe sur le défaut sqlite de `base.py` sans la moindre erreur.
+    Vérifié par un script Python isolé avant de fabriquer le montage. Pas un défaut du
+    dépôt : une étape de montage non documentée par le brief, ajoutée à
+    `recette-montage.md`.
+  - **Course de démarrage sur volume `db/` neuf, aucun `healthcheck` dans le
+    compose.** `depends_on: - db` n'attend que le démarrage du conteneur pg, pas sa
+    disponibilité TCP ; sur un volume neuf, `initdb` dépasse le temps de démarrage du
+    conteneur http, `migrate` échoue (`Connection refused`), le `CMD` avale l'erreur
+    (`|| test 1=1`) et lance `uwsgi` quand même — l'instance répond en 500, sans
+    rejeu automatique des migrations. Reproduit à l'identique lors du premier `up`
+    après purge des volumes (procédure E0). Contournement vérifié :
+    `docker compose restart libreosteo` une fois `pg_isready` positif rejoue le
+    `CMD` proprement. Correctif de fond (`healthcheck` + `depends_on: condition:`)
+    hors périmètre de cette tâche (`docker-compose.yml` lu, non modifié) — à statuer
+    pour Task 2 (chapitre 0) ou une tâche dédiée.
+  - Piège non bloquant, attendu à chaque démarrage en sandbox :
+    `import_zipcodes` échoue (`Cannot fetch https://www.data.gouv.fr/...`, réseau
+    sandbox par défaut deny), avalé par le même `|| test 1=1`.
+
 - **2026-09-01 (S3, tâche 9, généralisé en revue finale)** — `Invoice.DoesNotExist`
   intermittent : `attendre_page_prete` (`#loading-bar`) ne barre pas une requête `$http`
   en vol répondant sous le seuil `latencyThreshold` (100 ms) d'`angular-loading-bar`,
