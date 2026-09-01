@@ -148,12 +148,65 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## En cours
 
-**S3 — tests fonctionnels Playwright.** Spec écrite et validée le 2026-08-31
-(`docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md`, commit `cb9a736`).
-Prochaine étape : le plan d'implémentation (`superpowers:writing-plans`), pas encore écrit.
-Aucun code touché à ce stade.
+_(vide — S3 clôturé, S4 pas encore cadré.)_
 
 ## Terminé
+
+- **2026-09-01** — **S3, tests fonctionnels Playwright** livré (11 tâches ; la spec reste
+  sous `docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md`, le plan est
+  supprimé une fois achevé, cf. `~/claude/CLAUDE.md`). Les 24 cas Robot/Selenium repris un
+  à un sous `tests/functional/` (`pytest` + Playwright + Chromium headless), plus un test
+  de diagnostic des statiques qui n'existait pas côté Robot : **25 tests** au total,
+  indépendants les uns des autres (base tronquée entre deux tests par `transactional_db`,
+  socle reseme à chaque fois), là où la suite Robot était une chaîne ordonnée `001` →
+  `012`.
+  - **Déposé** (tâche 11) : `tests/core/` (12 suites `.robot`, `resources.txt`,
+    `keywords/`), `.tools/geckodriver`, `.tools/firefox/`, les dépendances
+    `robotframework*`/`selenium` de `requirements/requ-testing.txt`, le bloc
+    `locale-gen`/`update-locale` de `.tools/libreosteo-devenv.sh` (`xvfb` déjà absent), et
+    la dépendance à la locale système `fr_FR.UTF-8`. Le job CI `functional`, réécrit en
+    Playwright dès la tâche 4 (commit `54b6af7`, avancé en urgence pour remettre `main` au
+    vert après que la tâche 1 a sorti Robot Framework de `requ-testing.txt`), reste
+    inchangé à la clôture — vérifié à jour avec les 25 tests. `CONTRIBUTING.md` et
+    `README.rst` mis à jour en conséquence.
+  - **Durée mesurée** : deux exécutions consécutives de `make test-functional` sans
+    nettoyage entre les deux, 218,32 s puis 215,29 s (25/25 verts les deux fois),
+    `data/db.sqlite3` et `data/whoosh_index` inchangés (hash identique avant/après,
+    `git status --short data/` vide). **Aucune durée de la suite Robot n'a jamais été
+    consignée dans ce dépôt** — seuls des comptes verts/rouges (`24/24 OK`) figurent au
+    journal du 2026-08-30 : la comparaison chiffrée voulue par le plan n'est donc pas
+    possible, seulement qualitative — plus de serveur CherryPy à démarrer/arrêter à la
+    main, plus de téléchargement de Firefox ni d'appariement de version avec
+    `geckodriver`, plus d'installation de locale système.
+  - **Non-déterminisme de `008 Invoice Functionality`** (constaté le 2026-08-31 sur la
+    suite Robot en CI, cf. « Suite du projet » et « Pièges rencontrés » ci-dessous) : la
+    cause précise, au-delà du correctif `unproxy` de S2 qui s'est révélé insuffisant à lui
+    seul, n'a jamais été identifiée — elle est **rendue sans objet** par le remplacement
+    intégral du véhicule. `test_facturation.py`, qui reprend ce cas, n'a plus le moindre
+    rapport avec Selenium/Firefox/geckodriver ; vérifié empiriquement vert à chacune des
+    16 exécutions complètes de la suite Playwright passées depuis les tâches 8 à 11 (les
+    deux de cette tâche comprises), aucune ERROR, aucun échec.
+  - **`ERROR` intermittente de fin de session** (cf. « Pièges rencontrés », tâche 7) :
+    toujours **une seule occurrence sur trente-deux** exécutions complètes connues à la
+    clôture de S3 (16 avant la tâche 8, 16 pendant les tâches 8 à 11), toujours sans
+    traceback capturé. Cause non identifiée ; la procédure de capture pour la prochaine
+    occurrence, documentée à l'entrée référencée ci-dessus, reste en vigueur — aucun
+    nouveau flake instruit pendant cette tâche, les deux exécutions de clôture étant
+    vertes.
+  - **Deux défauts applicatifs constatés depuis l'extérieur, délibérément non corrigés**
+    (la suite fonctionnelle prouve des parcours, elle ne répare pas l'application sous
+    test) : le widget de date webshim, qui lit une saisie tapée en MOIS/JOUR/ANNÉE au lieu
+    de JOUR/MOIS/ANNÉE (`tests/functional/test_patient.py`, `test_consultation.py` ;
+    établi sur deux champs indépendants, cf. « Points en suspens » ci-dessous — le format
+    réellement accepté hors Chromium headless reste à vérifier) ; et la séquence de départ
+    de facturation (`#invoice_start_sequence`), qui ignore silencieusement une saisie
+    textuelle au lieu de la refuser (`tests/functional/test_facturation.py::
+    test_numero_de_depart_textuel_ignore`, cf. « Pièges rencontrés », tâche 8).
+  - **« Prêt pour Django 5 »** : deux dépréciations de code d'application pré-existant,
+    imprimées à chaque exécution de la suite fonctionnelle et non corrigées ici
+    (changement de réglage global et de migration, hors périmètre d'un correctif de
+    tests, cf. « Pièges rencontrés », tâche 7) — `USE_L10N = True` et l'alias
+    `django.utils.timezone.utc`.
 
 - **2026-08-31** — **S2, couverture métier** livré (35 tâches en 5 lots ; la spec reste sous
   `docs/superpowers/specs/2026-08-30-couverture-metier*`, le plan a été supprimé une fois
@@ -502,33 +555,14 @@ Aucun code touché à ce stade.
   `test_no_set_start_invoice_sequence_on_already_set_value` de `test_invoice.py`. Le refus DRF
   est resté tel quel ; le test asserte le 400 et la séquence inchangée en base.
 
-## Suite du projet — S2 à S5
+## Suite du projet — S4 à S5
 
 Chantier « amélioration des tests », ordonnancement A décidé au cadrage du 2026-08-30.
+S2 (couverture métier) et S3 (fonctionnels Playwright) sont clos, cf. « Terminé ».
 Chaque sous-chantier repart de `superpowers:brainstorming`, produit sa spec puis son plan
 sous `docs/superpowers/` ; **ne pas enchaîner deux sous-chantiers dans une seule spec**,
 le découpage est une décision de cadrage, pas une commodité.
 
-- **S2 — Couverture métier.** Le gros du travail, et ce qui donne sa valeur au plancher
-  posé en S1. Cible : `libreosteoweb/api/views.py` (971 lignes), `file_integrator.py`
-  (582), `serializers.py` (510), `permissions.py`, `invoicing/`. Tests d'intégration
-  Django, sans navigateur. C'est aussi ce qui rendra abordables les correctifs de sécurité
-  en attente ci-dessus (`SECRET_KEY` en dur, `DEBUG` actif en standalone), qu'on ne veut
-  pas toucher sans filet.
-- **S3 — Fonctionnels Playwright.** Réécriture des 24 tests Robot, suppression de
-  Selenium, de geckodriver, de la dépendance à la locale `fr_FR.UTF-8` et de la tâche
-  `functional` du workflow. **Prérequis levé le 2026-08-31** : `cdn.playwright.dev` était
-  bloqué par la politique réseau (403), une règle d'autorisation a été posée côté hôte ;
-  `playwright install chromium` télécharge alors Chrome Headless Shell 151.0.7922.34, dont
-  le lancement exige dix-sept bibliothèques partagées absentes, installées par
-  `playwright install-deps chromium` (paquets système non persistants, à rejouer par
-  `.tools/libreosteo-devenv.sh`). Lancement headless vérifié de bout en bout.
-  **Le non-déterminisme n'a pas disparu avec le correctif de `unproxy` en S2.** Le
-  2026-08-31, la CI a échoué sur `008 Invoice Functionality` (4 tests sur 5), précédée de
-  trois `OSError: [Errno 9] Bad file descriptor`, puis a été verte au rejeu du même commit
-  sans aucune modification. Un travail sain apparaît donc cassé une fois sur deux, ce qui
-  est le pire état possible pour une barrière : on prend l'habitude de la rejouer, et le
-  jour où elle a raison, on ne l'écoute plus.
 - **S4 — Cahier de recette.** Niveau 3 du `~/claude/CLAUDE.md` : fonctionnel, exécuté par
   un humain, couvrant tous les cas d'usage, y compris ceux déjà couverts en automatique.
 - **S5 — Maintenabilité.** Découpage des gros modules pour les rendre testables. En
