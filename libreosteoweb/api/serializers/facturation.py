@@ -1,0 +1,133 @@
+# This file is part of LibreOsteo.
+#
+# LibreOsteo is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LibreOsteo is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
+from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
+
+from libreosteoweb.models import Invoice, OfficeSettings, PaimentMean
+
+from .communs import WithPkMixin
+
+
+class PaimentModeSerializer(serializers.Serializer):
+    paiment_mode_text = serializers.SerializerMethodField()
+
+    def get_paiment_mode_text(self, obj):
+        if hasattr(obj, "paiment_mode"):
+            paiment_code = obj.paiment_mode
+        else:
+            paiment_code = obj.get("paiment_mode")
+        paiment_mean = PaimentMean.objects.filter(code=paiment_code).first()
+        if paiment_mean is not None:
+            return paiment_mean.text
+        return "n/a"
+
+
+class PaimentSerializer(PaimentModeSerializer):
+    amount = serializers.FloatField(required=True)
+    currency = serializers.CharField(required=True)
+    date = serializers.DateField(required=True)
+    paiment_mode = serializers.CharField(required=True)
+
+
+class InvoiceSerializer(
+    WithPkMixin, serializers.ModelSerializer, PaimentModeSerializer
+):
+    paiments_list = PaimentSerializer(
+        many=True, read_only=True, allow_null=True, required=False
+    )
+    office_name = serializers.SerializerMethodField()
+
+    def get_office_name(self, obj):
+        office = OfficeSettings.objects.get(id=obj.officesettings_id)
+        if office is not None:
+            return office.office_name
+        return "n/a"
+
+    class Meta:
+        model = Invoice
+        fields = "__all__"
+        depth = 0
+
+
+class CheckSerializer(serializers.Serializer):
+    bank = serializers.CharField(required=False, allow_null=True)
+    payer = serializers.CharField(required=False, allow_null=True)
+    number = serializers.CharField(required=False, allow_null=True)
+
+
+class ExaminationInvoicingSerializer(serializers.Serializer):
+    status = serializers.CharField(required=True)
+    reason = serializers.CharField(required=False, allow_null=True)
+    paiment_mode = serializers.CharField(required=False, allow_null=True)
+    amount = serializers.FloatField(required=False, allow_null=True)
+    check = CheckSerializer()
+
+    def validate(self, attrs):
+        """
+        Check that the invoicing is consistent
+        """
+        try:
+            if attrs["status"] == "notinvoiced":
+                if attrs["reason"] is None or len(attrs["reason"].strip()) == 0:
+                    raise serializers.ValidationError(
+                        _("Reason is mandatory when the examination is not invoiced")
+                    )
+            if attrs["status"] == "invoiced":
+                if attrs["amount"] is None or attrs["amount"] <= 0:
+                    raise serializers.ValidationError(_("Amount is invalid"))
+                if (
+                    attrs["paiment_mode"] is None
+                    or len(attrs["paiment_mode"].strip()) == 0
+                    or attrs["paiment_mode"]
+                    not in [p.code for p in PaimentMean.objects.filter(enable=True)]
+                    + ["notpaid"]
+                ):
+                    raise serializers.ValidationError(
+                        _("Paiment mode is mandatory when the examination is invoiced")
+                    )
+                if attrs["paiment_mode"] == "check":
+                    if attrs["check"] is None:
+                        raise serializers.ValidationError(
+                            _("Check information is missing")
+                        )
+                # if attrs['check']['bank'] is None or len(attrs['check']['bank'].strip()) == 0:
+                #    raise serializers.ValidationError(_("Bank information is missing about the check paiment"))
+                # if attrs['check']['payer'] is None or len(attrs['check']['payer'].strip()) == 0:
+                #    raise serializers.ValidationError(_("Payer information is missing about the check paiment"))
+                # if attrs['check']['number'] is None or len(attrs['check']['number'].strip()) == 0:
+                #    raise serializers.ValidationError(_("Number information is missing about the check paiment"))
+            return attrs
+        except KeyError:
+            raise serializers.ValidationError(_("Missing data to continue"))
+
+
+class InvoiceCancelingWithCorrectiveInvoiceSerializer(serializers.Serializer):
+    corrective_invoice = ExaminationInvoicingSerializer()
+
+    def get_fields(self):
+        # Import local : ExaminationSerializer vit dans consultation.py, qui importe
+        # InvoiceSerializer d'ici. Un import en tete de fichier creerait un cycle au
+        # chargement du paquet ; differe jusqu'au premier acces a `self.fields`
+        # (apres que tous les modules du paquet sont charges), ca ne change rien au
+        # comportement.
+        from .consultation import ExaminationSerializer
+
+        return {"examination": ExaminationSerializer(), **super().get_fields()}
+
+
+class PaimentMeanSerializer(WithPkMixin, serializers.ModelSerializer):
+    class Meta:
+        model = PaimentMean
+        fields = "__all__"

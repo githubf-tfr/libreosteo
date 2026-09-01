@@ -82,7 +82,9 @@ class TestCreationPatient(APITestCase):
         # statistiques (defaut C, `libreosteoweb.api.statistics`), corrige ici pour
         # `PatientSerializer.to_internal_value`.
         instant = datetime(2020, 7, 14, 22, 30, tzinfo=fuseau_utc.utc)
-        with patch("libreosteoweb.api.serializers.timezone.now", return_value=instant):
+        with patch(
+            "libreosteoweb.api.serializers.patient.timezone.now", return_value=instant
+        ):
             reponse = self.client.post(
                 reverse("patient-list"), data=PATIENT_MINIMAL, format="json"
             )
