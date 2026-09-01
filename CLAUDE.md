@@ -15,6 +15,12 @@ code de départ est la source, gelée au commit amont `8e9e0e77d70` (2026-08-30,
   **portage manuel**, décidé au cas par cas et consigné dans `KANBAN.md` § Suivi amont.
 - Ne jamais pousser sur `upstream`.
 
+## Déploiement
+
+**Conteneur (Docker pour le moment) + PostgreSQL, rien d'autre** (acté au cadrage S4,
+2026-09-01). Les modes sqlite et standalone ne sont plus des cibles : ne pas les
+entretenir, ne pas les recetter.
+
 ## Tests et qualité
 
 `make check` avant tout commit — c'est exactement le job `quality` de la CI. Trois

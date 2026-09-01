@@ -32,6 +32,19 @@ Tenu à la main.
     session. Le montage actuel, cause du non-déterminisme et du piège `MAIN_WRITELOCK`, n'est
     pas reconduit.
 
+- (2026-09-01) **Cadrage de S4, cahier de recette.** Spec validée :
+  `docs/superpowers/specs/2026-09-01-cahier-recette-design.md`. Trois décisions
+  tranchées au cadrage :
+  - **Ligne directrice du fork** : abandon de tout déploiement autre que conteneur
+    (Docker pour le moment) et PostgreSQL. Le montage sqlite mono-conteneur et le mode
+    standalone ne sont plus des cibles.
+  - **Déploiement de référence de la recette** : `Docker/deploy/pg/docker-compose.yml`,
+    images construites depuis le fork.
+  - **Exécutant : une session Claude**, pas un humain — divergence assumée avec
+    `~/claude/CLAUDE.md` § Tests niveau 3 ; le cahier (`docs/recette.md`, document
+    unique) est conçu pour un exécutant LLM : fiches indépendantes sur états nommés,
+    attendus textuels exacts, verdicts binaires.
+
 ## À faire
 
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non

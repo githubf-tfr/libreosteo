@@ -104,8 +104,9 @@ Règle de découpage : une fiche = un cas d'usage, verdict binaire.
   réseau `apk`/`pip`/`yarn` au build), et le comportement du montage compose (ports
   5432/8085, volumes). Première tâche du plan : prouver le montage de bout en bout
   avant d'écrire la moindre fiche — même logique que le prérequis Playwright de S3.
-- Le montage sqlite mono-conteneur et le mode standalone sont hors périmètre S4
-  (écartés au cadrage).
+- Le montage sqlite mono-conteneur et le mode standalone sont hors périmètre S4 —
+  et au-delà : la ligne directrice du fork, actée au cadrage S4, est d'abandonner
+  tout déploiement autre que conteneur (Docker pour le moment) et PostgreSQL.
 
 ## Critères d'achèvement
 
