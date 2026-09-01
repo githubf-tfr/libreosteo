@@ -382,6 +382,10 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
                 data["invoice_start_sequence"] = _unicode(last_invoice_number)
             else:
                 data["invoice_start_sequence"] = _unicode(10000)
+        elif not input_invoice_start_seq.isnumeric():
+            raise serializers.ValidationError(
+                _("Invoice start sequence should only contain digits")
+            )
         if input_invoice_prefix_seq is not None:
             input_invoice_prefix_seq = input_invoice_prefix_seq.strip()
             if len(input_invoice_prefix_seq) > 3:

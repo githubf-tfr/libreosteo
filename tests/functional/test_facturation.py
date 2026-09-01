@@ -51,8 +51,9 @@ def test_changement_du_numero_de_depart(
     ouvrir_reglages_cabinet(page)
 
     champ = page.locator("#invoice_start_sequence")
-    champ.fill("")
-    expect(champ).to_have_class(re.compile(r"\bng-invalid\b"))
+    # Plus de `champ.fill(""); expect(... ng-invalid)` ici : retirer `required` du champ
+    # (correctif defaut B) rend desormais le vide legitime, pas une etape transitoire
+    # invalide — `champ.fill("25000")` remplace deja tout le contenu precedent.
     champ.fill("25000")
     expect(champ).to_have_class(re.compile(r"\bng-valid\b"))
     enregistrer_formulaire(page)
@@ -120,29 +121,28 @@ def test_numero_de_depart_anterieur_refuse(
     assert OfficeSettings.objects.get(id=1).invoice_start_sequence == "25001"
 
 
-def test_numero_de_depart_textuel_ignore(
+def test_numero_de_depart_textuel_refuse(
     page: Page, live_server: LiveServer, socle: Socle
 ) -> None:
-    """Deviation du brief (`..._refuse`) : aucun refus explicite n'existe cote serveur.
-
-    `ng-model="officesettings.invoice_start_sequence"` (partials/office-settings.html)
-    n'ecrit jamais une valeur en echec de validateur dans le modele Angular — comportement
-    standard d'AngularJS ($ngModelCtrl : le $modelValue reste a sa valeur precedente, ici
-    vide). Le formulaire (`novalidate`, aucune verification cote bouton) soumet donc une
-    sequence vide, jamais le texte tape : constate par ecoute directe de la requete PUT
-    (payload `invoice_start_sequence:""`) avant correction. Le serveur applique alors son
-    repli par defaut (`OfficeSettingsSerializer.validate`, aucune facture emise ⇒ 10000),
-    et renvoie un succes, pas une erreur.
+    """Une saisie non numerique dans « numero de depart » est refusee de facon visible : le
+    champ passe invalide (ng-pattern/validate-invoice-start), le bouton d'enregistrement
+    reste desactive (garde cible `form.invoice_start_sequence.$invalid`,
+    office-settings.html), aucune requete PUT ne part, la sequence en base ne bouge pas.
     """
     connexion(page, live_server)
     ouvrir_reglages_cabinet(page)
     champ = page.locator("#invoice_start_sequence")
+    # `button.btn.btn-primary` seul est ambigu : l'onglet "Users" (`ng-if` server-rendu
+    # vrai pour un compte staff) porte un second bouton avec les memes classes, hors
+    # d'ecran mais toujours dans le DOM (mode strict de Playwright, deux correspondances).
+    bouton = page.locator('button[ng-click="updateSettings(officesettings)"]')
 
     champ.fill("FACT00001")
     expect(champ).to_have_class(re.compile(r"\bng-invalid\b"))
-    enregistrer_formulaire(page)
+    expect(bouton).to_be_disabled()
+    expect(page.locator("div.growl-item.alert-success")).to_have_count(0)
 
-    assert OfficeSettings.objects.get(id=1).invoice_start_sequence == "10000"
+    assert OfficeSettings.objects.get(id=1).invoice_start_sequence == ""
 
 
 def test_annulation_et_refacturation(

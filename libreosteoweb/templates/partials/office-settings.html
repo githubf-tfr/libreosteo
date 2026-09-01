@@ -208,7 +208,6 @@
                                        ng-disabled="{{ user.is_staff|yesno:"false,true" }}"
                                        ng-pattern='/^\d+$/'
                                        validate-invoice-start
-                                       required="true"
                                        title="{% trans 'The start sequence must have composed only with numbers' %}"
                                        />
 
@@ -247,7 +246,7 @@
             <div class="col-xs-12 col-sm-8 col-md-6 col-sm-offset-3 col-md-offset-3">
               <button class="btn btn-primary"
                       ng-click="updateSettings(officesettings)"
-                      ng-disabled="{{ user.is_staff|yesno:"false,true" }}">{% trans 'Update' %}</button>
+                      ng-disabled="form.invoice_start_sequence.$invalid || {{ user.is_staff|yesno:"false,true" }}">{% trans 'Update' %}</button>
             </div>
           </form>
         </div>

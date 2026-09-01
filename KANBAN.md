@@ -148,10 +148,8 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 - (S3, tâches 4 et 7) **Widget de date webshim : affiche en JOUR/MOIS/ANNÉE, lit en
   MOIS/JOUR/ANNÉE.** Défaut avéré, preuve par assertion en base sur deux champs
   indépendants ; détail et asymétrie affichage/saisie en « Points en suspens » ci-dessous.
-- (S3, tâche 8) **`#invoice_start_sequence` ignore silencieusement une saisie textuelle**
-  au lieu de la refuser (AngularJS ne recopie jamais une valeur en échec de validateur
-  dans le modèle ; le bouton d'enregistrement ne porte aucune garde de validité). Détail
-  en « Pièges rencontrés », tâche 8.
+- ~~(S3, tâche 8) `#invoice_start_sequence` ignore silencieusement une saisie textuelle
+  au lieu de la refuser~~ — **corrigé le 2026-09-01**, défaut B de S3 bis, cf. « Terminé ».
 - ~~(S3, tâche 5) `libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
   jour calendaire UTC puis la borne en horaires locaux~~ — **corrigé le 2026-09-01**,
   défaut C de S3 bis, cf. « Terminé ».
@@ -205,6 +203,62 @@ _(vide — S3 clôturé, S4 pas encore cadré.)_
   Conception : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/design-defaut-C.md`.
   Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
   rapport-defaut-C.md`.
+
+- **2026-09-01 (S3 bis, défaut B)** — **`#invoice_start_sequence` avalait une saisie
+  textuelle avec un message de succès, corrigé.** Mécanisme (tâche 8 de S3, cf. « Pièges
+  rencontrés ») : `ngModelController` n'écrit jamais dans le modèle une valeur en échec
+  de validateur — le champ restait donc à sa dernière valeur valide, `""` sur un cabinet
+  neuf (semée par la migration `0014_auto_20150127_1523`) ; le bouton d'enregistrement
+  ne portait aucune garde de validité et soumettait ce vide ;
+  `OfficeSettingsSerializer.validate` traite intentionnellement le vide comme « calcule
+  le défaut » (fonctionnalité voulue, testée) et produisait un numéro recalculé sans
+  confirmation explicite de l'utilisateur ; `perform_update` renvoyait 200. Un texte
+  explicite non vide et non numérique n'était, lui, validé nulle part côté serveur — trou
+  distinct, retrouvable hors navigateur (client API direct).
+  Correctif, aux deux bouts : `libreosteoweb/templates/partials/office-settings.html`
+  perd le `required="true"` du champ (le vide devient un état légitime et durable, pas
+  seulement transitoire — l'usager édite ce formulaire un champ à la fois) et le bouton
+  gagne `ng-disabled="form.invoice_start_sequence.$invalid || …"`, gardé ciblé sur ce seul
+  contrôle plutôt que `form.$invalid` (d'autres champs `required` du même formulaire sont
+  légitimement vides à long terme) ; `officesettings.js`, le validateur personnalisé
+  `validateInvoiceStart` laisse désormais passer le vide (`ctrl.$isEmpty`) et ne refuse
+  que le non-vide non numérique ou reculant ; `serializers.py`,
+  `OfficeSettingsSerializer.validate` lève `ValidationError` (400) sur une valeur non
+  vide et non numérique, même patron déjà en place pour `invoice_prefix_sequence`.
+  Tests : `test_une_valeur_non_numerique_laisse_la_sequence_inchangee` devient
+  `test_une_valeur_non_numerique_est_refusee` (`libreosteoweb/tests/
+  test_exploitation.py`), assertion de statut 200 → 400 (rouge constaté avant correctif :
+  200, alors que 400 est attendu) ; nouveau
+  `test_une_sequence_par_defaut_prefixee_laisse_la_sequence_inchangee` pour ne pas perdre
+  la couverture de la branche `isnumeric() is False` de
+  `OfficeSettingsView.perform_update`, orpheline sinon (cas synthétique : un numéro de
+  facture porté par un préfixe alphabétique produit un défaut calculé non numérique).
+  Suite fonctionnelle : `test_numero_de_depart_textuel_ignore` devient
+  `test_numero_de_depart_textuel_refuse`
+  (`tests/functional/test_facturation.py`) — prouve le refus visible (champ `ng-invalid`,
+  bouton désactivé, aucun growl de succès) et l'absence d'écriture en base, au lieu de
+  figer l'ancien 200 silencieux ; `test_changement_du_numero_de_depart`, qui vidait le
+  champ pour vérifier qu'il devenait `ng-invalid` avant de saisir la nouvelle séquence,
+  perdait son sens avec le retrait de `required` (le vide est maintenant valide) — la
+  vérification intermédiaire est retirée, `champ.fill(...)` remplaçant déjà tout le
+  contenu précédent.
+  Déviation constatée par rapport à la conception : le sélecteur `button.btn.btn-primary`
+  qu'elle proposait pour le bouton d'enregistrement est ambigu en mode strict Playwright
+  — l'onglet « Users », rendu dès qu'un compte est `is_staff` (le cas de tous les comptes
+  de test), porte un second bouton avec les mêmes classes (`ng-click="addUser()"`), hors
+  écran mais toujours présent dans le DOM ; remplacé par le sélecteur d'attribut
+  `button[ng-click="updateSettings(officesettings)"]`, unique dans le template. Les
+  fichiers JS servis en test viennent du répertoire `static/` collecté (`STATIC_ROOT`,
+  gitignoré), pas des sources sous `libreosteoweb/static/` : un `manage.py collectstatic`
+  est nécessaire après toute modification de `officesettings.js` pour que la suite
+  fonctionnelle locale la voie (la CI le fait déjà avant `make test-functional`,
+  `.github/workflows/main.yml`).
+  Couverture : `fail_under = 89` tenu, 89,35 % mesuré (`make check`) ; aucune ligne
+  existante retirée de `views.py` ni d'ailleurs, périmètre `mypy` et `ruff`
+  (`select`/`ignore`) inchangés.
+  Conception : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/design-defaut-B.md`.
+  Rapport détaillé : `.superpowers/sdd/2026-08-31-fonctionnels-playwright/
+  rapport-defaut-B.md`.
 
 - **2026-09-01** — **S3, tests fonctionnels Playwright** livré (11 tâches ; la spec reste
   sous `docs/superpowers/specs/2026-08-31-fonctionnels-playwright-design.md`, le plan est

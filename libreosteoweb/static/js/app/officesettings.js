@@ -66,6 +66,11 @@ officesettings.directive("validateInvoiceStart", function() {
     require: 'ngModel',
     link: function(scope, elm, attrs, ctrl) {
       ctrl.$validators.validateInvoiceStart = function(modelValue, viewValue) {
+        if (ctrl.$isEmpty(modelValue)) {
+          // Vide = laisser le serveur calculer la valeur par defaut
+          // (OfficeSettingsSerializer.validate) ; ce n'est pas une erreur.
+          return true;
+        }
         if (!isNaN(modelValue) && modelValue >= scope.officesettings.invoice_min_sequence) {
           return true;
         }
