@@ -85,11 +85,11 @@ def ouvrir_reglages_cabinet(page: Page) -> None:
     # #loading-bar qu'apres son `latencyThreshold` de 100 ms (loading-bar.min.js), donc un
     # GET /api/settings qui repond plus vite ne l'affiche jamais et l'attente rend la main
     # avant que la reponse n'ait rempli le formulaire. `office_identifier` est rempli par
-    # cette reponse et le socle ne le vide jamais : une vraie barriere d'etat.
+    # cette reponse : une vraie barriere d'etat. Attendre une valeur non vide plutot que la
+    # valeur semee en dur par le socle — un test qui la reecrit (test_cabinet.py) puis
+    # rappellerait cette fonction ne resterait pas bloque jusqu'au plafond d'`expect`.
     attendre_page_prete(page)
-    expect(page.locator("input[name=office_identifier]")).to_have_value(
-        "52282868700022"
-    )
+    expect(page.locator("input[name=office_identifier]")).not_to_have_value("")
 
 
 def ouvrir_profil_therapeute(page: Page) -> None:
@@ -101,16 +101,28 @@ def ouvrir_profil_therapeute(page: Page) -> None:
     page.click("#user-profile")
     expect(page.locator("h1.page-header")).to_contain_text("Profil utilisateur")
     # Meme risque de course qu'au-dessus (GET /myuserid, /api/users/:id,
-    # /api/profiles/get_by_user) : `email` est rempli par ces reponses et le socle ne le
-    # vide jamais, contrairement a `professional_id` ou `quality` que certains tests vident
-    # expres pour declencher la visite guidee.
+    # /api/profiles/get_by_user) : `email` est rempli par ces reponses, contrairement a
+    # `professional_id` ou `quality` que certains tests vident expres pour declencher la
+    # visite guidee. Meme choix de barriere qu'au-dessus : une valeur non vide plutot que
+    # celle semee en dur par le socle.
     attendre_page_prete(page)
-    expect(page.locator("input[name=email]")).to_have_value("test@test.com")
+    expect(page.locator("input[name=email]")).not_to_have_value("")
 
 
 def enregistrer_formulaire(page: Page) -> None:
+    """Clique le bouton d'enregistrement et attend son propre growl de succes.
+
+    `growlProvider.onlyUniqueMessages(false)` (static/js/app/app.js) empile les growls
+    identiques au lieu de les fusionner, et leur TTL (5000 ms) depasse largement la duree
+    d'un test : un second appel dans le meme test pourrait retomber sur le growl du
+    premier, encore a l'ecran, sans avoir attendu le sien. Compter les growls *avant* le
+    clic, puis attendre `n + 1`, est une vraie barriere pour chaque appel, contrairement a
+    une simple visibilite qu'un growl anterieur satisferait deja.
+    """
+    growl_succes = page.locator("div.growl-item.alert-success")
+    compte_avant = growl_succes.count()
     page.click("button.btn.btn-primary")
-    expect(page.locator("div.growl-item.alert-success")).to_be_visible()
+    expect(growl_succes).to_have_count(compte_avant + 1)
 
 
 def creer_patient(
@@ -167,6 +179,16 @@ def cloturer_consultation(
     """Cloture la consultation ouverte.
 
     `mode` vaut "invoiced" ou "notinvoiced" ; `moyen` vaut "check", "cash" ou "notpaid".
+
+    Tous les appelants ouvrent la consultation cloturee ici par `ouvrir_nouvelle_
+    consultation` : `#current-examination` (id du `uib-tab`, patient-detail.html) est donc
+    visible, sous `ng-show="examinationsTab.newExaminationDisplay"`. Le callback de succes
+    de `$scope.close` (patient.js) masque ce panneau des le retour du POST de fermeture —
+    identique que la fermeture soit facturee ou non, les deux modes traversent le meme
+    `$scope.close`. Attendre sa disparition est donc une vraie barriere de fin, la ou
+    `attendre_page_prete` seul (#loading-bar) ne l'est pas : documente deux fois dans ce
+    depot, notamment par l'`Invoice.DoesNotExist` intermittent que ce depot a rencontre
+    (cf. KANBAN.md, tache 9 puis tache 11).
     """
     page.click("#close-examination")
     page.check(f"input[value={mode}]")
@@ -176,6 +198,7 @@ def cloturer_consultation(
         expect(page.locator("#amount")).to_have_value("55")
         page.check(f"input[value={moyen}]")
     page.click("button.btn-primary:has-text('Valider')")
+    expect(page.locator("#current-examination")).to_be_hidden()
 
 
 def libelle_date_longue(jour: date) -> str:

@@ -100,32 +100,22 @@ def test_numero_de_depart_anterieur_refuse(
     connexion(page, live_server)
     ouvrir_reglages_cabinet(page)
     champ = page.locator("#invoice_start_sequence")
-    # `growlProvider.onlyUniqueMessages(false)` (static/js/app/app.js) empile les growls
-    # identiques au lieu de les fusionner ; leur TTL (5000 ms) depasse largement la duree
-    # d'un test. Compter les growls de succes est donc une vraie barriere d'etat pour la
-    # deuxieme sauvegarde : elle ne se pose qu'apres que le second aller-retour serveur a
-    # reellement pousse son propre message, contrairement a `.fill()` suivi de
-    # `to_have_value` (repris du brief), qui relit la valeur que `.fill()` vient lui-meme
-    # de poser dans le DOM et n'attend donc rien de reel — constate par instrumentation
-    # directe des reponses reseau : le deuxieme PUT pouvait encore etre en vol, la base
-    # lue par ORM juste apres montrait toujours l'ancienne valeur, `enregistrer_formulaire`
-    # seul retrouvant le growl de la premiere sauvegarde encore a l'ecran.
-    growl_succes = page.locator("div.growl-item.alert-success")
+    # Deux sauvegardes dans le meme test : `enregistrer_formulaire` compte desormais ses
+    # propres growls avant de cliquer, une vraie barriere d'etat pour chacune — plus besoin
+    # de la reproduire ici (cf. helpers.py, ancien piege documente a cet endroit).
 
     champ.fill("15000")
     expect(champ).to_have_class(re.compile(r"\bng-invalid\b"))
     champ.fill("25500")
     expect(champ).to_have_class(re.compile(r"\bng-valid\b"))
     enregistrer_formulaire(page)
-    expect(growl_succes).to_have_count(1)
     assert "25500" in dernier_evenement().comment
 
     champ.fill("25000")
     expect(champ).to_have_class(re.compile(r"\bng-invalid\b"))
     champ.fill("25001")
     expect(champ).to_have_class(re.compile(r"\bng-valid\b"))
-    page.click("button.btn.btn-primary")
-    expect(growl_succes).to_have_count(2)
+    enregistrer_formulaire(page)
     assert "25001" in dernier_evenement().comment
     assert OfficeSettings.objects.get(id=1).invoice_start_sequence == "25001"
 
