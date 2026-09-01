@@ -122,7 +122,6 @@ files = [
     "patch.py",
     "server.py",
     "tests/__init__.py",
-    "tests/core/keywords/utils.py",
     "tests/functional/__init__.py",
     "tests/functional/conftest.py",
     "tests/functional/fabrique.py",

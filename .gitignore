@@ -36,12 +36,9 @@ venv/
 Libreosteo/settings/local.py*
 
 # Tests / tooling artefacts
-selenium-screenshot-*.png
 .coverage
 yarn.lock
-output.xml
-/log.html
-/report.html
+/test-results/
 
 # Claude Code local settings (sandbox-specific paths)
 .claude/settings.local.json

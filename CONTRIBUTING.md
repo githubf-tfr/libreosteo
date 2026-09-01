@@ -69,7 +69,7 @@ When developing a new functionality, the requirement is to add some tests (unit 
 Even if first functionalities were not developed with a lack of tests, nothing is to late to change it !
 
 1. Write the unit test for REST Api see [Django Rest Framework Testing](http://www.django-rest-framework.org/api-guide/testing/)
-2. Write the functional test to ensure that the UI behaviors is the right expected see [Robotframework](http://robotframework.org/)
+2. Write the functional test to ensure that the UI behaviors is the right expected, with [Playwright](https://playwright.dev/python/) driven by `pytest` (`tests/functional/`)
 
 Running unit tests
 ------------------
@@ -82,31 +82,17 @@ You have to run tests before developing any functionality. To run theses tests:
 Running functional tests
 ------------------------
 
-1. Ensure you have all requirements :
+1. Ensure you have all requirements, including Chromium :
 ```
 pip install -r requirements/requ-testing.txt
+playwright install chromium
+```
+(`.tools/libreosteo-devenv.sh` does this for you, plus the system libraries Chromium needs.)
+
+2. Execute the suite:
+```
+make test-functional
 ```
 
-1. Ensure you have Firefox with French support language. You can download it with an url like https://download.mozilla.org/?product=firefox-latest&lang=fr&os=linux64
-
-2. Download and install geckodriver into your PATH:
-```
-wget https://github.com/mozilla/geckodriver/releases/download/v0.21.0/geckodriver-v0.21.0-linux64.tar.gz -O /tmp/geckodriver.tar.gz
-tar -xvf /tmp/geckodriver.tar.gz
-export PATH=$PATH:$PWD
-```
-
-3. Be sure that your static are up to date:
-```
-./manage.py collectstatic --no-input
-```
-
-4. Launch the server instance:
-```
-  python ./server.py
-```
-
-5. Execute tests suite:
-```
-  robot tests
-```
+There is no server to launch by hand : `pytest-django`'s `live_server` fixture starts the
+application in a thread for the duration of each test.

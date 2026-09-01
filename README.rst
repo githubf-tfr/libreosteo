@@ -238,6 +238,20 @@ Three targets are available, all of them expecting the virtualenv in ``.venv`` :
 ``make check`` reproduces exactly the ``quality`` job of the continuous
 integration : what passes locally passes there.
 
+Functional tests
+-----------------
+
+The functional suite (``tests/functional/``) drives the application through a real
+Chromium via `Playwright <https://playwright.dev/python/>`_ and ``pytest``. It is
+independent of ``make check`` and never enters its coverage. Install Chromium once ::
+
+    playwright install chromium
+
+(``.tools/libreosteo-devenv.sh`` does this for you, plus the system libraries Chromium
+needs.) Then run the suite ::
+
+    make test-functional
+
 Contributing code
 =================
 

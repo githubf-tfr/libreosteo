@@ -32,11 +32,17 @@ def connexion(
     # elle-meme, puisque aucun lien ui-sref n'est implique.
     expect(page).to_have_url(f"{serveur.url}/#/")
     # Le tableau de bord declenche plusieurs appels $http asynchrones (profil, reglages,
-    # statistiques, evenements) que ce clic n'attend pas : sans cette attente, ils peuvent
-    # encore etre en vol quand `live_server` (fixture de session) s'arrete a la fin de la
-    # session, ce qui fait echouer le thread de requete restant sur le partage de connexion
-    # SQLite entre threads. `angular-loading-bar` intercepte tous les appels `$http` de
-    # l'application (cf. static/js/app/app.js) : attendre sa disparition ici les attend tous.
+    # statistiques, evenements) que ce clic n'attend pas : un geste suivant qui depend de
+    # ui-router (meme course que celle documentee plus haut sur l'URL, et dans
+    # `ouvrir_reglages_cabinet` pour les liens ui-sref) peut s'executer avant que ces
+    # appels n'aient fini de resoudre l'etat initial, et se faire absorber en silence.
+    # (L'ancienne justification par un partage de connexion SQLite entre threads ne tient
+    # plus depuis la tache 3 : `LiveServer.__init__`, pytest_django/live_server_helper.py,
+    # ne peuple `connections_override` que pour une base en memoire, or la base de test est
+    # un fichier depuis cette tache — `inc_thread_sharing`/`dec_thread_sharing` ne sont
+    # plus jamais appeles, ce chemin ne peut plus se declencher.)
+    # `angular-loading-bar` intercepte tous les appels `$http` de l'application
+    # (cf. static/js/app/app.js) : attendre sa disparition ici les attend tous.
     attendre_page_prete(page)
 
 
