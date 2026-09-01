@@ -202,6 +202,21 @@ Aucun code touché à ce stade.
 
 ## Pièges rencontrés
 
+- **2026-09-01 (S3, tâche 7)** — La suite fonctionnelle reprend `libreosteoweb.tests.
+  fixtures.sans_receivers` (outillage des tests unitaires) pour ses arrangements par
+  l'ORM, plutôt que d'en écrire une version propre. `receiver_newpatient` et
+  `receiver_examination` (`libreosteoweb/api/receivers.py`) lisent
+  `current_user_operation`, un attribut non mappé que seule la vue REST renseigne
+  (`PatientSerializer.save`) : une création `Patient.objects.create(...)` directe le
+  laisse à `None`, et `OfficeEvent.user` étant `null=False`, ça lève une
+  `IntegrityError`. Utilisé depuis la tâche 6 dans `patient_existant`
+  (`tests/functional/test_consultation.py`) pour la création du patient par l'ORM. À
+  l'inverse, `deplace_dates` (tâche 7, même fichier) ne l'utilise volontairement pas :
+  `receiver_examination` ne fait rien en dehors d'une création (`if kwargs["created"]`),
+  et aucun receiver n'est enregistré sur `Invoice` (`RECEIVERS_SENDERS` dans
+  `fixtures.py` ne liste que `Examination` et `Patient`) — les deux `save()` de
+  `deplace_dates` sont des mises à jour, `sans_receivers()` n'y changerait rien.
+
 - **2026-08-31 (S3, tâche 5)** — Trois tests unitaires échouent de façon déterministe
   entre 22h et minuit UTC (heure d'été), tous les jours : `test_dossier_patient.py::
   TestValidationPatient::test_date_de_naissance_future_est_refusee`,
