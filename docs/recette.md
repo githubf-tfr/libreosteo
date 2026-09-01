@@ -1277,8 +1277,8 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 - **Couverture auto** : oui —
   libreosteoweb/tests/test_exploitation.py::TestSauvegarde::test_l_archive_contient_le_dump_et_la_version
   (teste le contenu de l'archive au niveau API ; ni le parcours écran — menu puis
-  onglet —, ni l'inclusion des documents joints, ne sont automatisés : le patient de
-  ce test n'a pas de document)
+  onglet —, ni l'inclusion des documents joints, ne sont automatisés : ce test ne
+  crée aucun patient, donc aucun document)
 - **État requis** : E2
 
 **Étapes**
