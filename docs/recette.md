@@ -1146,8 +1146,9 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 2. Cliquer le logo « LibreOsteo » (en haut à gauche) pour revenir au tableau de bord.
    Attendu : titre de page « Tableau de bord » ; le panneau « Évènements » affiche
    une entrée : nom du patient en gras « La Forge Geordi », texte « Nouveau patient
-   créé », une ancienneté relative (ex. « il y a moins d'une minute », variable selon
-   le délai écoulé depuis la création), signée « Robot Tester ».
+   créé », une indication d'ancienneté relative (ex. « il y a moins d'une minute »,
+   le libellé exact dépendant du délai écoulé depuis la création), signée
+   « Robot Tester ».
 
 ### R-AGE-02 — Regroupement et navigation depuis les événements du tableau de bord
 
@@ -1273,9 +1274,11 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-SAU-01 — Sauvegarde de l'instance (obtenir l'archive)
 
 - **Domaine** : Sauvegarde/restauration
-- **Couverture auto** : oui — libreosteoweb/tests/test_exploitation.py::TestSauvegarde
-  (teste le téléchargement et le contenu de l'archive au niveau API ; le parcours
-  écran — menu puis onglet — n'a pas d'équivalent automatisé)
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_exploitation.py::TestSauvegarde::test_l_archive_contient_le_dump_et_la_version
+  (teste le contenu de l'archive au niveau API ; ni le parcours écran — menu puis
+  onglet —, ni l'inclusion des documents joints, ne sont automatisés : le patient de
+  ce test n'a pas de document)
 - **État requis** : E2
 
 **Étapes**
@@ -1298,9 +1301,12 @@ Sections remplies par les tâches 3 à 8 ; titres seuls posés ici comme cadre.
 ### R-SAU-02 — Restauration de la sauvegarde sur une instance vierge
 
 - **Domaine** : Sauvegarde/restauration
-- **Couverture auto** : oui — libreosteoweb/tests/test_exploitation.py::TestRestauration
-  (teste le rechargement de l'archive au niveau API ; le parcours écran — page
-  d'installation puis formulaire de restauration — n'a pas d'équivalent automatisé)
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_exploitation.py::TestRestauration::test_archive_de_la_version_courante_est_rechargee
+  (teste le rechargement de l'archive au niveau API ; ni le parcours écran — page
+  d'installation puis formulaire de restauration —, ni la fidélité réelle des
+  données restaurées, ne sont automatisés : l'archive rechargée par ce test porte un
+  dump vide)
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
   instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,

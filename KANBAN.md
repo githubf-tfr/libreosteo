@@ -193,7 +193,7 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
   (`libreosteoweb/api/views.py:601`) est un `ReadOnlyModelViewSet`, et les seules
   écritures d'`OfficeEvent` viennent de récepteurs de signal
-  (`libreosteoweb/api/receivers.py:71,92`, à la création d'un patient ou d'une
+  (`libreosteoweb/api/receivers.py:70,91`, à la création d'un patient ou d'une
   consultation ; `libreosteoweb/api/events/settings.py`, pour les événements liés aux
   réglages). Ce que le produit offre réellement sous ce nom est un journal
   d'événements alimenté automatiquement et affiché sur le tableau de bord — c'est ce
