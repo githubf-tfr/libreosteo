@@ -136,6 +136,15 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   `paginate_queryset` retourne `None` : l'endpoint répond une liste brute non paginée sauf si
   le client passe `?limit=`. Tout client qui attend l'enveloppe `results` reçoit une liste nue ;
   tout ajout global de `PAGE_SIZE` changerait silencieusement la forme de ces réponses.
+- (S3, tâche 7) **Prêt pour Django 5 : deux dépréciations, imprimées à chaque exécution de
+  la suite fonctionnelle.** Code d'application pré-existant, hors `tests/`, deviendront des
+  erreurs sous Django 5 :
+  - `USE_L10N = True` (`Libreosteo/settings/base.py:200`) — réglage supprimé, `RemovedInDjango50Warning`.
+  - `from django.utils.timezone import utc` (`libreosteoweb/migrations/0040_paiment_date.py:7`)
+    — alias déprécié, `RemovedInDjango50Warning`.
+  Non corrigés ici : toucher un réglage global et une migration est un changement
+  d'application qui veut sa propre décision et son propre commit, hors périmètre d'un
+  correctif de tests.
 
 ## En cours
 
@@ -216,6 +225,32 @@ Aucun code touché à ce stade.
   et aucun receiver n'est enregistré sur `Invoice` (`RECEIVERS_SENDERS` dans
   `fixtures.py` ne liste que `Examination` et `Patient`) — les deux `save()` de
   `deplace_dates` sont des mises à jour, `sans_receivers()` n'y changerait rien.
+
+- **2026-09-01 (S3, tâche 7, tour de correctifs 1)** — **`ERROR` intermittente de fin de
+  session, suite fonctionnelle : constatée une fois sur seize exécutions complètes
+  connues** (12 pendant la tâche 7, 4 de plus lors d'une enquête dédiée), toujours sans
+  traceback capturé. Rattachée les deux fois au dernier test du module
+  `test_consultation.py`, sans que cela distingue « cause propre à ce test » de
+  « position dans l'ordre d'exécution » (une seule occurrence). Ce que l'enquête
+  (`.superpowers/sdd/2026-08-31-fonctionnels-playwright/enquete-teardown.md`) établit
+  avec preuve, par lecture de code plutôt que par reproduction : **la course fermée par la
+  tâche 1 ne peut plus se déclencher.** `LiveServer.__init__`
+  (`pytest_django/live_server_helper.py`) ne remplit `connections_override` que pour une
+  base **en mémoire** (`is_in_memory_db`) ; or la tâche 3 a basculé la base de test vers un
+  **fichier** (`tests/functional/conftest.py`, `TEST["NAME"]` sous un dossier temporaire).
+  `connections_override` est donc vide depuis la tâche 3, `inc_thread_sharing`/
+  `dec_thread_sharing` ne sont plus jamais appelés, et le chemin d'erreur que la tâche 1
+  neutralisait (`validate_thread_sharing`, partage de connexion révoqué entre threads) n'a
+  plus ses conditions de déclenchement. Rouvrir la tâche 1 en réponse à cette `ERROR`
+  serait donc une fausse piste. Cause réelle **non identifiée**, faute de traceback ; la
+  piste la mieux placée après cet écart (teardown de la base fichier contre une écriture
+  serveur encore en cours) reste une plausibilité structurelle, pas une preuve. **La
+  tâche 7 augmente l'exposition plutôt que de la réduire** : ses quatre nouveaux tests
+  élargissent la suite fonctionnelle de 12 à 16 tests, donc le nombre de requêtes en vol
+  par exécution. **Procédure pour la prochaine occurrence** : ne plus relancer à l'aveugle
+  — garder la sortie intégrale de chaque exécution fonctionnelle (rediriger vers un
+  fichier, comme fait l'enquête sous `repro-teardown/run-NN.log`, hors dépôt), pour que la
+  prochaine `ERROR` laisse enfin un traceback exploitable.
 
 - **2026-08-31 (S3, tâche 5)** — Trois tests unitaires échouent de façon déterministe
   entre 22h et minuit UTC (heure d'été), tous les jours : `test_dossier_patient.py::
@@ -499,22 +534,33 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
   changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
 
-### Soupçon non tranché, relevé en S3 (tâche 4, tour de correctifs 1)
+### Format du widget de date webshim, établi sur deux champs (S3, tâches 4 et 7) — question applicative encore ouverte
 
-- **Le widget de date d'un document patient pourrait inverser jour et mois pour un
-  utilisateur français, hors de toute question de locale système.** Établi : le champ de
-  date du formulaire de pièce jointe (`filemanager.html`) est remplacé par le polyfill
-  webshim configuré dans `libreosteoweb/static/js/app/app.js:173-179`
-  (`webshim.setOptions('forms-ext', {replaceUI: 'auto', types: 'date', ...})`) ; ce widget
-  accepte ici le format JJ/MM/AAAA (`"01/10/2012"` → 10 janvier 2012, vérifié par la suite
-  fonctionnelle). Établi aussi : `getAutoEnhance` (`polyfiller.js`) ne désactive ce
-  remplacement que si `webCFG.enhanceAuto` est faux, or sa valeur par défaut est vraie pour
-  tout navigateur de bureau de largeur normale, headless ou non — et `index.html` ne porte
-  aucun attribut `lang` sur lequel le chargeur de locale de webshim pourrait s'appuyer. Ce
-  qui n'est **pas** établi : le format effectivement accepté par ce même widget dans un
-  vrai navigateur de bureau (Firefox, Chrome non headless), avec ou sans locale système fr.
-  Si ce format s'avère être MM/JJ/AAAA en pratique (anglo-saxon) alors qu'un utilisateur
-  français saisit spontanément JJ/MM/AAAA, un « 10/01/2012 » tapé pour le 10 janvier
-  s'enregistrerait comme le 1er octobre — un défaut de saisie silencieux. À vérifier dans
-  un vrai navigateur ; hors périmètre de S3 (suite Playwright/Chromium headless
-  uniquement), pas de correction applicative prise ici.
+- **Établi avec certitude, sur deux champs indépendants, chacun vérifié par une assertion
+  en base : le widget webshim lit le texte tapé en MOIS/JOUR/ANNÉE, jamais en
+  JOUR/MOIS/ANNÉE.** Les deux champs sont remplacés par le même polyfill, configuré dans
+  `libreosteoweb/static/js/app/app.js:173-179`
+  (`webshim.setOptions('forms-ext', {replaceUI: 'auto', types: 'date', ...})`) :
+  - Champ de date de document (`filemanager.html`, `tests/functional/test_patient.py`,
+    tâche 4) : `"01/10/2012"` tapé donne `document.document_date == date(2012, 1, 10)`
+    (10 janvier), assertion en base à `tests/functional/test_patient.py:151`. Premier
+    groupe de chiffres = mois (01 = janvier), second = jour (10) — pas JJ/MM comme
+    l'ancienne rédaction de cette section le disait à tort, en citant pourtant ce même
+    exemple comme preuve.
+  - Champ de date de consultation (`input.ws-date.examinationdate`,
+    `tests/functional/test_consultation.py`, tâche 7) : confirmé indépendamment par lecture
+    directe du `<input type="date">` caché sous le widget (seul lu par le `ng-model`
+    Angular), au-delà du quantième 12 pour lever toute ambiguïté résiduelle — `06/09/2026`
+    tapé devient `2026-06-09` (9 juin), même lecture mois-puis-jour.
+  Établi aussi : `getAutoEnhance` (`polyfiller.js`) ne désactive ce remplacement que si
+  `webCFG.enhanceAuto` est faux, or sa valeur par défaut est vraie pour tout navigateur de
+  bureau de largeur normale, headless ou non — et `index.html` ne porte aucun attribut
+  `lang` sur lequel le chargeur de locale de webshim pourrait s'appuyer.
+- Ce qui reste **non tranché** : le format effectivement accepté par ce même widget dans un
+  vrai navigateur de bureau (Firefox, Chrome non headless), avec ou sans locale système fr —
+  les deux vérifications ci-dessus tournent dans le même environnement Playwright/Chromium
+  headless. Si ce format se confirme hors du véhicule de test, un utilisateur français
+  saisissant spontanément JJ/MM/AAAA (« 10/01/2012 » pour le 10 janvier) verrait sa saisie
+  enregistrée comme le 1er octobre — un défaut de saisie silencieux. À vérifier dans un vrai
+  navigateur ; hors périmètre de S3 (suite Playwright/Chromium headless uniquement), pas de
+  correction applicative prise ici.
