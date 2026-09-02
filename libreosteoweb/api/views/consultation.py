@@ -14,8 +14,6 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 
-import pytz
-from django.core.exceptions import SuspiciousOperation
 from django.db import connection
 from django.http import Http404
 from django.utils import timezone
@@ -113,7 +111,6 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
     def perform_update(self, serializer):
         if not self.request.user.is_authenticated:
             raise Http404()
-        # self._validate_examination_date(serializer)
         if not serializer.instance.therapeut:
             serializer.save(therapeut=self.request.user)
         serializer.save(therapeut=serializer.instance.therapeut)
@@ -125,27 +122,6 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
             reference=instance.id, clazz=models.Examination.__name__
         ).delete()
         return super(ExaminationViewSet, self).perform_destroy(instance)
-
-    def _validate_examination_date(self, serializer):
-        if not serializer.is_valid():
-            raise SuspiciousOperation("Invalid request: data is invalid")
-        if serializer.instance and not serializer.instance.last_invoice:
-            return
-
-        if (
-            serializer.validated_data["date"]
-            and serializer.instance
-            and serializer.instance.last_invoice
-        ):
-            provided_date = serializer.validated_data["date"]
-            if provided_date.tzinfo is None:
-                provided_date = pytz.utc.localize(provided_date)
-            last_invoice_date = serializer.instance.last_invoice.date
-            if last_invoice_date.tzinfo is None:
-                last_invoice_date = pytz.utc.localize(last_invoice_date)
-            if provided_date < last_invoice_date:
-                return
-        raise SuspiciousOperation("Invalid request : examination date is not allowed")
 
     @action(detail=True, methods=["get"])
     def comments(self, request, pk=None):
