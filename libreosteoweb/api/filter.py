@@ -134,6 +134,16 @@ class CapitalizeJoinNameFilter(CapitalizeNameFilter):
         return super(CapitalizeJoinNameFilter, self).filter(filtered_text)
 
 
+def _capitalize_hyphen_segments(filter_instance, text):
+    """Découpe `text` sur '-', capitalise chaque segment, réunit par '-'.
+
+    Corps partagé par `CapitalizeComposedNameFilter` et `CapitalizeHyphenNameFilter` :
+    seule la délégation à leur parent respectif diffère (cf. docstring de ce dernier).
+    """
+    text_list = text.split("-")
+    return "-".join([filter_instance._capitalize_word(t) for t in text_list])
+
+
 class CapitalizeComposedNameFilter(CapitalizeJoinNameFilter):
     def __init__(self, next=None):
         super(CapitalizeComposedNameFilter, self).__init__(next)
@@ -141,8 +151,7 @@ class CapitalizeComposedNameFilter(CapitalizeJoinNameFilter):
     def filter(self, text=None):
         filtered_text = text
         if filtered_text:
-            text_list = filtered_text.split("-")
-            filtered_text = "-".join([self._capitalize_word(t) for t in text_list])
+            filtered_text = _capitalize_hyphen_segments(self, filtered_text)
         return super(CapitalizeComposedNameFilter, self).filter(filtered_text)
 
 
@@ -160,8 +169,7 @@ class CapitalizeHyphenNameFilter(CapitalizeNameFilter):
     def filter(self, text=None):
         filtered_text = text
         if filtered_text:
-            text_list = filtered_text.split("-")
-            filtered_text = "-".join([self._capitalize_word(t) for t in text_list])
+            filtered_text = _capitalize_hyphen_segments(self, filtered_text)
         return super(CapitalizeHyphenNameFilter, self).filter(filtered_text)
 
 

@@ -96,12 +96,12 @@ class StatisticsView(APIView):
 
 
 class PaginationEvenements(pagination.LimitOffsetPagination):
-    """Pagination propre au journal d'evenements.
+    """Pagination propre au journal d'événements.
 
     `LimitOffsetPagination` seul retombe sur `PAGE_SIZE` de REST_FRAMEWORK, que le projet
-    ne definit pas : `default_limit` vaut alors `None` et la vue repond une liste nue des
-    que le client omet `?limit=`. La limite est portee ici plutot que dans REST_FRAMEWORK
-    pour ne pas changer la forme des reponses de tous les autres points d'entree.
+    ne définit pas : `default_limit` vaut alors `None` et la vue répond une liste nue des
+    que le client omet `?limit=`. La limite est portée ici plutôt que dans REST_FRAMEWORK
+    pour ne pas changer la forme des réponses de tous les autres points d'entrée.
     """
 
     default_limit = 10
