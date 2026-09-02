@@ -95,11 +95,24 @@ class StatisticsView(APIView):
         return response
 
 
+class PaginationEvenements(pagination.LimitOffsetPagination):
+    """Pagination propre au journal d'evenements.
+
+    `LimitOffsetPagination` seul retombe sur `PAGE_SIZE` de REST_FRAMEWORK, que le projet
+    ne definit pas : `default_limit` vaut alors `None` et la vue repond une liste nue des
+    que le client omet `?limit=`. La limite est portee ici plutot que dans REST_FRAMEWORK
+    pour ne pas changer la forme des reponses de tous les autres points d'entree.
+    """
+
+    default_limit = 10
+    max_limit = 100
+
+
 class OfficeEventViewSet(viewsets.ReadOnlyModelViewSet):
     model = models.OfficeEvent
     serializer_class = apiserializers.OfficeEventSerializer
     queryset = models.OfficeEvent.objects.all()
-    pagination_class = pagination.LimitOffsetPagination
+    pagination_class = PaginationEvenements
 
     def get_queryset(self):
         """
