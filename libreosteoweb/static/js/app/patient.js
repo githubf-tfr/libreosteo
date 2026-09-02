@@ -765,8 +765,12 @@ patient.controller('PatientCtrl', ['$scope', '$state', '$stateParams', '$filter'
 ]);
 
 
+// ConfirmationCtrl est aussi defini dans invoice.js (declaration globale dupliquee) :
+// la page 404.html charge ce fichier sans invoice.js, donc les deux copies doivent
+// rester rigoureusement identiques, y compris $scope.homonymes ci-dessous.
 var ConfirmationCtrl = function ($scope, $uibModalInstance, message, defaultIsOk) {
   $scope.message = message;
+  $scope.homonymes = ($scope.$resolve && $scope.$resolve.homonymes) || [];
   $scope.ok = function () {
     $uibModalInstance.close();
   };
@@ -912,10 +916,6 @@ patient.controller('AddPatientCtrl', ['$scope', '$location', 'growl', '$sce', 'P
           enregistrer();
           return;
         }
-        var lignes = homonymes.map(function (h) {
-          return "<li>" + h.family_name + " " + h.first_name + " — " +
-            $filter('date')(h.birth_date, 'longDate') + "</li>";
-        }).join("");
         var modalInstance = $uibModal.open({
           templateUrl: 'web-view/partials/confirmation-modal',
           controller: ConfirmationCtrl,
@@ -923,10 +923,16 @@ patient.controller('AddPatientCtrl', ['$scope', '$location', 'growl', '$sce', 'P
             message: function () {
               return $sce.trustAsHtml("<p>" +
                 gettext("A patient with the same name already exists:") +
-                "</p><ul>" + lignes + "</ul>");
+                "</p>");
             },
             defaultIsOk: function () {
               return true;
+            },
+            // Donnees structurees, jamais concatenees dans du HTML : rendues par
+            // ng-repeat + interpolation de texte dans confirmation.html, qui echappe
+            // seule -- un nom d'homonyme est du texte libre non fiable.
+            homonymes: function () {
+              return homonymes;
             }
           }
         });

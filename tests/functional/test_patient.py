@@ -95,6 +95,48 @@ def test_avertissement_d_homonyme_puis_creation(
     assert Patient.objects.filter(family_name="Picard").count() == 2
 
 
+def test_charge_html_dans_nom_homonyme_reste_texte_litteral(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Un nom d'homonyme charge de HTML et d'interpolation Angular ne s'execute pas.
+
+    La liste d'homonymes est construite par concatenation de chaines puis passee a
+    `$sce.trustAsHtml`, compilee par `bind-html-compile` (patient.js:915-925,
+    confirmation.html:7) : une balise HTML deviendrait un vrai element du DOM, une
+    interpolation Angular serait evaluee par le compilateur. Les delimiteurs de ce
+    depot sont `{$ $}`, pas `{{ }}` (app.js, `$interpolateProvider`) : la charge
+    ci-dessous porte les deux voies avec ces delimiteurs-la. La balise
+    `<mark id="xss-marker">` prouve qu'aucun element n'est injecte, `{$ 7*7 $}` prouve
+    qu'aucune interpolation n'est evaluee (elle resterait litterale, jamais "49").
+    """
+    charge = 'Picard<mark id="xss-marker">X</mark>{$ 7*7 $}'
+    with sans_receivers():
+        Patient.objects.create(
+            family_name=charge,
+            first_name="Jean-Luc",
+            birth_date=date(1935, 7, 13),
+        )
+    connexion(page, live_server)
+    page.click("a:has-text('Nouveau patient')")
+    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    page.fill("input[name=family_name]", charge)
+    page.fill("input[name=first_name]", "Jean-Luc")
+    page.fill("input.dd", "01")
+    page.fill("input.mm", "01")
+    page.fill("input.yy", "1980")
+    page.check("#consent")
+    page.click("button.btn.btn-primary")
+
+    modale = page.locator("div.modal-body")
+    expect(modale).to_be_visible()
+    expect(modale).to_contain_text(charge)
+    expect(page.locator("#xss-marker")).to_have_count(0)
+    page.click("#modal-btn-ok")
+
+    attendre_page_prete(page)
+    assert Patient.objects.filter(family_name=charge).count() == 2
+
+
 def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None:
     connexion(page, live_server)
     creer_patient(page)

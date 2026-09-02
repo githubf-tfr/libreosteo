@@ -246,7 +246,7 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   achevé). Dix défauts notés A à J, repris de l'inventaire « À faire » ci-dessus. Neuf
   corrigés, un (C, refus de doublon instable) investigué sans être reproduit — voir
   « Doublon patient à la création : investigation du 2026-09-02, non concluante »
-  ci-dessus, qui reste en « À faire ». 208 → 233 tests unitaires, 27 → 30 fonctionnels,
+  ci-dessus, qui reste en « À faire ». 208 → 233 tests unitaires, 27 → 31 fonctionnels,
   couverture 89,94 % → 90,57 % (plancher `fail_under` relevé de 89 à 90, mérité et tenu
   au-dessus tout le sprint), périmètre `mypy` 99 → 101 fichiers. Aucun cliquet desserré.
 
@@ -265,6 +265,10 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   en erreur plutôt que de répondre 500 en silence (J). `docs/recette.md` mis à jour en
   conséquence (chapitre 0, `R-PAT-04`, `R-IMP-02`, `R-AUTH-05`, `R-PAT-03`, nouvelle fiche
   `R-PAT-06`), sans renumérotation.
+
+  La revue finale de branche a trouvé une injection stockée dans l'avertissement
+  d'homonyme livré par ce même sprint (B) : un nom de patient contrôlait le HTML compilé
+  par la modale de confirmation. Corrigée avec un test fonctionnel de non-régression.
 
   **Trois conséquences assumées**, à connaître avant toute exploitation :
   - **Parc mixte des casses de noms déjà enregistrés en base** (A) : le correctif ne

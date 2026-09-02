@@ -230,6 +230,13 @@ var InvoiceSendCtrl = function ($scope, $uibModalInstance, message, email) {
 
 var ConfirmationCtrl = function ($scope, $uibModalInstance, message, defaultIsOk) {
   $scope.message = message;
+  // $scope.$resolve porte toutes les valeurs resolues par $uibModal, y compris celles
+  // absentes de la signature ci-dessus : `homonymes` reste donc facultatif pour les
+  // appelants (patient.js, examination.js) qui ne le fournissent pas.
+  // ConfirmationCtrl est aussi defini dans patient.js (declaration globale dupliquee) :
+  // la page 404.html charge patient.js sans invoice.js, donc les deux copies doivent
+  // rester rigoureusement identiques, y compris cette ligne $scope.homonymes.
+  $scope.homonymes = ($scope.$resolve && $scope.$resolve.homonymes) || [];
   $scope.ok = function () {
     $uibModalInstance.close();
   };
