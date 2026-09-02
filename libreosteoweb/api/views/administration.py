@@ -13,24 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 import logging
-import os
-import shutil
-import tempfile
-import uuid
-import zipfile
-from io import StringIO
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.core.files import File
 from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from django.core.management import call_command
-from django.core.management.base import CommandError
-from django.core.serializers.base import DeserializationError
-from django.db import DatabaseError, connection
-from django.db.models import Max, signals
+from django.db.models import Max
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -53,8 +41,6 @@ from libreosteoweb.api.events.settings import (
     full_db_download,
     settings_event_tracer,
 )
-from libreosteoweb.api.signals import post_reload_db
-from libreosteoweb.management.commands.backup_db import backup_db
 
 from ..permissions import (
     IsStaffOrReadOnlyTargetUser,
@@ -63,11 +49,7 @@ from ..permissions import (
     StaffRequiredMixin,
     maintenance_available,
 )
-from ..receivers import (
-    block_disconnect_all_signal,
-    receiver_examination,
-    receiver_newpatient,
-)
+from ..services import sauvegarde as services_sauvegarde
 from ..statistics import Statistics
 from ..utils import LoggerWriter, convert_to_long
 
@@ -203,7 +185,7 @@ class DbDump(PermissionRequiredMixin, View):
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
         response = HttpResponse(
-            backup_db().getvalue(), content_type="application/binary"
+            services_sauvegarde.construire_archive(), content_type="application/binary"
         )
         response["Content-Disposition"] = "attachment; filename=%s-%s" % (
             timezone.now().isoformat(),
@@ -228,117 +210,26 @@ class RebuildIndex(StaffRequiredMixin, View):
 class LoadDump(View):
     @maintenance_available
     def post(self, request, *args, **kwargs):
-        # Retrieve the content of the file uploaded.
-        # tmpdir et previous ne sont affectés que dans le bloc "file" ci-dessous ; les
-        # initialiser à None permet au "finally" de savoir s'il y a quelque chose à
-        # nettoyer, même quand un retour anticipé (412) ou une exception survient avant
-        # leur affectation réelle.
-        tmpdir = None
-        previous = None
         try:
-            if "file" in request.FILES.keys():
-                logger.info("Load a dump from a sent file.")
-                # Write the received file into a file into settings.FIXTURE_DIRS
-                file_content = ContentFile(request.FILES["file"].read())
-                filename = "dump.json"
-                tmpdir = os.path.join(tempfile.gettempdir(), str(uuid.uuid4()))
-                fixture = os.path.join(tmpdir, filename)
-                # The zip branch gets tmpdir for free from zf.extract(); the
-                # non-zip branch below needs it created explicitly.
-                os.makedirs(tmpdir, exist_ok=True)
-
-                # Check if zip file
-                if zipfile.is_zipfile(file_content):
-                    # uncompress the files
-                    zf = zipfile.ZipFile(file_content)
-                    # Check that a meta is present
-                    if "meta" in zf.namelist():
-                        zf.extract("meta", tmpdir)
-                        with open(os.path.join(tmpdir, "meta")) as metafile:
-                            v = metafile.read().strip()
-                        if v != libreosteoweb.__version__:
-                            return HttpResponse(
-                                content=format_lazy(
-                                    "This file is an archive of the version {otherversion}, the current version is {currentversion}. Install the version {otherversion} and load it.",
-                                    otherversion=v,
-                                    currentversion=libreosteoweb.__version__,
-                                ),
-                                status=412,
-                            )
-                    # uncompress the dump file
-                    if filename in zf.namelist():
-                        zf.extract(filename, tmpdir)
-                        # uncompress all document
-                        for d in [
-                            f for f in zf.namelist() if f != "dump.json" and f != "meta"
-                        ]:
-                            zf.extract(d, default_storage.location)
-                    else:
-                        raise KeyError("dump.json")
-                else:
-                    # old fashioned style of import archive
-                    tmp_dump = open(fixture, "wb")
-                    f = File(tmp_dump)
-                    for chunk in file_content.chunks():
-                        f.write(chunk)
-                    f.close()
-
-                logger.info("Dump file was persisted for future loading.")
-                receivers_senders = [
-                    (receiver_examination, models.Examination),
-                    (receiver_newpatient, models.Patient),
-                ]
-
-                with block_disconnect_all_signal(
-                    signal=signals.post_save, receivers_senders=receivers_senders
-                ):
-                    logger.info(
-                        "Signals were disactivated, perform clearing of the database"
-                    )
-                    buf = StringIO()
-                    call_command("sqlflush", no_color=True, stdout=buf)
-                    with connection.cursor() as cursor:
-                        deferred_delete = ""
-                        for s in buf.getvalue().split("\n"):
-                            if (
-                                "django_content_type" not in s
-                                and "COMMIT" not in s
-                                and len(s.strip()) > 0
-                            ):
-                                logger.info("Execute query : %s" % s)
-                                cursor.execute(s)
-                            else:
-                                if len(s.strip()) > 0:
-                                    deferred_delete = deferred_delete + "\n" + s
-                        for s in deferred_delete.split("\n"):
-                            if len(s.strip()) > 0:
-                                logger.info(s)
-                                cursor.execute(s)
-                    # It means that the settings.FIXTURE_DIRS should be set in settings
-                    previous = settings.FIXTURE_DIRS
-                    settings.FIXTURE_DIRS = [tempfile.gettempdir()]
-                    # And when loading dumps, write the file into this directory with the name : load_dump.json
-                    logger.info("Load the fixture from path : %s " % (fixture))
-                    call_command("loaddata", fixture, stdout=LoggerWriter(logger.info))
-                    # Delete the fixture
-                    logger.info("Clearing the fixture")
-                    os.remove(fixture)
-                    settings.FIXTURE_DIRS = previous
-                    logger.info("Could restore signals")
-                logger.info("end of reloading.")
-                # Send signals for post_reload treatment
-                post_reload_db.send(self.__class__)
-                return HttpResponse(content="reloaded")
-            else:
+            # La lecture du fichier reçu reste sous le "try" : elle peut échouer en OSError
+            # (disque plein, requête tronquée), cas que la version d'origine traitait déjà
+            # comme une archive illisible, en 412.
+            if "file" not in request.FILES.keys():
                 return HttpResponse()
-        except (
-            zipfile.BadZipFile,
-            KeyError,
-            OSError,
-            CommandError,
-            UnicodeDecodeError,
-            DeserializationError,
-        ):
+            logger.info("Load a dump from a sent file.")
+            services_sauvegarde.restaurer(
+                ContentFile(request.FILES["file"].read()), libreosteoweb.__version__
+            )
+        except services_sauvegarde.VersionIncompatible as erreur:
+            return HttpResponse(
+                content=format_lazy(
+                    "This file is an archive of the version {otherversion}, the current version is {currentversion}. Install the version {otherversion} and load it.",
+                    otherversion=erreur.version_archive,
+                    currentversion=libreosteoweb.__version__,
+                ),
+                status=412,
+            )
+        except (services_sauvegarde.ArchiveInvalide, OSError):
             logger.exception("Import failed")
             return HttpResponse(
                 content=_(
@@ -346,7 +237,7 @@ class LoadDump(View):
                 ),
                 status=412,
             )
-        except DatabaseError:
+        except services_sauvegarde.BaseIndisponible:
             # La base a échoué en cours de rechargement : ce n'est pas l'archive qui est en
             # cause, et le dire évite d'envoyer l'opérateur chercher au mauvais endroit.
             logger.exception("Database failure while reloading the dump")
@@ -356,12 +247,4 @@ class LoadDump(View):
                 ),
                 status=500,
             )
-        finally:
-            # Le nettoyage ne doit jamais devenir une nouvelle source d'échec ni changer
-            # la réponse déjà déterminée : shutil.rmtree(ignore_errors=True) ignore un
-            # répertoire déjà absent ou non supprimable au lieu de lever une exception qui
-            # remplacerait la réponse 200/412/500 par une 500 accidentelle.
-            if previous is not None:
-                settings.FIXTURE_DIRS = previous
-            if tmpdir is not None:
-                shutil.rmtree(tmpdir, ignore_errors=True)
+        return HttpResponse(content="reloaded")
