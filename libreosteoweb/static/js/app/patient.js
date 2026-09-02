@@ -876,29 +876,65 @@ var InvoiceFormCtrl = function ($scope, $uibModalInstance, OfficeSettingsServ, O
 };
 
 
-patient.controller('AddPatientCtrl', ['$scope', '$location', 'growl', '$sce', 'PatientServ', '$filter',
-  function ($scope, $location, growl, $sce, PatientServ, $filter) {
+patient.controller('AddPatientCtrl', ['$scope', '$location', 'growl', '$sce', 'PatientServ', '$filter', '$http', '$uibModal',
+  function ($scope, $location, growl, $sce, PatientServ, $filter, $http, $uibModal) {
     "use strict";
 
     $scope.initPatient = function (patient) {
       var model = angular.copy(patient);
       model.birth_date = $filter('date')(patient.birth_date, 'yyyy-MM-dd');
 
-      PatientServ.add(model, function (data) {
-        $location.path('/patient/' + data.id);
-      },
-        function (data) {
-          // Should display the error
-          if (data.data.birth_date && data.data.birth_date.birth_date) {
-            growl.addErrorMessage(data.data.birth_date.birth_date);
-          } else if (data.data.non_field_errors) {
-            growl.addErrorMessage(data.data.non_field_errors);
-          } else {
-            growl.addErrorMessage(formatGrowlError(data.data), {
-              enableHtml: true
-            });
+      var enregistrer = function () {
+        PatientServ.add(model, function (data) {
+          $location.path('/patient/' + data.id);
+        },
+          function (data) {
+            // Should display the error
+            if (data.data.birth_date && data.data.birth_date.birth_date) {
+              growl.addErrorMessage(data.data.birth_date.birth_date);
+            } else if (data.data.non_field_errors) {
+              growl.addErrorMessage(data.data.non_field_errors);
+            } else {
+              growl.addErrorMessage(formatGrowlError(data.data), {
+                enableHtml: true
+              });
+            }
+          });
+      };
+
+      $http.get('api/patients/homonymes', {
+        params: {
+          family_name: model.family_name,
+          first_name: model.first_name
+        }
+      }).success(function (homonymes) {
+        if (!homonymes || homonymes.length === 0) {
+          enregistrer();
+          return;
+        }
+        var lignes = homonymes.map(function (h) {
+          return "<li>" + h.family_name + " " + h.first_name + " — " +
+            $filter('date')(h.birth_date, 'longDate') + "</li>";
+        }).join("");
+        var modalInstance = $uibModal.open({
+          templateUrl: 'web-view/partials/confirmation-modal',
+          controller: ConfirmationCtrl,
+          resolve: {
+            message: function () {
+              return $sce.trustAsHtml("<p>" +
+                gettext("A patient with the same name already exists:") +
+                "</p><ul>" + lignes + "</ul>");
+            },
+            defaultIsOk: function () {
+              return true;
+            }
           }
         });
+        modalInstance.result.then(enregistrer);
+      }).error(function () {
+        // L'avertissement est un confort : son échec ne doit pas empêcher la création.
+        enregistrer();
+      });
     };
   }
 ]);

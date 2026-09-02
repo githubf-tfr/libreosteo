@@ -518,3 +518,78 @@ class TestSessionUtilisateur(APITestCase):
         self.client.login(username="test", password="testpw")
         self.client.logout()
         self.assertEqual(LoggedInUser.objects.count(), 0)
+
+
+class TestHomonymes(TestCase):
+    """Avertir de l'existence d'un homonyme ne doit rien refuser."""
+
+    def setUp(self):
+        self.praticien = cree_praticien()
+        self.client.force_login(self.praticien)
+        with sans_receivers():
+            Patient.objects.create(
+                family_name="Picard",
+                first_name="Jean-Luc",
+                birth_date=date(1935, 7, 13),
+            )
+
+    def test_signale_un_homonyme_de_date_de_naissance_differente(self):
+        reponse = self.client.get(
+            "/api/patients/homonymes?family_name=Picard&first_name=Jean-Luc"
+        )
+        self.assertEqual(200, reponse.status_code)
+        self.assertEqual(
+            [
+                {
+                    "family_name": "Picard",
+                    "first_name": "Jean-Luc",
+                    "birth_date": "1935-07-13",
+                }
+            ],
+            reponse.json(),
+        )
+
+    def test_compare_sans_tenir_compte_de_la_casse(self):
+        reponse = self.client.get(
+            "/api/patients/homonymes?family_name=PICARD&first_name=jean-luc"
+        )
+        self.assertEqual(200, reponse.status_code)
+        self.assertEqual(1, len(reponse.json()))
+
+    def test_liste_vide_quand_le_nom_ne_correspond_a_personne(self):
+        reponse = self.client.get(
+            "/api/patients/homonymes?family_name=Crusher&first_name=Beverly"
+        )
+        self.assertEqual([], reponse.json())
+
+    def test_liste_vide_quand_un_parametre_manque(self):
+        reponse = self.client.get("/api/patients/homonymes?family_name=Picard")
+        self.assertEqual(200, reponse.status_code)
+        self.assertEqual([], reponse.json())
+
+    def test_la_creation_d_un_homonyme_reste_autorisee(self):
+        reponse = self.client.post(
+            "/api/patients",
+            {
+                "family_name": "Picard",
+                "first_name": "Jean-Luc",
+                "birth_date": "1980-01-01",
+                "consent_check": True,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(201, reponse.status_code)
+        self.assertEqual(2, Patient.objects.filter(family_name="Picard").count())
+
+    def test_le_doublon_exact_reste_refuse(self):
+        reponse = self.client.post(
+            "/api/patients",
+            {
+                "family_name": "Picard",
+                "first_name": "Jean-Luc",
+                "birth_date": "1935-07-13",
+                "consent_check": True,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(400, reponse.status_code)

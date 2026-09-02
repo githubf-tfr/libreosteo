@@ -80,6 +80,24 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
             apiserializers.ExaminationExtractSerializer(examinations, many=True).data
         )
 
+    @action(detail=False, methods=["get"])
+    def homonymes(self, request):
+        """Les patients de mêmes nom et prénom, quelle que soit leur date de naissance.
+
+        Sert un avertissement, jamais un refus : la création d'un homonyme reste permise,
+        seul le triplet nom + prénom + date de naissance est refusé par le sérialiseur.
+        """
+        family_name = request.query_params.get("family_name")
+        first_name = request.query_params.get("first_name")
+        if not family_name or not first_name:
+            return Response([])
+        homonymes = models.Patient.objects.filter(
+            family_name__iexact=family_name, first_name__iexact=first_name
+        )
+        return Response(
+            apiserializers.PatientHomonymeSerializer(homonymes, many=True).data
+        )
+
     def perform_create(self, serializer):
         instance = models.Patient(**serializer.validated_data)
         instance.set_user_operation(self.request.user)

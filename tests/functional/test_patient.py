@@ -12,6 +12,7 @@ from libreosteoweb.models import (
     Patient,
     PatientDocument,
 )
+from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
     attendre_enregistrement_patient,
     attendre_page_prete,
@@ -52,10 +53,46 @@ def test_creation_patient_et_refus_du_doublon(
     page.fill("input.yy", "1935")
     page.check("#consent")
     page.click("button.btn.btn-primary")
+    # Le doublon est exact : l'homonyme trouvé est le patient lui-même, donc la modale
+    # d'avertissement s'ouvre avant le refus 400 (tâche 9). On l'acquitte pour laisser
+    # la création se poursuivre jusqu'au refus que ce test vérifie.
+    modale = page.locator("div.modal-body")
+    expect(modale).to_be_visible()
+    page.click("#modal-btn-ok")
     expect(page.locator("div.growl-item.alert-danger")).to_contain_text(
         "Ce patient existe déjà"
     )
     assert Patient.objects.filter(family_name="Picard").count() == 1
+
+
+def test_avertissement_d_homonyme_puis_creation(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Même nom, même prénom, date de naissance différente : on avertit, on ne bloque pas."""
+    with sans_receivers():
+        Patient.objects.create(
+            family_name="Picard",
+            first_name="Jean-Luc",
+            birth_date=date(1935, 7, 13),
+        )
+    connexion(page, live_server)
+    page.click("a:has-text('Nouveau patient')")
+    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    page.fill("input[name=family_name]", "Picard")
+    page.fill("input[name=first_name]", "Jean-Luc")
+    page.fill("input.dd", "01")
+    page.fill("input.mm", "01")
+    page.fill("input.yy", "1980")
+    page.check("#consent")
+    page.click("button.btn.btn-primary")
+
+    modale = page.locator("div.modal-body")
+    expect(modale).to_be_visible()
+    expect(modale).to_contain_text("Un patient de même nom existe déjà")
+    page.click("#modal-btn-ok")
+
+    attendre_page_prete(page)
+    assert Patient.objects.filter(family_name="Picard").count() == 2
 
 
 def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None:

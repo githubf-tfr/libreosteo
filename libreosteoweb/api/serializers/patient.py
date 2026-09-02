@@ -79,6 +79,14 @@ class PatientExportSerializer(serializers.ModelSerializer):
         fields = ("family_name", "first_name", "original_name", "birth_date")
 
 
+class PatientHomonymeSerializer(serializers.ModelSerializer):
+    """Le strict nécessaire pour qu'un praticien reconnaisse un homonyme."""
+
+    class Meta:
+        model = Patient
+        fields = ("family_name", "first_name", "birth_date")
+
+
 class RegularDoctorSerializer(serializers.ModelSerializer):
     def validate_family_name(self, value):
         return get_name_filters().filter(value)

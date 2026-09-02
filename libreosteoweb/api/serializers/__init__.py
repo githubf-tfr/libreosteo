@@ -49,6 +49,7 @@ from .patient import (
     PatientDocumentDemonstrationSerializer,
     PatientDocumentSerializer,
     PatientExportSerializer,
+    PatientHomonymeSerializer,
     PatientSerializer,
     RegularDoctorSerializer,
 )
@@ -74,6 +75,7 @@ __all__ = [
     "PatientDocumentDemonstrationSerializer",
     "PatientDocumentSerializer",
     "PatientExportSerializer",
+    "PatientHomonymeSerializer",
     "PatientSerializer",
     "RegularDoctorSerializer",
     "TherapeutSettingsSerializer",

@@ -129,6 +129,9 @@ msgstr ""
 msgid "I understand that it means"
 msgstr "Je comprends ce que cela signifie"
 
+msgid "A patient with the same name already exists:"
+msgstr "Un patient de même nom existe déjà :"
+
 msgid "Update success"
 msgstr "Mise à jour effectuée"
 
