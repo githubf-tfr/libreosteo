@@ -225,7 +225,7 @@
         </ul>
         </div>
         <p>{$ import_result.examination.imported $} {% trans 'lines imported from file examination' %}</p>
-        <p ng-rshow="import_error.examination.errors != null && import_error.examination.errors.length != 0">{% trans 'Errors when integrating examinations' %}</p>
+        <p ng-show="import_error.examination.errors != null && import_error.examination.errors.length != 0">{% trans 'Errors when integrating examinations' %}</p>
         <div ng-repeat="error in import_error.examination.errors"><p>{% trans 'line : '%} {$ error[0]$}</p>
         <ul>
             <li ng-repeat="(key,value) in error[1]">

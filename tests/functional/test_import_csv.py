@@ -173,3 +173,40 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     assert timezone.localtime(consultation_reperee.date).date() == (
         DATE_CONSULTATION_REPERE
     )
+
+
+def test_le_titre_d_erreur_des_consultations_reste_masque_sans_erreur(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Panneau orange : erreurs cote patient, aucune cote consultation.
+
+    Le titre « Erreurs lors de l'importation des consultations » ne doit pas s'afficher,
+    puisque aucune consultation n'est en erreur. Il s'affichait systematiquement tant que
+    sa garde s'ecrivait `ng-rshow` (attribut inconnu d'AngularJS, donc ignore).
+    """
+    connexion(page, live_server)
+    ouvrir_import(page)
+    page.set_input_files("#patient-file", FICHIER_PATIENTS)
+    page.click("button:has-text('Analyser')")
+    attendre_page_prete(page)
+    page.click("button.btn-success:has-text('Importer')")
+    expect(page.locator("div.panel-success > div.panel-heading")).to_be_visible(
+        timeout=120_000
+    )
+
+    ouvrir_import(page)
+    page.set_input_files("#patient-file", FICHIER_PATIENTS)
+    page.set_input_files("#examination-file", FICHIER_CONSULTATIONS)
+    page.click("button:has-text('Analyser')")
+    attendre_page_prete(page)
+    page.click("button.btn-success:has-text('Importer')")
+    corps = page.locator("div.panel-warning > div.panel-body")
+    expect(corps).to_be_visible(timeout=120_000)
+    # Preuve de presence : sans elle, l'absence verifiee ensuite ne prouverait rien.
+    expect(corps).to_contain_text("Erreurs lors de l'importation des patients")
+    # `to_have_count(0)` ne conviendrait pas : `ng-show` masque par CSS (classe
+    # `ng-hide`), le paragraphe reste dans le DOM avec son texte. `to_be_hidden()`
+    # exprime la meme exigence (« ne doit pas s'afficher ») sans en dependre.
+    expect(
+        corps.get_by_text("Erreurs lors de l'importation des consultations")
+    ).to_be_hidden()
