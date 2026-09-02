@@ -13,9 +13,29 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 import logging
+import re
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
+
+SEPARATEURS_DE_MOTS = re.compile(r"[ \-']")
+
+
+def casse_deliberee(text=None):
+    """Vrai si la casse saisie doit être conservée telle quelle.
+
+    Une majuscule *à l'intérieur* d'un mot ne peut pas venir d'une saisie ordinaire : elle
+    dit que l'utilisateur impose une forme (McDonald, TesterModifie). Une majuscule en
+    tête de mot, elle, est le cas ordinaire et reste normalisée — sans quoi « de Moustier »
+    cesserait de devenir « De Moustier ». Un texte entièrement en majuscules est un pavé
+    verrouillé, jamais une intention.
+    """
+    if not text or text.isupper():
+        return False
+    return any(
+        any(caractere.isupper() for caractere in mot[1:])
+        for mot in SEPARATEURS_DE_MOTS.split(text)
+    )
 
 
 def get_firstname_filters():
@@ -23,6 +43,7 @@ def get_firstname_filters():
     filterChain.add(LowerNameFilter())
     filterChain.add(CapitalizeJoinNameFilter())
     filterChain.add(CapitalizeComposedNameFilter())
+    filterChain.add(CapitalizeApostropheNameFilter())
     return filterChain
 
 
@@ -30,6 +51,8 @@ def get_name_filters():
     filterChain = FilterManager()
     filterChain.add(LowerNameFilter())
     filterChain.add(CapitalizeNameFilter())
+    filterChain.add(CapitalizeHyphenNameFilter())
+    filterChain.add(CapitalizeApostropheNameFilter())
     return filterChain
 
 
@@ -53,6 +76,8 @@ class FilterManager(object):
 
     def filter(self, text=None):
         if text and self._chain:
+            if casse_deliberee(text):
+                return text
             return self._chain.filter(text)
         return text
 
@@ -119,6 +144,37 @@ class CapitalizeComposedNameFilter(CapitalizeJoinNameFilter):
             text_list = filtered_text.split("-")
             filtered_text = "-".join([self._capitalize_word(t) for t in text_list])
         return super(CapitalizeComposedNameFilter, self).filter(filtered_text)
+
+
+class CapitalizeHyphenNameFilter(CapitalizeNameFilter):
+    """Capitalise après un trait d'union sans transformer les espaces.
+
+    `CapitalizeComposedNameFilter` ferait le même découpage, mais son `super()` exécute
+    `CapitalizeJoinNameFilter`, qui joint les espaces par des traits d'union : réservé à
+    la chaîne du prénom, où cette jonction est voulue.
+    """
+
+    def __init__(self, next=None):
+        super(CapitalizeHyphenNameFilter, self).__init__(next)
+
+    def filter(self, text=None):
+        filtered_text = text
+        if filtered_text:
+            text_list = filtered_text.split("-")
+            filtered_text = "-".join([self._capitalize_word(t) for t in text_list])
+        return super(CapitalizeHyphenNameFilter, self).filter(filtered_text)
+
+
+class CapitalizeApostropheNameFilter(CapitalizeNameFilter):
+    def __init__(self, next=None):
+        super(CapitalizeApostropheNameFilter, self).__init__(next)
+
+    def filter(self, text=None):
+        filtered_text = text
+        if filtered_text:
+            text_list = filtered_text.split("'")
+            filtered_text = "'".join([self._capitalize_word(t) for t in text_list])
+        return super(CapitalizeApostropheNameFilter, self).filter(filtered_text)
 
 
 class LowerNameFilter(AbstractFilter):

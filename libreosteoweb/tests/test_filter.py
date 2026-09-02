@@ -61,3 +61,40 @@ class TestFilter(TestCase):
         filter_chain = get_name_filters()
         text = "de Moustier"
         self.assertEqual("De Moustier", filter_chain.filter(text))
+
+
+class TestCasseDeliberee(TestCase):
+    """Une majuscule interne à un mot est une intention de saisie, pas un accident."""
+
+    def test_conserve_la_majuscule_interne_d_un_nom(self):
+        self.assertEqual("McDonald", get_name_filters().filter("McDonald"))
+
+    def test_conserve_la_majuscule_interne_d_un_prenom(self):
+        self.assertEqual(
+            "TesterModifie", get_firstname_filters().filter("TesterModifie")
+        )
+
+    def test_normalise_un_nom_entierement_en_majuscules(self):
+        self.assertEqual("Dupont", get_name_filters().filter("DUPONT"))
+
+    def test_normalise_un_nom_compose_par_un_trait_d_union(self):
+        self.assertEqual("Jean-Pierre", get_name_filters().filter("jean-pierre"))
+
+    def test_capitalise_apres_une_apostrophe(self):
+        self.assertEqual("D'Artagnan", get_name_filters().filter("d'artagnan"))
+
+    def test_capitalise_apres_une_apostrophe_dans_un_prenom(self):
+        self.assertEqual("D'Artagnan", get_firstname_filters().filter("d'artagnan"))
+
+    def test_une_majuscule_en_tete_de_mot_ne_conserve_pas(self):
+        """`de Moustier` reste normalisé : la majuscule est en tête de mot."""
+        self.assertEqual("De Moustier", get_name_filters().filter("de Moustier"))
+
+    def test_le_prenom_garde_sa_jonction_par_trait_d_union(self):
+        self.assertEqual("Jean-Luc", get_firstname_filters().filter("jean luc"))
+
+    def test_texte_vide(self):
+        self.assertEqual("", get_name_filters().filter(""))
+
+    def test_texte_absent(self):
+        self.assertIsNone(get_name_filters().filter(None))
