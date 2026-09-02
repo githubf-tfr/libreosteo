@@ -3,8 +3,9 @@
 from __future__ import unicode_literals
 
 import datetime
+from datetime import timezone
+
 from django.db import migrations, models
-from django.utils.timezone import utc
 
 
 class Migration(migrations.Migration):
@@ -17,7 +18,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='paiment',
             name='date',
-            field=models.DateField(default=datetime.datetime(2019, 10, 9, 12, 55, 36, 155848, tzinfo=utc), verbose_name='Date'),
+            field=models.DateField(default=datetime.datetime(2019, 10, 9, 12, 55, 36, 155848, tzinfo=timezone.utc), verbose_name='Date'),
             preserve_default=False,
         ),
     ]
