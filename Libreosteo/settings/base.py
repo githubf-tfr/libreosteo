@@ -61,12 +61,23 @@ else:
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "8xmh#fjyiamw^-_ro9m29^6^81^kc!aiczp)gvb#7with$dzb6"
+# Aucune valeur par défaut : une clef commitée serait partagée par toutes les
+# installations issues du dépôt, donc publique. Le mode conteneur échoue au démarrage
+# si elle reste vide (cf. Libreosteo/settings/container.py). La valeur vient de
+# l'exploitant, jamais du projet.
+SECRET_KEY = os.environ.get("LIBREOSTEO_SECRET_KEY", "")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["*"]
+# Liste séparée par des virgules. Défaut restreint à la machine locale : c'est ce que
+# sert le montage conteneur documenté au chapitre 0 de docs/recette.md. Une valeur
+# vide (clef présente mais sans contenu, cas d'un `.env` d'exploitant antérieur à
+# cette variable) vaut absence : le défaut est servi dans les deux cas.
+_HOTES_AUTORISES = (
+    os.environ.get("LIBREOSTEO_ALLOWED_HOSTS", "") or "localhost,127.0.0.1"
+)
+ALLOWED_HOSTS = [hote.strip() for hote in _HOTES_AUTORISES.split(",") if hote.strip()]
 
 LOCALE_PATHS = (
     "locale",

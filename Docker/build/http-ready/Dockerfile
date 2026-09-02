@@ -42,6 +42,11 @@ COPY ./server.py .
 
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:/root/.yarn/bin:$PATH"
+# collectstatic/compilejsi18n/compress importent Libreosteo.settings.container, qui exige
+# desormais SECRET_KEY : cette etape de construction ne sert jamais de requete, la valeur
+# de developpement suffit et disparait avec l'etage "build" (elle n'est pas copiee dans
+# l'etage "run" ci-dessous).
+ENV LIBREOSTEO_SECRET_KEY="django-insecure-developpement-et-tests-uniquement"
 RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.container && python3 ./manage.py compilejsi18n && python3 ./manage.py compress --force --settings=Libreosteo.settings.container
 RUN rm libreosteoweb/static/components
 
@@ -73,4 +78,7 @@ RUN apk add --no-cache \
 EXPOSE 8085
 # --http-timeout 180 : l'import CSV de 100 patients observe 86-99s en interne ; le routeur http
 # d'uwsgi coupe a 60s par defaut, avant que la reponse ne parte (defaut de deploiement constate).
-CMD python3 ./manage.py migrate --settings=Libreosteo.settings.container && python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || test 1=1 && export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container && uwsgi --plugin http,python --http :8085 --http-timeout 180 --module Libreosteo.wsgi --master --processes 1 --threads 1 --static-map /files=/Libreosteo/data/media --static-map /static=/Libreosteo/static -H /Libreosteo/venv
+# --need-app : sans lui, un reglage manquant (SECRET_KEY notamment) laisse uwsgi en « full
+# dynamic mode », conteneur Up qui repond 500 a chaque requete ; l'exploitant ne voit le
+# defaut que dans les journaux. Avec, le conteneur sort en erreur, donc se voit.
+CMD python3 ./manage.py migrate --settings=Libreosteo.settings.container && python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || test 1=1 && export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container && uwsgi --plugin http,python --http :8085 --http-timeout 180 --module Libreosteo.wsgi --need-app --master --processes 1 --threads 1 --static-map /files=/Libreosteo/data/media --static-map /static=/Libreosteo/static -H /Libreosteo/venv

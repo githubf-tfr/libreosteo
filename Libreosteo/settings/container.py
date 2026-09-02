@@ -14,6 +14,8 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 from typing import cast
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *
 
 DEBUG = False
@@ -24,3 +26,9 @@ try:
     from settings import *
 except ImportError:
     pass
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured(
+        "SECRET_KEY absente : renseigner LIBREOSTEO_SECRET_KEY, ou fournir un module "
+        "settings monté qui la définisse."
+    )

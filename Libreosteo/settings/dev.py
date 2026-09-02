@@ -17,6 +17,10 @@ from typing import cast
 from .base import *
 
 DEBUG = True
+# Constante de développement, jamais un secret d'exploitation : elle ne protège aucune
+# donnée réelle et n'est lue par aucun mode de déploiement. Sans elle, la suite de tests
+# ne démarre pas, SECRET_KEY étant désormais vide par défaut.
+SECRET_KEY = "django-insecure-developpement-et-tests-uniquement"
 cast(dict, TEMPLATES[0]["OPTIONS"])["debug"] = True
 COMPRESS_ENABLED = False
 

@@ -131,6 +131,7 @@ files = [
     "libreosteoweb/tests/test_filter.py",
     "libreosteoweb/tests/test_import_fichiers.py",
     "libreosteoweb/tests/test_invoice.py",
+    "libreosteoweb/tests/test_reglages.py",
     "libreosteoweb/tests/test_routage.py",
     "libreosteoweb/tests/test_service_facturation.py",
     "libreosteoweb/tests/test_service_import.py",

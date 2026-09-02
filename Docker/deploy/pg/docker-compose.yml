@@ -21,6 +21,9 @@ services:
       - "8085:8085"
     depends_on:
       - db
+    environment:
+      - LIBREOSTEO_SECRET_KEY=${LIBREOSTEO_SECRET_KEY}
+      - LIBREOSTEO_ALLOWED_HOSTS=${LIBREOSTEO_ALLOWED_HOSTS}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ${DATA}:/Libreosteo/data
