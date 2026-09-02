@@ -78,6 +78,15 @@ l'autre) :
 python3 -c "import secrets; print(secrets.token_urlsafe(38))"
 ```
 
+**Clef secrète obligatoire.** Que ce soit via `settings/local.py` comme ci-dessus, ou en la
+confiant directement à `LIBREOSTEO_SECRET_KEY` dans `.env` (voie que suit
+`Docker/deploy/pg/.env.example`, sans autre montage de `settings/`), une valeur est
+désormais exigée : `Libreosteo/settings/container.py` refuse de démarrer sans elle. Constat
+exact si elle manque : le service sort en erreur (`docker compose ... ps` affiche
+`Exited`), et `logs libreosteo` montre `ImproperlyConfigured: SECRET_KEY absente ...` suivi
+de `no app loaded. GAME OVER`. `LIBREOSTEO_ALLOWED_HOSTS` (hôtes autorisés séparés par des
+virgules) a pour défaut `localhost,127.0.0.1`, qui suffit pour cette recette.
+
 `$SCRATCH/settings/__init__.py` — **indispensable**, non fourni par aucun template du
 dépôt pour ce montage. `Libreosteo/settings/container.py` fait `from settings import *`
 (import absolu) : `settings` désigne alors le paquet top-level résolu via `sys.path`, c'est-
@@ -103,8 +112,16 @@ DATA=$SCRATCH/data
 SETTINGS=$SCRATCH/settings
 POSTGRES_USER=libreosteo
 POSTGRES_PASSWORD=recette
+LIBREOSTEO_SECRET_KEY=<la même valeur jetable que ci-dessus, ou une autre>
+LIBREOSTEO_ALLOWED_HOSTS=localhost,127.0.0.1
 EOF
 ```
+
+`docker-compose.yml` transmet ces deux variables au conteneur ; `settings/local.py`
+l'emporte ensuite sur `LIBREOSTEO_SECRET_KEY` pour ce montage précis (import `from settings
+import *` dans `container.py`), mais les renseigner ici évite l'avertissement « variable
+not set » de `docker compose` et documente la voie normale d'un déploiement sans
+`settings/` monté.
 
 **Étape 4 — démarrage :**
 
@@ -546,8 +563,9 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    `test@test.com` (valeurs du socle E1).
 2. Remplacer la valeur du champ Nom par `TesterModifie`, cliquer « Enregistrer ».
    Attendu : message affiché « Profil mis à jour » ; le champ Nom affiche
-   `Testermodifie` (l'application met en minuscule puis capitalise la première
-   lettre de chaque nom saisi, y compris une majuscule interne).
+   `TesterModifie` inchangé — une majuscule à l'intérieur d'un mot (ici le second
+   `M`) ne peut pas venir d'une saisie ordinaire, l'application la traite comme une
+   casse délibérée et ne la normalise pas.
 3. Cliquer le bouton « Modifier le mot de passe ».
    Attendu : une fenêtre modale s'ouvre, titre « Modifier le mot de passe » ; champs
    « Mot de passe » et « Confirmation du mot de passe » ; boutons « Valider » et
@@ -754,16 +772,19 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 1. Lien « Nouveau patient », saisir `Picard` (Nom de famille), `Jean-Luc` (Prénom),
    `13`/`07`/`1935` (date de naissance, identique au patient déjà en base), cocher le
    consentement, cliquer « Initialiser la fiche patient ».
-   Attendu : reste sur le formulaire « Nouveau patient » (aucune navigation) ;
-   message affiché « Ce patient existe déjà ».
+   Attendu : une fenêtre modale d'avertissement d'homonyme s'ouvre d'abord (l'homonyme
+   trouvé est le patient lui-même, doublon exact) ; cliquer « Ok ». Reste ensuite sur
+   le formulaire « Nouveau patient » (aucune navigation) ; message affiché « Ce
+   patient existe déjà ».
 2. Retourner sur l'URL racine de l'instance, puis lien « Nouveau patient » à nouveau.
    Saisir `Picard` (Nom de famille), `Jean-Luc` (Prénom), une date de naissance
    différente (ex. `05`/`05`/`1945`), cocher le consentement, cliquer « Initialiser
    la fiche patient ».
-   Attendu : la fiche du nouveau patient s'ouvre, URL de la forme
-   `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — à la différence de
-   l'étape 1, cette création aboutit alors que le nom et le prénom sont strictement
-   identiques à ceux d'un patient déjà existant.
+   Attendu : une fenêtre modale d'avertissement d'homonyme s'ouvre (cf. R-PAT-06 pour
+   son contenu détaillé) ; cliquer « Ok ». La fiche du nouveau patient s'ouvre, URL de
+   la forme `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — à la
+   différence de l'étape 1, cette création aboutit alors que le nom et le prénom sont
+   strictement identiques à ceux d'un patient déjà existant.
 3. Dans le champ de recherche, saisir `Picard`, valider.
    Attendu : la liste de résultats affiche deux entrées, toutes deux intitulées
    « Picard Jean-Luc », strictement indiscernables l'une de l'autre dans la liste.
@@ -778,10 +799,10 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
 1. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations ».
    Attendu : deux entrées dans la timeline, chacune titrée « Séance du <date du
-   jour> » (date d'exécution de la fiche) ; les deux portent un badge vert avec une
-   icône de coche (l'icône ne distingue pas facturée de non facturée : seul le
-   statut de clôture est reflété) ; le corps de chaque entrée affiche « Motif de
-   consultation ».
+   jour> » (date d'exécution de la fiche) et badgée en vert ; la consultation
+   facturée et réglée porte une icône de coche, distincte de l'icône de la
+   consultation non facturée (icône d'interdiction). Le corps de chaque entrée
+   affiche « Motif de consultation ».
 2. Cliquer l'onglet « Compte-rendus médicaux ».
    Attendu : une vignette de document, titre en gras « Radiographie lombaire »,
    date affichée `01-01-2024`, libellé « Notes » suivi du texte
@@ -813,6 +834,31 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 4. Recharger complètement la page.
    Attendu : le panneau affiche toujours « Date de naissance : 03/02/1935 » — preuve
    d'une persistance réelle, à la bonne valeur.
+
+### R-PAT-06 — Avertissement d'homonyme à la création
+
+- **Domaine** : Patient
+- **Couverture auto** : oui — tests/functional/test_patient.py::test_avertissement_d_homonyme_puis_creation
+- **État requis** : E2. Cette fiche crée durablement un second patient « Picard
+  Jean-Luc » : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
+  dépend.
+
+**Étapes**
+
+1. Lien « Nouveau patient », saisir `Picard` (Nom de famille), `Jean-Luc` (Prénom),
+   une date de naissance différente de celle du patient déjà en base (ex.
+   `01`/`01`/`1980`), cocher le consentement, cliquer « Initialiser la fiche
+   patient ».
+   Attendu : reste sur le formulaire « Nouveau patient » ; une fenêtre modale
+   s'ouvre, texte « Un patient de même nom existe déjà : » suivi du patient
+   homonyme déjà en base ; boutons « Ok » et « Cancel ».
+2. Cliquer « Ok ».
+   Attendu : la fiche du nouveau patient s'ouvre, URL de la forme
+   `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — l'avertissement
+   n'a pas empêché la création.
+3. Dans le champ de recherche, saisir `Picard`, valider.
+   Attendu : la liste de résultats affiche deux entrées « Picard Jean-Luc », l'une
+   née le 13/07/1935, l'autre le 01/01/1980.
 
 ### Documents patient
 
@@ -1280,10 +1326,8 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    de `ligne : 2` à `ligne : 101`, l'en-tête comptant pour la ligne 1), chacune
    portant le message « Ce patient existe déjà » (les 100 patients importés à
    l'étape 1 sont déjà connus) ; puis texte « 50 lignes importées du fichier
-   consultation » ; le titre « Erreurs lors de l'importation des consultations »
-   apparaît également juste après, sans aucune ligne d'erreur en dessous — ce
-   titre s'affiche même en l'absence de toute erreur réelle sur les
-   consultations.
+   consultation » ; aucune consultation n'étant en erreur, le titre « Erreurs lors
+   de l'importation des consultations » ne s'affiche pas.
 
 ### R-IMP-03 — Fichier CSV invalide refusé sans import partiel
 

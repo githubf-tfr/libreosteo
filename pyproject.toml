@@ -31,7 +31,9 @@ omit = [
 # 2026-08-30 : relevé à 72 par le lot 3 de S2 (dossier patient), couverture constatée 72,34 %.
 # 2026-08-31 : relevé à 80 par le lot 4 de S2 (import de fichiers), couverture constatée 80,55 %.
 # 2026-08-31 : relevé à 89 à la clôture de S2 (lot 5), couverture constatée 89,24 %.
-fail_under = 89
+# 2026-09-02 : relevé à 90 à la clôture de S6, couverture restée au-dessus de 90 % sur
+# tout le sprint, constatée 90,57 % à la clôture.
+fail_under = 90
 
 [tool.ruff]
 target-version = "py313"

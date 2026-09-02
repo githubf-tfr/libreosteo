@@ -53,15 +53,6 @@ Tenu à la main.
 
 ### Sécurité
 
-- `SECRET_KEY` en dur et committée dans `Libreosteo/settings/base.py:62`. Toute
-  installation issue du dépôt (notamment l'image Docker, `container.py` ne la
-  surchargeant pas) partage cette clé publique : sessions et jetons de réinitialisation
-  de mot de passe sont forgeables. Piste : lecture depuis une variable d'environnement,
-  avec génération et persistance au premier démarrage pour ne pas casser le mode
-  standalone. Vérifier l'impact sur les sessions existantes avant de trancher.
-- `DEBUG = True` et `ALLOWED_HOSTS = ["*"]` dans `base.py`. `container.py` et
-  `demonstration.py` repassent `DEBUG` à `False`, mais `standalone.py` le laisse à
-  `True` — c'est pourtant le mode de déploiement principal côté praticien.
 - Données de santé stockées dans un SQLite non chiffré par défaut. Enjeu RGPD à
   qualifier (le chiffrement au repos relève peut-être de l'hôte plutôt que de l'app).
 
@@ -143,21 +134,6 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   `ManyToManyField` non annotés dans `models.py`, affectation indexée à caster dans
   `dev.py`) : le périmètre est passé à 57 modules. Le reste, et sa raison, est consigné
   dans le commentaire de `[tool.mypy] files` (`pyproject.toml`).
-- (S2, L5T2) `OfficeEventViewSet` déclare `pagination_class = pagination.LimitOffsetPagination`
-  (`libreosteoweb/api/views.py:599`), mais `REST_FRAMEWORK` (`Libreosteo/settings/base.py:211`)
-  n'a pas de `PAGE_SIZE`. `LimitOffsetPagination.default_limit` revient donc à `None`, et
-  `paginate_queryset` retourne `None` : l'endpoint répond une liste brute non paginée sauf si
-  le client passe `?limit=`. Tout client qui attend l'enveloppe `results` reçoit une liste nue ;
-  tout ajout global de `PAGE_SIZE` changerait silencieusement la forme de ces réponses.
-- (S3, tâche 7) **Prêt pour Django 5 : deux dépréciations, imprimées à chaque exécution de
-  la suite fonctionnelle.** Code d'application pré-existant, hors `tests/`, deviendront des
-  erreurs sous Django 5 :
-  - `USE_L10N = True` (`Libreosteo/settings/base.py:200`) — réglage supprimé, `RemovedInDjango50Warning`.
-  - `from django.utils.timezone import utc` (`libreosteoweb/migrations/0040_paiment_date.py:7`)
-    — alias déprécié, `RemovedInDjango50Warning`.
-  Non corrigés ici : toucher un réglage global et une migration est un changement
-  d'application qui veut sa propre décision et son propre commit, hors périmètre d'un
-  correctif de tests.
 - ~~(S3, tâches 4 et 7) Widget de date webshim : affiche en JOUR/MOIS/ANNÉE, lit en
   MOIS/JOUR/ANNÉE~~ — **corrigé le 2026-09-01**, défaut A de S3 bis, cf. « Terminé ».
 - ~~(S3, tâche 8) `#invoice_start_sequence` ignore silencieusement une saisie textuelle
@@ -165,14 +141,6 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 - ~~(S3, tâche 5) `libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
   jour calendaire UTC puis la borne en horaires locaux~~ — **corrigé le 2026-09-01**,
   défaut C de S3 bis, cf. « Terminé ».
-- (S4, tâche 4) **Doublon patient non détecté si la date de naissance diffère.** Constaté
-  en construisant un patient jetable pour la fiche `R-MED-01` du cahier de recette, puis
-  reproduit et vérifié à plusieurs reprises à la fiche `R-PAT-03` (S4, tâche 5) : créer un
-  patient avec un nom+prénom strictement identiques à un patient déjà existant, mais une
-  date de naissance différente, n'est pas bloqué — la création aboutit silencieusement,
-  sans aucun message, alors que le cas nom+prénom+date de naissance identiques est refusé
-  avec le message « Ce patient existe déjà » (HTTP 400). Attendu : un comportement cohérent
-  entre les deux cas. Domaine Patient, hors périmètre de la tâche 4.
 - (S4, tâche 5) **Détection de doublon patient à la création : résultat instable hors
   du parcours retenu par `R-PAT-03`.** Constaté en construisant et en rejouant cette
   fiche : créer un patient en doublon exact (même nom, prénom et date de naissance
@@ -184,21 +152,6 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   reproductible — retour explicite sur l'URL racine de l'instance entre les deux
   tentatives (étape 2 de la fiche) — pour que son verdict reste déterministe. Cause
   non recherchée ici.
-- (S4, tâche 7) **Coquille dans le texte d'introduction de l'onglet « Archiver la base
-  de données ».** `locale/fr/LC_MESSAGES/django.po`, msgid « This system helps you to
-  archive and restore the full system. » : la traduction « Cette fonction vous aider à
-  archiver et restaurer le système entier. » emploie l'infinitif après « vous » au lieu
-  de la troisième personne du singulier (« vous aide »). Cosmétique, non corrigé ici.
-- (S4, tâche 7) **`ng-rshow` au lieu de `ng-show` dans le compte-rendu d'import CSV.**
-  `libreosteoweb/templates/partials/import-file.html:228` : le paragraphe « Erreurs
-  lors de l'importation des consultations » porte `ng-rshow` (attribut sans effet,
-  silencieusement ignoré par AngularJS) au lieu de
-  `ng-show="import_error.examination.errors != null && import_error.examination.errors.length != 0"`
-  (ligne 219, la même garde pour les patients, correctement orthographiée).
-  Conséquence observée à la fiche `R-IMP-02` : ce titre d'erreur s'affiche
-  systématiquement dans le panneau « Importation réussie avec des erreurs », même
-  quand aucune consultation n'est réellement en erreur. Domaine Import CSV, hors
-  périmètre de la tâche 7.
 - (S4, tâche 7) **Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
   sous forme de création manuelle.** Aucune fonction ne permet de créer à la main un
   événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
@@ -211,17 +164,6 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   que couvrent désormais les fiches `R-AGE-01` et `R-AGE-02`. Constat utile pour
   cadrer un prochain sprint, pas un défaut à corriger ; le titre du domaine et les
   fiches du cahier de recette restent inchangés.
-- (S4, tâche 9) **L'icône de statut d'une consultation, sur la timeline du patient, ne
-  distingue pas facturée de non facturée.** Vérifié sur
-  `libreosteoweb/templates/partials/timeline.html:14`
-  (`ng-class="{'fa-check': examination.status >= 2, 'fa-money': examination.status == 1,
-  'fa-play': examination.status == 0}"`) et les statuts définis en commentaire dans
-  `libreosteoweb/models.py:171-174` (`0` en cours, `1` facturée non réglée, `2` facturée
-  et réglée, `3` non facturée) : la condition `status >= 2` couvre à la fois `2`
-  (facturée et réglée) et `3` (non facturée), qui affichent donc la même coche verte.
-  Seule la couleur du badge varie, et elle reflète le type d'examen
-  (normal/suite/retour/urgence), pas le statut de facturation. Constat utile, pas un
-  défaut à corriger ici ; couvert par `R-PAT-04` du cahier de recette.
 - ~~(S4, tâche 10) Import CSV de 100 patients : le navigateur ne voit jamais la
   réponse d'intégration, alors que l'import aboutit réellement côté serveur
   (`R-IMP-01` étape 4, `R-IMP-02` étape 1) — routeur http uwsgi sans
@@ -230,65 +172,11 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   `--http-timeout 180` sur la commande `uwsgi` de
   `Docker/build/http-ready/Dockerfile`, cf. « Terminé ».
 
-### Défauts produit à corriger
-
-- (S4, tâche 10) **Le filtre de casse des noms écrase toute majuscule interne
-  légitime — à corriger.** `UserInfoSerializer.validate_last_name`
-  (`libreosteoweb/api/serializers.py:119-120`) applique `get_name_filters()`
-  (`libreosteoweb/api/filter.py` : `LowerNameFilter` puis `CapitalizeNameFilter`),
-  la même chaîne de filtres déjà utilisée pour les noms de patients et de médecins :
-  tout nom saisi est mis en minuscule puis seule sa première lettre est remise en
-  majuscule. Un nom comme « McDonald » devient « Mcdonald », et la seconde moitié
-  d'un nom à trait d'union perd sa majuscule. La normalisation reste voulue pour la
-  saisie ordinaire (elle ne doit pas être supprimée) : le correctif porte sur les
-  exceptions — particules et traits d'union — pas sur le mécanisme lui-même. C'est
-  ce filtre qui a fait échouer une première lecture de `R-AUTH-05` étape 2 (fiche
-  corrigée pour attendre la valeur normalisée, cf. « Terminé »). Non corrigé ici,
-  sprint à déterminer.
-
-### Couverture du cahier de recette (à compléter, pas cette tâche)
-
-- (S4, tâche 10) Le champ « Nom de naissance » du formulaire patient (`R-PAT-01`
-  étape 1, placeholder vérifié) n'est rempli ni vérifié par aucune des 42 fiches
-  jouées à ce jour : une fiche couvrant un nom de naissance distinct du nom d'usage
-  manque au cahier. Ne pas renuméroter les fiches existantes pour la créer.
-
-## En cours
-
-- **S6 — Défauts produit, interrompu en cours de route le 2026-09-02.** Spec :
-  `docs/superpowers/specs/2026-09-02-defauts-produit-design.md` ; plan :
-  `docs/superpowers/plans/2026-09-02-defauts-produit.md`. Dix défauts notés A à J, repris
-  de l'inventaire ci-dessus. Neuf tâches sur onze livrées et relues, dix commits sur
-  `main` (`facbc2f` à `8f72e94`). Chiffres au moment de l'arrêt : 208 → 227 tests
-  unitaires, 29 → 30 fonctionnels, couverture 89,94 → 90,57 %, périmètre `mypy` 99 → 100
-  fichiers, aucun cliquet desserré.
-
-  Livrés : `ng-rshow` de l'import CSV, coquille du texte d'archivage, icône de timeline
-  distinguant « non facturée » de « facturée et réglée », pagination de `/api/events`,
-  suppression de la garde morte `_validate_examination_date`, les deux dépréciations
-  Django 5, la casse des noms, l'avertissement d'homonyme à la création d'un patient.
-
-  **Reste à faire** : la tâche 10 (sécurité — `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`),
-  interrompue avec du travail **non commité et non vérifié** dans l'arbre, et la tâche 11
-  (cahier de recette, journal, cliquets), puis la revue finale de branche. Détail complet,
-  briefs, rapports, revues et arbitrages dans `.superpowers/sdd/2026-09-02-defauts-produit/`
-  — répertoire gitignoré, donc destructible par un `git clean -fdx`.
-
-  **Point à instruire avant tout commit de la tâche 10** : le travail non commité ajoute
-  `ENV LIBREOSTEO_SECRET_KEY="django-insecure-…"` à l'étage de construction de
-  `Docker/build/http-ready/Dockerfile`, parce que `collectstatic` importe désormais des
-  réglages qui exigent la clé. Le motif tient, mais il faut prouver que cette valeur ne
-  franchit pas l'étage `run` de l'image : si elle y fuyait, le défaut corrigé serait
-  réintroduit par la porte de derrière.
-
-  **Le plancher `fail_under` est resté à 89** alors que la couverture mesurée est de
-  90,57 % : à trancher à la clôture, pas avant.
-
 ### Doublon patient à la création : investigation du 2026-09-02, non concluante
 
-Le refus instable consigné plus haut (S4, tâche 5) **n'a pas été reproduit** : neuf
-exécutions ciblées du parcours incriminé, toutes déterministes, refus systématique, corps
-du POST `/api/patients` capturé et identique à chaque fois. Aucun correctif écrit. Le
+Le refus instable consigné plus haut (S4, tâche 5, défaut C) **n'a pas été reproduit** :
+neuf exécutions ciblées du parcours incriminé, toutes déterministes, refus systématique,
+corps du POST `/api/patients` capturé et identique à chaque fois. Aucun correctif écrit. Le
 défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
 
 - **La piste du champ nul est éliminée, avec preuve.** La branche « ignore la validation
@@ -306,7 +194,95 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   demande une base de test sur fichier, bascule que `tests/functional/conftest.py` fait
   déjà pour la même raison.
 
+### Couverture du cahier de recette (à compléter, pas cette tâche)
+
+- (S4, tâche 10) Le champ « Nom de naissance » du formulaire patient (`R-PAT-01`
+  étape 1, placeholder vérifié) n'est rempli ni vérifié par aucune des 42 fiches
+  jouées à ce jour : une fiche couvrant un nom de naissance distinct du nom d'usage
+  manque au cahier. Ne pas renuméroter les fiches existantes pour la créer.
+
+### Dette technologique — analyse automatisée du 2026-09-02, non validée par l'utilisateur, à trier
+
+> Diagnostic produit par un agent dédié, lecture seule, sur l'arbre de S6 clos. Comme les
+> propositions du 2026-08-30 ci-dessus : ce n'est pas une décision actée, à trier et
+> prioriser par un humain avant toute mise en œuvre. Seuls les points classés élevés ou
+> critiques sont repris ici ; rapport complet non conservé (scratchpad de session, volatil).
+
+- **Critique — documents médicaux servis sans authentification.**
+  `Docker/build/http-ready/Dockerfile:84` sert `--static-map /files=/Libreosteo/data/media`
+  par uwsgi avant Django : la route protégée (`Libreosteo/urls.py:129`,
+  `re_path(r"^files/", include("protected_media.urls"))`) n'est donc jamais atteinte, et les
+  documents gardent leur nom d'origine (`libreosteoweb/models.py:576`,
+  `upload_to="documents"`). `GET /files/documents/<nom>.pdf` sans session renvoie le
+  document — vérifié sur le code. Connexe : `django.security` est absent des loggers de
+  `LOGGING` (`Libreosteo/settings/base.py:250-296`), donc les refus `ALLOWED_HOSTS` que ce
+  sprint vient d'introduire ne laissent aucune trace.
+- **Élevé — socle hors support.** Django 4.2 (fin de support étendu avril 2026), Python de
+  l'image non maîtrisé (`FROM alpine:latest` × 2, 3.14 constaté), PostgreSQL 13 (fin de vie
+  novembre 2025).
+- **Élevé — intégrité des données.** Aucune contrainte d'unicité en base
+  (`libreosteoweb/models.py`), `ATOMIC_REQUESTS` désactivé (`Libreosteo/settings/base.py:193`),
+  numérotation des factures en lecture-modification-écriture non transactionnelle
+  (`libreosteoweb/api/invoicing/generator.py:72-92`), montants en `FloatField`. Tenu au
+  silence aujourd'hui par `--processes 1 --threads 1` (`Dockerfile:84`), non documenté comme
+  garde-fou.
+- **Élevé — frontend en fin de vie.** AngularJS 1.5.11, jQuery 1.12.4, jQuery UI 1.10.4, CVE
+  ouvertes ; construction non reproductible (dépendances Git `#*`, `yarn.lock` ignoré,
+  `curl | bash` sans somme de contrôle — `package.json:24-59`, `.gitignore:44`,
+  `Docker/build/http-ready/Dockerfile:29`).
+- **Élevé — chaîne de démarrage conteneur.** `migrate` en échec avalé par la priorité des
+  opérateurs du `CMD` (`Dockerfile:84`), pas de `healthcheck` sur `db`
+  (`Docker/deploy/pg/docker-compose.yml:4-16`), images non épinglées, outils de build non
+  purgés dans l'étage `run`, PostgreSQL publié sur l'hôte (`docker-compose.yml:15-16`).
+- **Élevé — repli silencieux sur sqlite.** `Libreosteo/settings/container.py:25-28` : si le
+  volume `settings/` monté n'a pas d'`__init__.py` réexportant `local.py`, l'import réussit
+  sur un paquet-espace de noms vide et `DATABASES` retombe sur le sqlite de `base.py`, sans
+  erreur — contraire à la décision « PostgreSQL uniquement » (S4).
+
 ## Terminé
+
+- **2026-09-02 — S6, défauts produit livré** (onze tâches ; spec
+  `docs/superpowers/specs/2026-09-02-defauts-produit-design.md`, plan supprimé une fois
+  achevé). Dix défauts notés A à J, repris de l'inventaire « À faire » ci-dessus. Neuf
+  corrigés, un (C, refus de doublon instable) investigué sans être reproduit — voir
+  « Doublon patient à la création : investigation du 2026-09-02, non concluante »
+  ci-dessus, qui reste en « À faire ». 208 → 233 tests unitaires, 27 → 30 fonctionnels,
+  couverture 89,94 % → 90,57 % (plancher `fail_under` relevé de 89 à 90, mérité et tenu
+  au-dessus tout le sprint), périmètre `mypy` 99 → 101 fichiers. Aucun cliquet desserré.
+
+  Livrés : titre « Erreurs lors de l'importation des consultations » masqué en l'absence
+  d'erreur réelle (D), conjugaison corrigée du texte d'introduction de l'archivage (E),
+  icône de timeline distinguant consultation facturée-réglée de consultation non
+  facturée (F), `/api/events` toujours paginé même sans `?limit=` (G), suppression de la
+  garde morte `_validate_examination_date` (H), les deux dépréciations Django 5 levées —
+  suite fonctionnelle sans plus aucun `RemovedInDjango50Warning` (I), casse des noms —
+  une majuscule interne (`McDonald`, `TesterModifie`) est désormais traitée comme une
+  casse délibérée et préservée, apostrophe et trait d'union du nom de famille corrigés
+  (A), avertissement d'homonyme à la création d'un patient sans jamais bloquer (B),
+  `SECRET_KEY` exigée par l'exploitant (`LIBREOSTEO_SECRET_KEY`, plus de valeur commitée),
+  `DEBUG = False` par défaut, `ALLOWED_HOSTS` restreint (`LIBREOSTEO_ALLOWED_HOSTS`,
+  défaut `localhost,127.0.0.1`), `--need-app` ajouté à uwsgi pour que le conteneur sorte
+  en erreur plutôt que de répondre 500 en silence (J). `docs/recette.md` mis à jour en
+  conséquence (chapitre 0, `R-PAT-04`, `R-IMP-02`, `R-AUTH-05`, `R-PAT-03`, nouvelle fiche
+  `R-PAT-06`), sans renumérotation.
+
+  **Trois conséquences assumées**, à connaître avant toute exploitation :
+  - **Parc mixte des casses de noms déjà enregistrés en base** (A) : le correctif ne
+    rattrape pas l'existant, un nom saisi avant S6 garde sa casse écrasée telle quelle.
+  - **Rupture d'exploitation sur la clef secrète et les hôtes autorisés** (J) : une
+    installation existante qui monte l'image sans renseigner `LIBREOSTEO_SECRET_KEY` ne
+    démarre plus (`Exited`, journal `ImproperlyConfigured: SECRET_KEY absente ...`). Pour
+    s'en sortir : générer une clef (`python3 -c "import secrets;
+    print(secrets.token_urlsafe(38))"`), la renseigner dans `LIBREOSTEO_SECRET_KEY` du
+    `.env`, relancer le service.
+  - **Règle de date de consultation jamais spécifiée** (H) : `_validate_examination_date`
+    est supprimée, pas réactivée — la question qu'elle prétendait trancher (quelles dates
+    sont permises après facturation) n'a jamais été formulée nulle part dans le dépôt et
+    reste ouverte, cf. « Points en suspens ».
+
+  **Non fait** (acté au cadrage, cf. spec § Ce qui n'est pas fait) : reprise des données
+  existantes pour la casse, `PAGE_SIZE` global sur `OfficeEventViewSet`,
+  travail sur `standalone.py` ou `demonstration.py`.
 
 - **2026-09-02 — S5, découpage de maintenabilité livré** (six tâches ; la spec reste
   sous `docs/superpowers/specs/2026-09-01-maintenabilite-decoupage-design.md`, le plan
@@ -1259,8 +1235,11 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   `test_la_mise_a_jour_ne_trace_aucun_evenement` fige ce comportement pour que S2 ne le change
   pas par accident. À trancher avec l'utilisateur : journal exhaustif des modifications de
   dossier, ou journal des seules créations ?
-- **2026-08-30 — `ExaminationViewSet._validate_examination_date` est neutralisé.**
-  L'appel est en commentaire dans `perform_update` (`libreosteoweb/api/views.py`). Une
-  consultation peut donc être redatée après facturation. S2 ne le réactive pas : ce serait un
-  changement de comportement hors périmètre. À trancher avant tout travail sur la facturation.
+- **2026-08-30 — quelles dates de consultation sont permises après facturation ?**
+  `ExaminationViewSet._validate_examination_date`, appel mort commenté dans
+  `perform_update`, a été **supprimée** le 2026-09-02 (S6, défaut H) : c'était du code mort,
+  et sa logique paraissait inversée. Sa suppression ne tranche pas la question qu'elle
+  prétendait porter — une consultation peut être redatée après facturation sans qu'aucune
+  règle ne l'interdise ni ne l'autorise explicitement quelque part dans le dépôt. Toujours
+  à trancher avant tout travail sur la facturation.
 
