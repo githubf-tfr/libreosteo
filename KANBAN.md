@@ -255,8 +255,56 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## En cours
 
-_(vide — S5 clos, dernier des cinq sous-chantiers du chantier « amélioration des
-tests ». Rien de cadré à la suite.)_
+- **S6 — Défauts produit, interrompu en cours de route le 2026-09-02.** Spec :
+  `docs/superpowers/specs/2026-09-02-defauts-produit-design.md` ; plan :
+  `docs/superpowers/plans/2026-09-02-defauts-produit.md`. Dix défauts notés A à J, repris
+  de l'inventaire ci-dessus. Neuf tâches sur onze livrées et relues, dix commits sur
+  `main` (`facbc2f` à `8f72e94`). Chiffres au moment de l'arrêt : 208 → 227 tests
+  unitaires, 29 → 30 fonctionnels, couverture 89,94 → 90,57 %, périmètre `mypy` 99 → 100
+  fichiers, aucun cliquet desserré.
+
+  Livrés : `ng-rshow` de l'import CSV, coquille du texte d'archivage, icône de timeline
+  distinguant « non facturée » de « facturée et réglée », pagination de `/api/events`,
+  suppression de la garde morte `_validate_examination_date`, les deux dépréciations
+  Django 5, la casse des noms, l'avertissement d'homonyme à la création d'un patient.
+
+  **Reste à faire** : la tâche 10 (sécurité — `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`),
+  interrompue avec du travail **non commité et non vérifié** dans l'arbre, et la tâche 11
+  (cahier de recette, journal, cliquets), puis la revue finale de branche. Détail complet,
+  briefs, rapports, revues et arbitrages dans `.superpowers/sdd/2026-09-02-defauts-produit/`
+  — répertoire gitignoré, donc destructible par un `git clean -fdx`.
+
+  **Point à instruire avant tout commit de la tâche 10** : le travail non commité ajoute
+  `ENV LIBREOSTEO_SECRET_KEY="django-insecure-…"` à l'étage de construction de
+  `Docker/build/http-ready/Dockerfile`, parce que `collectstatic` importe désormais des
+  réglages qui exigent la clé. Le motif tient, mais il faut prouver que cette valeur ne
+  franchit pas l'étage `run` de l'image : si elle y fuyait, le défaut corrigé serait
+  réintroduit par la porte de derrière.
+
+  **Le plancher `fail_under` est resté à 89** alors que la couverture mesurée est de
+  90,57 % : à trancher à la clôture, pas avant.
+
+### Doublon patient à la création : investigation du 2026-09-02, non concluante
+
+Le refus instable consigné plus haut (S4, tâche 5) **n'a pas été reproduit** : neuf
+exécutions ciblées du parcours incriminé, toutes déterministes, refus systématique, corps
+du POST `/api/patients` capturé et identique à chaque fois. Aucun correctif écrit. Le
+défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
+
+- **La piste du champ nul est éliminée, avec preuve.** La branche « ignore la validation
+  si un champ vaut `None` » de `UniqueTogetherIgnoreCaseValidator`
+  (`libreosteoweb/api/validators.py:58-65`) est du **code mort** pour la création via
+  l'API : `PatientSerializer.birth_date` est `required=True, allow_null=False`, donc un
+  POST sans date ou avec `null` est rejeté en 400 au niveau du champ, avant que le
+  validateur d'objet ne soit jamais appelé.
+- **Meilleure explication disponible, argumentée mais non prouvée : un TOCTOU.**
+  `Patient` ne porte aucune contrainte d'unicité en base, `ATOMIC_REQUESTS` est désactivé,
+  et la vérification d'unicité est un « check puis insert » non atomique — deux créations
+  concurrentes identiques peuvent donc passer toutes les deux. La démonstration par
+  `TransactionTestCase` + `threading.Barrier` a buté sur un artefact du SQLite de test en
+  mémoire (« database table is locked »), pas sur le comportement applicatif ; une reprise
+  demande une base de test sur fichier, bascule que `tests/functional/conftest.py` fait
+  déjà pour la même raison.
 
 ## Terminé
 
