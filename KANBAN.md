@@ -11,8 +11,8 @@ Tenu à la main.
   conservé pour suivre les évolutions amont. Objectif : compatibilité maintenue autant
   que possible, cf. `CLAUDE.md`.
 - (2026-08-30) **Cadrage du chantier « amélioration des tests »**, découpé en cinq
-  sous-chantiers exécutés dans l'ordre S1 → S5 (cf. « Suite du projet » plus bas). Cinq
-  décisions actées pour S1, détail dans
+  sous-chantiers exécutés dans l'ordre S1 → S5 (cf. la section de clôture du chantier,
+  en fin de fichier). Cinq décisions actées pour S1, détail dans
   `docs/superpowers/specs/2026-08-30-socle-tests-qualite-design.md` :
   - **Divergence amont assumée** — la compatibilité cesse d'être un objectif, elle
     devient une prudence. `CLAUDE.md` § Politique amont réécrit en conséquence.
@@ -255,9 +255,29 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 
 ## En cours
 
-_(vide — S4 clos, S5 pas encore cadré.)_
+_(vide — S5 clos, dernier des cinq sous-chantiers du chantier « amélioration des
+tests ». Rien de cadré à la suite.)_
 
 ## Terminé
+
+- **2026-09-02 — S5, découpage de maintenabilité livré** (six tâches ; la spec reste
+  sous `docs/superpowers/specs/2026-09-01-maintenabilite-decoupage-design.md`, le plan
+  a été supprimé une fois achevé). Trois lots : lot 1 fait de
+  `libreosteoweb/api/views.py` (1017 lignes) un paquet de sept modules par domaine
+  (`installation`, `patient`, `consultation`, `facturation`, `import_fichiers`,
+  `administration`, `__init__` de ré-export) ; lot 2 fait de même pour
+  `libreosteoweb/api/serializers.py` (528 lignes) en six modules (`communs`, `patient`,
+  `consultation`, `facturation`, `administration`, `__init__`) ; lot 3 extrait vers
+  `libreosteoweb/api/services/` trois services appelables sans requête HTTP —
+  encaissement d'une facture, analyse et intégration d'un import de fichiers,
+  sauvegarde-restauration — chacun écrit en TDD, la vue devenant un simple adaptateur
+  HTTP. Iso-comportement strict tenu : deux régressions introduites par le déplacement
+  ont été trouvées en revue et corrigées avant clôture (double journalisation d'un
+  incident de restauration, et une 500 au lieu d'une 412 sur disque plein). 194 → 208
+  tests, couverture 89,35 % → 89,94 % (sous 90 %, le plancher `fail_under` reste à 89,
+  cliquet non mérité), mypy 80 → 99 fichiers. Les défauts connus reconduits tels
+  quels — filtre de casse des noms, `_validate_examination_date` neutralisé, pagination
+  absente sur `OfficeEventViewSet` — n'ont pas été corrigés : ils restent en « À faire ».
 
 - **2026-09-01 — S4, cahier de recette livré** (10 tâches ; la spec reste sous
   `docs/superpowers/specs/2026-09-01-cahier-recette-design.md`, le plan a été
@@ -629,10 +649,10 @@ _(vide — S4 clos, S5 pas encore cadré.)_
     main, plus de téléchargement de Firefox ni d'appariement de version avec
     `geckodriver`, plus d'installation de locale système.
   - **Non-déterminisme de `008 Invoice Functionality`** (constaté le 2026-08-31 sur la
-    suite Robot en CI, cf. « Suite du projet » et « Pièges rencontrés » ci-dessous) : la
-    cause précise, au-delà du correctif `unproxy` de S2 qui s'est révélé insuffisant à lui
-    seul, n'a jamais été identifiée — elle est **rendue sans objet** par le remplacement
-    intégral du véhicule. `test_facturation.py`, qui reprend ce cas, n'a plus le moindre
+    suite Robot en CI, cf. la section de clôture du chantier et « Pièges rencontrés »
+    ci-dessous) : la cause précise, au-delà du correctif `unproxy` de S2 qui s'est révélé
+    insuffisant à lui seul, n'a jamais été identifiée — elle est **rendue sans objet** par
+    le remplacement intégral du véhicule. `test_facturation.py`, qui reprend ce cas, n'a plus le moindre
     rapport avec Selenium/Firefox/geckodriver ; vérifié empiriquement vert à chacune des
     16 exécutions complètes de la suite Playwright passées depuis les tâches 8 à 11 (les
     deux de cette tâche comprises), aucune ERROR, aucun échec.
@@ -1168,17 +1188,12 @@ _(vide — S4 clos, S5 pas encore cadré.)_
   `make check` vert (ruff, mypy 80 fichiers, 188 tests unitaires, couverture
   89.31 % ≥ 89.0 %).
 
-## Suite du projet — S5
+## Chantier « amélioration des tests » — clos
 
-Chantier « amélioration des tests », ordonnancement A décidé au cadrage du 2026-08-30.
-S2 (couverture métier), S3 (fonctionnels Playwright) et S4 (cahier de recette) sont clos,
-cf. « Terminé ». Chaque sous-chantier repart de `superpowers:brainstorming`, produit sa
-spec puis son plan sous `docs/superpowers/` ; **ne pas enchaîner deux sous-chantiers dans
-une seule spec**, le découpage est une décision de cadrage, pas une commodité.
-
-- **S5 — Maintenabilité.** Découpage des gros modules pour les rendre testables. En
-  dernier de propos délibéré : refactorer avant S2, c'était refactorer sans filet.
-  Pas encore cadré.
+Cinq sous-chantiers (S1 → S5, cadrage du 2026-08-30) tous livrés, cf. « Terminé » :
+S1 (socle tests et qualité), S2 (couverture métier), S3 (fonctionnels Playwright),
+S4 (cahier de recette), S5 (découpage de maintenabilité). Aucune suite cadrée ; un
+prochain chantier repart de `superpowers:brainstorming`.
 
 ## Suivi amont
 
