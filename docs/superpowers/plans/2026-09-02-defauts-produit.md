@@ -503,7 +503,9 @@ class TestCasseDeliberee(TestCase):
         self.assertEqual("McDonald", get_name_filters().filter("McDonald"))
 
     def test_conserve_la_majuscule_interne_d_un_prenom(self):
-        self.assertEqual("TesterModifie", get_firstname_filters().filter("TesterModifie"))
+        self.assertEqual(
+            "TesterModifie", get_firstname_filters().filter("TesterModifie")
+        )
 
     def test_normalise_un_nom_entierement_en_majuscules(self):
         self.assertEqual("Dupont", get_name_filters().filter("DUPONT"))
@@ -584,9 +586,9 @@ class CapitalizeApostropheNameFilter(CapitalizeNameFilter):
         return super(CapitalizeApostropheNameFilter, self).filter(filtered_text)
 ```
 
-Poser la garde dans `FilterManager.filter` :
+Poser la garde dans `FilterManager.filter` — fragment à insérer dans la classe existante, l'indentation est celle du fichier :
 
-```python
+```text
     def filter(self, text=None):
         if text and self._chain:
             if casse_deliberee(text):
@@ -822,9 +824,9 @@ class PatientHomonymeSerializer(serializers.ModelSerializer):
 
 Le ré-exporter depuis `libreosteoweb/api/serializers/__init__.py`, à côté des autres sérialiseurs patient — suivre exactement la forme du fichier.
 
-Dans `libreosteoweb/api/views/patient.py`, ajouter à `PatientViewSet` (les imports `action` et `Response` sont déjà présents dans le paquet `views` ; les ajouter au module s'ils y manquent) :
+Dans `libreosteoweb/api/views/patient.py`, ajouter à `PatientViewSet` (les imports `action` et `Response` sont déjà présents dans le paquet `views` ; les ajouter au module s'ils y manquent). Fragment à insérer dans la classe existante, l'indentation est celle du fichier :
 
-```python
+```text
     @action(detail=False, methods=["get"])
     def homonymes(self, request):
         """Les patients de memes nom et prenom, quelle que soit leur date de naissance.
@@ -1019,9 +1021,7 @@ class TestClefSecrete(SimpleTestCase):
         with open("Libreosteo/settings/base.py", encoding="utf-8") as fichier:
             source = fichier.read()
         self.assertIn("LIBREOSTEO_SECRET_KEY", source)
-        self.assertNotIn(
-            "8xmh#fjyiamw^-_ro9m29^6^81^kc!aiczp)gvb#7with$dzb6", source
-        )
+        self.assertNotIn("8xmh#fjyiamw^-_ro9m29^6^81^kc!aiczp)gvb#7with$dzb6", source)
 
     def test_le_mode_conteneur_refuse_de_demarrer_sans_clef(self):
         import Libreosteo.settings.container as conteneur
@@ -1091,9 +1091,9 @@ DEBUG = False
 # sert le montage conteneur documente au chapitre 0 de docs/recette.md.
 ALLOWED_HOSTS = [
     hote.strip()
-    for hote in os.environ.get(
-        "LIBREOSTEO_ALLOWED_HOSTS", "localhost,127.0.0.1"
-    ).split(",")
+    for hote in os.environ.get("LIBREOSTEO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(
+        ","
+    )
     if hote.strip()
 ]
 ```
