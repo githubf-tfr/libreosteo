@@ -692,7 +692,7 @@ msgid "Archive and restore database"
 msgstr "Archiver la base de données"
 
 msgid "This system helps you to archive and restore the full system."
-msgstr "Cette fonction vous aider à archiver et restaurer le système entier."
+msgstr "Cette fonction vous aide à archiver et restaurer le système entier."
 
 msgid "Archive"
 msgstr "Archiver"
