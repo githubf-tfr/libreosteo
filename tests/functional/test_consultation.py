@@ -381,3 +381,21 @@ def test_date_affichee_suit_le_jour_local_meme_quand_lutc_differe(
     naviguer_vers_examen(
         page, live_server, patient_existant.id, consultation.id, jour_local
     )
+
+
+def test_l_icone_distingue_la_consultation_non_facturee(
+    page: Page, live_server: LiveServer, patient_existant: Patient
+) -> None:
+    """Statut 3 (non facturee) ne doit pas porter la coche du statut 2 (reglee)."""
+    with sans_receivers():
+        Examination.objects.create(
+            patient=patient_existant,
+            date=timezone.now(),
+            status=ExaminationStatus.NOT_INVOICED,
+            type=1,
+        )
+    connexion(page, live_server)
+    rechercher_patient(page, "Picard")
+    icone = page.locator("ul.timeline li .timeline-badge i.fa")
+    expect(icone).to_have_count(1)
+    expect(icone).to_have_class("fa fa-ban")
