@@ -42,64 +42,44 @@ docker build -t libreosteo/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerf
 docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
 ```
 
-**Étape 3 — environnement compose.** Dans `$SCRATCH/settings/`, deux fichiers (aucun des
-deux n'est fourni tel quel par le dépôt pour ce montage) :
-
-`$SCRATCH/settings/local.py` — assemblé à partir de `Docker/build/git/develop/local.py.pg`
-(motif `host`/`port`/`name`/`user` avant le bloc `DATABASES`, repris de
-`Docker/build/git/develop/launch-libreosteo.sh`), en y ajoutant `PASSWORD` : le template lu
-ne le porte pas, mais l'image PostgreSQL officielle exige un mot de passe sur les connexions
-TCP dès que `POSTGRES_PASSWORD` est défini.
-
-```python
-SECRET_KEY = "<valeur jetable>"  # génération ci-dessous
-
-host = "db"  # nom du service compose
-port = 5432
-name = "libreosteo"  # POSTGRES_DB, en dur dans docker-compose.yml
-user = "libreosteo"  # = POSTGRES_USER
-password = "recette"  # = POSTGRES_PASSWORD, valeur jetable
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": name,
-        "USER": user,
-        "PASSWORD": password,
-        "HOST": host,
-        "PORT": port,
-    }
-}
-```
-
-`SECRET_KEY` jetable, à générer (jamais une valeur écrite en dur ni réutilisée d'une passe à
-l'autre) :
+**Étape 3 — environnement compose.** Les deux fichiers de réglages sont fournis par le
+dépôt sous forme d'exemples : les copier, puis renseigner les deux emplacements vides.
+Rien n'est à récrire à la main.
 
 ```sh
-python3 -c "import secrets; print(secrets.token_urlsafe(38))"
+cp Docker/deploy/pg/settings/__init__.py.example "$SCRATCH/settings/__init__.py"
+cp Docker/deploy/pg/settings/local.py.example    "$SCRATCH/settings/local.py"
 ```
 
+Dans `$SCRATCH/settings/local.py`, renseigner :
+
+- `SECRET_KEY` — une valeur **jetable**, générée pour la passe et jamais réutilisée d'une
+  passe à l'autre :
+
+  ```sh
+  python3 -c "import secrets; print(secrets.token_urlsafe(38))"
+  ```
+
+- `password` — la même valeur que `POSTGRES_PASSWORD` du `.env` ci-dessous.
+
 **Clef secrète obligatoire.** Que ce soit via `settings/local.py` comme ci-dessus, ou en la
-confiant directement à `LIBREOSTEO_SECRET_KEY` dans `.env` (voie que suit
-`Docker/deploy/pg/.env.example`, sans autre montage de `settings/`), une valeur est
+confiant directement à `LIBREOSTEO_SECRET_KEY` dans `.env` (en complément du `settings/`
+monté, jamais à sa place — voir ci-dessous), une valeur est
 désormais exigée : `Libreosteo/settings/container.py` refuse de démarrer sans elle. Constat
 exact si elle manque : le service sort en erreur (`docker compose ... ps` affiche
 `Exited`), et `logs libreosteo` montre `ImproperlyConfigured: SECRET_KEY absente ...` suivi
 de `no app loaded. GAME OVER`. `LIBREOSTEO_ALLOWED_HOSTS` (hôtes autorisés séparés par des
 virgules) a pour défaut `localhost,127.0.0.1`, qui suffit pour cette recette.
 
-`$SCRATCH/settings/__init__.py` — **indispensable**, non fourni par aucun template du
-dépôt pour ce montage. `Libreosteo/settings/container.py` fait `from settings import *`
-(import absolu) : `settings` désigne alors le paquet top-level résolu via `sys.path`, c'est-
-à-dire le volume monté à `/Libreosteo/settings` lui-même, pas `local.py` dedans. Sans ce
-fichier, l'import réussit silencieusement (paquet-espace de noms implicite, PEP 420) mais
-n'importe aucun nom : `DATABASES` retombe sur le défaut sqlite de `base.py`, sans la moindre
-erreur.
-
-```python
-# $SCRATCH/settings/__init__.py
-from .local import *
-```
+`$SCRATCH/settings/__init__.py` est **indispensable**, et le fichier d'exemple dit
+pourquoi : `Libreosteo/settings/container.py` fait `from settings import *` (import
+absolu), donc `settings` désigne le paquet top-level résolu via `sys.path`, c'est-à-dire le
+volume monté à `/Libreosteo/settings` lui-même, pas `local.py` dedans. Sans ce fichier,
+l'import réussit (paquet-espace de noms implicite, PEP 420) mais n'importe aucun nom, et
+`DATABASES` retombe sur le défaut sqlite de `base.py`. Cette erreur n'est plus silencieuse :
+le service sort en erreur et le journal montre
+`ImproperlyConfigured: Moteur de base de données inattendu : django.db.backends.sqlite3 ...`
+— c'est ce que la fiche R-INST-04 met à l'épreuve.
 
 `$SCRATCH/.env` (contenu aligné sur `Docker/deploy/pg/.env.example`, committé, chemins
 substitués via `$SCRATCH` — un fichier `.env` n'est pas un script shell, la variable ne s'y
@@ -132,8 +112,11 @@ n'a pas construit.
 `docker-compose.yml` transmet ces deux variables au conteneur ; `settings/local.py`
 l'emporte ensuite sur `LIBREOSTEO_SECRET_KEY` pour ce montage précis (import `from settings
 import *` dans `container.py`), mais les renseigner ici évite l'avertissement « variable
-not set » de `docker compose` et documente la voie normale d'un déploiement sans
-`settings/` monté.
+is not set » de `docker compose`. Attention : `LIBREOSTEO_SECRET_KEY` **seule ne suffit
+pas** à démarrer. Elle ne configure pas la base de données, et depuis D2 le mode conteneur
+refuse tout moteur autre que PostgreSQL : un montage sans `settings/` retomberait sur le
+sqlite de `base.py` et sortirait en `ImproperlyConfigured`. Le volume `settings/` est
+obligatoire.
 
 **Étape 4 — démarrage :**
 
@@ -506,6 +489,37 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : `db` repasse en `Up (healthy)`, `libreosteo` en `Up` ; le journal montre
    `WSGI app 0 (mountpoint='') ready` ; `curl` rend `302 Found` — l'instance sert de
    nouveau, dans l'état où la fiche l'a prise.
+3. Priver le `settings/` monté de son `__init__.py`, puis redémarrer le service applicatif :
+
+   ```sh
+   mv "$SCRATCH/settings/__init__.py" "$SCRATCH/settings/__init__.py.retire"
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
+   ls "$SCRATCH/data"
+   ```
+
+   Attendu : `libreosteo` en `Exited` avec un code de sortie non nul ; le journal porte
+   `ImproperlyConfigured: Moteur de base de données inattendu :
+   django.db.backends.sqlite3. Le mode conteneur exige PostgreSQL
+   (django.db.backends.postgresql ou django.db.backends.postgresql_psycopg2). Cause la
+   plus fréquente : le volume monté sur /Libreosteo/settings ne porte pas d'__init__.py
+   réexportant local.py, ...`, message qui nomme PostgreSQL, l'absence d'`__init__.py` et
+   `data/db.sqlite3` comme fichier dans lequel l'instance aurait écrit ; **aucune ligne
+   `WSGI app 0 (mountpoint='') ready`** pour ce démarrage ; `ls "$SCRATCH/data"` ne montre
+   **aucun fichier `db.sqlite3`**.
+4. Remettre le fichier en place et redémarrer :
+
+   ```sh
+   mv "$SCRATCH/settings/__init__.py.retire" "$SCRATCH/settings/__init__.py"
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   curl -sD - -o /dev/null http://localhost:8085/
+   ```
+
+   Attendu : `libreosteo` repasse en `Up`, le journal montre `WSGI app 0 (mountpoint='')
+   ready`, `curl` rend `302 Found` — l'instance est rendue dans l'état où la fiche l'a
+   prise.
 
 ### Authentification
 
