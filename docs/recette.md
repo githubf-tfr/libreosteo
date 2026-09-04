@@ -891,7 +891,13 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 ### R-DOC-02 — Consulter et télécharger le document joint
 
 - **Domaine** : Documents patient
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
+  test_le_document_est_servi_en_piece_jointe_nommee_par_son_titre (vérifie au niveau
+  route que la réponse porte `Content-Disposition: attachment` avec le titre du
+  document comme nom de fichier ; il n'exerce **pas** le déclenchement réel du
+  téléchargement par le navigateur, ni l'affichage de la vignette de l'étape 1, qui
+  restent manuels)
 - **État requis** : E2
 
 **Étapes**

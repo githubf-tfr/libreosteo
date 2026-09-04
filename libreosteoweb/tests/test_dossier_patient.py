@@ -559,6 +559,15 @@ class TestDocumentsPatient(APITestCase):
         for interdit in ("\r", "\n", "/", "\\"):
             self.assertNotIn(interdit, entete)
 
+    def test_un_titre_entierement_retire_rend_une_piece_jointe_sans_nom(self):
+        self.depose_un_document()
+        document = Document.objects.get()
+        document.title = "\x01"
+        document.save()
+        reponse = self.client.get(document.document_file.url)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.headers["Content-Disposition"], "attachment")
+
     def test_un_chemin_qui_sort_du_media_root_ne_rend_aucun_fichier(self):
         # Code reellement observe pour ce refus de traversee : 400.
         reponse = self.client.get("/files/documents/../../../../etc/passwd")
@@ -573,6 +582,15 @@ class TestDocumentsPatient(APITestCase):
         reponse = self.client.get("/files/tmp/import.csv")
         self.assertEqual(reponse.status_code, 200)
         self.assertEqual(reponse.headers["Content-Disposition"], "attachment")
+
+    def test_une_reponse_non_modifiee_ne_porte_pas_de_content_disposition(self):
+        self.depose_un_document()
+        url = Document.objects.get().document_file.url
+        premiere_reponse = self.client.get(url)
+        depuis = premiere_reponse.headers["Last-Modified"]
+        reponse = self.client.get(url, HTTP_IF_MODIFIED_SINCE=depuis)
+        self.assertEqual(reponse.status_code, 304)
+        self.assertNotIn("Content-Disposition", reponse.headers)
 
 
 class TestSessionUtilisateur(APITestCase):

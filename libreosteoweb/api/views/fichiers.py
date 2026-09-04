@@ -20,6 +20,7 @@ n'ajoute que la piece jointe forcee et son nom lisible. Elle ne decide jamais qu
 le droit de lire quel dossier — cf. spec D1, « Ce qui n'est pas fait ».
 """
 
+import posixpath
 import re
 from pathlib import PurePosixPath
 
@@ -41,7 +42,7 @@ def _nom_de_telechargement(chemin: str) -> str:
     document = Document.objects.filter(document_file=chemin).first()
     if document is None:
         return ""
-    titre = _CARACTERES_A_RETIRER.sub(" ", document.title).strip()
+    titre = _CARACTERES_A_RETIRER.sub(" ", document.title)
     titre = " ".join(titre.split())[:LONGUEUR_MAX_DU_NOM].strip()
     if not titre:
         return ""
@@ -53,7 +54,10 @@ def telecharger_fichier(request: HttpRequest, path: str) -> HttpResponseBase:
     reponse = serve(request, path, document_root=settings.MEDIA_ROOT)
     if isinstance(reponse, HttpResponseNotModified):
         return reponse
+    # Meme normalisation que celle appliquee par `serve` avant sa resolution de
+    # chemin, pour que la recherche du document retrouve le meme fichier que lui.
+    chemin_normalise = posixpath.normpath(path).lstrip("/")
     reponse.headers["Content-Disposition"] = content_disposition_header(
-        True, _nom_de_telechargement(path)
+        True, _nom_de_telechargement(chemin_normalise)
     )
     return reponse
