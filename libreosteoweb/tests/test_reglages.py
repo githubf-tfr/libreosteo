@@ -64,6 +64,40 @@ class TestClefSecrete(SimpleTestCase):
         self.assertIn("SECRET_KEY absente", resultat.stderr)
 
 
+class TestMoteurDeBaseDeDonnees(SimpleTestCase):
+    def test_le_mode_conteneur_refuse_un_moteur_autre_que_postgresql(self) -> None:
+        """Importer `container.py` sans `settings/` monté doit lever `ImproperlyConfigured`.
+
+        Une clef secrète est fournie : c'est bien le moteur de base, et non la
+        clef, qui doit faire échouer le démarrage. Sans paquet `settings` sur
+        `sys.path`, l'import `from settings import *` de `container.py` ne ramène
+        rien et `DATABASES` reste sur le sqlite de `base.py` — exactement la
+        situation d'un volume `/Libreosteo/settings` monté sans `__init__.py`
+        réexportant `local.py`.
+
+        Isolé dans un sous-processus pour la raison déjà écrite plus haut :
+        recharger un module de réglages Django pollue le processus de la suite.
+        """
+        environnement = dict(os.environ)
+        environnement["LIBREOSTEO_SECRET_KEY"] = "django-insecure-tests-uniquement"
+        script = (
+            "import django.core.exceptions\n"
+            "import Libreosteo.settings.container\n"
+            "raise SystemExit(0)\n"
+        )
+        resultat = subprocess.run(
+            [sys.executable, "-c", script],
+            env=environnement,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(0, resultat.returncode, resultat.stderr)
+        self.assertIn("ImproperlyConfigured", resultat.stderr)
+        self.assertIn("django.db.backends.postgresql", resultat.stderr)
+        self.assertIn("db.sqlite3", resultat.stderr)
+
+
 class TestHotesAutorises(SimpleTestCase):
     def test_lit_la_liste_depuis_l_environnement(self) -> None:
         os.environ["LIBREOSTEO_ALLOWED_HOSTS"] = "exemple.fr, autre.fr"

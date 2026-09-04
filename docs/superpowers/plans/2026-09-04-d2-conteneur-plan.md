@@ -731,7 +731,9 @@ Contrôle plus sûr, qui ne dépend d'aucun décompte :
 grep -n 'collectstatic\|compress --force' Docker/build/http-ready/Dockerfile
 ```
 
-Attendu : une seule ligne, portant `--settings=Libreosteo.settings.base` deux fois et `settings.container` zéro fois.
+Attendu : **deux** lignes — le commentaire réécrit au step 2, qui cite `collectstatic` pour
+expliquer la bascule, et la ligne `RUN` elle-même. Seule cette dernière compte : elle porte
+`--settings=Libreosteo.settings.base` deux fois et `settings.container` zéro fois.
 
 - [ ] **Step 4 : preuve d'exécution — l'image se construit encore**
 
@@ -844,7 +846,7 @@ Ajouter à la fin de `Libreosteo/settings/container.py`, après le bloc `if not 
 moteur = DATABASES["default"]["ENGINE"]
 if not moteur.startswith("django.db.backends.postgresql"):
     raise ImproperlyConfigured(
-        f"Moteur de base de donnees inattendu : {moteur}. Le mode conteneur exige "
+        f"Moteur de base de données inattendu : {moteur}. Le mode conteneur exige "
         "PostgreSQL (django.db.backends.postgresql ou "
         "django.db.backends.postgresql_psycopg2). Cause la plus frequente : le volume "
         "monte sur /Libreosteo/settings ne porte pas d'__init__.py reexportant local.py, "
@@ -1016,7 +1018,7 @@ volume monté à `/Libreosteo/settings` lui-même, pas `local.py` dedans. Sans c
 l'import réussit (paquet-espace de noms implicite, PEP 420) mais n'importe aucun nom, et
 `DATABASES` retombe sur le défaut sqlite de `base.py`. Cette erreur n'est plus silencieuse :
 le service sort en erreur et le journal montre
-`ImproperlyConfigured: Moteur de base de donnees inattendu : django.db.backends.sqlite3 ...`
+`ImproperlyConfigured: Moteur de base de données inattendu : django.db.backends.sqlite3 ...`
 — c'est ce que la fiche R-INST-04 met à l'épreuve.
 ````
 
@@ -1055,7 +1057,7 @@ sortirait en `ImproperlyConfigured`. Le volume `settings/` est obligatoire.
    ```
 
    Attendu : `libreosteo` en `Exited` avec un code non nul ; le journal porte
-   `ImproperlyConfigured: Moteur de base de donnees inattendu :
+   `ImproperlyConfigured: Moteur de base de données inattendu :
    django.db.backends.sqlite3`, un message qui nomme PostgreSQL, l'absence d'`__init__.py`
    et le fichier `data/db.sqlite3` dans lequel l'instance aurait écrit ; **aucune ligne
    `WSGI app 0 (mountpoint='') ready`**, et **aucun fichier `db.sqlite3` créé** dans
