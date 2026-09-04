@@ -960,6 +960,36 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de paiement
    `Chèque`, État `Réglée` — la facture n'est pas supprimée par la cascade.
 
+### R-DOC-05 — Accès non authentifié à un document
+
+- **Domaine** : Documents patient
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
+  test_un_anonyme_n_obtient_pas_le_document (vérifie le refus au niveau de la route
+  Django avec le client de test ; il n'exerce **pas** le montage conteneur — ni uwsgi
+  ni ses `--static-map`, qui sont précisément ce que cette fiche met à l'épreuve — ni
+  la configuration des journaux, que seule l'étape 3 constate)
+- **État requis** : E2
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Compte-rendus médicaux ». Sur la
+   vignette « Radiographie lombaire », relever l'adresse cible de l'icône du document
+   (clic droit sur l'icône → « Copier l'adresse du lien »).
+   Attendu : une adresse de la forme
+   `http://localhost:8085/files/documents/<nom de fichier>`.
+2. Menu utilisateur → « Déconnexion », puis appeler l'adresse relevée dans la barre
+   d'adresse du navigateur.
+   Attendu : le formulaire de connexion s'affiche (titre de page « Identifiez-vous sur
+   LibreOsteo ») et l'adresse devient
+   `http://localhost:8085/accounts/login/?next=/files/documents/<nom de fichier>` ;
+   aucun téléchargement ne démarre et aucun contenu de fichier ne s'affiche.
+3. Lire le journal du conteneur applicatif :
+   `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo`.
+   Attendu : une ligne de la forme `WARNING <horodatage> middleware query path
+   files/documents/<nom de fichier>, authentication required. redirect to
+   authentication form /accounts/login/`.
+
 ### Consultation
 
 ### R-CON-01 — Créer une consultation
