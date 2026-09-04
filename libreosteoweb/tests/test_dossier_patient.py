@@ -420,16 +420,6 @@ class TestDocumentsPatient(APITestCase):
         )
         remplacement_media_root.enable()
         cls.addClassCleanup(remplacement_media_root.disable)
-        # Echafaudage temporaire : la vue de protected_media a fait
-        # `from .settings import PROTECTED_MEDIA_ROOT`, donc elle a sa
-        # propre copie du reglage. Patcher `protected_media.settings` ne
-        # l'atteint pas ; il faut patcher le nom au point d'appel reel.
-        # Ce patch disparait avec la dependance django-protected-media (T9).
-        patcheur_media_root = patch(
-            "protected_media.views.PROTECTED_MEDIA_ROOT", cls.repertoire_media_temp
-        )
-        patcheur_media_root.start()
-        cls.addClassCleanup(patcheur_media_root.stop)
 
     def setUp(self):
         with sans_receivers():

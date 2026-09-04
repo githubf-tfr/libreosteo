@@ -99,7 +99,6 @@ class Socle:
 def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
     """Sort les medias et l'index Whoosh du depot, pour chaque test."""
     settings.MEDIA_ROOT = str(tmp_path / "media")
-    settings.PROTECTED_MEDIA_ROOT = str(tmp_path / "media")
     settings.HAYSTACK_CONNECTIONS = {
         "default": {
             "ENGINE": "libreosteoweb.api.folding_whoosh_backend.FoldingWhooshEngine",
