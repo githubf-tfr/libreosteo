@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta
 from datetime import timezone as fuseau_utc
 from unittest.mock import patch
 
+import protected_media.settings as protected_media_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -410,11 +411,26 @@ class TestDocumentsPatient(APITestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        repertoire_media_temp = tempfile.mkdtemp()
-        cls.addClassCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
-        remplacement_media_root = override_settings(MEDIA_ROOT=repertoire_media_temp)
+        cls.repertoire_media_temp = tempfile.mkdtemp()
+        cls.addClassCleanup(
+            shutil.rmtree, cls.repertoire_media_temp, ignore_errors=True
+        )
+        remplacement_media_root = override_settings(
+            MEDIA_ROOT=cls.repertoire_media_temp
+        )
         remplacement_media_root.enable()
         cls.addClassCleanup(remplacement_media_root.disable)
+        # Patch protected_media's cached setting
+        cls.protected_media_root_original = (
+            protected_media_settings.PROTECTED_MEDIA_ROOT
+        )
+        protected_media_settings.PROTECTED_MEDIA_ROOT = cls.repertoire_media_temp
+        cls.addClassCleanup(
+            setattr,
+            protected_media_settings,
+            "PROTECTED_MEDIA_ROOT",
+            cls.protected_media_root_original,
+        )
 
     def setUp(self):
         with sans_receivers():
@@ -501,6 +517,25 @@ class TestDocumentsPatient(APITestCase):
         self.assertIn(
             b"For security purpose, no document could be uploaded",
             contenu_enregistre,
+        )
+
+    def test_un_anonyme_n_obtient_pas_le_document(self):
+        depot = self.depose_un_document()
+        self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
+        url = Document.objects.get().document_file.url
+        self.client.logout()
+        reponse = self.client.get(url)
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("login") + "?next=" + url)
+        self.assertEqual(reponse.content, b"")
+
+    def test_un_utilisateur_connecte_obtient_le_document(self):
+        self.depose_un_document()
+        url = Document.objects.get().document_file.url
+        reponse = self.client.get(url)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(
+            b"".join(reponse.streaming_content), b"contenu du compte rendu"
         )
 
 
