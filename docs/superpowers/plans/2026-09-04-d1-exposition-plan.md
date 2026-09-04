@@ -43,24 +43,23 @@ Après T2, le produit est déployable et l'exposition est fermée. T4 en apporte
 Ajouter dans `TestDocumentsPatient` :
 
 ```python
-    def test_un_anonyme_n_obtient_pas_le_document(self):
-        depot = self.depose_un_document()
-        self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
-        url = Document.objects.get().document_file.url
-        self.client.logout()
-        reponse = self.client.get(url)
-        self.assertEqual(reponse.status_code, 302)
-        self.assertEqual(reponse.url, reverse("login") + "?next=" + url)
-        self.assertEqual(reponse.content, b"")
+def test_un_anonyme_n_obtient_pas_le_document(self):
+    depot = self.depose_un_document()
+    self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
+    url = Document.objects.get().document_file.url
+    self.client.logout()
+    reponse = self.client.get(url)
+    self.assertEqual(reponse.status_code, 302)
+    self.assertEqual(reponse.url, reverse("login") + "?next=" + url)
+    self.assertEqual(reponse.content, b"")
 
-    def test_un_utilisateur_connecte_obtient_le_document(self):
-        self.depose_un_document()
-        url = Document.objects.get().document_file.url
-        reponse = self.client.get(url)
-        self.assertEqual(reponse.status_code, 200)
-        self.assertEqual(
-            b"".join(reponse.streaming_content), b"contenu du compte rendu"
-        )
+
+def test_un_utilisateur_connecte_obtient_le_document(self):
+    self.depose_un_document()
+    url = Document.objects.get().document_file.url
+    reponse = self.client.get(url)
+    self.assertEqual(reponse.status_code, 200)
+    self.assertEqual(b"".join(reponse.streaming_content), b"contenu du compte rendu")
 ```
 
 `document_file.url` est la seule source de l'URL : le nom stocké porte un suffixe aléatoire dès la seconde déposition dans le `MEDIA_ROOT` de classe, et il deviendra opaque en T10.
@@ -351,7 +350,9 @@ class TestTraceDesOperationsSuspectes(APITestCase):
     """
 
     def test_un_hote_non_autorise_est_refuse_et_trace(self):
-        with self.assertLogs("django.security.DisallowedHost", level="ERROR") as journal:
+        with self.assertLogs(
+            "django.security.DisallowedHost", level="ERROR"
+        ) as journal:
             reponse = self.client.get("/", HTTP_HOST="mechant.example")
         self.assertEqual(reponse.status_code, 400)
         self.assertIn("mechant.example", journal.output[0])
@@ -489,41 +490,44 @@ git commit -m "chore: aligner make check sur le job quality en verifiant les mig
 Ajouter `from django.conf import settings` aux imports du module (le tri `ruff/I` le place avec les autres imports `django.*`). Puis, dans `TestDocumentsPatient` :
 
 ```python
-    def test_le_document_est_servi_en_piece_jointe_nommee_par_son_titre(self):
-        self.depose_un_document()
-        url = Document.objects.get().document_file.url
-        reponse = self.client.get(url)
-        self.assertEqual(reponse.status_code, 200)
-        self.assertEqual(
-            reponse.headers["Content-Disposition"],
-            'attachment; filename="Compte rendu.txt"',
-        )
+def test_le_document_est_servi_en_piece_jointe_nommee_par_son_titre(self):
+    self.depose_un_document()
+    url = Document.objects.get().document_file.url
+    reponse = self.client.get(url)
+    self.assertEqual(reponse.status_code, 200)
+    self.assertEqual(
+        reponse.headers["Content-Disposition"],
+        'attachment; filename="Compte rendu.txt"',
+    )
 
-    def test_un_titre_hostile_ne_produit_pas_un_en_tete_invalide(self):
-        self.depose_un_document()
-        document = Document.objects.get()
-        document.title = "recu\r\n../../etc/passwd"
-        document.save()
-        reponse = self.client.get(document.document_file.url)
-        self.assertEqual(reponse.status_code, 200)
-        entete = reponse.headers["Content-Disposition"]
-        self.assertTrue(entete.startswith("attachment"))
-        for interdit in ("\r", "\n", "/", "\\"):
-            self.assertNotIn(interdit, entete)
 
-    def test_un_chemin_qui_sort_du_media_root_ne_rend_aucun_fichier(self):
-        reponse = self.client.get("/files/documents/../../../../etc/passwd")
-        self.assertGreaterEqual(reponse.status_code, 400)
-        self.assertNotIn(b"root:", reponse.content)
+def test_un_titre_hostile_ne_produit_pas_un_en_tete_invalide(self):
+    self.depose_un_document()
+    document = Document.objects.get()
+    document.title = "recu\r\n../../etc/passwd"
+    document.save()
+    reponse = self.client.get(document.document_file.url)
+    self.assertEqual(reponse.status_code, 200)
+    entete = reponse.headers["Content-Disposition"]
+    self.assertTrue(entete.startswith("attachment"))
+    for interdit in ("\r", "\n", "/", "\\"):
+        self.assertNotIn(interdit, entete)
 
-    def test_un_fichier_sans_document_est_force_en_piece_jointe_sans_nom(self):
-        chemin = os.path.join(settings.MEDIA_ROOT, "tmp")
-        os.makedirs(chemin, exist_ok=True)
-        with open(os.path.join(chemin, "import.csv"), "wb") as fichier:
-            fichier.write(b"nom,prenom")
-        reponse = self.client.get("/files/tmp/import.csv")
-        self.assertEqual(reponse.status_code, 200)
-        self.assertEqual(reponse.headers["Content-Disposition"], "attachment")
+
+def test_un_chemin_qui_sort_du_media_root_ne_rend_aucun_fichier(self):
+    reponse = self.client.get("/files/documents/../../../../etc/passwd")
+    self.assertGreaterEqual(reponse.status_code, 400)
+    self.assertNotIn(b"root:", reponse.content)
+
+
+def test_un_fichier_sans_document_est_force_en_piece_jointe_sans_nom(self):
+    chemin = os.path.join(settings.MEDIA_ROOT, "tmp")
+    os.makedirs(chemin, exist_ok=True)
+    with open(os.path.join(chemin, "import.csv"), "wb") as fichier:
+        fichier.write(b"nom,prenom")
+    reponse = self.client.get("/files/tmp/import.csv")
+    self.assertEqual(reponse.status_code, 200)
+    self.assertEqual(reponse.headers["Content-Disposition"], "attachment")
 ```
 
 ```bash
@@ -591,13 +595,13 @@ def telecharger_fichier(request: HttpRequest, path: str) -> HttpResponse:
 `Libreosteo/urls.py:129` : remplacer
 
 ```python
-    re_path(r"^files/", include("protected_media.urls")),
+(re_path(r"^files/", include("protected_media.urls")),)
 ```
 
 par
 
 ```python
-    re_path(r"^files/(?P<path>.*)$", views.telecharger_fichier, name="fichier-media"),
+(re_path(r"^files/(?P<path>.*)$", views.telecharger_fichier, name="fichier-media"),)
 ```
 
 `include` reste utilisé ailleurs dans le fichier : ne pas toucher aux imports.
@@ -699,25 +703,28 @@ git commit -m "chore: retirer la dependance django-protected-media, devenue inut
 Dans `TestDocumentsPatient` :
 
 ```python
-    def test_le_nom_stocke_ne_reprend_rien_du_nom_televerse(self):
-        self.depose_un_document()
-        nom = Document.objects.get().document_file.name
-        self.assertTrue(nom.startswith("documents/"))
-        self.assertNotIn("compte-rendu", nom)
+def test_le_nom_stocke_ne_reprend_rien_du_nom_televerse(self):
+    self.depose_un_document()
+    nom = Document.objects.get().document_file.name
+    self.assertTrue(nom.startswith("documents/"))
+    self.assertNotIn("compte-rendu", nom)
 
-    def test_l_extension_du_fichier_televerse_est_conservee(self):
-        self.depose_un_document()
-        self.assertTrue(Document.objects.get().document_file.name.endswith(".txt"))
 
-    def test_le_type_mime_reste_renseigne_apres_depot(self):
-        self.depose_un_document()
-        self.assertEqual(Document.objects.get().mime_type, "text/plain")
+def test_l_extension_du_fichier_televerse_est_conservee(self):
+    self.depose_un_document()
+    self.assertTrue(Document.objects.get().document_file.name.endswith(".txt"))
 
-    def test_deux_depots_du_meme_fichier_produisent_deux_noms_distincts(self):
-        self.depose_un_document()
-        self.depose_un_document()
-        noms = {d.document_file.name for d in Document.objects.all()}
-        self.assertEqual(len(noms), 2)
+
+def test_le_type_mime_reste_renseigne_apres_depot(self):
+    self.depose_un_document()
+    self.assertEqual(Document.objects.get().mime_type, "text/plain")
+
+
+def test_deux_depots_du_meme_fichier_produisent_deux_noms_distincts(self):
+    self.depose_un_document()
+    self.depose_un_document()
+    noms = {d.document_file.name for d in Document.objects.all()}
+    self.assertEqual(len(noms), 2)
 ```
 
 ```bash
