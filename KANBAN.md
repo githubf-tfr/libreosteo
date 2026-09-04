@@ -75,6 +75,22 @@ Tenu à la main.
     signalé que ce lot n'est pas un remboursement de dette mais une réécriture d'interface.
     Il est en dernier et derrière un cadrage dédié : aucune ligne de code avant cette spec.
 
+- (2026-09-04) **Conduite du chantier « dette technique » : autonomie jusqu'à D6, D7 si
+  besoin.** Décidé par l'utilisateur à la clôture de D1, puis confirmé : les lots
+  s'enchaînent sans validation intermédiaire — cadrage, spec, plan, exécution, recette,
+  clôture, lot suivant — jusqu'à D6 inclus ; un lot D7 s'ouvre si le chantier fait
+  apparaître de la dette neuve qui ne rentre dans aucun des six. Répartition des rôles
+  fixée dans le même mouvement :
+  - **session centrale** — contrôle, arbitrage, commits ; elle ne rédige ni la spec ni le
+    plan, et vérifie elle-même les faits décisifs des rapports de sous-agents ;
+  - **spec de lot** rédigée par un agent OPUS 5, **plan d'implémentation** par un autre ;
+  - **implémentation** par des sous-agents sonnet — leçon de D1, où le nombre de tours a
+    pesé plus lourd que le prix du modèle ;
+  - **revue systématique**, un siège par tâche, sans exception.
+
+  Une question n'est posée à l'utilisateur que si aucune décision actée n'y répond et
+  qu'elle l'engage seul — un secret, une rotation de clef, une priorité de chantier.
+
 ## À faire
 
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non
