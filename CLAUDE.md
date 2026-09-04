@@ -1,5 +1,7 @@
 # CLAUDE.md — libreosteo
 
+**Feuille.** Aucun projet en dessous : ne lis pas le `README.md` au démarrage.
+
 Fork de [libreosteo/LibreOsteo](https://github.com/libreosteo/LibreOsteo) (GPL-3.0, très
 peu suivi en amont). Historique Git repris à zéro — pas d'héritage de commits — mais le
 code de départ est la source, gelée au commit amont `8e9e0e77d70` (2026-08-30, branche
