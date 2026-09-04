@@ -18,6 +18,7 @@ import shutil
 import tempfile
 from datetime import date, datetime, timedelta
 from datetime import timezone as fuseau_utc
+from pathlib import PurePosixPath
 from unittest.mock import patch
 
 from django.conf import settings
@@ -429,9 +430,11 @@ class TestDocumentsPatient(APITestCase):
             self.patient = cree_patient()
         self.client.login(username="test", password="testpw")
 
-    def depose_un_document(self):
+    def depose_un_document(
+        self, nom_fichier="compte-rendu.txt", content_type="text/plain"
+    ):
         fichier = SimpleUploadedFile(
-            "compte-rendu.txt", b"contenu du compte rendu", content_type="text/plain"
+            nom_fichier, b"contenu du compte rendu", content_type=content_type
         )
         return self.client.post(
             reverse("PatientDocuments-list"),
@@ -444,9 +447,9 @@ class TestDocumentsPatient(APITestCase):
             format="multipart",
         )
 
-    # Seul le premier des quatre tests suivants echoue avant le renommage du
-    # stockage (T10) ; les trois autres passent deja et couvrent en
-    # non-regression le comportement que le changement doit preserver.
+    # Seul le premier des cinq tests suivants échoue avant que le nom de stockage
+    # devienne opaque ; les autres passent déjà et couvrent en non-régression le
+    # comportement que le changement doit préserver.
     def test_le_nom_stocke_ne_reprend_rien_du_nom_televerse(self):
         self.depose_un_document()
         nom = Document.objects.get().document_file.name
@@ -466,6 +469,14 @@ class TestDocumentsPatient(APITestCase):
         self.depose_un_document()
         noms = {d.document_file.name for d in Document.objects.all()}
         self.assertEqual(len(noms), 2)
+
+    def test_une_extension_hors_du_jeu_sur_est_abandonnee(self):
+        self.depose_un_document(
+            nom_fichier="rapport.abcdefghijk", content_type="application/octet-stream"
+        )
+        document = Document.objects.get()
+        self.assertEqual(PurePosixPath(document.document_file.name).suffix, "")
+        self.assertIsNone(document.mime_type)
 
     def test_supprimer_un_document_patient_efface_le_document(self):
         depot = self.depose_un_document()

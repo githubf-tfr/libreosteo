@@ -252,7 +252,6 @@ if sys.platform in ["win32"]:
         "django.core.management.commands",
         "zipcode_lookup.management.commands",
         "libreosteoweb.management.commands",
-        "protected_media",
     ]
     in_zip_packages = includes + [
         "_markerlib",
@@ -385,7 +384,6 @@ if sys.platform in ["darwin"]:
             "email",
             "compressor",
             "django_filters",
-            "protected_media",
         ],
         "plist": {
             "LSBackgroundOnly": True,

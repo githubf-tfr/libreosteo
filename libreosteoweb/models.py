@@ -573,10 +573,16 @@ class FileImport(models.Model):
 # Extension bornee a un jeu sur : elle finit dans un nom de fichier ecrit sur disque et
 # alimente mimetypes.guess_type (Document.clean). Une extension hors de ce jeu est
 # abandonnee ; le mime_type sera alors vide, comme il l'est deja pour un fichier sans
-# extension.
+# extension. Meme perte pour une extension composee (rapport.tar.gz ne garde que .gz,
+# mimetypes.guess_type n'y reconnait plus application/x-tar) et pour un nom qui n'est
+# qu'une extension (.gitignore : PurePosixPath n'y voit aucun suffixe, comme pour un
+# fichier sans extension).
 _EXTENSION_SURE = re.compile(r"\.[a-z0-9]{1,10}\Z")
 
 
+# Nom fige : la migration 0056_alter_document_document_file la reference par son chemin
+# d'import (libreosteoweb.models.chemin_de_stockage_du_document) ; la renommer ou la
+# deplacer casserait `migrate` depuis zero.
 def chemin_de_stockage_du_document(instance: "Document", nom_televerse: str) -> str:
     """Nom de stockage non devinable, extension d'origine conservee."""
     extension = PurePosixPath(nom_televerse).suffix.lower()
