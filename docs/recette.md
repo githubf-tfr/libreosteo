@@ -282,8 +282,10 @@ Bouton « Clôturer ». Dans la fenêtre « Facturation » : choisir « Facturé
 Montant se pré-remplit à `55`, valeur du cabinet — ne pas le modifier), moyen de paiement
 « Chèque », bouton « Valider ».
 
-**3. Seconde consultation, non facturée** — retour sur l'onglet « Consultations »,
-« Démarrer une consultation ».
+**3. Seconde consultation, non facturée** — la clôture de la première consultation laisse
+affiché son détail (onglet « Consultations » déjà actif) : cliquer le bouton « × » en haut
+à droite du panneau (info-bulle « Fermer ce volet ») pour revenir à la chronologie, où
+« Démarrer une consultation » redevient disponible.
 
 | Champ | Valeur |
 |---|---|

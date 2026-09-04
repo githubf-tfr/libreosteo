@@ -280,16 +280,114 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   ouvertes ; construction non reproductible (dépendances Git `#*`, `yarn.lock` ignoré,
   `curl | bash` sans somme de contrôle — `package.json:24-59`, `.gitignore:44`,
   `Docker/build/http-ready/Dockerfile:29`).
-- **Élevé — chaîne de démarrage conteneur.** `migrate` en échec avalé par la priorité des
-  opérateurs du `CMD` (`Dockerfile:84`), pas de `healthcheck` sur `db`
-  (`Docker/deploy/pg/docker-compose.yml:4-16`), images non épinglées, outils de build non
-  purgés dans l'étage `run`, PostgreSQL publié sur l'hôte (`docker-compose.yml:15-16`).
-- **Élevé — repli silencieux sur sqlite.** `Libreosteo/settings/container.py:25-28` : si le
-  volume `settings/` monté n'a pas d'`__init__.py` réexportant `local.py`, l'import réussit
-  sur un paquet-espace de noms vide et `DATABASES` retombe sur le sqlite de `base.py`, sans
-  erreur — contraire à la décision « PostgreSQL uniquement » (S4).
 
 ## Terminé
+
+- **2026-09-04 — D2 Conteneur livré** (onze tâches ; spec
+  `docs/superpowers/specs/2026-09-04-d2-conteneur-design.md`, plan supprimé une fois
+  achevé). La chaîne de démarrage du déploiement de référence dit désormais ce qu'elle
+  fait : `db` porte un `healthcheck` **en TCP** et le service applicatif l'attend
+  (`condition: service_healthy`), un `migrate` en échec fait sortir le conteneur au lieu
+  d'être avalé, les images sont épinglées et jamais tirées, un repli sur sqlite est refusé
+  au démarrage, l'étage `run` ne porte plus d'outils de construction, et les trois
+  artefacts de déploiement morts ont disparu.
+
+  **Critère d'arrêt constaté par une exécution réelle** — passe de recette du 2026-09-04
+  sur le commit `a22cc1a`, instance neuve, volumes `db/` et `data/` purgés, les deux images
+  reconstruites sous ce commit :
+
+  | Fiche | Verdict |
+  |---|---|
+  | `R-INST-01` — première installation | OK |
+  | `R-INST-02` — rejeu idempotent | OK |
+  | `R-INST-03` — persistance au redémarrage | OK |
+  | `R-INST-04` — échec de démarrage visible (nouvelle) | OK |
+  | `R-DOC-02` — consulter et télécharger le document joint | OK |
+  | `R-IMP-01` — import d'un fichier de patients | OK |
+
+  Aucun écart produit. **Un seul `docker compose … up -d`** sur volume neuf amène
+  l'instance à servir : 83 migrations `Applying … OK`, puis `WSGI app 0 (mountpoint='')
+  ready` et `spawned uWSGI http 1`, `curl` rendant `302 Found` vers `/install/` — **sans
+  `pg_isready`, sans `restart`**, le contournement que la recette imposait à chaque montage
+  sur volume neuf depuis S4. Le même `up -d` rejoué ne recrée ni ne redémarre aucun
+  conteneur et ne rejoue aucune migration (83 avant, 83 après) ; `5432` n'est plus joignable
+  depuis l'hôte.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **`--socket-timeout 60` ferme la cause de la troncature mesurée en D1**, et l'offload
+    n'est plus qu'un confort. Observation menée à la clôture, protocole de D1 rejoué **sans**
+    `--offload-threads 1` : document de 12 Mo, client ralenti, `size_download` = 12 000 000,
+    fichier reçu identique à l'original, **aucun** `uwsgi_response_sendfile_do() TIMEOUT`.
+    Le délai d'écriture par défaut d'uwsgi sur la socket valait 4 s et n'était réglé nulle
+    part ; il l'est. `--offload-threads 1` reste, pour son bénéfice propre — libérer l'unique
+    worker pendant un transfert.
+  - **`exec uwsgi` ne suffit pas à un arrêt propre.** La réaction par défaut d'uwsgi à
+    `SIGTERM` est un *rechargement*, pas une extinction : `docker compose stop` attendait le
+    délai de grâce complet puis tuait le conteneur — 10,3 s et `Exited (137)` mesurés.
+    `--die-on-term` ajouté : 1,3 s, `Exited (0)`, `goodbye to uWSGI`. C'est aussi ce qui rend
+    la fiche `R-INST-04` jouable, `restart libreosteo` rejouant enfin le `CMD`.
+  - **Un `pg_isready` sans `-h` est un faux positif.** Pendant `initdb`, l'entrypoint officiel
+    de l'image PostgreSQL lance un serveur temporaire en `listen_addresses=''`, qui n'écoute
+    que la socket Unix : la sonde répond « accepting connections » alors qu'aucune connexion
+    TCP n'est possible. C'est ce qui rendait le contournement manuel insuffisant — il fallait
+    parfois le répéter — et c'est pourquoi le `healthcheck` sonde `127.0.0.1`.
+  - **Les images du compose portaient les noms du dépôt Docker Hub amont, sans tag.** Sur une
+    machine sans image locale, `up` ne s'arrêtait pas : il tirait le binaire d'amont sous le
+    nom que le fork croit être le sien. Tag obligatoire plus `pull_policy: never` : une image
+    absente est désormais une erreur, vérifié — l'échec porte sur l'image absente sans une
+    seule ligne `Pulling`.
+  - **`psycopg2` n'a pas de roue Linux sur PyPI** : il se compile à chaque construction, ce
+    qui explique que la purge de l'étage `run` n'ait jamais été faite — `python3-dev` était
+    en couche persistante sans être déclaré dans `.build-deps`. Déclaré, `linux-headers`
+    supprimé (inutile, vérifié par construction complète), le contenu de l'image passe de
+    **246 Mo à 108 Mo**, `import psycopg2` reste bon et l'instance migre et sert.
+  - **`django-secret-key`, supprimé avec `Docker/build/git/develop/`, était un générateur de
+    clef** — un script qui appelle `get_random_string(50, …)` — et non une valeur stockée :
+    aucune rotation n'est en jeu. Dit ici pour que son nom, dans l'historique, n'inquiète
+    personne plus tard.
+  - **Une image retaguée garde le contenu de son commit d'origine.** Consigne du contrôleur
+    prise en défaut en cours de lot : une tâche a démarré **silencieusement sur sqlite**
+    parce que son image précédait le commit de la garde. Retaguer n'est admis que si aucun
+    commit intermédiaire ne touche ce que l'image embarque ; la recette, elle, reconstruit.
+  - **Écart du manuel corrigé pendant la passe** : atteindre l'état E2 exigeait un geste que
+    le chapitre 1 ne décrivait pas — fermer le volet de la consultation qu'on vient de
+    clôturer pour que « Démarrer une consultation » redevienne disponible. C'est la face
+    « manuel » du défaut produit relevé à la clôture de D1 et journalisé en « À faire » : le
+    défaut reste entier, la recette n'y bute plus.
+
+  **Ce que cela change à la priorité des lots restants** : rien à la structure — les deux
+  chaînes causales `D2 → D3 → D4` et `D5 → D6` ne bougent pas. **D3 est le prochain lot** et
+  hérite d'un terrain assaini : une recette reproductible, sans contournement manuel, et un
+  démarrage qui échoue bruyamment — un échec de migration de D3 ne sera plus indiscernable
+  d'un aléa de démarrage, ce qui était la raison même de faire D2 d'abord. Le garde-fou
+  `--processes 1 --threads 1`, que D3 seul lèvera, n'a pas été touché.
+
+  **Ce que cela change au chapeau** : le libellé de D2 avait été amendé au cadrage du lot,
+  l'utilisateur ayant étendu le ménage des artefacts morts à `Docker/deploy/sqlite/` et
+  `Docker/build/git/develop/` en plus de `Docker/build/sock-ready/`. Vingt-trois fichiers
+  sont partis : le `Dockerfile` de `sock-ready` et la cible `make build-sock-ready`, les
+  seize fichiers de l'installeur standalone sqlite, et les six de `git/develop`. Tous
+  restent dans `git` — les ressortir est un `git revert`. Rien d'autre ne bouge au chapeau.
+
+  **Chiffres et cliquets** : 248 → 249 tests unitaires, 31 tests fonctionnels inchangés —
+  les deux suites rejouées sur le commit recetté, `make check` vert et `make test-functional`
+  31/31 en 4 min 56 —, couverture 90,70 % inchangée. Plancher `fail_under` à 90, périmètre `mypy` à 102 fichiers,
+  jeu de règles `ruff` inchangé, `ignore` toujours vide — aucun cliquet desserré, aucun
+  relevé mérité par ce lot. Images au commit recetté : `libreosteo-http` 563 Mo,
+  `libreosteo-pg` 383 Mo.
+
+  **Non fait, décidé à la spec** : aucune configuration de la base par variables
+  d'environnement (le montage exige toujours un `settings/` monté, arbitré au cadrage :
+  c'eût été du code applicatif nouveau dans un lot d'infrastructure) ; rien de D3
+  (`ATOMIC_REQUESTS`, contraintes d'unicité, `--processes 1 --threads 1`) ; rien de D4
+  (`FROM alpine:latest`, `postgres:13-alpine` restent) ; rien de D5 ; aucune publication
+  d'images dans un registre ; aucune reprise d'une instance qui aurait tourné sur le repli
+  sqlite — elle refusera de démarrer, et son message nomme le fichier où ses données se
+  trouvent ; aucun contrôleur de `Dockerfile` ni de `compose` dans `make check`, qui reste
+  exactement le job `quality` de la CI ; aucune suppression au-delà des trois répertoires
+  nommés — les mentions de `sqlite3` dans `setup.py` appartiennent au gel `cx_Freeze` du mode
+  standalone et n'ont pas été touchées ; aucun secret généré ni proposé, les deux fichiers
+  d'exemple ajoutés ne portant que des emplacements vides.
 
 - **2026-09-04 — D1 Exposition livré** (douze tâches ; spec
   `docs/superpowers/specs/2026-09-04-d1-exposition-design.md`, plan supprimé une fois
