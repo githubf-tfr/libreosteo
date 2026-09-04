@@ -1,6 +1,15 @@
 services:
+# Images du fork, epinglees par une variable obligatoire : sans LIBREOSTEO_IMAGE_TAG,
+# `docker compose` refuse de demarrer avec un message, au lieu de retomber sur :latest.
+# `pull_policy: never` ferme le tirage silencieux : `libreosteo/libreosteo-pg` et
+# `libreosteo/libreosteo-http` sont des noms du depot Docker Hub AMONT ; sans cette clef,
+# une machine qui n'a pas bati les images telechargerait le binaire d'amont sous le nom
+# qu'elle croit etre le sien. Une image absente en local est une erreur, pas une occasion
+# de telecharger. Convention : batir les deux images sous le commit court du depot,
+# `git rev-parse --short HEAD` — c'est ce qui rend « quelle image tourne » repondable.
   db:
-    image: libreosteo/libreosteo-pg
+    image: "libreosteo/libreosteo-pg:${LIBREOSTEO_IMAGE_TAG:?renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example}"
+    pull_policy: never
     hostname: pg_1
     volumes:
       - ${LIBREOSTEO_DB_STORAGE}:/var/lib/postgresql/data
@@ -27,7 +36,8 @@ services:
       start_period: 30s
       retries: 24
   libreosteo:
-    image: libreosteo/libreosteo-http
+    image: "libreosteo/libreosteo-http:${LIBREOSTEO_IMAGE_TAG:?renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example}"
+    pull_policy: never
     hostname: libreosteo_1
     ports:
       - "8085:8085"

@@ -27,18 +27,19 @@ Claude, le scratchpad de session convient (`.../scratchpad/recette/`).
 ```sh
 SCRATCH=/chemin/de/travail/jetable   # à adapter, hors du dépôt
 mkdir -p "$SCRATCH"/{db,bak,data,settings}
+TAG=$(git rev-parse --short HEAD)   # tag des deux images : le commit effectivement bâti
 ```
 
 **Étape 1 — image PostgreSQL :**
 
 ```sh
-docker build -t libreosteo/libreosteo-pg -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
+docker build -t libreosteo/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
 ```
 
 **Étape 2 — image HTTP** (contexte = racine du dépôt) :
 
 ```sh
-docker build -t libreosteo/libreosteo-http -f Docker/build/http-ready/Dockerfile .
+docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
 ```
 
 **Étape 3 — environnement compose.** Dans `$SCRATCH/settings/`, deux fichiers (aucun des
@@ -110,12 +111,23 @@ LIBREOSTEO_DB_STORAGE=$SCRATCH/db
 LIBREOSTEO_BAK_STORAGE=$SCRATCH/bak
 DATA=$SCRATCH/data
 SETTINGS=$SCRATCH/settings
+LIBREOSTEO_IMAGE_TAG=$TAG
 POSTGRES_USER=libreosteo
 POSTGRES_PASSWORD=recette
 LIBREOSTEO_SECRET_KEY=<la même valeur jetable que ci-dessus, ou une autre>
 LIBREOSTEO_ALLOWED_HOSTS=localhost,127.0.0.1
 EOF
 ```
+
+**Tag d'image obligatoire.** `LIBREOSTEO_IMAGE_TAG` nomme la construction réellement faite
+aux étapes 1 et 2 ; les deux services la réclament (`${LIBREOSTEO_IMAGE_TAG:?…}`) et portent
+`pull_policy: never`. Absente ou vide, `docker compose` refuse toute commande et ne démarre
+rien : `error while interpolating services.db.image: required variable LIBREOSTEO_IMAGE_TAG
+is missing a value: renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example`.
+Renseignée avec un tag qu'aucune image locale ne porte, l'échec est
+`No such image: libreosteo/libreosteo-pg:<tag>`, **sans aucun tirage** : le dépôt Docker Hub
+d'amont porte les mêmes noms d'images, et rien ne doit en descendre un binaire que ce fork
+n'a pas construit.
 
 `docker-compose.yml` transmet ces deux variables au conteneur ; `settings/local.py`
 l'emporte ensuite sur `LIBREOSTEO_SECRET_KEY` pour ce montage précis (import `from settings
