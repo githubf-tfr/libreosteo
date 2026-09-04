@@ -95,8 +95,14 @@ même mouvement et le `KANBAN.md` porte le fait qui l'a fait bouger.
 
 ### D1 Exposition
 
-`/files` réellement servi par Django (retrait du `static-map` correspondant), noms de
-documents non devinables, logger `django.security` déclaré.
+`/files` repasse dans le pipeline Django par le retrait du `static-map` correspondant. Ce
+que ce retrait récupère est le passage par `LoginRequiredMiddleware`, qui refuse déjà tout
+chemin non exempté — et non un contrôle d'accès qu'apporterait `django-protected-media` :
+ce paquet n'ajoute qu'un `login_required` redondant, aucun contrôle par objet, et deux
+réglages inertes dans le montage sans frontal qui est la cible. Le lot le retire donc au
+profit d'une vue de téléchargement du dépôt, qui force la pièce jointe et clôt le rendu
+*inline* d'un document téléversé sur l'origine de l'application. S'y ajoutent des noms de
+documents non devinables et le logger `django.security` déclaré.
 
 *Arrêt* : un `GET` anonyme sur un document ne renvoie jamais le fichier, et le refus laisse
 une trace.
