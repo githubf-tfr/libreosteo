@@ -56,8 +56,12 @@ test-functional:
 	  --tracing=retain-on-failure --screenshot=only-on-failure --output=test-results \
 	  2>&1 | tee pytest-functional.log
 
-check: lint test
+migrations-check:
+	@echo "Etat des migrations"
+	$(PYTHON) ./manage.py makemigrations --check
 
-.PHONY: lint test test-functional check
+check: lint migrations-check test
+
+.PHONY: lint test test-functional migrations-check check
 
 .DEFAULT_GOAL := help
