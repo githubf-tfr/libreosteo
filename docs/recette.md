@@ -127,34 +127,18 @@ not set » de `docker compose` et documente la voie normale d'un déploiement sa
 
 ```sh
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo
 ```
 
-**Contournement à prévoir sur un volume `db/` neuf** — `docker-compose.yml` n'a que
-`depends_on: - db` (attend le *démarrage* du conteneur pg, pas sa disponibilité TCP). Sur un
-volume neuf, `initdb` prend plus longtemps que le démarrage du conteneur http : la migration
-échoue (connexion refusée), le `CMD` du Dockerfile avale l'erreur et lance quand même
-`uwsgi` — l'instance répond alors en 500 (schéma absent), migrations jamais rejouées
-automatiquement. Sur volume neuf, ce n'est pas une précaution rare : à l'usage, il a été
-nécessaire à chaque reconstruction sur volume neuf, parfois deux fois de suite (le premier
-`restart` peut lui-même arriver trop tôt, avant la fin de l'initialisation interne de
-Postgres, même si `pg_isready` a déjà répondu). Appliquer, puis vérifier :
-
-```sh
-docker exec <conteneur_db> pg_isready   # attendre "accepting connections"
-docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
-docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo
-```
-
-`restart` rejoue le `CMD` (donc `migrate`) proprement. Le critère pour savoir s'il faut
-recommencer se lit dans ce dernier journal : tant qu'il ne montre pas les migrations
-`Applying ... OK` suivies de `WSGI app 0 (mountpoint='') ready`, refaire `pg_isready` puis
-`restart`. Sur un volume déjà initialisé (pg démarre vite), ce contournement n'est
-généralement pas nécessaire.
-
-Attendu (hors course ci-dessus) : toutes les migrations `Applying ... OK`, puis
-`WSGI app 0 (mountpoint='') ready`, `spawned uWSGI http 1`. `import_zipcodes` échoue
-systématiquement en sandbox (réseau deny par défaut) — non bloquant, à ignorer.
+Attendu : sur un volume `db/` neuf comme sur un volume déjà initialisé, ce seul `up -d`
+suffit. `docker compose ... ps` montre `db` en `Up (healthy)` — le service applicatif
+n'est lancé qu'une fois la sonde TCP passante — puis `libreosteo` en `Up` ; le journal
+montre toutes les migrations `Applying ... OK`, puis `WSGI app 0 (mountpoint='') ready` et
+`spawned uWSGI http 1`. Aucun `pg_isready`, aucun `restart` : si l'un des deux paraît
+nécessaire, c'est un écart produit, à noter comme tel. `import_zipcodes` échoue
+systématiquement en sandbox (réseau deny par défaut) — non bloquant, à ignorer, une ligne
+du journal le dit désormais explicitement.
 
 **Étape 5 — vérification externe :**
 
@@ -217,10 +201,6 @@ docker run --rm -v "$SCRATCH/db:/target" alpine sh -c 'rm -rf /target/* /target/
 docker run --rm -v "$SCRATCH/data:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* 2>/dev/null; true'
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
 ```
-
-Volume neuf : appliquer le contournement de l'étape 4 du montage (`pg_isready` puis
-`restart libreosteo`, à répéter tant que le journal ne montre pas les migrations
-appliquées, cf. chapitre 0) — à prévoir, pas une simple option.
 
 Attendu : `GET /` redirige vers `/install/`, page « Installer LibreOsteo », boutons
 « Restaurer la base de données » et « Enregistrer l'administrateur ».
@@ -430,9 +410,18 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : aucune erreur au démarrage ; `GET /` redirige vers
    `/accounts/login/?next=/` (l'administrateur créé à l'état E1 est toujours présent,
    aucune ré-installation n'est proposée).
-2. S'identifier avec `test` / `test`.
+2. Rejouer immédiatement la même commande `up -d`, sans rien arrêter ni purger :
+   `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d`.
+   Attendu : la sortie annonce `Running` pour les deux services, `db` recevant en plus les
+   lignes `Waiting` puis `Healthy` — Compose les réaffiche à chaque `up -d` dès qu'une
+   dépendance `condition: service_healthy` existe, ce n'est pas un redémarrage. Aucun
+   `Recreated`, aucun `Started`, aucun `Restarting` ; `docker compose ... ps` affiche les
+   mêmes conteneurs, sous les mêmes noms et avec le même âge qu'avant la commande ; le
+   journal du service applicatif ne porte aucune ligne `Applying ...` nouvelle (aucune
+   migration n'est rejouée).
+3. S'identifier avec `test` / `test`.
    Attendu : titre de page « LibreOsteo » ; connexion acceptée.
-3. Dans le champ de recherche (en haut de l'écran), saisir `Picard`, valider.
+4. Dans le champ de recherche (en haut de l'écran), saisir `Picard`, valider.
    Attendu : la fiche patient de Jean-Luc Picard s'affiche (titre de page contenant
    « Picard Jean-Luc ») ; l'onglet « Consultations » liste les deux consultations créées
    à l'état E2 ; l'onglet « Compte-rendus médicaux » liste le document

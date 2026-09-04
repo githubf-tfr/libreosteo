@@ -229,7 +229,7 @@ docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml
 ss -ltn | grep 5432 || echo "5432 ferme sur l'hote"
 ```
 
-Attendu : le second `up -d` n'annonce que `Running` sur les deux services — aucun `Recreated`, aucun `Started`, aucun `Restarting` ; le compte de `Applying` est **inchangé** par rapport à l'étape 4 (aucune migration rejouée) ; la dernière commande affiche `5432 ferme sur l'hote`.
+Attendu : le second `up -d` annonce `Running` sur les deux services, plus `Waiting`/`Healthy` sur `db` — aucun `Recreated`, aucun `Started`, aucun `Restarting` ; le compte de `Applying` est **inchangé** par rapport à l'étape 4 (aucune migration rejouée) ; la dernière commande affiche `5432 ferme sur l'hote`.
 
 **Constaté à T2, à ne pas prendre pour un écart** : Compose v2 réaffiche `Waiting` puis
 `Healthy` pour `db` à chaque `up -d` dès qu'une dépendance `service_healthy` existe. Ces deux
@@ -302,7 +302,7 @@ Dans la fiche `### R-INST-02 — Rejeu idempotent`, insérer une étape **après
 ```text
 2. Rejouer immédiatement la même commande `up -d`, sans rien arrêter ni purger :
    `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d`.
-   Attendu : la sortie n'annonce que `Running` pour les deux services — aucun `Recreated`,
+   Attendu : la sortie annonce `Running` pour les deux services, `db` recevant en plus `Waiting` puis `Healthy` (réaffichés à chaque `up -d` sur une dépendance `service_healthy`, ce n'est pas un redémarrage) — aucun `Recreated`,
    aucun `Started`, aucun `Restarting` ; `docker compose ... ps` affiche les mêmes
    conteneurs, avec les mêmes identifiants et le même âge qu'avant la commande ; le journal
    du service applicatif ne porte aucune ligne `Applying ...` nouvelle (aucune migration
@@ -317,7 +317,7 @@ grep -c 'pg_isready' docs/recette.md
 git diff --stat docs/recette.md
 ```
 
-Attendu : la liste des fiches est **identique** à celle d'avant la tâche (mêmes identifiants, même ordre : `R-INST-01`, `R-INST-02`, `R-INST-03`, puis `R-AUTH-01`…) ; `grep -c 'pg_isready'` rend `0` ; `git diff --stat` ne montre que `docs/recette.md`.
+Attendu : la liste des fiches est **identique** à celle d'avant la tâche (mêmes identifiants, même ordre : `R-INST-01`, `R-INST-02`, `R-INST-03`, puis `R-AUTH-01`…) ; `grep -c 'pg_isready'` rend `1` — l'unique occurrence restante est celle du nouvel attendu de l'étape 4, qui dit qu'un `pg_isready` devenu nécessaire serait un écart produit ; aucune ne subsiste comme *instruction* ; `git diff --stat` ne montre que `docs/recette.md`.
 
 - [ ] **Step 5 : chaîne complète, revue, commit**
 
@@ -328,7 +328,7 @@ git add docs/recette.md
 git commit -m "docs: retirer le contournement pg_isready de la recette"
 ```
 
-**Critère de fin :** `grep -c 'pg_isready' docs/recette.md` rend `0` ; R-INST-02 porte quatre étapes dont la nouvelle en position 2 ; aucun identifiant de fiche n'a changé ; `make check` vert.
+**Critère de fin :** `grep -n 'pg_isready' docs/recette.md` ne rend plus que la phrase d'attendu de l'étape 4, aucune instruction ; R-INST-02 porte quatre étapes dont la nouvelle en position 2 ; aucun identifiant de fiche n'a changé ; `make check` vert.
 
 ---
 
@@ -1257,7 +1257,7 @@ Attendu — c'est le **critère d'acceptation 1** de la spec, en toutes lettres 
 1. `db` en `Up (healthy)`, `libreosteo` en `Up` ;
 2. toutes les migrations `Applying … OK`, puis `WSGI app 0 (mountpoint='') ready` ;
 3. `302` vers `/install/` ;
-4. le second `up -d` n'annonce que `Running`, ne recrée ni ne redémarre aucun conteneur ;
+4. le second `up -d` n'annonce que `Running` (plus `Waiting`/`Healthy` sur `db`), ne recrée ni ne redémarre aucun conteneur ;
 5. le compte de `Applying` est inchangé entre les deux relevés ;
 6. `5432 ferme sur l'hote`.
 
