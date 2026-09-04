@@ -283,6 +283,16 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        # Les SuspiciousOperation — dont les refus ALLOWED_HOSTS — sont emises par Django
+        # en ERROR sur django.security.<NomException>. Sans cette entree elles remontent au
+        # logger `django`, dont le seul gestionnaire est `null`, et disparaissent. Le
+        # logger enfant est cree paresseusement par Django apres la configuration : il
+        # n'est pas concerne par `disable_existing_loggers`.
+        "django.security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         "libreosteoweb": {
             "handlers": ["console"],
             "level": "INFO",

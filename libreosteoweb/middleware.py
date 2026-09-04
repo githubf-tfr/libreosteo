@@ -125,7 +125,7 @@ class LoginRequiredMiddleware(MiddlewareMixin):
             if "web-view" in path:
                 request.path = ""
             if not any(m.match(path) for m in get_exempts()):
-                logger.info(
+                logger.warning(
                     "query path %s, authentication required. redirect to authentication form %s "
                     % (path, get_login_url())
                 )
