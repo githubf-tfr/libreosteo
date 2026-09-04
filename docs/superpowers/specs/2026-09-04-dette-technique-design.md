@@ -112,8 +112,10 @@ une trace.
 `migrate` qui échoue bruyamment au lieu d'être avalé ; `healthcheck` sur `db` et
 `depends_on: condition: service_healthy` côté `libreosteo` ; images épinglées ; `5432` non
 publié sur l'hôte ; étage `run` purgé de ses outils de build ; repli sqlite converti en
-erreur explicite au démarrage. Le sort de `Docker/build/sock-ready/` se tranche dans la spec
-du lot — la cible actée en S4 est conteneur http + PostgreSQL, rien d'autre.
+erreur explicite au démarrage. Le sort de `Docker/build/sock-ready/` s'est tranché dans la
+spec du lot (2026-09-04) : il est supprimé, et l'utilisateur a étendu le ménage à
+`Docker/deploy/sqlite/` et `Docker/build/git/develop/` — la cible actée en S4 est conteneur
+http + PostgreSQL, rien d'autre.
 
 Ces changements sont indépendants les uns des autres : chacun se déploie et se recette seul,
 donc le lot vaut au moins autant d'incréments, ordonnés par la spec du lot.
