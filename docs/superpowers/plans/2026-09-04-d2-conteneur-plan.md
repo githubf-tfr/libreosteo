@@ -1162,12 +1162,15 @@ Attendu : au moins une ligne, avec la taille de l'image construite par T7/T9. **
 Remplacer le bloc `RUN apk add --no-cache … && apk add uwsgi-python3 uwsgi-http` de l'étage `run` par :
 
 ```dockerfile
-# gcc, libc-dev, linux-headers et python3-dev ne servent qu'a compiler psycopg2 : ils
-# passent dans le jeu virtuel .build-deps, purge juste apres. python3-dev y est ajoute —
-# la compilation s'appuyait jusqu'ici sur la copie persistante, sans le declarer. L'etage
-# run ne garde que ce dont l'execution a besoin : tzdata, gettext, py3-pip,
-# postgresql-libs et les greffons uwsgi. Le dernier apk add prend --no-cache comme les
-# autres.
+# Les outils de compilation ne servent qu'a batir psycopg2, qui n'a pas de roue Linux sur
+# PyPI et se compile donc a chaque construction. Ils quittent la couche persistante :
+# gcc et python3-dev rejoignent le jeu virtuel .build-deps, purge juste apres, et
+# python3-dev y est enfin declare — la compilation s'appuyait jusqu'ici sur la copie
+# persistante sans le dire. libc-dev n'est pas repris : c'est le meme paquet que le
+# musl-dev deja present. linux-headers disparait purement et simplement, la compilation
+# n'en a pas besoin (verifie par construction complete). L'etage run ne garde que ce dont
+# l'execution a besoin : tzdata, gettext, py3-pip, postgresql-libs et les greffons uwsgi.
+# Le dernier apk add prend --no-cache comme les autres.
 RUN apk add --no-cache \
     tzdata \
     gettext \
@@ -1188,7 +1191,12 @@ sed -n '/as run/,$p' Docker/build/http-ready/Dockerfile | grep -c 'python3-dev'
 grep -c 'apk add uwsgi' Docker/build/http-ready/Dockerfile
 ```
 
-Attendu : `0` pour `linux-headers` dans l'étage `run` ; `1` pour `python3-dev` — l'unique occurrence étant celle du jeu virtuel `.build-deps` ; `0` pour `apk add uwsgi` sans `--no-cache`.
+Attendu, en lisant les **lignes** et non un décompte — `grep -c` compte des lignes et ne
+distingue pas un commentaire d'une instruction, et le commentaire écrit au step 2 cite les
+deux paquets : `linux-headers` et `python3-dev` ne doivent plus apparaître que dans la liste
+`.build-deps` et dans ce commentaire, jamais dans le premier `apk add` de l'étage `run` ;
+aucun `apk add uwsgi` ne reste sans `--no-cache`. C'est le sixième attendu de ce plan
+recalibré pour cette raison : préférer `grep -n` et la lecture à un chiffre.
 
 - [ ] **Step 4 : preuve d'exécution — l'image se construit et a maigri**
 

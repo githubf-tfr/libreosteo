@@ -67,20 +67,25 @@ ENV VIRTUAL_ENV=/Libreosteo/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 WORKDIR /Libreosteo
 # Install dependancies
+# Les outils de compilation ne servent qu'a batir psycopg2, qui n'a pas de roue Linux sur
+# PyPI et se compile donc a chaque construction. Ils quittent la couche persistante :
+# gcc et python3-dev rejoignent le jeu virtuel .build-deps, purge juste apres, et
+# python3-dev y est enfin declare — la compilation s'appuyait jusqu'ici sur la copie
+# persistante sans le dire. libc-dev n'est pas repris : c'est le meme paquet que le
+# musl-dev deja present. linux-headers disparait purement et simplement, la compilation
+# n'en a pas besoin (verifie par construction complete). L'etage run ne garde que ce dont
+# l'execution a besoin : tzdata, gettext, py3-pip, postgresql-libs et les greffons uwsgi.
+# Le dernier apk add prend --no-cache comme les autres.
 RUN apk add --no-cache \
     tzdata \
     gettext \
-    python3-dev \
     py3-pip \
-    gcc \
-    libc-dev \
-    linux-headers\
-    postgresql-libs\
-    && apk add --no-cache --virtual .build-deps gcc musl-dev postgresql-dev libpq-dev \
+    postgresql-libs \
+    && apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev postgresql-dev libpq-dev \
     && pip install --upgrade pip \
-    && pip install psycopg2\
+    && pip install psycopg2 \
     && apk --purge del .build-deps \
-    && apk add uwsgi-python3 uwsgi-http
+    && apk add --no-cache uwsgi-python3 uwsgi-http
 
 EXPOSE 8085
 # --http-timeout 180 : l'import CSV de 100 patients observe 86-99s en interne ; le routeur http
