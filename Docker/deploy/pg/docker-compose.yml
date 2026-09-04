@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   db:
     image: libreosteo/libreosteo-pg
@@ -12,15 +10,30 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=libreosteo
-    ports:
-      - "5432:5432"
+    # Sonde TCP, et non la socket Unix : pendant initdb, l'entrypoint officiel de l'image
+    # PostgreSQL lance un serveur temporaire avec listen_addresses='', qui n'ecoute que la
+    # socket Unix. Un `pg_isready` sans -h interroge cette socket et repond « accepting
+    # connections » alors qu'aucune connexion TCP n'est encore possible : c'est ce faux
+    # positif qui rendait le contournement manuel du chapitre 0 insuffisant. Le -h 127.0.0.1
+    # est donc le coeur du correctif, pas un detail.
+    # Les $$ echappent l'interpolation de compose : les variables sont resolues par le shell
+    # du conteneur, qui les recoit par `environment` ci-dessus.
+    # 30s de grace puis 24 essais toutes les 5s : deux minutes de tolerance, tres au-dela des
+    # initdb observes, et un echec franc au-dela.
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 24
   libreosteo:
     image: libreosteo/libreosteo-http
     hostname: libreosteo_1
     ports:
       - "8085:8085"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       - LIBREOSTEO_SECRET_KEY=${LIBREOSTEO_SECRET_KEY}
       - LIBREOSTEO_ALLOWED_HOSTS=${LIBREOSTEO_ALLOWED_HOSTS}
