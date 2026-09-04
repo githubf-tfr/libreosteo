@@ -81,4 +81,9 @@ EXPOSE 8085
 # --need-app : sans lui, un reglage manquant (SECRET_KEY notamment) laisse uwsgi en « full
 # dynamic mode », conteneur Up qui repond 500 a chaque requete ; l'exploitant ne voit le
 # defaut que dans les journaux. Avec, le conteneur sort en erreur, donc se voit.
-CMD python3 ./manage.py migrate --settings=Libreosteo.settings.container && python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || test 1=1 && export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container && uwsgi --plugin http,python --http :8085 --http-timeout 180 --module Libreosteo.wsgi --need-app --master --processes 1 --threads 1 --static-map /files=/Libreosteo/data/media --static-map /static=/Libreosteo/static -H /Libreosteo/venv
+# --offload-threads 1 : les fichiers de /Libreosteo/data/media ne sont plus servis par uwsgi
+# avant Django (le --static-map /files a ete retire, cf. lot D1) ; chaque telechargement
+# transite donc par le worker unique. L'offload rend le transfert d'un FileResponse a un
+# thread dedie et libere le worker, sans ajouter le moindre parallelisme applicatif :
+# --processes 1 --threads 1 reste le garde-fou de serialisation.
+CMD python3 ./manage.py migrate --settings=Libreosteo.settings.container && python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || test 1=1 && export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container && uwsgi --plugin http,python --http :8085 --http-timeout 180 --module Libreosteo.wsgi --need-app --master --processes 1 --threads 1 --offload-threads 1 --static-map /static=/Libreosteo/static -H /Libreosteo/venv
