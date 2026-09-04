@@ -485,7 +485,7 @@ git commit -m "fix: epingler les images du compose et interdire le tirage amont"
 Remplacer intégralement la ligne `CMD python3 ./manage.py migrate … -H /Libreosteo/venv` par :
 
 ```dockerfile
-CMD set -e; python3 ./manage.py migrate --settings=Libreosteo.settings.container; python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || echo "import_zipcodes a echoue : enrichissement des codes postaux ignore, demarrage poursuivi"; export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container; exec uwsgi --plugin http,python --http :8085 --http-timeout 180 --socket-timeout 60 --module Libreosteo.wsgi --need-app --master --processes 1 --threads 1 --offload-threads 1 --static-map /static=/Libreosteo/static -H /Libreosteo/venv
+CMD set -e; python3 ./manage.py migrate --settings=Libreosteo.settings.container; python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || echo "import_zipcodes a echoue : enrichissement des codes postaux ignore, demarrage poursuivi"; export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container; exec uwsgi --plugin http,python --http :8085 --http-timeout 180 --socket-timeout 60 --module Libreosteo.wsgi --need-app --die-on-term --master --processes 1 --threads 1 --offload-threads 1 --static-map /static=/Libreosteo/static -H /Libreosteo/venv
 ```
 
 Quatre changements et rien d'autre :
@@ -493,6 +493,12 @@ Quatre changements et rien d'autre :
 - `set -e` en tête et des `;` à la place de la chaîne `&&` / `|| test 1=1 &&` : un `migrate` en échec sort du conteneur avec son code d'erreur et sa trace dans le journal, `uwsgi` n'est jamais lancé ;
 - `import_zipcodes` garde sa tolérance sous la forme `|| echo "…"` : l'échec réseau reste non bloquant — c'est un enrichissement de données, pas une condition de démarrage — mais il laisse désormais une ligne qui dit qu'il a échoué, au lieu d'être indiscernable d'un succès. C'est ce `||` qui le soustrait à `set -e` ;
 - `exec uwsgi` : uwsgi devient PID 1 et reçoit les signaux ;
+- `--die-on-term` : **écart au plan d'origine, décidé au vu de la mesure de T5.** `exec` ne
+  suffit pas — la réaction par défaut d'uwsgi à SIGTERM est un *rechargement*, pas une
+  extinction : `docker compose stop` attendait le délai de grâce complet puis tuait le
+  conteneur (10,3 s, `Exited (137)`). Avec l'option : 1,3 s, `Exited (0)`, journal
+  `goodbye to uWSGI`. Elle rend aussi opérationnelle la méthode de R-INST-04 —
+  `restart libreosteo` rejoue enfin le `CMD`, donc `migrate` ;
 - `--socket-timeout 60` inséré après `--http-timeout 180`.
 
 **Inchangé** : `--http-timeout 180`, `--need-app`, `--master`, `--processes 1 --threads 1`, `--offload-threads 1`, `--static-map /static=/Libreosteo/static`, `-H /Libreosteo/venv`. En particulier `--processes 1 --threads 1` **n'est pas touché** : c'est le garde-fou de sérialisation que D3 lèvera, pas ce lot.
@@ -536,8 +542,7 @@ grep -o -- '--static-map [^ ]*' Docker/build/http-ready/Dockerfile
 
 Attendu : `2` pour `--socket-timeout 60` — l'option sur la ligne `CMD` et sa mention dans le
 commentaire écrit au step 2 ; `2` pour `--offload-threads 1`, pour la même raison ; `2` pour
-`--processes 1 --threads 1` (l'option et le commentaire de D1 qui la cite) ; `0` pour
-`test 1=1`, qui disparaît ; `1` pour `exec uwsgi`. Le dernier `grep -o` rend **deux** lignes,
+`--processes 1 --threads 1` (l'option et le commentaire de D1 qui la cite) ; `1` pour `test 1=1` — la ligne `CMD` n'en porte plus, mais le commentaire écrit au step 2 cite l'ancienne forme pour expliquer ce qui a changé ; `1` pour `exec uwsgi`. Le dernier `grep -o` rend **deux** lignes,
 et c'est normal : `--static-map /files`, cité par le commentaire de D1 qui explique son
 retrait, puis `--static-map /static=/Libreosteo/static`, la seule qui soit dans le `CMD`.
 Seule cette seconde ligne doit y figurer — le vérifier à l'œil sur la ligne `CMD` elle-même.
