@@ -45,11 +45,43 @@ Tenu à la main.
     unique) est conçu pour un exécutant LLM : fiches indépendantes sur états nommés,
     attendus textuels exacts, verdicts binaires.
 
+- (2026-09-04) **Cadrage du chantier « dette technique ».** Spec validée :
+  `docs/superpowers/specs/2026-09-04-dette-technique-design.md`, établie à partir de
+  l'analyse automatisée du 2026-09-02 (§ « Dette technologique » ci-dessous) triée avec
+  l'utilisateur. Six lots, cinq décisions de méthode ; le détail, les emplacements vérifiés
+  et les critères d'arrêt sont dans la spec et ne sont pas repris ici.
+  - **D1 Exposition** — documents médicaux réellement servis par Django, noms non
+    devinables, refus tracés.
+  - **D2 Conteneur** — échec de démarrage visible, `healthcheck` sur `db`, images
+    épinglées, repli silencieux sur sqlite converti en erreur.
+  - **D3 Intégrité** — contraintes d'unicité en base, `ATOMIC_REQUESTS`, numérotation de
+    facture transactionnelle, montants en `DecimalField`. Ferme le défaut C.
+  - **D4 Socle** — version de Python épinglée, PostgreSQL 13 → 17, Django 4.2 → 5.x.
+  - **D5 Build** — `yarn.lock` versionné, refs de `package.json` figées, installation de
+    yarn à somme de contrôle.
+  - **D6 Frontend** — migration AngularJS 1.5 / jQuery 1.12.
+  - **Conduite agile, pas en V** : le chantier porte un backlog priorisé et non une
+    séquence gravée. Seules les dépendances causales sont fixes — deux chaînes,
+    `D2 → D3 → D4` et `D5 → D6` ; la priorité du reste se réévalue à la clôture de chaque
+    lot, avec les faits que ce lot vient de produire.
+  - **Chapeau court, puis une spec par lot**, chacune écrite après la clôture du lot
+    précédent, jamais d'avance.
+  - **Chantier arrêtable à toute frontière de lot** : chaque lot clos est une livraison qui
+    se suffit à elle-même, les lots non faits retournant en « À faire » avec leur constat
+    d'origine.
+  - **Rythme de recette** : fiches touchées rejouées à la clôture de chaque lot, passage
+    complet de `docs/recette.md` à la clôture du chantier.
+  - **D6 inclus au chantier à la demande explicite de l'utilisateur**, après qu'il lui a été
+    signalé que ce lot n'est pas un remboursement de dette mais une réécriture d'interface.
+    Il est en dernier et derrière un cadrage dédié : aucune ligne de code avant cette spec.
+
 ## À faire
 
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non
 > validées par l'utilisateur. À trier avant toute mise en œuvre : ce ne sont pas des
-> décisions actées, et rien ici n'a été discuté ni priorisé par un humain.
+> décisions actées, et rien dans les rubriques datées du 2026-08-30 ci-dessous n'a été
+> discuté ni priorisé par un humain. Une sous-section portant une date de tri ultérieure
+> n'est pas concernée par ce bandeau.
 
 ### Sécurité
 
@@ -201,12 +233,13 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   jouées à ce jour : une fiche couvrant un nom de naissance distinct du nom d'usage
   manque au cahier. Ne pas renuméroter les fiches existantes pour la créer.
 
-### Dette technologique — analyse automatisée du 2026-09-02, non validée par l'utilisateur, à trier
+### Dette technologique — analyse automatisée du 2026-09-02, triée le 2026-09-04
 
-> Diagnostic produit par un agent dédié, lecture seule, sur l'arbre de S6 clos. Comme les
-> propositions du 2026-08-30 ci-dessus : ce n'est pas une décision actée, à trier et
-> prioriser par un humain avant toute mise en œuvre. Seuls les points classés élevés ou
-> critiques sont repris ici ; rapport complet non conservé (scratchpad de session, volatil).
+> Diagnostic produit par un agent dédié, lecture seule, sur l'arbre de S6 clos. Seuls les
+> points classés élevés ou critiques sont repris ici ; rapport complet non conservé
+> (scratchpad de session, volatil). Trié avec l'utilisateur le 2026-09-04 : ces constats
+> forment le périmètre du chantier « dette technique » (§ Décisions actées), et ils restent
+> ici jusqu'à ce que le lot qui les ferme soit clos.
 
 - **Critique — documents médicaux servis sans authentification.**
   `Docker/build/http-ready/Dockerfile:84` sert `--static-map /files=/Libreosteo/data/media`
