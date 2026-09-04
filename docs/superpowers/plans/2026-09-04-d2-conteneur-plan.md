@@ -190,10 +190,16 @@ par :
 grep -c 'version:' Docker/deploy/pg/docker-compose.yml
 grep -c '5432:5432' Docker/deploy/pg/docker-compose.yml
 grep -A1 'depends_on:' Docker/deploy/pg/docker-compose.yml
-docker compose -f Docker/deploy/pg/docker-compose.yml config >/dev/null
+docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml config >/dev/null
 ```
 
-Attendu : les deux `grep -c` rendent `0` ; le `grep -A1` montre `db:` sous `depends_on:` ; `docker compose … config` sort en `0` et **n'affiche aucun avertissement** `the attribute 'version' is obsolete` (les variables non renseignées produisent des avertissements « variable is not set », c'est normal ici, elles viennent du `--env-file`).
+Attendu : les deux `grep -c` rendent `0` ; le `grep -A1` montre `db:` sous `depends_on:` ; `docker compose … config` sort en `0` et **n'affiche aucun avertissement** `the attribute 'version' is obsolete`.
+
+**Le `--env-file` n'est pas optionnel ici** — constaté à l'exécution de T2 : sans lui, les
+volumes `${LIBREOSTEO_DB_STORAGE}` et `${DATA}` deviennent des chemins vides et `config`
+sort en `1` sur `invalid spec: :/var/lib/postgresql/data: empty section between colons`.
+Ce défaut préexiste au lot (reproduit sur le fichier d'avant T2) et n'est pas de son
+ressort ; il impose seulement de toujours passer le `--env-file` de la passe.
 
 - [ ] **Step 4 : preuve d'exécution — volume neuf, un seul `up -d`**
 
@@ -225,7 +231,14 @@ ss -ltn | grep 5432 || echo "5432 ferme sur l'hote"
 
 Attendu : le second `up -d` n'annonce que `Running` sur les deux services — aucun `Recreated`, aucun `Started`, aucun `Restarting` ; le compte de `Applying` est **inchangé** par rapport à l'étape 4 (aucune migration rejouée) ; la dernière commande affiche `5432 ferme sur l'hote`.
 
-Consigner les sorties des étapes 4 et 5 dans `$SCRATCH/preuves-i2.txt` : T3 les recopie dans l'attendu de la recette, T11 les cite à la clôture. **Laisser l'instance en place** — T3 n'en a pas besoin, mais T4 la reprendra.
+**Constaté à T2, à ne pas prendre pour un écart** : Compose v2 réaffiche `Waiting` puis
+`Healthy` pour `db` à chaque `up -d` dès qu'une dépendance `service_healthy` existe. Ces deux
+lignes ne sont pas un redémarrage ; seuls `Recreated`, `Started` ou `Restarting` en seraient un.
+
+Consigner les sorties des étapes 4 et 5 dans `$SCRATCH/preuves-i2.txt` : T3 les recopie dans l'attendu de la recette, T11 les cite à la clôture. **L'instance peut être démontée** (`docker compose … down`) une fois les preuves consignées : la
+conserver entre deux tâches n'est pas garanti — le contrôleur fait tourner plusieurs tâches en
+parallèle, et une tâche suivante remonte de toute façon selon le chapitre 0. **Conserver
+`$SCRATCH`** et ses fichiers de preuves, eux.
 
 - [ ] **Step 6 : chaîne complète, revue, commit**
 
@@ -415,8 +428,10 @@ Sur l'instance de T2 (ou une instance remontée selon le chapitre 0 **tel qu'il 
 ```bash
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml config | grep 'image:'
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
-env -u LIBREOSTEO_IMAGE_TAG docker compose -f Docker/deploy/pg/docker-compose.yml config; echo "sortie=$?"
-LIBREOSTEO_IMAGE_TAG=inexistant docker compose -f Docker/deploy/pg/docker-compose.yml up -d db; echo "sortie=$?"
+grep -v LIBREOSTEO_IMAGE_TAG "$SCRATCH/.env" > "$SCRATCH/.env-sans-tag"
+docker compose --env-file "$SCRATCH/.env-sans-tag" -f Docker/deploy/pg/docker-compose.yml config; echo "sortie=$?"
+sed 's/^LIBREOSTEO_IMAGE_TAG=.*/LIBREOSTEO_IMAGE_TAG=inexistant/' "$SCRATCH/.env" > "$SCRATCH/.env-tag-faux"
+docker compose --env-file "$SCRATCH/.env-tag-faux" -f Docker/deploy/pg/docker-compose.yml up -d db; echo "sortie=$?"
 ```
 
 Attendu, dans l'ordre :
