@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta
 from datetime import timezone as fuseau_utc
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -535,6 +536,43 @@ class TestDocumentsPatient(APITestCase):
         self.assertEqual(
             b"".join(reponse.streaming_content), b"contenu du compte rendu"
         )
+
+    def test_le_document_est_servi_en_piece_jointe_nommee_par_son_titre(self):
+        self.depose_un_document()
+        url = Document.objects.get().document_file.url
+        reponse = self.client.get(url)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(
+            reponse.headers["Content-Disposition"],
+            'attachment; filename="Compte rendu.txt"',
+        )
+
+    def test_un_titre_hostile_ne_produit_pas_un_en_tete_invalide(self):
+        self.depose_un_document()
+        document = Document.objects.get()
+        document.title = "recu\r\n../../etc/passwd"
+        document.save()
+        reponse = self.client.get(document.document_file.url)
+        self.assertEqual(reponse.status_code, 200)
+        entete = reponse.headers["Content-Disposition"]
+        self.assertTrue(entete.startswith("attachment"))
+        for interdit in ("\r", "\n", "/", "\\"):
+            self.assertNotIn(interdit, entete)
+
+    def test_un_chemin_qui_sort_du_media_root_ne_rend_aucun_fichier(self):
+        # Code reellement observe pour ce refus de traversee : 400.
+        reponse = self.client.get("/files/documents/../../../../etc/passwd")
+        self.assertGreaterEqual(reponse.status_code, 400)
+        self.assertNotIn(b"root:", reponse.content)
+
+    def test_un_fichier_sans_document_est_force_en_piece_jointe_sans_nom(self):
+        chemin = os.path.join(settings.MEDIA_ROOT, "tmp")
+        os.makedirs(chemin, exist_ok=True)
+        with open(os.path.join(chemin, "import.csv"), "wb") as fichier:
+            fichier.write(b"nom,prenom")
+        reponse = self.client.get("/files/tmp/import.csv")
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.headers["Content-Disposition"], "attachment")
 
 
 class TestSessionUtilisateur(APITestCase):

@@ -33,6 +33,7 @@ from .administration import (
 )
 from .consultation import ExaminationCommentViewSet, ExaminationViewSet
 from .facturation import InvoiceViewHtml, InvoiceViewSet, PaimentMeanViewSet
+from .fichiers import telecharger_fichier
 from .import_fichiers import FileImportViewSet
 from .installation import CreateAdminAccountView, InstallView, create_superuser
 from .patient import (
@@ -67,4 +68,5 @@ __all__ = [
     "UserOfficeViewSet",
     "UserViewSet",
     "create_superuser",
+    "telecharger_fichier",
 ]

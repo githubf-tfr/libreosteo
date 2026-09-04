@@ -112,6 +112,7 @@ files = [
     "libreosteoweb/api/views/administration.py",
     "libreosteoweb/api/views/consultation.py",
     "libreosteoweb/api/views/facturation.py",
+    "libreosteoweb/api/views/fichiers.py",
     "libreosteoweb/api/views/import_fichiers.py",
     "libreosteoweb/api/views/installation.py",
     "libreosteoweb/api/views/patient.py",

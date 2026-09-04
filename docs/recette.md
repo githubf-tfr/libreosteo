@@ -900,8 +900,9 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : une vignette de document, titre en gras « Radiographie lombaire », date
    affichée `01-01-2024`, libellé « Notes » suivi du texte « Document de recette ».
 2. Cliquer sur l'icône du document, dans la vignette.
-   Attendu : un nouvel onglet s'ouvre et le téléchargement du fichier
-   `patients_1.csv` démarre.
+   Attendu : le téléchargement du fichier `Radiographie lombaire.csv` démarre (le
+   fichier téléchargé porte le titre du document, pas le nom téléversé) ; aucun
+   aperçu ne s'affiche dans l'onglet.
 
 ### R-DOC-03 — Supprimer un document
 
