@@ -241,15 +241,6 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
 > forment le périmètre du chantier « dette technique » (§ Décisions actées), et ils restent
 > ici jusqu'à ce que le lot qui les ferme soit clos.
 
-- **Critique — documents médicaux servis sans authentification.**
-  `Docker/build/http-ready/Dockerfile:84` sert `--static-map /files=/Libreosteo/data/media`
-  par uwsgi avant Django : la route protégée (`Libreosteo/urls.py:129`,
-  `re_path(r"^files/", include("protected_media.urls"))`) n'est donc jamais atteinte, et les
-  documents gardent leur nom d'origine (`libreosteoweb/models.py:576`,
-  `upload_to="documents"`). `GET /files/documents/<nom>.pdf` sans session renvoie le
-  document — vérifié sur le code. Connexe : `django.security` est absent des loggers de
-  `LOGGING` (`Libreosteo/settings/base.py:250-296`), donc les refus `ALLOWED_HOSTS` que ce
-  sprint vient d'introduire ne laissent aucune trace.
 - **Élevé — socle hors support.** Django 4.2 (fin de support étendu avril 2026), Python de
   l'image non maîtrisé (`FROM alpine:latest` × 2, 3.14 constaté), PostgreSQL 13 (fin de vie
   novembre 2025).
@@ -273,6 +264,94 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   erreur — contraire à la décision « PostgreSQL uniquement » (S4).
 
 ## Terminé
+
+- **2026-09-04 — D1 Exposition livré** (douze tâches ; spec
+  `docs/superpowers/specs/2026-09-04-d1-exposition-design.md`, plan supprimé une fois
+  achevé). Les documents médicaux ne sont plus servis par uwsgi avant Django : le
+  `--static-map /files=/Libreosteo/data/media` est retiré du `Dockerfile`, la route
+  `/files/documents/<nom>` est rendue par une vue du dépôt derrière
+  `LoginRequiredMiddleware` puis `login_required`, en pièce jointe forcée nommée par le
+  titre du document ; les fichiers sont désormais stockés sous un identifiant opaque, et
+  le refus d'accès anonyme est tracé en `WARNING` sur `django.security`. La dépendance
+  `django-protected-media` a été retirée, devenue inutile.
+
+  **Critère d'arrêt constaté par une exécution réelle** — passe de recette du 2026-09-04
+  sur le commit `9b0718f`, instance neuve montée en conteneur + PostgreSQL
+  (`Docker/deploy/pg/`), les deux images reconstruites, document de recette stocké sous
+  `d7d4088eb7ca416a8276b53574f092a8.csv` :
+
+  | Fiche | Verdict |
+  |---|---|
+  | `R-DOC-02` — consulter et télécharger le document joint | OK |
+  | `R-DOC-05` — accès non authentifié à un document | OK |
+  | `R-SAU-01` — sauvegarde de l'instance | OK |
+
+  Aucun écart produit, aucun écart du manuel : `docs/recette.md` n'a pas bougé pendant la
+  passe. Sur l'instance qui tournait, en anonyme `302 Found`,
+  `Location: /accounts/login/?next=/files/documents/d7d4088eb7ca416a8276b53574f092a8.csv`,
+  `Content-Length: 0` — aucun octet du document ; authentifié, `200 OK`,
+  `Content-Disposition: attachment; filename="Radiographie lombaire.csv"`,
+  `Content-Length: 47250` reçus en entier ; journal du conteneur,
+  `WARNING ... middleware query path files/documents/d7d4088eb7ca416a8276b53574f092a8.csv,
+  authentication required. redirect to authentication form /accounts/login/`. L'archive de
+  `R-SAU-01` ne contient qu'un membre `documents/d7d4088eb7ca416a8276b53574f092a8.csv`, et
+  aucun `patients_1.csv` : le nom téléversé n'est plus dans la sauvegarde non plus.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **L'offload uwsgi ne fait pas gagner du temps, il empêche une troncature.** Observation
+    A/B sur instance réelle (T4) : avec `--offload-threads 1`, gros fichier 58,53 s et sonde
+    concurrente `/api/patients` 0,032 s ; sans, 47,04 s et 0,054 s. Le contrôle décisif n'est pas là : sans
+    l'option, le téléchargement est **tronqué** — 9 724 672 octets rendus sur 12 000 000
+    attendus, `uwsgi_response_sendfile_do() TIMEOUT` après 4,1 s, reproduit trois fois sur
+    trois. La cause est le délai d'écriture par défaut d'uwsgi sur la socket, que ce dépôt
+    ne règle nulle part. Option conservée, et le commentaire du `Dockerfile` dit maintenant
+    ce qu'elle évite réellement.
+  - **`django-protected-media` force `PROTECTED_MEDIA_AS_DOWNLOADS` à `False` dans le
+    paquet lui-même** : il ne lit pas le réglage du projet. Le rendu *inline* d'un document
+    sur l'origine de l'application n'était donc pas désactivable par configuration — un
+    `.svg` ou un `.html` téléversé s'y exécutait avec le cookie de session du lecteur. C'est
+    ce fait, plus que la redondance du paquet, qui a justifié de le retirer au profit d'une
+    vue du dépôt.
+  - **Changement visible pour l'utilisateur** : ce qui s'affichait dans un onglet — un PDF,
+    une image — se télécharge désormais, et le fichier récupéré porte le **titre** du
+    document (`Radiographie lombaire.csv`), plus le nom téléversé.
+  - **`live_server` de `pytest-django` court-circuitait la route testée** : son
+    `_MediaFilesHandler` sert `MEDIA_URL` avant l'urlconf et les intergiciels
+    (`django/test/testcases.py:1688,1778`), donc la suite fonctionnelle ne traversait jamais
+    `/files`. Neutralisé par `monkeypatch` dans le seul test concerné.
+  - **Constat de passe, hors des trois fiches** : entre deux consultations d'un même
+    patient, le panneau « Démarrer une consultation » ne se ré-affiche pas dans la même
+    session Angular (`static/js/app/patient.js`, `reloadExaminations` laisse
+    `previousExamination.data` sur la consultation fermée) ; un rechargement complet de la
+    page suffit. Noté, non traité — hors périmètre de D1.
+
+  **Ce que cela change à la priorité des lots restants** : rien à la structure — les deux
+  chaînes causales `D2 → D3 → D4` et `D5 → D6` ne bougent pas. **D2 reste prioritaire** et
+  hérite de deux faits mesurés ici : le délai d'écriture socket d'uwsgi (4 s par défaut),
+  que rien dans le dépôt ne règle et qui appartient à la chaîne de démarrage ; et le
+  contournement `pg_isready` puis `restart libreosteo`, encore nécessaire pour monter cette
+  clôture sur un volume neuf, que le `healthcheck` de D2 doit supprimer.
+
+  **Ce que cela change au chapeau** : le libellé de D1 avait déjà été corrigé au cadrage du
+  lot, sur le fait que retirer le `static-map` récupère `LoginRequiredMiddleware` — le
+  contrôle d'accès du dépôt — et non un contrôle d'accès qu'aurait apporté
+  `django-protected-media`, qui n'en porte aucun. Fait journalisé ici ; rien d'autre ne
+  bouge au chapeau.
+
+  **Chiffres et cliquets** : 233 → 248 tests unitaires, 31 tests fonctionnels inchangés,
+  couverture 90,57 % → 90,70 %. Plancher `fail_under` inchangé à 90, périmètre `mypy`
+  101 → 102 fichiers, jeu de règles `ruff` inchangé, aucun cliquet desserré ; `make check`
+  est de nouveau exactement le job `quality` de la CI, l'étape `migrations-check` lui ayant
+  été ajoutée. La passe fonctionnelle jouée pendant les constructions d'images de la recette
+  a échoué une fois sur `test_avertissement_d_homonyme_puis_creation` (barrière d'URL
+  ui-router du helper `connexion`, 15 s dépassées) ; rejoué seul deux fois, puis suite
+  complète sur machine calme, 31/31 verts — contention de charge, pas régression.
+
+  **Non fait, décidé à la spec** : aucune reprise des documents déjà stockés (un fichier
+  déposé avant ce lot garde son nom d'origine, parc mixte assumé), aucune liste blanche de
+  types rendus *inline* (la pièce jointe est forcée pour tous), aucun travail sur
+  `Docker/build/sock-ready/` (son sort appartient à D2). Le contrôle d'accès par objet part
+  en « Points en suspens ».
 
 - **2026-09-02 — S6, défauts produit livré** (onze tâches ; spec
   `docs/superpowers/specs/2026-09-02-defauts-produit-design.md`, plan supprimé une fois
@@ -1263,6 +1342,15 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
 _(vide — prochain `git fetch upstream` à faire avant divergence significative)_
 
 ## Points en suspens
+
+### Ouvert par le chantier « dette technique »
+
+- **2026-09-04 — aucun contrôle d'accès par objet sur les documents.** Depuis D1, la route
+  `/files/documents/<nom>` exige une session, mais **tout utilisateur authentifié peut lire
+  tout document**, y compris par une URL devinée ou transmise. La vue ne décide jamais qui a
+  le droit de lire quel dossier : définir cette règle est une question métier que rien dans
+  le dépôt ne spécifie, de même nature que celle des dates de consultation après
+  facturation. Ne se tranche pas dans un lot de dette.
 
 ### Comportements figés par S2 sans avoir été tranchés
 

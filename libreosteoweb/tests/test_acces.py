@@ -273,12 +273,12 @@ class TestLoginRequiredMiddleware(APITestCase):
 
 
 class TestTraceDesOperationsSuspectes(APITestCase):
-    """Refus d'un hote hors ALLOWED_HOSTS.
+    """Refus d'un hôte hors ALLOWED_HOSTS.
 
-    Ce test prouve que Django *emet* l'enregistrement, jamais qu'il est *configure*
+    Ce test prouve que Django *émet* l'enregistrement, jamais qu'il est *configuré*
     pour sortir : `assertLogs` pose son propre gestionnaire sur le logger et lui
     impose son niveau. La configuration — bloc `loggers` de `LOGGING` — ne se
-    constate qu'a l'execution : etape 3 de la fiche R-DOC-05 et cloture du lot.
+    constate qu'à l'exécution : étape 3 de la fiche R-DOC-05 et clôture du lot.
     """
 
     def test_un_hote_non_autorise_est_refuse_et_trace(self):
