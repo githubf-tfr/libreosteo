@@ -42,12 +42,19 @@ COPY ./server.py .
 
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:/root/.yarn/bin:$PATH"
-# collectstatic/compilejsi18n/compress importent Libreosteo.settings.container, qui exige
-# desormais SECRET_KEY : cette etape de construction ne sert jamais de requete, la valeur
-# de developpement suffit et disparait avec l'etage "build" (elle n'est pas copiee dans
-# l'etage "run" ci-dessous).
+# collectstatic et compress tournent sur Libreosteo.settings.base, et non sur .container :
+# le mode conteneur exige desormais un moteur PostgreSQL (cf. Libreosteo/settings/container.py),
+# qu'une machine de construction n'a aucune raison d'avoir. base.py porte deja DEBUG = False
+# et COMPRESS_ENABLED = True, les deux seuls reglages que container ajoutait pour la
+# compression. Ce n'est pas un precedent : compilejsi18n tourne deja sur un autre module de
+# reglages, le defaut Libreosteo.settings de manage.py.
+# Django exige quand meme une SECRET_KEY non vide, quel que soit le module de reglages
+# (django/conf/__init__.py, au premier acces) : cette etape de construction ne sert jamais de
+# requete, la valeur de developpement ci-dessous suffit et disparait avec l'etage "build"
+# (elle n'est pas copiee dans l'etage "run"). Aucune valeur de clef reelle n'entre dans un
+# fichier du depot.
 ENV LIBREOSTEO_SECRET_KEY="django-insecure-developpement-et-tests-uniquement"
-RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.container && python3 ./manage.py compilejsi18n && python3 ./manage.py compress --force --settings=Libreosteo.settings.container
+RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base && python3 ./manage.py compilejsi18n && python3 ./manage.py compress --force --settings=Libreosteo.settings.base
 RUN rm libreosteoweb/static/components
 
 
