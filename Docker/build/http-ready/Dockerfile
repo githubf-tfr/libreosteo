@@ -83,7 +83,11 @@ EXPOSE 8085
 # defaut que dans les journaux. Avec, le conteneur sort en erreur, donc se voit.
 # --offload-threads 1 : les fichiers de /Libreosteo/data/media ne sont plus servis par uwsgi
 # avant Django (le --static-map /files a ete retire, cf. lot D1) ; chaque telechargement
-# transite donc par le worker unique. L'offload rend le transfert d'un FileResponse a un
-# thread dedie et libere le worker, sans ajouter le moindre parallelisme applicatif :
-# --processes 1 --threads 1 reste le garde-fou de serialisation.
+# transite donc par le worker unique. Sans cette option, un telechargement vers un client
+# lent n'est pas seulement ralenti, il est tronque : mesure sur instance reelle, 9 724 672
+# octets rendus sur 12 000 000 attendus, uwsgi_response_sendfile_do() TIMEOUT apres 4,1
+# secondes, reproduit trois fois sur trois. La cause est le delai d'ecriture par defaut
+# d'uwsgi sur la socket, que ce depot ne regle nulle part ailleurs. L'offload deplace le
+# transfert d'un FileResponse vers un thread dedie, sans ajouter le moindre parallelisme
+# applicatif : --processes 1 --threads 1 reste le garde-fou de serialisation.
 CMD python3 ./manage.py migrate --settings=Libreosteo.settings.container && python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || test 1=1 && export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container && uwsgi --plugin http,python --http :8085 --http-timeout 180 --module Libreosteo.wsgi --need-app --master --processes 1 --threads 1 --offload-threads 1 --static-map /static=/Libreosteo/static -H /Libreosteo/venv
