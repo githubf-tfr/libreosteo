@@ -463,6 +463,50 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    connexion (la session reste valide) ; le patient `Picard` reste accessible depuis le
    champ de recherche.
 
+### R-INST-04 — Échec de démarrage visible
+
+- **Domaine** : Installation
+- **Couverture auto** : non — un `CMD` de conteneur ne s'exerce depuis aucun processus
+  pytest ; cette fiche est la seule preuve du comportement de démarrage.
+- **État requis** : E0. Cette fiche n'écrit aucune donnée et rend l'instance à l'état où
+  elle l'a prise : elle est jouable depuis n'importe lequel des trois états, sans
+  reconstruction, et ne contraint pas la fiche suivante.
+
+**Étapes**
+
+1. Arrêter le seul service de base de données, puis redémarrer le service applicatif :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml stop db
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
+   ```
+
+   Le `--since` n'est pas un confort : `logs` sans borne rend tout l'historique du
+   conteneur, y compris les démarrages réussis précédents, et leurs lignes
+   `WSGI app 0 (mountpoint='') ready` feraient lire un faux écart.
+
+   Attendu : `ps -a` affiche le service `libreosteo` en `Exited` avec un **code de sortie
+   non nul** ; le journal montre la trace d'erreur de `migrate`
+   (`django.db.utils.OperationalError`, avec `could not translate host name "db"` ou
+   `connection refused` selon l'état de la résolution DNS du réseau compose) et **ne
+   contient, pour ce démarrage, aucune ligne `WSGI app 0 (mountpoint='') ready`** : uwsgi
+   n'a jamais été lancé.
+2. Remettre la base en marche et relancer :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml start db
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo
+   curl -sD - -o /dev/null http://localhost:8085/
+   ```
+
+   Attendu : `db` repasse en `Up (healthy)`, `libreosteo` en `Up` ; le journal montre
+   `WSGI app 0 (mountpoint='') ready` ; `curl` rend `302 Found` — l'instance sert de
+   nouveau, dans l'état où la fiche l'a prise.
+
 ### Authentification
 
 ### R-AUTH-01 — Création du premier utilisateur
