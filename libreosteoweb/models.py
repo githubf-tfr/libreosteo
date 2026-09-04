@@ -15,7 +15,10 @@
 # import the logging library
 import logging
 import mimetypes
+import re
+import uuid
 from datetime import date
+from pathlib import PurePosixPath
 from typing import Any
 
 from django.conf import settings
@@ -567,13 +570,28 @@ class FileImport(models.Model):
             storage_examination.delete(path_examination)
 
 
+# Extension bornee a un jeu sur : elle finit dans un nom de fichier ecrit sur disque et
+# alimente mimetypes.guess_type (Document.clean). Une extension hors de ce jeu est
+# abandonnee ; le mime_type sera alors vide, comme il l'est deja pour un fichier sans
+# extension.
+_EXTENSION_SURE = re.compile(r"\.[a-z0-9]{1,10}\Z")
+
+
+def chemin_de_stockage_du_document(instance: "Document", nom_televerse: str) -> str:
+    """Nom de stockage non devinable, extension d'origine conservee."""
+    extension = PurePosixPath(nom_televerse).suffix.lower()
+    if not _EXTENSION_SURE.match(extension):
+        extension = ""
+    return f"documents/{uuid.uuid4().hex}{extension}"
+
+
 class Document(models.Model):
     """
     Implements a document to be attached to
     an examination or patient file
     """
 
-    document_file = models.FileField(upload_to="documents")
+    document_file = models.FileField(upload_to=chemin_de_stockage_du_document)
     title = models.TextField(_("Title"))
     notes = models.TextField(_("Notes"), blank=True, null=True, default=None)
     internal_date = models.DateTimeField(_("Adding date"), blank=True, null=False)

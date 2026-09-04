@@ -1412,7 +1412,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
 1. Menu utilisateur → « Import/export ».
    Attendu : titre de page « Gestion de l'import/export » ; onglet « Archiver la
-   base de données » actif par défaut ; texte « Cette fonction vous aider à
+   base de données » actif par défaut ; texte « Cette fonction vous aide à
    archiver et restaurer le système entier. » ; panneau « Archiver » avec un lien
    « obtenir l'archive » et le texte « Ce fichier est le contenu complet de votre
    base. Il peut uniquement être utilisé par LibreOsteo. Utilisez-le afin de
@@ -1422,8 +1422,9 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : téléchargement d'un fichier nommé `<horodatage ISO>-libreosteo.db`
    (horodatage du téléchargement) ; ce fichier est une archive zip contenant
    `dump.json` (le contenu de la base), `meta` (le numéro de version de
-   l'application) et les documents joints aux patients (ici,
-   `documents/patients_1.csv`, le document joint à l'état E2).
+   l'application) et les documents joints aux patients, sous `documents/` — un
+   seul membre ici, le document joint à l'état E2, nommé par un identifiant
+   opaque suivi de `.csv` (le nom téléversé n'est plus conservé).
 
 ### R-SAU-02 — Restauration de la sauvegarde sur une instance vierge
 

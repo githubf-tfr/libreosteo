@@ -444,6 +444,29 @@ class TestDocumentsPatient(APITestCase):
             format="multipart",
         )
 
+    # Seul le premier des quatre tests suivants echoue avant le renommage du
+    # stockage (T10) ; les trois autres passent deja et couvrent en
+    # non-regression le comportement que le changement doit preserver.
+    def test_le_nom_stocke_ne_reprend_rien_du_nom_televerse(self):
+        self.depose_un_document()
+        nom = Document.objects.get().document_file.name
+        self.assertTrue(nom.startswith("documents/"))
+        self.assertNotIn("compte-rendu", nom)
+
+    def test_l_extension_du_fichier_televerse_est_conservee(self):
+        self.depose_un_document()
+        self.assertTrue(Document.objects.get().document_file.name.endswith(".txt"))
+
+    def test_le_type_mime_reste_renseigne_apres_depot(self):
+        self.depose_un_document()
+        self.assertEqual(Document.objects.get().mime_type, "text/plain")
+
+    def test_deux_depots_du_meme_fichier_produisent_deux_noms_distincts(self):
+        self.depose_un_document()
+        self.depose_un_document()
+        noms = {d.document_file.name for d in Document.objects.all()}
+        self.assertEqual(len(noms), 2)
+
     def test_supprimer_un_document_patient_efface_le_document(self):
         depot = self.depose_un_document()
         self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
