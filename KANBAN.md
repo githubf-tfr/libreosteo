@@ -226,6 +226,16 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   demande une base de test sur fichier, bascule que `tests/functional/conftest.py` fait
   déjà pour la même raison.
 
+### Défauts produit constatés en recette (à traiter, pas encore planifiés)
+
+- **2026-09-04 — le panneau « Démarrer une consultation » ne revient pas sans
+  rechargement.** Constaté à la passe de recette de D1, en montant l'état E2 : après avoir
+  clôturé une consultation, le panneau permettant d'en démarrer une nouvelle ne se
+  ré-affiche pas dans la même session Angular — `reloadExaminations`
+  (`libreosteoweb/static/js/app/patient.js`) recharge la consultation qui vient d'être
+  fermée dans `previousExamination.data` au lieu de la vider. Un rechargement complet de la
+  page suffit à retrouver le bouton. Hors périmètre de D1, non traité.
+
 ### Couverture du cahier de recette (à compléter, pas cette tâche)
 
 - (S4, tâche 10) Le champ « Nom de naissance » du formulaire patient (`R-PAT-01`
@@ -323,7 +333,7 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
     patient, le panneau « Démarrer une consultation » ne se ré-affiche pas dans la même
     session Angular (`static/js/app/patient.js`, `reloadExaminations` laisse
     `previousExamination.data` sur la consultation fermée) ; un rechargement complet de la
-    page suffit. Noté, non traité — hors périmètre de D1.
+    page suffit. Qualifié défaut produit, parti en « À faire » — hors périmètre de D1.
 
   **Ce que cela change à la priorité des lots restants** : rien à la structure — les deux
   chaînes causales `D2 → D3 → D4` et `D5 → D6` ne bougent pas. **D2 reste prioritaire** et
