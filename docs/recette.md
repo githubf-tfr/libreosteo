@@ -531,7 +531,9 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
   vierge. Cette fiche est la seule preuve du comportement.
 - **État requis** : E2. C'est une répétition de montée de version, sur le précédent de
   R-INST-04 : elle insère puis supprime une ligne, et rend l'instance dans l'état où
-  elle l'a prise.
+  elle l'a prise — aux données près seulement, la séquence d'identité des patients
+  restant avancée d'un cran par la ligne insérée puis supprimée. Aucune fiche ne dépend
+  d'une valeur d'identifiant.
 
 **Étapes**
 
@@ -546,8 +548,9 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
      "python3 ./manage.py migrate libreosteoweb 0056 --settings=Libreosteo.settings.container"
    ```
 
-   Attendu : `Unapplying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK`
-   (et, si D3 est livré en entier, `0058` défait avant lui).
+   Attendu : `Unapplying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK`,
+   précédé du `Unapplying` de chaque migration postérieure à `0057` que l'arbre porte au
+   jour du passage (il n'y en a aucune à ce jour).
 2. Insérer par `psql` un doublon du patient de l'état E2, **en majuscules** — c'est ce
    qui met à l'épreuve l'insensibilité à la casse de la garde. La copie passe par une
    table temporaire : `SELECT *` reprend toutes les colonnes sans avoir à les nommer, et
@@ -564,8 +567,16 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
       INSERT INTO libreosteoweb_patient SELECT * FROM copie;"
    ```
 
-   Attendu : `SELECT 1`, `UPDATE 1`, `INSERT 0 1`, dans cet ordre ; puis
-   `SELECT count(*) FROM libreosteoweb_patient;` rend une ligne de plus qu'avant.
+   Attendu : `INSERT 0 1` — et lui seul : le client `psql` de l'image (PostgreSQL 13)
+   n'affiche que le statut de la dernière instruction d'un `-c` qui en porte plusieurs.
+   Vérifier ensuite le compte :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c "SELECT count(*) FROM libreosteoweb_patient;"
+   ```
+
+   Attendu : `2` — l'état E2 ne porte qu'un patient, la copie en majuscules est le second.
 3. Redémarrer le service applicatif, sur l'image portant les migrations de D3 :
 
    ```sh
@@ -603,13 +614,14 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    ```sh
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
      exec db psql -U libreosteo -d libreosteo -c "DELETE FROM libreosteoweb_patient WHERE family_name = 'PICARD';"
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
-   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo | tail -20
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
    curl -sD - -o /dev/null http://localhost:8085/
    ```
 
-   Attendu : `DELETE 1` — la comparaison de `psql` distingue la casse, seule la copie
-   part ; puis
+   Attendu : `DELETE 1` — l'opérateur `=` de PostgreSQL distingue la casse, seule la
+   copie part ; puis
    `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK`,
    puis `WSGI app 0 (mountpoint='') ready` ; `curl` rend `302 Found` ; l'instance sert
    de nouveau, avec les données de l'état E2 intactes.
@@ -1037,8 +1049,9 @@ que personne ne la découvre en production.
 2. Dans le champ de recherche, saisir `Picard`, valider.
    Attendu : la liste de résultats affiche **une seule** entrée, « Picard Jean-Luc ».
 
-**Constat** : la base et le validateur applicatif disent exactement la même chose, casse
-comprise. Aucune fiche existante ne le couvrait.
+**Constat** : le validateur applicatif dit, casse comprise, ce que la base garantit — le
+refus de la base elle-même est prouvé par le test cité en « Couverture auto ». Aucune fiche
+existante ne couvrait la casse.
 
 ### Documents patient
 
