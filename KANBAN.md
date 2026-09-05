@@ -189,7 +189,7 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 - ~~(S3, tâche 5) `libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
   jour calendaire UTC puis la borne en horaires locaux~~ — **corrigé le 2026-09-01**,
   défaut C de S3 bis, cf. « Terminé ».
-- (S4, tâche 5) **Détection de doublon patient à la création : résultat instable hors
+- ~~(S4, tâche 5) **Détection de doublon patient à la création : résultat instable hors
   du parcours retenu par `R-PAT-03`.** Constaté en construisant et en rejouant cette
   fiche : créer un patient en doublon exact (même nom, prénom et date de naissance
   qu'un patient déjà existant) sans repasser par le tableau de bord entre la création
@@ -199,7 +199,7 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   `R-PAT-03` couvre délibérément le seul parcours où le refus a été observé de façon
   reproductible — retour explicite sur l'URL racine de l'instance entre les deux
   tentatives (étape 2 de la fiche) — pour que son verdict reste déterministe. Cause
-  non recherchée ici.
+  non recherchée ici.~~ — **fermé le 2026-09-05**, défaut C, par D3 : cf. « Terminé ».
 - (S4, tâche 7) **Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
   sous forme de création manuelle.** Aucune fonction ne permet de créer à la main un
   événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
@@ -242,6 +242,10 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   demande une base de test sur fichier, bascule que `tests/functional/conftest.py` fait
   déjà pour la même raison.
 
+Le défaut C est **clos par D3 (2026-09-05), par son résultat observable et non par sa
+cause** : cf. « Terminé ». Les deux acquis ci-dessus restent valides et ne se réinstruisent
+pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'être.
+
 ### Défauts produit constatés en recette (à traiter, pas encore planifiés)
 
 - **2026-09-04 — le panneau « Démarrer une consultation » ne revient pas sans
@@ -270,18 +274,195 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
 - **Élevé — socle hors support.** Django 4.2 (fin de support étendu avril 2026), Python de
   l'image non maîtrisé (`FROM alpine:latest` × 2, 3.14 constaté), PostgreSQL 13 (fin de vie
   novembre 2025).
-- **Élevé — intégrité des données.** Aucune contrainte d'unicité en base
-  (`libreosteoweb/models.py`), `ATOMIC_REQUESTS` désactivé (`Libreosteo/settings/base.py:193`),
-  numérotation des factures en lecture-modification-écriture non transactionnelle
-  (`libreosteoweb/api/invoicing/generator.py:72-92`), montants en `FloatField`. Tenu au
-  silence aujourd'hui par `--processes 1 --threads 1` (`Dockerfile:84`), non documenté comme
-  garde-fou.
 - **Élevé — frontend en fin de vie.** AngularJS 1.5.11, jQuery 1.12.4, jQuery UI 1.10.4, CVE
   ouvertes ; construction non reproductible (dépendances Git `#*`, `yarn.lock` ignoré,
   `curl | bash` sans somme de contrôle — `package.json:24-59`, `.gitignore:44`,
   `Docker/build/http-ready/Dockerfile:29`).
 
 ## Terminé
+
+- **2026-09-05 — D3 Intégrité des données livré** (treize tâches ; spec
+  `docs/superpowers/specs/2026-09-05-d3-integrite-design.md`, plan supprimé une fois
+  achevé). `Patient` porte désormais une contrainte d'unicité fonctionnelle en base
+  (nom/prénom insensibles à la casse, date de naissance), `ATOMIC_REQUESTS` est activé
+  (une requête HTTP = une transaction), la numérotation de facture est relue sous
+  verrou dans la même transaction que son écriture, et les montants sont des
+  `numeric(10,2)` en base comme en API — plus aucun de ces quatre points ne repose sur
+  `--processes 1 --threads 1`.
+
+  **Critère d'arrêt constaté par une exécution réelle** — passe de recette du
+  2026-09-05 sur le commit `b4d16c13ce7f558b7fe890e0478d00b0b6db870b`, instance neuve,
+  volumes `db/` et `data/` purgés, les deux images reconstruites sous le tag `b4d16c1`.
+  Les six sorties de l'étape 1 : `db` en `Up (healthy)`, `libreosteo` en `Up` ;
+  `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK` puis
+  `Applying libreosteoweb.0058_alter_invoice_amount_alter_officesettings_amount_and_more... OK` ;
+  `curl` rend `302 Found` vers `/install/` ; le shell conteneur rend `True` pour
+  `ATOMIC_REQUESTS` ; `\d libreosteoweb_patient` porte l'index
+  `"unique_patient_nom_prenom_naissance" UNIQUE, btree (lower(family_name::text),
+  lower(first_name::text), birth_date)` ; `\d libreosteoweb_invoice` porte
+  `amount | numeric(10,2)`. Course à deux sessions `psql` concurrentes (étape 2, triplet
+  `Crusher`/`Beverly`/`1950-01-01`) : la première session valide, la seconde bloque
+  environ 4 s puis rend `ERROR: duplicate key value violates unique constraint
+  "unique_patient_nom_prenom_naissance"` — une seule ligne subsiste, supprimée ensuite.
+  **Les deux moitiés du critère d'arrêt sont prouvées par deux tests au lieu d'un, et
+  c'est délibéré** : la ligne unique se prouve par un test de concurrence sur fichier
+  (`libreosteoweb/tests/test_concurrence.py`, moteur SQLite de la suite unitaire), le
+  refus applicatif (400, message du validateur) par un test déterministe à deux
+  connexions sur le même moteur ; ni l'un ni l'autre ne peut montrer la course sur le
+  moteur réel — cf. sortie 2 ci-dessous, la raison est structurelle, pas un manque de
+  soin.
+
+  Tableau fiche → verdict (critère d'acceptation 6) :
+
+  | Fiche | Verdict |
+  |---|---|
+  | `R-PAT-07` — doublon à casse différente refusé | OK |
+  | `R-PAT-03` — détection de doublon à la création | OK |
+  | `R-PAT-06` — avertissement d'homonyme à la création | OK |
+  | `R-FAC-01` — facture générée : numéro, montant, mentions | OK |
+  | `R-FAC-02` — liste des factures : contenu et navigation | OK |
+  | `R-THE-02` — données du thérapeute et du cabinet reprises sur la facture | OK |
+  | `R-FAC-05` — montant à centimes | OK |
+  | `R-FAC-03` — numérotation continue sur deux factures successives | OK |
+  | `R-CAB-02` — séquence de départ de facturation | OK |
+  | `R-CAB-03` — refus d'une séquence de facturation non numérique | OK |
+  | `R-SAU-01` — sauvegarde de l'instance | OK |
+  | `R-SAU-02` — restauration de la sauvegarde sur une instance vierge | OK |
+  | `R-INST-05` — migration refusée sur un parc contenant des doublons | **KO** (un écart, détaillé ci-dessous) |
+  | `R-IMP-01` — import d'un fichier de patients | OK |
+  | `R-IMP-02` — import de consultations liées aux patients importés | OK |
+  | `R-CON-03` — clôturer une consultation avec facturation | OK |
+
+  Écart constaté (une entrée, `R-INST-05`, étape 3) : attendu — le journal du
+  redémarrage refusé porte la ligne `Applying
+  libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance...` (que `migrate`
+  écrit et vide explicitement sur stdout avant de lancer la garde — vérifié dans le
+  source Django installé, `migrate.py::migration_progress_callback`), suivie du
+  `CommandError`, sans jamais se terminer par `OK`. Constaté — `docker compose logs`
+  ne porte jamais cette ligne, ni tronquée ni complète : le journal passe directement
+  de `Running migrations:` à `CommandError: Migration refusée : …`, reproduit à
+  l'identique sur deux passes indépendantes, sur le journal complet (pas seulement une
+  fenêtre `--since`). Le message d'erreur lui-même, l'absence de tout nom propre, et
+  l'absence de `WSGI app 0 (mountpoint='') ready` sont, eux, conformes à l'attendu. La
+  cause la plus probable est une perte de la dernière ligne non terminée par un saut de
+  ligne (`ending=""`) au moment où le conteneur sort en erreur, côté collecteur de
+  journal Docker plutôt que côté application — non instruite plus avant, la garde
+  elle-même n'étant pas en cause.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **Le statut du garde-fou de sérialisation change, pas sa valeur.**
+    `--processes 1 --threads 1` reste intact dans le `Dockerfile`, et c'est une
+    décision, pas un oubli : le chapeau reprochait à ce réglage de n'être « documenté
+    nulle part comme tel » ; il l'est désormais, en quatre lignes de commentaire
+    au-dessus du `CMD` (`Docker/build/http-ready/Dockerfile:112-115`). Jusqu'à D3
+    c'était lui, et lui seul, qui tenait l'intégrité au silence ; depuis D3 il est
+    redevenu un choix de capacité, qu'un lot ultérieur pourra lever avec sa propre
+    preuve. C'est la décision la plus discutable du lot, et la seule que D2 semblait
+    attendre dans l'autre sens (« D3 est le prochain lot… Le garde-fou
+    `--processes 1 --threads 1`, que D3 seul lèvera, n'a pas été touché » — D2,
+    ci-dessous). D3 ne le lève pas : il change ce que ce réglage protège.
+  - **Le défaut C est fermé par son résultat observable, pas par sa cause.** « Détection
+    de doublon patient à la création : résultat instable » (S4, tâche 5) et
+    l'investigation du 2026-09-02 restent non concluantes sur la cause. Les deux
+    symptômes disparaissent néanmoins : la double ligne devient impossible (contrainte
+    fonctionnelle en base, `T6`), et la « création silencieuse sans le moindre message »
+    devient impossible aussi — toute création refusée par la base ressort désormais en
+    400 avec le message que l'interface affiche déjà (`T7`). Le TOCTOU reste la
+    meilleure explication disponible et **n'est toujours pas prouvé** : ce lot ne l'a
+    pas réinstruit, conformément aux deux acquis déjà consignés. Si l'instabilité
+    réapparaissait après D3, elle serait d'une autre nature et se rouvrirait avec un
+    constat neuf.
+  - **La preuve de la course est répartie sur trois tests, pas resserrée sur un seul,
+    et c'est un fait mesuré, pas un choix de commodité.** Sous `ATOMIC_REQUESTS`,
+    SQLite n'arbitre pas une course d'insertion comme PostgreSQL : deux connexions
+    SQLite sur fichier, index unique fonctionnel, chacune ouvrant sa transaction
+    **avant** son `SELECT` de vérification, et le perdant reçoit
+    `OperationalError: database is locked`, jamais la violation d'unicité ;
+    transaction ouverte seulement à l'insertion (le test déterministe, T7), il reçoit
+    `IntegrityError`/le 400 applicatif. La différence est l'instantané de lecture, que
+    SQLite fige à la première instruction de la transaction. Le critère n'est pas
+    abaissé — la preuve est répartie : la ligne unique par un test de concurrence sur
+    fichier, le refus applicatif par un test déterministe à deux connexions, et les
+    deux doublés réels sur le moteur PostgreSQL par les deux sessions `psql` ci-dessus.
+  - **`ATOMIC_REQUESTS` seul cassait la restauration**, et le livrable 2 de I1 n'était
+    pas « deux lignes ». `sqlflush` encadre ses instructions d'un `BEGIN;` et d'un
+    `COMMIT;` que `restaurer` rejouait par un curseur brut ; sous transaction ouverte,
+    SQLite lève `cannot start a transaction within a transaction`, et le `COMMIT;`
+    aurait validé la transaction de requête au milieu du rechargement. Mesuré : le
+    réglage décommenté seul faisait échouer **6 des 11 tests** de `TestRestauration`
+    (T1). Deux conséquences journalisées : l'ordre des livrables de I1 s'est inversé,
+    et un `ROLLBACK` manuel d'un test existant, devenu faux, a été retiré.
+  - **La contrainte a invalidé le jeu de données d'un test existant** :
+    `TestValidateurUnicite.test_un_champ_nul_desactive_la_validation` (T6) semait deux
+    patients du même triplet ; le second a reçu une date de naissance différente. Ce
+    que le test prouve — le validateur applicatif ignore la comparaison dès qu'un champ
+    vaut `None` — n'a pas bougé.
+  - **Deux commits hors plan** ont été nécessaires pour tenir la suite fonctionnelle
+    sous `ATOMIC_REQUESTS` : `bf20372` (T2bis, `tests/functional/conftest.py` seul,
+    patch `BEGIN IMMEDIATE` du backend SQLite pour la suite fonctionnelle) et
+    `8105d1d` (T2ter, une barrière d'attente réelle dans `tests/functional/helpers.py`
+    à la place d'un `#loading-bar` jamais affiché sous 100 ms). Le second a corrigé une
+    course de synchronisation UI/test **préexistante**, jusqu'alors masquée par les
+    erreurs de verrou que le premier venait d'éliminer.
+  - **L'atomicité de la restauration (T1) n'est pas observable par l'interface.** Le
+    chemin de restauration se ferme dès qu'un utilisateur existe
+    (`@maintenance_available`), et aucun état « données présentes, zéro utilisateur »
+    n'existe par l'IHM : sa preuve reste unitaire
+    (`test_une_archive_illisible_ne_vide_pas_la_base`). L'essai d'archive tronquée de
+    `R-SAU-02` a été remonté à l'état E0, où il prouve autre chose — qu'un échec de
+    restauration ne laisse rien de cassé derrière lui, ce qu'il a effectivement montré
+    à la passe de recette ci-dessus.
+  - **Durée de `make test` avant et après la bascule sur base sur fichier** (T5,
+    nécessaire à la preuve de concurrence) : **51,363 s avant / 51,864 s après** — la
+    bascule est neutre en temps, elle ne fait pas gagner les 17 s que le plan annonçait
+    (mesurées sur `7bf31f6`, à 249 tests, donc non comparables). `make check` mesuré à
+    la clôture, sur les 262 tests du lot entier : 53,72 s (test seul) / 58,0 s (avec
+    lint et migrations) — un chiffre encore différent, sur un hôte partagé, à ne pas
+    opposer aux deux précédents.
+  - **Écart du manuel corrigé pendant la passe** (`R-PAT-06`, étape 3) : le cahier
+    attendait que la liste de résultats de recherche distingue les deux patients
+    homonymes par leur date de naissance. `Patient.birth_date` n'est pas indexé par
+    Whoosh (`libreosteoweb/search_indexes.py:25`, en commentaire), et le gabarit de
+    résultat (`search-result.html`) n'affiche que `family_name`/`first_name` — la date
+    n'apparaît jamais dans cette liste, sur aucune fiche. Corrigé pour dire ce que
+    `R-PAT-03` disait déjà correctement du même écran : les deux entrées sont
+    strictement indiscernables dans la liste.
+
+  **Ce que cela change à la priorité des lots restants** : D3 étant clos, **D4 devient
+  exécutable** — les contraintes et le changement de type sont désormais appliqués sur
+  des données que la montée de moteur ne déplacera pas au même moment, ce qui était la
+  raison du lien `D3 → D4`. Les deux chaînes causales `D2 → D3 → D4` et `D5 → D6` ne
+  bougent pas. Ce que D3 a délibérément renvoyé plus loin : `--processes 1 --threads 1`
+  intact (D4 pourra le lever, avec sa propre preuve) ; aucune exactitude décimale
+  au-delà de la base et de Python — la frontière JSON garde sa forme flottante et le
+  total de la Comptabilité reste une somme de flottants calculée dans le navigateur
+  (`invoice.js:88`), c'est D6 ; aucune montée de moteur, de cadre ni d'interpréteur,
+  c'est D4 ; aucune reprise des doublons existants sur un parc réel ; aucune refonte du
+  générateur de facture.
+
+  **Ce que cela change au chapeau** : rien au périmètre, rien aux dépendances, rien au
+  critère d'arrêt de D3 dans son exigence. Deux emplacements du tableau des constats
+  avaient dérivé depuis le 2026-09-04 et ont été corrigés au cadrage de la spec — le
+  fait qui les a fait bouger, journalisé ici : `D1` a décalé `models.py` de trois lignes
+  et `base.py` d'une, donc `ATOMIC_REQUESTS` vit à `base.py:192` (et non `:193`), et les
+  trois `FloatField` (devenus `DecimalField`) à `models.py:303,398,461` (et non
+  `300,395,458`). Le critère d'arrêt de D3 est **révisé dans sa preuve, pas dans son
+  exigence** — cf. sortie 2 ci-dessus (SQLite ne peut pas montrer la course comme
+  PostgreSQL sous `ATOMIC_REQUESTS`, d'où la preuve répartie sur trois tests au lieu
+  d'un).
+
+  **Chiffres et cliquets** : 249 → **262** tests unitaires (+13 : un en T1, deux en T4,
+  deux en T6, deux en T7, un en T9, trois en T11, deux en T2bis/T2ter — le compte exact
+  diffère de celui annoncé au plan, qui sous-comptait), couverture 90,70 → **90,74 %**.
+  `fail_under` **reste à 90** — 90,74 % ne mérite pas 91, et le lot n'a pas écrit de
+  test dont la seule fonction serait de gonfler ce chiffre (ruling pris au fil du lot,
+  non rejugé ici). Périmètre `mypy` 102 → **104** modules
+  (`libreosteoweb/tests/conftest.py` et `libreosteoweb/tests/test_concurrence.py`
+  ajoutés). `ruff` : jeu de règles inchangé, `ignore` toujours vide, `ruff format
+  --check .` à 123 fichiers déjà formatés. Migrations ajoutées :
+  `0057_patient_unique_patient_nom_prenom_naissance`,
+  `0058_alter_invoice_amount_alter_officesettings_amount_and_more`. `make
+  test-functional` : 31 passed, inchangé.
 
 - **2026-09-04 — D2 Conteneur livré** (onze tâches ; spec
   `docs/superpowers/specs/2026-09-04-d2-conteneur-design.md`, plan supprimé une fois
@@ -1468,6 +1649,52 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
 ## Points en suspens
 
 ### Ouvert par le chantier « dette technique »
+
+- **2026-09-05 — aucune contrainte sur `Invoice.number`, et le garde-fou de séquence
+  compare des textes.** Le champ est un `TextField` (`libreosteoweb/models.py`), et le
+  garde-fou qui interdit de repositionner la séquence trop bas
+  (`libreosteoweb/api/views/administration.py`, `perform_update`) compare le nombre
+  demandé à `Max("number")`, c'est-à-dire au maximum **lexicographique** d'un texte :
+  sur un parc portant `9999` à côté de `10002`, ce maximum vaut `9999` et la séquence se
+  laisse ramener sur des numéros déjà émis. Et un parc peut déjà porter des numéros en
+  double — précisément ceux que la course fermée par I2 (D3) a pu produire : poser la
+  contrainte transformerait cet historique en panne de facturation au démarrage. La
+  question — la numérotation doit-elle être unique par cabinet, et que faire des parcs
+  qui ne le sont pas ? — exigerait une reprise de parc que rien n'a instruite. Confirmé
+  hors périmètre par le contrôleur au cadrage du lot D3.
+- **2026-09-05 — l'index Whoosh n'est pas transactionnel.** `RealtimeSignalProcessor`
+  (`Libreosteo/settings/base.py`) écrit l'index à chaque `save()`, hors de toute
+  transaction : sous `ATOMIC_REQUESTS` (D3), une requête annulée peut laisser dans
+  l'index une entrée sans ligne en base. Le remède existe déjà et est recetté —
+  `R-RCH-02`, reconstruction de l'index. Le rendre cohérent demanderait de câbler
+  `transaction.on_commit` dans le processeur de signal de Haystack : hors lot.
+- **2026-09-05 — la garde de `0058` laisse une fenêtre résiduelle de 3 doubles par
+  signe.** Autour de `99 999 999,995 €`, les valeurs dont le `%.15g` de PostgreSQL vaut
+  exactement l'ex aequo restent classées « à arrondir » par la garde et feraient tomber
+  l'`ALTER` sur `numeric field overflow` — bande d'environ `4,5e-8`, inatteignable en
+  pratique (T11). Ne pas « corriger » : c'est un rétrécissement strict d'une fenêtre qui
+  portait ~335 000 valeurs avant la garde, à 3 après.
+- **2026-09-05 — `sauvegarde.py:158` rapporte un défaut d'archive comme une panne de
+  moteur.** La restauration attrape `DatabaseError` (dont `IntegrityError` hérite) et le
+  rapporte en `BaseIndisponible` ; une archive antérieure à `0058` portant un montant
+  `>= 10^8` lève `decimal.InvalidOperation`, non capturée par ce bloc, avec le même
+  effet trompeur. Le fautif est l'archive rechargée, pas le moteur ; aucune donnée n'est
+  perdue (transaction de `f2cdc32`). Non corrigé, hors lot.
+- **2026-09-05 — `docs/recette.md` interprète `date -u` en heure locale au filtrage des
+  journaux.** `docker compose logs --since` prend l'horodatage produit par `date -u`
+  (naïf) et l'interprète en heure **locale** : sur un hôte Europe/Paris la borne recule
+  d'une à deux heures selon la saison. Sans danger pour un attendu positif, mais
+  affaiblit l'attendu négatif de `R-INST-05` étape 3 (« aucune ligne `WSGI app … ready`
+  pour ce démarrage ») — un démarrage antérieur pourrait s'y glisser. Correctif à
+  appliquer un jour : `date +%Y-%m-%dT%H:%M:%S%z` (avec les deux-points de fuseau,
+  `%:z`, pour rester lisible par `docker compose logs --since`).
+- **2026-09-05 — le refus des trois décimales n'a pas de contrepartie côté client, et
+  rien n'avertit que `0058` arrondit.** Le serveur refuse désormais un montant à plus de
+  deux décimales (`DecimalField.validate_precision`), mais `validateAmount`
+  (`static/js/...`) ne le vérifie pas côté navigateur — la saisie n'est bloquée qu'au
+  retour du serveur. Et ni `README.md` ni `KANBAN.md` ne disaient à l'exploitant que la
+  migration `0058` arrondit les montants hérités, ni qu'un retour arrière rend le type
+  `double precision` **sans rendre les décimales perdues**. Non corrigé, hors lot.
 
 - **2026-09-04 — aucun contrôle d'accès par objet sur les documents.** Depuis D1, la route
   `/files/documents/<nom>` exige une session, mais **tout utilisateur authentifié peut lire

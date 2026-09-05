@@ -1025,8 +1025,10 @@ que personne ne la découvre en production.
    `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — l'avertissement
    n'a pas empêché la création.
 3. Dans le champ de recherche, saisir `Picard`, valider.
-   Attendu : la liste de résultats affiche deux entrées « Picard Jean-Luc », l'une
-   née le 13/07/1935, l'autre le 01/01/1980.
+   Attendu : la liste de résultats affiche deux entrées « Picard Jean-Luc »,
+   strictement indiscernables l'une de l'autre dans la liste — la date de naissance
+   n'y figure pas (`birth_date` n'est pas indexé par Whoosh,
+   `libreosteoweb/search_indexes.py`), même constat qu'à l'étape 3 de `R-PAT-03`.
 
 ### R-PAT-07 — Doublon à casse différente refusé
 
