@@ -190,12 +190,23 @@ Procédure de reset (rejoue le montage sur un volume `db/` et `data/` purgés) :
 
 ```sh
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml down
-# db/ appartient à l'uid postgres du conteneur (70), pas lisible/supprimable par
-# l'utilisateur hôte sans droits particuliers : purge par un conteneur jetable.
+# db/ porte un sous-répertoire `18/` créé par l'entrypoint de PostgreSQL 18 : depuis
+# cette version, l'image officielle range le répertoire de données par majeure. `18/`
+# appartient à root et contient `18/docker`, qui appartient à l'uid postgres du
+# conteneur (70) en mode 0700. Rien de tout cela n'est supprimable par l'utilisateur
+# hôte sans droits particuliers : purge par un conteneur jetable, qui y est root — il
+# emporte les deux niveaux, la commande est donc la même qu'en PostgreSQL 13.
 docker run --rm -v "$SCRATCH/db:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* 2>/dev/null; true'
 docker run --rm -v "$SCRATCH/data:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* 2>/dev/null; true'
+# Vérification obligatoire : une purge silencieusement incomplète rendrait faux tous
+# les états construits par la suite. Attendu : `.` et `..` seulement, pour les deux.
+docker run --rm -v "$SCRATCH/db:/target" alpine sh -c 'ls -la /target'
+docker run --rm -v "$SCRATCH/data:/target" alpine sh -c 'ls -la /target'
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
 ```
+
+Si l'un des deux `ls -la` montre autre chose que `.` et `..`, **la purge a échoué** : ne
+pas poursuivre vers E1, l'état E0 n'est pas atteint.
 
 Attendu : `GET /` redirige vers `/install/`, page « Installer LibreOsteo », boutons
 « Restaurer la base de données » et « Enregistrer l'administrateur ».
@@ -567,7 +578,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
       INSERT INTO libreosteoweb_patient SELECT * FROM copie;"
    ```
 
-   Attendu : `INSERT 0 1` — et lui seul : le client `psql` de l'image (PostgreSQL 13)
+   Attendu : `INSERT 0 1` — et lui seul : le client `psql` de l'image (PostgreSQL 18)
    n'affiche que le statut de la dernière instruction d'un `-c` qui en porte plusieurs.
    Vérifier ensuite le compte :
 
@@ -629,6 +640,68 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 **Constat** : la migration refuse et explique, elle ne répare pas. C'est une
 indisponibilité, et elle tombe au moment de la mise à jour — cette fiche la répète pour
 que personne ne la découvre en production.
+
+### R-INST-06 — Montée majeure de PostgreSQL
+
+- **Domaine** : Installation
+- **Couverture auto** : non — aucune suite pytest ne bâtit une image ni ne démarre un
+  moteur ; une montée majeure de PostgreSQL ne s'exerce depuis aucun processus pytest.
+  Cette fiche est la seule preuve du comportement.
+- **État requis** : E2. La fiche déplace les données de E2 d'un moteur à l'autre et rend
+  l'instance servant exactement les mêmes données. L'ancien répertoire de données est mis
+  de côté et n'est **jamais supprimé** pendant la fiche : c'est le filet de la procédure.
+  C'est une répétition de mise à jour, sur le précédent de `R-INST-05` — jouée avant que
+  quiconque ne la découvre en production.
+
+**Prérequis** : disposer d'images du fork bâties sur l'ancienne majeure (`db` doit
+démarrer sur PostgreSQL 13) et du dépôt au commit qui porte PostgreSQL 18. La procédure
+suivie est celle de `README.rst`, section « Upgrading PostgreSQL to a new major version »,
+**sans y ajouter un geste** : les étapes ci-dessous en constatent le résultat, elles ne la
+paraphrasent pas.
+
+**Étapes**
+
+1. Suivre l'étape 1 du `README.rst` (service applicatif arrêté, `db` seul démarré sur
+   l'ancienne image).
+   Attendu : `docker compose ... ps` affiche `db` en `Up (healthy)` et plus aucun
+   conteneur `libreosteo`.
+2. Suivre l'étape 2 (`pg_dumpall --no-role-passwords`).
+   Attendu : la commande sort sans erreur ; `$SCRATCH/bak/dumpall.sql` existe et n'est
+   pas vide ; `grep -c "PASSWORD" "$SCRATCH/bak/dumpall.sql"` rend `0` — **aucun
+   vérificateur de mot de passe n'entre dans le fichier**, ce qui est à la fois ce qui
+   évite la panne d'authentification de l'étape 6 et ce qui évite de déposer un secret en
+   clair sur le volume `bak`.
+3. Suivre l'étape 3 (arrêt complet, ancien répertoire de données **mis de côté**).
+   Attendu : `docker compose ... ps -a` ne liste plus aucun conteneur du montage ;
+   l'ancien répertoire existe toujours sous son nouveau nom.
+4. Suivre l'étape 4 (répertoire hôte neuf, images reconstruites, `db` seul démarré).
+   Attendu : `db` en `Up (healthy)` ; `ls -la` du répertoire hôte, par un conteneur
+   jetable, montre `18/` appartenant à root, contenant `18/docker` appartenant à l'uid
+   70 en mode `0700`.
+5. Suivre l'étape 5 (rechargement du dump).
+   Attendu : **exactement deux erreurs**, `ERROR:  role "libreosteo" already exists` et
+   `ERROR:  database "libreosteo" already exists`, et rien d'autre. Toute autre erreur
+   est un KO et arrête la fiche : ne pas supprimer le répertoire mis de côté à l'étape 3.
+6. Suivre l'étape 6 (service applicatif démarré, vérification depuis le conteneur
+   applicatif).
+   Attendu : le journal du démarrage ne porte **aucune ligne `Applying ...`** — le schéma
+   est arrivé entier ; il porte `WSGI app 0 (mountpoint='') ready` ; le `shell` du
+   conteneur applicatif rend une version **`18.x`**. Cette dernière commande est aussi la
+   preuve d'authentification : elle passe par le chemin exact qu'emprunte le produit.
+   **Ne jamais vérifier l'authentification par `exec db psql -h 127.0.0.1`** : le
+   `pg_hba.conf` de l'image accorde `trust` au bouclage **avant** sa règle
+   `scram-sha-256`, donc une vérification faite depuis `db` réussit même quand le produit
+   ne peut plus se connecter du tout. C'est le pendant exact du faux positif `pg_isready`
+   corrigé par D2.
+7. Se connecter à l'interface avec `test` / `test`, puis retrouver l'état E2.
+   Attendu : le patient `Picard Jean-Luc` est retrouvé par le champ de recherche ; son
+   onglet « Consultations » liste les **deux** consultations ; l'onglet « Compte-rendus
+   médicaux » liste le document « Radiographie lombaire » ; la Comptabilité liste la
+   facture `10000` à `55 €`.
+
+**Constat** : la montée transporte la base telle qu'elle est, pas telle que
+l'application sait la resérialiser — et le seul geste qui la rende sûre,
+`--no-role-passwords`, ne se voit qu'à l'étape 6, sur un produit qui se connecte ou non.
 
 ### Authentification
 
