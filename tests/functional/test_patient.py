@@ -16,6 +16,7 @@ from libreosteoweb.models import (
 )
 from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
+    attendre_creation_patient,
     attendre_enregistrement_patient,
     attendre_page_prete,
     cloturer_consultation,
@@ -91,9 +92,7 @@ def test_avertissement_d_homonyme_puis_creation(
     modale = page.locator("div.modal-body")
     expect(modale).to_be_visible()
     expect(modale).to_contain_text("Un patient de même nom existe déjà")
-    page.click("#modal-btn-ok")
-
-    attendre_page_prete(page)
+    attendre_creation_patient(page, lambda: page.click("#modal-btn-ok"))
     assert Patient.objects.filter(family_name="Picard").count() == 2
 
 
@@ -133,9 +132,7 @@ def test_charge_html_dans_nom_homonyme_reste_texte_litteral(
     expect(modale).to_be_visible()
     expect(modale).to_contain_text(charge)
     expect(page.locator("#xss-marker")).to_have_count(0)
-    page.click("#modal-btn-ok")
-
-    attendre_page_prete(page)
+    attendre_creation_patient(page, lambda: page.click("#modal-btn-ok"))
     assert Patient.objects.filter(family_name=charge).count() == 2
 
 

@@ -283,3 +283,32 @@ def attendre_enregistrement_patient(
     assert reponse.ok, (
         f"PUT /api/patients/{patient_id} a echoue : {reponse.status} {reponse.status_text}"
     )
+
+
+def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:
+    """Execute `geste` (un clic qui declenche le POST /api/patients de creation) et attend
+    sa reponse HTTP, avant de rendre la main.
+
+    `AddPatientCtrl.initPatient` (`static/js/app/patient.js`) n'appelle `PatientServ.add`
+    (action $resource `POST`, route enregistree avec `trailing_slash=False` : l'URL finale
+    est `api/patients`, sans slash) qu'apres acquittement de la modale d'homonyme
+    (`modalInstance.result.then(enregistrer)`). `attendre_page_prete` (juste apres le clic
+    sur `#modal-btn-ok`) n'attend que la disparition de `#loading-bar`, qu'angular-loading-bar
+    n'insere qu'au-dela de son `latencyThreshold` de 100 ms (loading-bar.min.js) : sous
+    `ATOMIC_REQUESTS` (un commit par requete au lieu d'un commit par instruction), ce POST
+    de creation repond parfois sous ce seuil, la barre ne s'affiche jamais et l'attente rend
+    la main avant que la creation ne soit ecrite en base — reproduit ~1 echec sur 2 lancements
+    isoles de `test_avertissement_d_homonyme_puis_creation`. Attendre la reponse HTTP du POST
+    lui-meme est la seule barriere vraie : elle ne peut pas etre satisfaite avant que le
+    serveur n'ait ecrit la ligne, quel que soit le contenu du nom soumis (charge HTML incluse).
+    """
+    with page.expect_response(
+        lambda reponse: (
+            reponse.request.method == "POST" and reponse.url.endswith("/api/patients")
+        )
+    ) as info_reponse:
+        geste()
+    reponse = info_reponse.value
+    assert reponse.ok, (
+        f"POST /api/patients a echoue : {reponse.status} {reponse.status_text}"
+    )
