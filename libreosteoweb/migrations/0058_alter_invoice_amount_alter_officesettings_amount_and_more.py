@@ -24,9 +24,15 @@ def controler_les_montants(apps, schema_editor):
         for identifiant, montant in modele.objects.exclude(amount=None).values_list(
             "id", "amount"
         ):
-            if abs(montant) >= CAPACITE:
+            # L'arrondi précède la comparaison, et ce n'est pas une commodité : PostgreSQL
+            # arrondit au centime **avant** d'appliquer le typmod, si bien qu'une valeur de
+            # l'intervalle [99999999.995, 10**8) passerait une garde qui la testerait telle
+            # quelle, puis ferait tomber l'ALTER COLUMN sur « numeric field overflow » --
+            # exactement la panne que cette garde existe pour éviter.
+            arrondi = round(montant, 2)
+            if abs(arrondi) >= CAPACITE:
                 hors_capacite.append("%s#%s" % (nom, identifiant))
-            elif round(montant, 2) != montant:
+            elif arrondi != montant:
                 a_arrondir.append("%s#%s" % (nom, identifiant))
     if a_arrondir:
         logger.warning(
