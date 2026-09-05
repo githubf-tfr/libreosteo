@@ -1384,11 +1384,17 @@ existante ne couvrait la casse.
 - **Domaine** : Facturation
 - **Couverture auto** : oui —
   libreosteoweb/tests/test_facturation.py::TestFacturation::test_un_montant_a_centimes_est_stocke_au_centime_pres
-  (l'exactitude du montant stocké ; ni la facture imprimée, ni la ligne de
-  Comptabilité, ni le total sur la période n'ont d'équivalent automatisé)
+  et ::test_un_montant_a_trois_decimales_est_refuse
+  (l'exactitude du montant stocké et le refus des trois décimales ; ni la facture
+  imprimée, ni la ligne de Comptabilité, ni le total sur la période, ni le message
+  affiché au refus n'ont d'équivalent automatisé)
 - **État requis** : E2. Cette fiche facture durablement une nouvelle consultation,
-  consommant le numéro `10001` : remonter l'état E2 (chapitre 1) avant de jouer une
-  autre fiche qui en dépend.
+  consommant le numéro `10001`, et laisse en outre une consultation ouverte (celle
+  de l'étape 4, dont la clôture est refusée) : remonter l'état E2 (chapitre 1) avant
+  de jouer une autre fiche qui en dépend — en particulier avant R-FAC-02 et R-FAC-04,
+  dont les attendus littéraux annoncent « une seule ligne » en Comptabilité et un
+  total de `55`, et avant R-CON-03 et R-FAC-03, dont les numéros attendus partent
+  de `10001`.
 
 **Étapes**
 
@@ -1404,7 +1410,18 @@ existante ne couvrait la casse.
    Attendu : deux lignes ; celle du numéro `10001` affiche Montant `55.55 €`
    (celle du `10000` affiche toujours `55 €`) ; la ligne « Montant total sur la période
    sélectionnée: » affiche `110.55` — un nombre, jamais une concaténation du type
-   `5555.55`.
+   `05555.55`.
+4. Sur la fiche Picard, démarrer une nouvelle consultation et cliquer « Clôturer »
+   (mêmes gestes que R-CON-03, étapes 1 et 2), choisir « Facturée » et saisir cette
+   fois `55.555` — trois décimales — avant de cliquer « Valider ». Rouvrir ensuite le
+   menu « Comptabilité ».
+   Attendu : la fenêtre « Facturation » se ferme, mais une bannière rouge s'affiche,
+   portant la ligne `amount :` puis, en puce, le message `Assurez-vous qu'il n'y a
+   pas plus de 2 chiffres après la virgule.` ; la consultation reste ouverte dans
+   l'onglet « Consultation en cours », sans encart « Facture » ; la Comptabilité
+   affiche toujours les deux mêmes lignes qu'à l'étape 3, `10001` et `10000` — le
+   montant à trois décimales est refusé, jamais arrondi en silence, et n'a consommé
+   aucun numéro : la facturation suivante repartira de `10002`.
 
 **Constat** : elle ne prouverait rien avant D3 ; après, elle est le seul garde-fou de
 recette contre un `decimal_places` mal posé ou une frontière JSON passée aux chaînes.
