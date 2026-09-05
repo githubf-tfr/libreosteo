@@ -348,7 +348,10 @@ de la section PostgreSQL existante. Six étapes, dont l'ordre est le contenu du 
 **Livrable 3 — l'état E0 de la recette.** `docs/recette.md:189-201` purge aujourd'hui le
 contenu direct du répertoire hôte par un conteneur jetable, parce qu'il appartient à l'uid 70.
 La contrainte est inchangée en 18 (même uid), mais l'arborescence gagne un niveau `18/`
-appartenant à `root` : la commande de purge est reprise en conséquence.
+appartenant à `root`. La commande elle-même n'a pas à changer — le conteneur jetable y est
+`root` et supprime les deux niveaux —, mais son commentaire devient faux et est réécrit, et
+l'étape gagne une vérification qui s'arrête si le répertoire n'est pas vide : une purge
+silencieusement incomplète rendrait tous les états suivants faux.
 
 **Ce qui n'est pas touché.** Aucun code applicatif. Le dépôt n'importe jamais
 `django.contrib.postgres`, ne porte aucun `migrations.RunSQL`, aucun `.raw()`, aucun
