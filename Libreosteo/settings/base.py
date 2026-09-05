@@ -233,6 +233,14 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
+    # DRF serialise un DecimalField en **chaine** par defaut. Ce lot rend le stockage et
+    # l'arithmetique Python exacts ; il ne touche pas la frontiere JSON, qui garde sa forme
+    # flottante. Sans ce reglage, `invoice.js:88` sommerait des chaines (`acc + amount`) et
+    # la ligne « Montant total sur la periode selectionnee: 55 » de R-FAC-02 rendrait
+    # « 055 » ; `templates/partials/invoice-list.html:62` afficherait « 55.00 € » la ou
+    # R-FAC-01 et R-FAC-02 attendent « 55 € ». Le total affiche reste donc une somme de
+    # flottants calculee dans le navigateur : son exactitude appartient a D6.
+    "COERCE_DECIMAL_TO_STRING": False,
 }
 
 LOGIN_URL = "accounts/login"

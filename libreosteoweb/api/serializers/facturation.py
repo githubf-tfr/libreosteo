@@ -35,7 +35,7 @@ class PaimentModeSerializer(serializers.Serializer):
 
 
 class PaimentSerializer(PaimentModeSerializer):
-    amount = serializers.FloatField(required=True)
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
     currency = serializers.CharField(required=True)
     date = serializers.DateField(required=True)
     paiment_mode = serializers.CharField(required=True)
@@ -71,7 +71,9 @@ class ExaminationInvoicingSerializer(serializers.Serializer):
     status = serializers.CharField(required=True)
     reason = serializers.CharField(required=False, allow_null=True)
     paiment_mode = serializers.CharField(required=False, allow_null=True)
-    amount = serializers.FloatField(required=False, allow_null=True)
+    amount = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True
+    )
     check = CheckSerializer()
 
     def validate(self, attrs):
