@@ -492,3 +492,13 @@ class TestTemplatize(TestCase):
 
     def test_texte_sans_balise_est_rendu_tel_quel(self):
         self.assertEqual(templatize("Aucune balise", {}), "Aucune balise")
+
+    def test_valeur_decimale_rendue_comme_la_valeur_flottante_equivalente(self):
+        """Jumeau décimal de `test_valeur_flottante_rendue_selon_la_locale`. Sans lui, la
+        ligne `Template with 55 EUR` de la facture imprimée deviendrait
+        `Template with 55.00 EUR` dès que le montant est un `Decimal` : `locale.str(55.0)`
+        vaut `'55'`, quand `str(Decimal("55.00"))` vaut `'55.00'`."""
+        self.assertEqual(
+            templatize("<amount>", {"amount": Decimal("55.00")}), locale.str(55.0)
+        )
+        self.assertEqual(templatize("<amount>", {"amount": Decimal("55.55")}), "55.55")

@@ -16,6 +16,7 @@
 import locale
 import logging
 import re
+from decimal import Decimal
 
 from django import template
 
@@ -38,8 +39,12 @@ def templatize(value, obj):
                 todisplay = getattr(obj, val)
             elif hasattr(obj, "keys"):
                 todisplay = obj.get(val, None)
-            if type(todisplay) is float:
-                return _unicode(locale.str(todisplay))
+            # Un montant est desormais un Decimal, et `locale.str` d'un Decimal ne rend pas
+            # la meme chaine que celle du flottant equivalent : `str(Decimal("55.00"))`
+            # vaut '55.00' quand `locale.str(55.0)` vaut '55'. On repasse donc par le
+            # flottant pour que la facture imprimee affiche exactement ce qu'elle affichait.
+            if isinstance(todisplay, (float, Decimal)):
+                return _unicode(locale.str(float(todisplay)))
             else:
                 return _unicode(todisplay)
         return val
