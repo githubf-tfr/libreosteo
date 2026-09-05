@@ -17,6 +17,7 @@ from django.conf import settings as reglages_django
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.staticfiles import finders
+from django.db.backends.sqlite3.base import DatabaseWrapper as SqliteDatabaseWrapper
 from haystack import connections as connexions_recherche
 from playwright.sync_api import expect
 
@@ -80,6 +81,38 @@ _base_par_defaut.setdefault("TEST", {})["NAME"] = os.path.join(
     _dossier_base_de_test, "test_db.sqlite3"
 )
 _base_par_defaut.setdefault("OPTIONS", {})["timeout"] = 20
+
+
+# `ATOMIC_REQUESTS` (impose par `base.py`) ouvre chaque transaction HTTP par `BEGIN`
+# (differe) : la connexion ne prend un verrou partage qu'a la premiere lecture, et ne le
+# monte en RESERVED qu'a la premiere ecriture. Si deux requetes concurrentes en sont
+# chacune la, en verrou partage, et tentent de monter en RESERVED en meme temps, SQLite
+# refuse d'invoquer le busy handler pour la seconde — la retenter risquerait un
+# interblocage symetrique, chacune attendant que l'autre libere son verrou partage — et
+# rend tout de suite `SQLITE_BUSY` / « database is locked » : le `timeout` pose ci-dessus
+# ne joue alors aucun role, puisqu'il ne s'applique qu'aux tentatives que le busy handler
+# retente. Mesure : passer la base de test en journal WAL (qui separe pourtant les
+# lecteurs de l'unique redacteur) ne change rien, la contention ici oppose des
+# redacteurs entre eux, pas un redacteur a un lecteur. C'est une erreur propre au verrou
+# de fichier de SQLite, qu'un fichier de production ne peut pas subir de la meme facon :
+# PostgreSQL verrouille par ligne, jamais par montee de verrou de fichier entier. Le
+# correctif reste donc cantonne a la configuration de la base de test. `BEGIN IMMEDIATE`
+# demande le verrou d'ecriture des l'ouverture, avant toute lecture : il n'y a alors plus
+# de verrou partage a monter, et le busy handler est bien invoque si un autre redacteur
+# est deja en RESERVED — le `timeout` ci-dessus joue enfin son role. Django 5.1 expose ce
+# reglage par `OPTIONS["transaction_mode"]` ; absent de la 4.2 utilisee ici, le point
+# d'accroche est cette methode du backend sqlite3, dont la docstring precise elle-meme
+# qu'elle existe pour emettre `BEGIN` en mode autocommit — une seule instruction a
+# changer. django-stubs ne type que l'interface publique de `DatabaseWrapper` ; cette
+# methode, privee, n'y figure pas. Migration vers Django >= 5.1 : remplacer ce
+# monkeypatch par `OPTIONS["transaction_mode"] = "IMMEDIATE"`, pas le laisser a cote.
+def _demarrer_transaction_immediate(self: SqliteDatabaseWrapper) -> None:
+    self.cursor().execute("BEGIN IMMEDIATE")
+
+
+SqliteDatabaseWrapper._start_transaction_under_autocommit = (  # type: ignore[attr-defined]
+    _demarrer_transaction_immediate
+)
 
 # Plafond des assertions Playwright. C'est un delai de garde, pas une temporisation :
 # `expect` rend la main des que l'etat attendu est atteint.
