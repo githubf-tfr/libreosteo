@@ -561,7 +561,8 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
    Attendu : `Unapplying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK`,
    précédé du `Unapplying` de chaque migration postérieure à `0057` que l'arbre porte au
-   jour du passage (il n'y en a aucune à ce jour).
+   jour du passage (`0058_alter_invoice_amount_alter_officesettings_amount_and_more`,
+   ajoutée par D3, à ce jour).
 2. Insérer par `psql` un doublon du patient de l'état E2, **en majuscules** — c'est ce
    qui met à l'épreuve l'insensibilité à la casse de la garde. La copie passe par une
    table temporaire : `SELECT *` reprend toutes les colonnes sans avoir à les nommer, et
@@ -578,9 +579,9 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
       INSERT INTO libreosteoweb_patient SELECT * FROM copie;"
    ```
 
-   Attendu : `INSERT 0 1` — et lui seul : le client `psql` de l'image (PostgreSQL 18)
-   n'affiche que le statut de la dernière instruction d'un `-c` qui en porte plusieurs.
-   Vérifier ensuite le compte :
+   Attendu : trois lignes de statut, une par instruction du `-c` — `SELECT 1`,
+   `UPDATE 1`, puis `INSERT 0 1` en dernier — `psql` affiche le résultat de chacune,
+   comportement standard et inchangé depuis PostgreSQL 13. Vérifier ensuite le compte :
 
    ```sh
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
