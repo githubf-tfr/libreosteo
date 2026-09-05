@@ -12,7 +12,15 @@ services:
     pull_policy: never
     hostname: pg_1
     volumes:
-      - ${LIBREOSTEO_DB_STORAGE}:/var/lib/postgresql/data
+      # Monte sur /var/lib/postgresql, et non sur .../data : depuis PostgreSQL 18,
+      # l'image officielle range le repertoire de donnees par version majeure
+      # (PGDATA=/var/lib/postgresql/18/docker, VOLUME /var/lib/postgresql). Monter
+      # l'ancien chemin ferait initialiser un cluster neuf A COTE des anciens fichiers,
+      # sans un mot. Le repertoire hote porte donc desormais un sous-repertoire 18/,
+      # cree par l'entrypoint et appartenant a root, qui contient 18/docker (uid 70).
+      # C'est ce rangement par majeure qui rendra les montees suivantes praticables en
+      # `pg_upgrade --link` ; la montee 13 -> 18 elle-meme passe par un dump, cf. README.
+      - ${LIBREOSTEO_DB_STORAGE}:/var/lib/postgresql
       - /etc/localtime:/etc/localtime:ro
       - ${LIBREOSTEO_BAK_STORAGE}:/var/lib/backup
     environment:
