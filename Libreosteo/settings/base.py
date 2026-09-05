@@ -189,7 +189,11 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(DATA_FOLDER, "db.sqlite3"),
-        #'ATOMIC_REQUESTS' : True,
+        # Une requete HTTP = une transaction. Le deploiement de reference ne lit jamais ce
+        # dictionnaire (le settings/ monte redefinit DATABASES en entier, et container.py
+        # impose le reglage sur le dictionnaire effectif) : la ligne est ici pour que le
+        # developpement et la suite unitaire voient le meme regime que la production.
+        "ATOMIC_REQUESTS": True,
     }
 }
 

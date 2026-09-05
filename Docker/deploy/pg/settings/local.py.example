@@ -20,6 +20,8 @@ password = ""
 
 # Le mode conteneur exige PostgreSQL : container.py refuse de demarrer sur tout autre
 # moteur, sqlite compris.
+# ATOMIC_REQUESTS est impose a True par container.py, apres l'import de ce fichier : une
+# valeur ecrite ici serait ecrasee. Une requete HTTP = une transaction, sans exception.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",

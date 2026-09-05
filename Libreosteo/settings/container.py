@@ -40,7 +40,7 @@ if not SECRET_KEY:
 # effectif après tous les imports, et non l'existence d'un fichier : c'est ENGINE qui décide
 # où l'instance écrit. Le préfixe couvre postgresql et postgresql_psycopg2, la seconde forme
 # étant celle du montage documenté.
-moteur = DATABASES["default"]["ENGINE"]
+moteur = cast(dict, DATABASES["default"])["ENGINE"]
 if not moteur.startswith("django.db.backends.postgresql"):
     raise ImproperlyConfigured(
         f"Moteur de base de données inattendu : {moteur}. Le mode conteneur exige "
@@ -51,3 +51,11 @@ if not moteur.startswith("django.db.backends.postgresql"):
         "noms vide et n'importe aucun nom. Sans cette garde, l'instance aurait écrit dans "
         "data/db.sqlite3."
     )
+
+# Une requete HTTP = une transaction. Le reglage est pose ici, sur le dictionnaire
+# effectif, et non dans base.py : le DATABASES du deploiement vient d'un local.py monte
+# que le depot ne controle pas et qui existe deja sur toute instance en service, donc le
+# modifier dans l'exemple ne changerait rien pour elles. Meme endroit et meme raison que
+# la garde de moteur ci-dessus — on impose ce qui est reellement configure, pas ce que le
+# depot espere. Une valeur ATOMIC_REQUESTS ecrite dans le local.py monte est ecrasee ici.
+cast(dict, DATABASES["default"])["ATOMIC_REQUESTS"] = True
