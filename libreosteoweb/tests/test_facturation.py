@@ -531,6 +531,18 @@ class TestTemplatize(TestCase):
     def test_texte_sans_balise_est_rendu_tel_quel(self):
         self.assertEqual(templatize("Aucune balise", {}), "Aucune balise")
 
+    def test_balise_absente_de_l_objet_ne_leve_pas(self):
+        """Ni l'attribut demande, ni `.keys()` : avant le 2026-09-05, `todisplay` n'était
+        jamais affecté dans ce cas et la ligne suivante levait `UnboundLocalError`. Le
+        rendu produit — « None » — est celui déjà existant du cas jumeau, une clé de
+        dictionnaire absente (`obj.get(val, None)` rendu par `_unicode(None)`) : aucune
+        raison que l'absence de l'attribut se comporte autrement selon le type d'`obj`."""
+
+        class SansAttribut:
+            pass
+
+        self.assertEqual(templatize("<inexistant>", SansAttribut()), "None")
+
     def test_valeur_decimale_rendue_comme_la_valeur_flottante_equivalente(self):
         """Jumeau décimal de `test_valeur_flottante_rendue_selon_la_locale`. Sans lui, la
         ligne `Template with 55 EUR` de la facture imprimée deviendrait
