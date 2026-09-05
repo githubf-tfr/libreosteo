@@ -140,6 +140,100 @@ into your __init__.py file for settings you can have ::
     }
   }
 
+Upgrading PostgreSQL to a new major version
+===========================================
+
+A major PostgreSQL upgrade moves your health data between two incompatible storage
+formats. It is a deliberate, supervised operation: it is **not** automated, it does not
+run at container startup, and no step of it happens as a side effect of ``up -d``. This
+is also the explicit position of the maintainers of the official PostgreSQL image.
+
+In-place ``pg_upgrade`` is not an option here: the binary ships in ``postgres:18-alpine``
+but no PostgreSQL 13 server binaries come with it, so it has no ``--old-bindir`` to point
+at. The supported path is a dump and reload.
+
+Throughout, ``$COMPOSE`` stands for
+``docker compose --env-file .env -f Docker/deploy/pg/docker-compose.yml``.
+
+1. **Stop the application, keep the old engine running.** No write may happen while the
+   dump is taken. The ``db`` service must still run the image you are upgrading *from*,
+   so do not rebuild anything yet::
+
+       $COMPOSE stop libreosteo
+       $COMPOSE up -d db
+
+2. **Dump the whole cluster, without role passwords.** ``/var/lib/backup`` is the
+   ``LIBREOSTEO_BAK_STORAGE`` bind mount::
+
+       $COMPOSE exec db sh -c \
+         'pg_dumpall --no-role-passwords -U "$POSTGRES_USER" > /var/lib/backup/dumpall.sql'
+
+   ``--no-role-passwords`` is **not** optional. Without it, ``pg_dumpall`` emits
+   ``ALTER ROLE ... PASSWORD 'md5...'``. PostgreSQL 18 accepts that statement with nothing
+   worse than ``WARNING: setting an MD5-encrypted password is deprecated``: the database
+   is intact, the data is there — and the application can no longer authenticate, because
+   the image ships ``password_encryption = scram-sha-256`` and a ``pg_hba.conf`` that
+   requires ``scram-sha-256`` for remote connections. With the option, the SCRAM-SHA-256
+   verifier that ``initdb`` derives from ``POSTGRES_PASSWORD`` survives, and no secret is
+   written in clear text into the dump file.
+
+3. **Stop everything, and set the old data directory aside.** Move it, never delete it,
+   and not before step 6 has succeeded::
+
+       $COMPOSE down
+       mv /path/to/db /path/to/db.pg13
+
+4. **Point ``LIBREOSTEO_DB_STORAGE`` at a new, empty host directory, rebuild both images,
+   and start the engine alone.** The PostgreSQL 18 entrypoint creates ``18/docker`` under
+   the mount point, then creates the role and the database from ``POSTGRES_USER``,
+   ``POSTGRES_PASSWORD`` and ``POSTGRES_DB``::
+
+       mkdir -p /path/to/db
+       TAG=$(git rev-parse --short HEAD)
+       docker build -t libreosteo/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
+       docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+       $COMPOSE up -d db
+
+5. **Reload the dump.** Copy ``dumpall.sql`` into the new ``LIBREOSTEO_BAK_STORAGE``
+   directory first if you changed it::
+
+       $COMPOSE exec db sh -c \
+         'psql -U "$POSTGRES_USER" -d postgres -f /var/lib/backup/dumpall.sql'
+
+   **Exactly two errors are expected, and they are harmless**::
+
+       ERROR:  role "libreosteo" already exists
+       ERROR:  database "libreosteo" already exists
+
+   The role and the database were just created by the entrypoint at step 4, so the dump
+   cannot create them again. Any *other* error stops the procedure: do not continue, do
+   not delete the directory you set aside at step 3.
+
+6. **Start the application, and check from the application container.**::
+
+       $COMPOSE up -d
+       $COMPOSE logs libreosteo
+
+   ``migrate`` must apply **no** migration at all: not a single ``Applying ...`` line.
+   That is the proof that the schema arrived whole. Then check the engine version and the
+   authentication **through the application container**, which is the path the product
+   actually uses::
+
+       $COMPOSE exec libreosteo python3 ./manage.py shell \
+         --settings=Libreosteo.settings.container \
+         -c "from django.db import connection
+       with connection.cursor() as c:
+           c.execute('SHOW server_version')
+           print(c.fetchone()[0])"
+
+   Never check authentication with ``$COMPOSE exec db psql -h 127.0.0.1``. The
+   ``pg_hba.conf`` of the image grants ``host all all 127.0.0.1/32 trust`` **before** its
+   ``scram-sha-256`` rule: a check run from inside the ``db`` container succeeds no matter
+   what, including in the exact case where the product cannot connect at all.
+
+   Once the instance serves your data again, and only then, the directory set aside at
+   step 3 may be removed.
+
 Use it in production
 ====================
 You can use the software in production by changing some settings.
