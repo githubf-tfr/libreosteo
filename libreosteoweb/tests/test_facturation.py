@@ -15,6 +15,7 @@
 # -*- coding: utf-8 -*-
 import locale
 from datetime import timedelta
+from decimal import Decimal
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -23,10 +24,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import APITestCase
 
+from libreosteoweb.api.invoicing.generator import ExaminationInvoiceHelper, Generator
 from libreosteoweb.models import (
     ExaminationStatus,
     Invoice,
     InvoiceStatus,
+    OfficeSettings,
     Paiment,
 )
 from libreosteoweb.templatetags.invoice_extras import templatize
@@ -178,6 +181,35 @@ class TestNumerotationFacture(APITestCase):
         self.assertEqual(facture.office_identifier, "PRAT")
         self.assertEqual(facture.footer, "Pied praticien")
         self.assertEqual(facture.professional_id, "12345")
+
+    def test_le_numero_est_reserve_sur_la_ligne_et_non_sur_l_objet_en_memoire(self):
+        """Le générateur reçoit du middleware un objet lu à l'entrée de la requête, bien
+        avant la réservation. Celle-ci relit la ligne sous verrou : c'est la valeur en base
+        qui fait foi, jamais celle que porte l'objet."""
+        regle_cabinet(invoice_start_sequence="10000")
+        perime = OfficeSettings.objects.get(id=1)
+        OfficeSettings.objects.filter(id=1).update(invoice_start_sequence="20000")
+        numero = Generator(perime, self.reglages_praticien).get_invoice_number()
+        self.assertEqual(numero, "20000")
+        self.assertEqual(
+            OfficeSettings.objects.get(id=1).invoice_start_sequence, "20001"
+        )
+
+    def test_la_facturation_n_ecrase_pas_le_reste_de_la_ligne_cabinet(self):
+        """La facturation réécrivait la ligne entière du cabinet à partir de l'objet du
+        middleware, lu avant la réservation : toute modification concurrente d'un autre
+        champ disparaissait. Seule la séquence est désormais écrite, sur une ligne fraîche."""
+        with sans_receivers():
+            consultation = cree_consultation(self.patient, therapeut=self.user)
+        perime = OfficeSettings.objects.get(id=1)
+        OfficeSettings.objects.filter(id=1).update(office_phone="05 55 99 99 99")
+        aide = ExaminationInvoiceHelper(perime, self.reglages_praticien, self.user)
+        aide.generate_invoice(
+            consultation, {"amount": Decimal("55.00"), "paiment_mode": "cash"}, None
+        )
+        self.assertEqual(
+            OfficeSettings.objects.get(id=1).office_phone, "05 55 99 99 99"
+        )
 
 
 class TestEncaissement(APITestCase):

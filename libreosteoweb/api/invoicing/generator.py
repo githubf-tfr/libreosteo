@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
+from django.db import transaction
 from django.utils import timezone
 
 from libreosteoweb import models
@@ -70,21 +71,30 @@ class Generator(object):
         return invoice
 
     def get_invoice_number(self):
-        if (
-            self.office_settings.invoice_start_sequence is not None
-            and len(self.office_settings.invoice_start_sequence) > 0
-        ):
-            invoice_number = _unicode(
-                convert_to_long(self.office_settings.invoice_start_sequence)
+        # Reservation d'un numero : c'est une lecture-modification-ecriture, donc elle se
+        # fait sous verrou de ligne. L'objet `self.office_settings` vient du middleware,
+        # lu a l'entree de la requete : on ne peut pas s'en servir pour reserver, il faut
+        # relire la ligne. `transaction.atomic()` explicite et non ATOMIC_REQUESTS : cette
+        # methode est aussi appelee hors requete HTTP, ou sans transaction ouverte
+        # `select_for_update` leve TransactionManagementError sur PostgreSQL.
+        with transaction.atomic():
+            reglages = models.OfficeSettings.objects.select_for_update().get(
+                pk=self.office_settings.pk
             )
-            self.office_settings.invoice_start_sequence = _unicode(
-                convert_to_long(invoice_number) + 1
-            )
-        else:
-            invoice_number = _unicode(10000)
-            self.office_settings.invoice_start_sequence = _unicode(
-                convert_to_long(invoice_number) + 1
-            )
+            sequence = reglages.invoice_start_sequence
+            if sequence is not None and len(sequence) > 0:
+                invoice_number = _unicode(convert_to_long(sequence))
+            else:
+                invoice_number = _unicode(10000)
+            suivante = _unicode(convert_to_long(invoice_number) + 1)
+            reglages.invoice_start_sequence = suivante
+            # `update_fields` : on n'ecrit que la sequence. Ecrire la ligne entiere
+            # depuis cet objet ecraserait toute modification concurrente d'un autre champ.
+            reglages.save(update_fields=["invoice_start_sequence"])
+            # L'objet du middleware reste ce que le reste de la requete lit : le remettre
+            # d'accord avec la ligne, sans jamais l'ecrire.
+            self.office_settings.invoice_start_sequence = suivante
+        # Le prefixe s'applique au numero rendu, jamais a la sequence persistee.
         if self.office_settings.invoice_prefix_sequence is not None:
             invoice_number = (
                 self.office_settings.invoice_prefix_sequence + invoice_number
@@ -178,7 +188,6 @@ class ExaminationInvoiceHelper(object):
         invoice = Generator(
             self.office_settings, self.therapeut_settings
         ).generate_invoice(examination, invoicingSerializerData, self.therapeut_user)
-        self.office_settings.save()
         invoice.save()
         if invoice_to_cancel:
             invoice_to_cancel.status = models.InvoiceStatus.CANCELED

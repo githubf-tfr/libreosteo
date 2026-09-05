@@ -103,7 +103,6 @@ class InvoiceViewSet(XLSXFileMixin, viewsets.ReadOnlyModelViewSet):
                 cancelation.save()
                 canceled.canceled_by = cancelation
                 canceled.save()
-                officesettings.save()
                 response = {
                     "canceled": self.serializer_class(self.get_object()).data,
                     "credit_note": self.serializer_class(cancelation).data,
