@@ -124,6 +124,7 @@ files = [
     "libreosteoweb/templatetags/__init__.py",
     "libreosteoweb/templatetags/invoice_extras.py",
     "libreosteoweb/tests/__init__.py",
+    "libreosteoweb/tests/conftest.py",
     "libreosteoweb/tests/fixtures.py",
     "libreosteoweb/tests/test_acces.py",
     "libreosteoweb/tests/test_delete_patient.py",
