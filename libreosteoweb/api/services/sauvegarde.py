@@ -30,7 +30,7 @@ from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.core.serializers.base import DeserializationError
-from django.db import DatabaseError, connection, transaction
+from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.db.models import signals
 
 from libreosteoweb import models
@@ -171,6 +171,12 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
         CommandError,
         UnicodeDecodeError,
         DeserializationError,
+        # `IntegrityError` hérite de `DatabaseError` : sans cette ligne, elle tombait
+        # dans l'`except DatabaseError` ci-dessous (le suivant testé, Python évaluant les
+        # `except` dans l'ordre) et ressortait en panne moteur (500) alors qu'une
+        # contrainte violée par les objets de l'archive — PK dupliquée, FK rompue — est
+        # un défaut de l'archive, pas de la base.
+        IntegrityError,
     ) as erreur:
         # La journalisation de l'échec appartient à l'appelant, qui seul sait ce qu'il en
         # fait : la journaliser ici aussi produirait deux traces pour un seul incident.
