@@ -523,6 +523,101 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    ready`, `curl` rend `302 Found` — l'instance est rendue dans l'état où la fiche l'a
    prise.
 
+### R-INST-05 — Migration refusée sur un parc contenant des doublons
+
+- **Domaine** : Installation
+- **Couverture auto** : non — une migration qui refuse de s'appliquer ne s'exerce
+  depuis aucun processus pytest, la garde ne trouvant jamais rien sur une base de test
+  vierge. Cette fiche est la seule preuve du comportement.
+- **État requis** : E2. C'est une répétition de montée de version, sur le précédent de
+  R-INST-04 : elle insère puis supprime une ligne, et rend l'instance dans l'état où
+  elle l'a prise.
+
+**Étapes**
+
+1. Arrêter le service applicatif et ramener le schéma **avant** la migration
+   d'unicité — le parc que la fiche simule est une instance en service qui n'a jamais
+   vu D3 :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml stop libreosteo
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     run --rm --entrypoint sh libreosteo -c \
+     "python3 ./manage.py migrate libreosteoweb 0056 --settings=Libreosteo.settings.container"
+   ```
+
+   Attendu : `Unapplying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK`
+   (et, si D3 est livré en entier, `0058` défait avant lui).
+2. Insérer par `psql` un doublon du patient de l'état E2, **en majuscules** — c'est ce
+   qui met à l'épreuve l'insensibilité à la casse de la garde. La copie passe par une
+   table temporaire : `SELECT *` reprend toutes les colonnes sans avoir à les nommer, et
+   `nextval` donne à la copie un identifiant neuf sans désaccorder la séquence de la
+   colonne d'identité — un `INSERT ... SELECT *` direct recopierait l'identifiant et
+   serait refusé sur la clef primaire :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c \
+     "CREATE TEMP TABLE copie AS SELECT * FROM libreosteoweb_patient WHERE family_name = 'Picard';
+      UPDATE copie SET id = nextval(pg_get_serial_sequence('libreosteoweb_patient', 'id')),
+                       family_name = upper(family_name), first_name = upper(first_name);
+      INSERT INTO libreosteoweb_patient SELECT * FROM copie;"
+   ```
+
+   Attendu : `SELECT 1`, `UPDATE 1`, `INSERT 0 1`, dans cet ordre ; puis
+   `SELECT count(*) FROM libreosteoweb_patient;` rend une ligne de plus qu'avant.
+3. Redémarrer le service applicatif, sur l'image portant les migrations de D3 :
+
+   ```sh
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
+   ```
+
+   Attendu : `ps -a` affiche le service `libreosteo` en `Exited` avec un **code de
+   sortie non nul** ; le journal porte, après la ligne
+   `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance...` (que
+   `migrate` écrit avant de lancer la garde, et que rien ne vient terminer par un `OK`),
+   le message `CommandError: Migration refusée : la base contient 1 triplet(s) (nom,
+   prénom, date de naissance) en double sans tenir compte de la casse, que la nouvelle
+   contrainte d'unicité interdit. Patients concernés (identifiants) : <deux
+   identifiants>. Aucun dossier n'est fusionné ni supprimé automatiquement : ce sont
+   des données de santé, la résolution est manuelle. Pour les lister : SELECT id,
+   family_name, first_name, birth_date FROM libreosteoweb_patient WHERE id IN (...)
+   ORDER BY lower(family_name), lower(first_name), birth_date, id;` — **aucun nom de
+   patient n'y figure**, seulement des identifiants ; et **aucune ligne
+   `WSGI app 0 (mountpoint='') ready`** pour ce démarrage.
+4. Jouer la requête que le message donne, pour vérifier qu'elle liste bien les
+   dossiers concernés :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c "<la requête SELECT du message>"
+   ```
+
+   Attendu : deux lignes, `Picard` / `Jean-Luc` et `PICARD` / `JEAN-LUC`, même date de
+   naissance.
+5. Supprimer la ligne insérée à l'étape 2, puis redémarrer :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c "DELETE FROM libreosteoweb_patient WHERE family_name = 'PICARD';"
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo | tail -20
+   curl -sD - -o /dev/null http://localhost:8085/
+   ```
+
+   Attendu : `DELETE 1` — la comparaison de `psql` distingue la casse, seule la copie
+   part ; puis
+   `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK`,
+   puis `WSGI app 0 (mountpoint='') ready` ; `curl` rend `302 Found` ; l'instance sert
+   de nouveau, avec les données de l'état E2 intactes.
+
+**Constat** : la migration refuse et explique, elle ne répare pas. C'est une
+indisponibilité, et elle tombe au moment de la mise à jour — cette fiche la répète pour
+que personne ne la découvre en production.
+
 ### Authentification
 
 ### R-AUTH-01 — Création du premier utilisateur
@@ -920,6 +1015,30 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 3. Dans le champ de recherche, saisir `Picard`, valider.
    Attendu : la liste de résultats affiche deux entrées « Picard Jean-Luc », l'une
    née le 13/07/1935, l'autre le 01/01/1980.
+
+### R-PAT-07 — Doublon à casse différente refusé
+
+- **Domaine** : Patient
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_dossier_patient.py::TestContrainteUnicitePatient::test_le_meme_triplet_a_casse_differente_est_refuse_par_la_base
+  (la contrainte de base, au niveau du modèle ; le parcours écran, la modale d'homonyme
+  et le message affiché n'ont pas d'équivalent automatisé)
+- **État requis** : E2
+
+**Étapes**
+
+1. Lien « Nouveau patient », saisir `PICARD` (Nom de famille), `JEAN-LUC` (Prénom),
+   `13`/`07`/`1935` (date de naissance, identique au patient déjà en base), cocher le
+   consentement, cliquer « Initialiser la fiche patient ».
+   Attendu : une fenêtre modale d'avertissement d'homonyme s'ouvre d'abord ; cliquer
+   « Ok ». Reste ensuite sur le formulaire « Nouveau patient » (aucune navigation) ;
+   message affiché « Ce patient existe déjà » — **le même** qu'à l'étape 1 de
+   `R-PAT-03`, alors que la casse diffère.
+2. Dans le champ de recherche, saisir `Picard`, valider.
+   Attendu : la liste de résultats affiche **une seule** entrée, « Picard Jean-Luc ».
+
+**Constat** : la base et le validateur applicatif disent exactement la même chose, casse
+comprise. Aucune fiche existante ne le couvrait.
 
 ### Documents patient
 
