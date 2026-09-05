@@ -464,6 +464,19 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   `0058_alter_invoice_amount_alter_officesettings_amount_and_more`. `make
   test-functional` : 31 passed, inchangé.
 
+  **Addendum du 2026-09-05 — revue finale de branche** (`code-review` sur
+  `f2cdc32~1..b4d16c1`, cinq constats de correction confirmés, corrigés dans la foulée,
+  cinq commits distincts `3c36ba2`, `b0320b3`, `fde558f`, `7654296`, `12a6ec9`) :
+  `perform_update` du patient portait la même course d'intégrité que `perform_create`
+  sans sa garde ; la garde d'arrondi de la migration `0058` divergeait de l'arrondi réel
+  de PostgreSQL sur le cast `float8→numeric` (vérifié contre une instance PostgreSQL 16
+  réelle) ; `sauvegarde.py` classait une `IntegrityError` de restauration en panne moteur
+  au lieu d'archive incorrecte ; l'import CSV/XLSX de patients n'avait aucune garde
+  contre la même course d'intégrité que la création manuelle ; `templatize` pouvait lever
+  `UnboundLocalError` sur une balise sans correspondance. Chiffres après correction :
+  **272** tests unitaires (+10), couverture **90,79 %**, `mypy` et `ruff` inchangés,
+  `fail_under` toujours à 90.
+
 - **2026-09-04 — D2 Conteneur livré** (onze tâches ; spec
   `docs/superpowers/specs/2026-09-04-d2-conteneur-design.md`, plan supprimé une fois
   achevé). La chaîne de démarrage du déploiement de référence dit désormais ce qu'elle
