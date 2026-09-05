@@ -19,10 +19,10 @@ emplacements sont ci-dessous, parce qu'ils fixent le périmètre de chaque lot.
 | Exposition | Nom d'origine conservé, donc devinable | `libreosteoweb/models.py:576` |
 | Exposition | Aucun logger `django.security` | `Libreosteo/settings/base.py`, bloc `loggers` (l. 270 sq.) |
 | Socle | `Django==4.2.30`, support étendu échu depuis avril 2026 — hors support, pas « bientôt » | `requirements/requirements.txt:1` |
-| Socle | `FROM alpine:latest` quatre fois, version de Python non maîtrisée | `Docker/build/http-ready/Dockerfile:6,54`, `Docker/build/sock-ready/Dockerfile:6,48` |
+| Socle | `FROM alpine:latest`, version de Python non maîtrisée — 3.14.7 constaté dans l'image livrée, alors que tout ce que le dépôt déclare dit 3.13 | `Docker/build/http-ready/Dockerfile:6,61` (emplacements corrigés au cadrage de D4 : les commentaires ajoutés par D1 et D2 ont décalé le second `FROM`) ; les deux occurrences de `Docker/build/sock-ready/Dockerfile` sont **closes par D2**, qui a supprimé ce fichier |
 | Socle | `FROM postgres:13-alpine`, fin de vie novembre 2025 | `Docker/build/postgresql/Dockerfile:1` |
 | Intégrité | Aucune contrainte d'unicité en base | `libreosteoweb/models.py` |
-| Intégrité | `#'ATOMIC_REQUESTS' : True,` en commentaire | `Libreosteo/settings/base.py:193` |
+| Intégrité | `#'ATOMIC_REQUESTS' : True,` en commentaire | `Libreosteo/settings/base.py:192` (emplacement corrigé au cadrage de D4 : D1 avait décalé le fichier d'une ligne, la spec de D3 et sa clôture au `KANBAN.md` portaient déjà `:192`) |
 | Intégrité | Numérotation de facture en lecture-modification-écriture non transactionnelle | `libreosteoweb/api/invoicing/generator.py:72-92` |
 | Intégrité | Trois montants en `FloatField` | `libreosteoweb/models.py:300,395,458` |
 | Démarrage | `migrate` en échec avalé par la priorité des opérateurs du `CMD` (`… \|\| test 1=1 && …`) | `Docker/build/http-ready/Dockerfile:84` |
@@ -151,12 +151,23 @@ naissance différentes serait une régression fonctionnelle, pas un durcissement
 ### D4 Socle
 
 Trois changements indépendants, donc au moins trois incréments, chacun déployable seul :
-version de Python épinglée ; PostgreSQL 13 → 17, avec une procédure de montée écrite et jouée
-pour de vrai ; Django 4.2 → 5.x, S6 ayant déjà levé les deux dépréciations bloquantes.
+version de Python épinglée ; **PostgreSQL 13 → 18**, avec une procédure de montée écrite et
+jouée pour de vrai ; Django 4.2 → 5.x, S6 ayant déjà levé les deux dépréciations bloquantes.
 
-Un couplage est à vérifier au cadrage du lot, et lui seul contraindrait l'ordre interne : les
-versions mineures de Django 5 relèvent le plancher de version PostgreSQL supporté, ce qui
-placerait la montée du moteur avant celle du cadre selon la cible retenue.
+La cible du moteur était écrite « 13 → 17 » au cadrage du chantier ; l'arbitrage du
+2026-09-05 retient **18**, dont l'image officielle range le datadir par version majeure
+(`PGDATA=/var/lib/postgresql/18/docker`, `VOLUME /var/lib/postgresql`). Le prix en est une
+reprise du point de montage du `compose`, de l'exemple d'environnement et du chapitre 0 de la
+recette ; le gain est que les montées majeures suivantes redeviennent praticables en
+`pg_upgrade --link`, et que cette reprise se fait au seul moment où elle est bon marché —
+celui où une montée de données est de toute façon au programme.
+
+**Le couplage annoncé ici est vérifié, et il est inconditionnel** : Django 5.2 exige
+PostgreSQL ≥ 14 (`docs/ref/databases.txt` de la branche `stable/5.2.x`) et le dépôt est en 13.
+Il ne dépend donc pas de la cible retenue — la seule version de Django qui aurait tenu sur
+PostgreSQL 13 est 5.1, en fin de vie depuis décembre 2025. **Le moteur monte avant le cadre**,
+et cette contrainte a le même statut que les trois liens de la section « Dépendances » :
+elle est causale, elle ordonne l'intérieur du lot, et elle ne se renégocie pas.
 
 *Arrêt* : `make check` vert, passage complet de la recette OK, et procédure de montée
 PostgreSQL exécutée au moins une fois.
