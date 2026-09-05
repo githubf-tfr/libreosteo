@@ -39,12 +39,14 @@ def templatize(value, obj):
                 todisplay = getattr(obj, val)
             elif hasattr(obj, "keys"):
                 todisplay = obj.get(val, None)
-            # Un montant est desormais un Decimal, et `locale.str` d'un Decimal ne rend pas
-            # la meme chaine que celle du flottant equivalent : `str(Decimal("55.00"))`
-            # vaut '55.00' quand `locale.str(55.0)` vaut '55'. On repasse donc par le
-            # flottant pour que la facture imprimee affiche exactement ce qu'elle affichait.
+            # Un montant est desormais un Decimal. Le branchement ne reconnaissait que le
+            # flottant, si bien qu'un Decimal repartait par la branche `else`, donc par
+            # `str()`, qui garde les zeros de queue de `decimal_places=2` : la facture
+            # imprimee aurait affiche '55.00' la ou elle affichait '55'. `locale.str`, lui,
+            # rend deja pour un Decimal la meme chaine que pour le flottant equivalent --
+            # il convertit par `%.12g` -- : il suffit de le laisser passer par ici.
             if isinstance(todisplay, (float, Decimal)):
-                return _unicode(locale.str(float(todisplay)))
+                return _unicode(locale.str(todisplay))
             else:
                 return _unicode(todisplay)
         return val

@@ -498,7 +498,13 @@ class TestTemplatize(TestCase):
         ligne `Template with 55 EUR` de la facture imprimée deviendrait
         `Template with 55.00 EUR` dès que le montant est un `Decimal` : `locale.str(55.0)`
         vaut `'55'`, quand `str(Decimal("55.00"))` vaut `'55.00'`."""
-        self.assertEqual(
-            templatize("<amount>", {"amount": Decimal("55.00")}), locale.str(55.0)
-        )
-        self.assertEqual(templatize("<amount>", {"amount": Decimal("55.55")}), "55.55")
+        for decimal, flottant in [
+            (Decimal("55.00"), 55.0),
+            (Decimal("55.55"), 55.55),
+            (Decimal("0.00"), 0.0),
+            (Decimal("-55.55"), -55.55),
+        ]:
+            with self.subTest(montant=str(decimal)):
+                self.assertEqual(
+                    templatize("<amount>", {"amount": decimal}), locale.str(flottant)
+                )
