@@ -15,14 +15,15 @@
 import logging
 
 from django.conf import settings
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.http import Http404
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from drf_excel.mixins import XLSXFileMixin
 from drf_excel.renderers import XLSXRenderer
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import ParseError, ValidationError
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
@@ -102,8 +103,28 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         instance = models.Patient(**serializer.validated_data)
         instance.set_user_operation(self.request.user)
         instance.set_request(self.request)
-        instance.full_clean()
-        instance.save()
+        # `validate_constraints=False` : le validateur du serialiseur porte deja la regle
+        # d'unicite (meme clef, meme insensibilite a la casse) et la base la garantit. Une
+        # troisieme verification ici ne fermerait rien de plus — ce serait un troisieme
+        # « check puis insert » — et leverait un `django.core.exceptions.ValidationError`
+        # que DRF ne convertit pas, soit une 500 la ou le produit promet une 400.
+        # `clean()` reste appele : c'est lui qui pose `creation_date`, et c'est la seule
+        # raison pour laquelle ce `full_clean` existe.
+        instance.full_clean(validate_constraints=False)
+        try:
+            # Point de sauvegarde, indispensable sous ATOMIC_REQUESTS : rattraper une
+            # IntegrityError sans `atomic()` imbrique laisserait la transaction de requete
+            # rompue, et toute la suite de la vue echouerait en TransactionManagementError.
+            with transaction.atomic():
+                instance.save()
+        except IntegrityError as erreur:
+            # La base a tranche : une creation concurrente a pose le meme triplet entre la
+            # validation du serialiseur et cet INSERT. On rend exactement ce que le
+            # validateur rend — meme message, meme structure — parce que c'est ce que
+            # l'interface affiche et l'attendu litteral de R-PAT-03 etape 1.
+            raise ValidationError(
+                {api_settings.NON_FIELD_ERRORS_KEY: [_("This patient already exists")]}
+            ) from erreur
         serializer.instance = instance
 
     def perform_update(self, serializer):

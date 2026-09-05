@@ -127,6 +127,7 @@ files = [
     "libreosteoweb/tests/conftest.py",
     "libreosteoweb/tests/fixtures.py",
     "libreosteoweb/tests/test_acces.py",
+    "libreosteoweb/tests/test_concurrence.py",
     "libreosteoweb/tests/test_delete_patient.py",
     "libreosteoweb/tests/test_dossier_patient.py",
     "libreosteoweb/tests/test_exploitation.py",
