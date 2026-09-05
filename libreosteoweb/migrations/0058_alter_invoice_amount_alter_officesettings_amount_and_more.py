@@ -6,6 +6,7 @@
 # n'échoue que sur un dépassement de capacité, seul cas qui ait une correction possible.
 
 import logging
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.management.base import CommandError
 from django.db import migrations, models
@@ -16,6 +17,25 @@ CAPACITE = 10**8
 MODELES = ("Invoice", "Paiment", "OfficeSettings")
 
 
+def _arrondi_comme_postgresql(montant):
+    """Reproduit l'arrondi que fait le cast interne `float8 -> numeric` de PostgreSQL,
+    pas celui de `round()`.
+
+    Correction du 2026-09-05 (revue finale du lot D3) : `round(montant, 2)` arrondit sur
+    la valeur binaire exacte du flottant (17 chiffres significatifs), alors que
+    `float8_numeric()` -- la fonction que PostgreSQL invoque pour ce même cast -- formate
+    d'abord la valeur sur 15 chiffres significatifs avant d'arrondir, perte de precision
+    verifiee empiriquement contre PostgreSQL 16 :
+    `99999999.99499996::float8::numeric(10,2)` y leve « numeric field overflow », alors
+    que `round(99999999.99499996, 2)` rend `99999999.99` en Python -- une garde qui
+    comparait cette valeur-la laissait passer une ligne que l'ALTER COLUMN refuse. Le
+    formatage `%.15g` puis l'arrondi `ROUND_HALF_UP` reproduisent le meme resultat que
+    PostgreSQL sur les cas verifies (valeur limite ci-dessus, une valeur juste en
+    dessous, une valeur negative symetrique, un `.5` ordinaire).
+    """
+    return Decimal("%.15g" % montant).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
 def controler_les_montants(apps, schema_editor):
     hors_capacite = []
     a_arrondir = []
@@ -24,12 +44,7 @@ def controler_les_montants(apps, schema_editor):
         for identifiant, montant in modele.objects.exclude(amount=None).values_list(
             "id", "amount"
         ):
-            # L'arrondi précède la comparaison, et ce n'est pas une commodité : PostgreSQL
-            # arrondit au centime **avant** d'appliquer le typmod, si bien qu'une valeur de
-            # l'intervalle [99999999.995, 10**8) passerait une garde qui la testerait telle
-            # quelle, puis ferait tomber l'ALTER COLUMN sur « numeric field overflow » --
-            # exactement la panne que cette garde existe pour éviter.
-            arrondi = round(montant, 2)
+            arrondi = _arrondi_comme_postgresql(montant)
             if abs(arrondi) >= CAPACITE:
                 hors_capacite.append("%s#%s" % (nom, identifiant))
             elif arrondi != montant:
