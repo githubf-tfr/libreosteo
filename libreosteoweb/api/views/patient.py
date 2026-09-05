@@ -118,6 +118,29 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
             with transaction.atomic():
                 instance.save()
         except IntegrityError as erreur:
+            # Le bloc ci-dessus couvre l'INSERT **et ses recepteurs** `post_save` : toutes
+            # les IntegrityError qui en sortent ne sont pas des doublons de patient. Une
+            # FK rompue — l'`OfficeEvent` de `receiver_newpatient`, le `RegularDoctor` de
+            # `Patient.doctor` disparu entre la validation et l'INSERT — ressortirait
+            # sinon en « Ce patient existe deja », message faux qui masquerait la panne.
+            # D'ou cette relecture : on ne convertit que si le doublon est bien la, et
+            # toute autre violation repart telle quelle vers la 500 qu'elle merite.
+            # Ne pas « simplifier » vers un `except` large : c'est le defaut qu'on corrige.
+            doublon_existe = models.Patient.objects.filter(
+                family_name__iexact=instance.family_name,
+                first_name__iexact=instance.first_name,
+                birth_date=instance.birth_date,
+            ).exists()
+            # Une ValidationError DRF est une erreur *geree* : Django journalise le 4xx en
+            # `warning` sans `exc_info`, et le `raise … from` ci-dessous n'atteindrait donc
+            # aucun journal. Sans cette ligne, un refus d'integrite ne laisserait aucune
+            # trace serveur. `warning` et non `exception` : un doublon refuse est une issue
+            # normale de course, pas une panne — mais sa trace reste utile au diagnostic.
+            logger.warning(
+                "Refus d'intégrité à la création d'un patient", exc_info=True
+            )
+            if not doublon_existe:
+                raise
             # La base a tranche : une creation concurrente a pose le meme triplet entre la
             # validation du serialiseur et cet INSERT. On rend exactement ce que le
             # validateur rend — meme message, meme structure — parce que c'est ce que

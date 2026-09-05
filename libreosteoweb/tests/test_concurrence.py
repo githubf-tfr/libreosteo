@@ -30,10 +30,11 @@ from datetime import date
 from django.db import connection, connections
 from django.db.models import signals
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITransactionTestCase
 
-from libreosteoweb.models import Patient
+from libreosteoweb.models import OfficeEvent, Patient
 from libreosteoweb.tests.fixtures import (
     cree_praticien,
     cree_reglages_praticien,
@@ -88,6 +89,25 @@ def _intercale_le_doublon(sender, instance, **kwargs):
     fil.join()
 
 
+def _pose_un_evenement_impossible(sender, instance, **kwargs):
+    # Une violation d'integrite qui n'est **pas** un doublon de patient, sous la forme que
+    # le produit peut reellement prendre : `receiver_newpatient` ecrit un `OfficeEvent`
+    # apres chaque creation de patient, et la colonne `user` de cet evenement est NOT NULL.
+    # Violation d'une colonne NOT NULL, et non d'une cle etrangere : mesure du 2026-09-05,
+    # SQLite ne verifie ses cles etrangeres qu'au COMMIT, donc une FK rompue ressort de la
+    # requete elle-meme et n'atteint jamais le `try` de `perform_create` — elle ne
+    # prouverait rien de la branche visee. Une colonne NOT NULL, elle, est refusee des
+    # l'INSERT, sur les deux moteurs.
+    signals.post_save.disconnect(_pose_un_evenement_impossible, sender=Patient)
+    OfficeEvent.objects.create(
+        date=timezone.now(),
+        clazz="Patient",
+        type=1,
+        reference=instance.id,
+        user_id=None,
+    )
+
+
 class TestRefusDeLaBase(APITransactionTestCase):
     """`APITransactionTestCase` : ces tests ont besoin de commits reellement visibles
     d'une connexion a l'autre, ce qu'une enveloppe transactionnelle de test interdirait.
@@ -106,7 +126,14 @@ class TestRefusDeLaBase(APITransactionTestCase):
     def test_un_doublon_pose_entre_la_validation_et_l_enregistrement_rend_400(self):
         """Deterministe, sans concurrence : la ligne concurrente est posee par une seconde
         connexion juste avant l'INSERT. La vue doit rendre 400 et le message que
-        l'interface affiche deja, jamais 500."""
+        l'interface affiche deja, jamais 500.
+
+        Le second POST refait la meme demande sans intercaler quoi que ce soit : c'est
+        alors le validateur du serialiseur qui refuse, sur la ligne desormais presente.
+        Comparer les deux corps rendus est le critere d'arret du lot — un client ne doit
+        pas pouvoir distinguer les deux chemins de refus — et l'epingler ici est ce qui
+        empeche une derive du message de l'un des deux de passer sans bruit.
+        """
         with sans_receivers():
             signals.pre_save.connect(_intercale_le_doublon, sender=Patient)
             try:
@@ -118,7 +145,33 @@ class TestRefusDeLaBase(APITransactionTestCase):
                 signals.pre_save.disconnect(_intercale_le_doublon, sender=Patient)
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(reponse.data["non_field_errors"][0], "Ce patient existe déjà")
+        with sans_receivers():
+            refus_du_validateur = self.client.post(
+                reverse("patient-list"), data=PATIENT, format="json"
+            )
+        self.assertEqual(refus_du_validateur.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(refus_du_validateur.content, reponse.content)
         self.assertEqual(Patient.objects.count(), 1)
+
+    def test_une_autre_violation_d_integrite_n_est_pas_maquillee_en_doublon(self):
+        """Toute IntegrityError n'est pas un doublon : celle-ci vient d'une cle etrangere
+        rompue, et la vue doit la laisser ressortir en 500 plutot que de la deguiser en
+        « Ce patient existe deja ». Un message faux ici masquerait la panne au praticien
+        comme a l'exploitant."""
+        client = APIClient(raise_request_exception=False)
+        client.login(username="test", password="testpw")
+        with sans_receivers():
+            signals.post_save.connect(_pose_un_evenement_impossible, sender=Patient)
+            try:
+                reponse = client.post(
+                    reverse("patient-list"), data=PATIENT, format="json"
+                )
+            finally:
+                signals.post_save.disconnect(
+                    _pose_un_evenement_impossible, sender=Patient
+                )
+        self.assertEqual(reponse.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(Patient.objects.count(), 0)
 
 
 class TestConcurrenceCreationPatient(APITransactionTestCase):
@@ -172,5 +225,8 @@ class TestConcurrenceCreationPatient(APITransactionTestCase):
                 fil.start()
             for fil in fils:
                 fil.join(timeout=30)
+                # Sans cette verification, un fil reste bloque au-dela du delai et le test
+                # passerait quand meme : une seule ligne, un seul 201, et un fil fuite.
+                self.assertFalse(fil.is_alive(), "un fil n'a pas termine sa requete")
         self.assertEqual(Patient.objects.count(), 1)
-        self.assertEqual(codes.count(status.HTTP_201_CREATED), 1)
+        self.assertEqual(codes.count(status.HTTP_201_CREATED), 1, codes)
