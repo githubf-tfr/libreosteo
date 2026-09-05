@@ -1379,6 +1379,36 @@ existante ne couvrait la casse.
 à montant zéro — ni ligne en Comptabilité, ni section Facture sur la consultation elle-même
 (à comparer à l'étape 1, où seule la première consultation, facturée, apparaît).
 
+### R-FAC-05 — Montant à centimes
+
+- **Domaine** : Facturation
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_facturation.py::TestFacturation::test_un_montant_a_centimes_est_stocke_au_centime_pres
+  (l'exactitude du montant stocké ; ni la facture imprimée, ni la ligne de
+  Comptabilité, ni le total sur la période n'ont d'équivalent automatisé)
+- **État requis** : E2. Cette fiche facture durablement une nouvelle consultation,
+  consommant le numéro `10001` : remonter l'état E2 (chapitre 1) avant de jouer une
+  autre fiche qui en dépend.
+
+**Étapes**
+
+1. Depuis l'état E2, créer et clôturer une nouvelle consultation facturée (mêmes gestes
+   que R-CON-03, étapes 1 à 3), en **remplaçant** le montant pré-rempli `55` par
+   `55.55`, moyen de paiement « Espèces ».
+   Attendu : le panneau affiche un encart « Facture » avec le lien `n° 10001`.
+2. Cliquer le bouton d'impression (icône imprimante verte).
+   Attendu : un nouvel onglet s'ouvre ; le contenu porte `Template with 55.55 EUR` et
+   une ligne « HONORAIRES » avec le montant `55,55 EUR` — pas `55,56`, pas
+   `55,549999`.
+3. Menu « Comptabilité ».
+   Attendu : deux lignes ; celle du numéro `10001` affiche Montant `55.55 €`
+   (celle du `10000` affiche toujours `55 €`) ; la ligne « Montant total sur la période
+   sélectionnée: » affiche `110.55` — un nombre, jamais une concaténation du type
+   `5555.55`.
+
+**Constat** : elle ne prouverait rien avant D3 ; après, elle est le seul garde-fou de
+recette contre un `decimal_places` mal posé ou une frontière JSON passée aux chaînes.
+
 ### Médecins traitants
 
 ### R-MED-01 — Créer un médecin traitant
