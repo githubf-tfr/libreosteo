@@ -18,6 +18,7 @@ import random
 from datetime import date, datetime
 from typing import Any
 
+from django.db import IntegrityError
 from django.utils.translation import gettext_lazy as _
 
 from libreosteoweb.models import ExaminationStatus, ExaminationType, Patient
@@ -469,8 +470,21 @@ class IntegratorPatient(AbstractIntegrator):
                 errors.append((idx + 2, serializer["errors"]))
             except KeyError:
                 if serializer.is_valid():
-                    serializer.save()
-                    nb_line += 1
+                    try:
+                        # `Patient` porte une contrainte d'unicite en base (migration
+                        # 0057) : une creation concurrente du meme triplet pendant cet
+                        # import ferait lever une IntegrityError ici, alors meme que
+                        # `is_valid()` vient de la valider. Sans ce filet, elle
+                        # planterait tout l'import au lieu de n'ecarter que cette ligne,
+                        # comme le fait deja le cas `serializer.errors` ci-dessous.
+                        serializer.save()
+                    except IntegrityError:
+                        errors.append((idx + 2, [_("This patient already exists")]))
+                        logger.warning(
+                            "Refus d'intégrité à l'import de la ligne %s", idx + 2
+                        )
+                    else:
+                        nb_line += 1
                 else:
                     # idx + 2 because : we have header and the index start from 0
                     # To have the line number we have to add 2 to the index....
