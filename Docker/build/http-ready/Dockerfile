@@ -109,6 +109,10 @@ EXPOSE 8085
 # applicatif : --processes 1 --threads 1 reste le garde-fou de serialisation. La cause etant
 # traitee, l'offload reste pour son benefice propre : liberer l'unique worker pendant un
 # transfert.
+# --processes 1 --threads 1 : garde-fou de serialisation, et non un reglage de performance.
+# Jusqu'a D3 c'etait lui, et lui seul, qui tenait l'integrite au silence — aucune contrainte
+# d'unicite en base, aucune transaction. Depuis D3 l'integrite ne repose plus dessus : c'est
+# redevenu un choix de capacite, qu'un lot ulterieur pourra lever avec sa propre preuve.
 # --die-on-term : sans elle, la reaction par defaut d'uwsgi a SIGTERM est un rechargement
 # (« binary reloading uWSGI »), pas une extinction : `docker compose stop` attend alors le
 # delai de grace complet avant de forcer un SIGKILL. Mesure sur instance reelle sans cette

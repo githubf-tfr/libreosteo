@@ -1495,13 +1495,18 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
   (teste le rechargement de l'archive au niveau API ; ni le parcours écran — page
   d'installation puis formulaire de restauration —, ni la fidélité réelle des
   données restaurées, ne sont automatisés : l'archive rechargée par ce test porte un
-  dump vide)
+  dump vide). L'atomicité de la restauration — une archive illisible est refusée sans
+  vider la base — est couverte par
+  libreosteoweb/tests/test_exploitation.py::TestRestauration::test_une_archive_illisible_ne_vide_pas_la_base ;
+  le parcours écran de l'étape 4, lui, n'est pas automatisé
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
   instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,
   l'instance contient les données de l'état E2 mais n'a pas été reconstruite par
   la procédure du chapitre 1 — rejouer l'état visé (chapitre 1) avant de jouer une
-  autre fiche qui en dépend.
+  autre fiche qui en dépend. L'essai d'archive tronquée de l'étape 4 ne change pas cet
+  état final : il est refusé sans rien écrire, et à l'issue de la fiche l'instance porte
+  toujours les données de l'état E2.
 
 **Étapes**
 
@@ -1518,10 +1523,20 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    être obtenue depuis le logiciel avec la fonction Importer/Exporter/Archiver. » ;
    un champ de fichier (libellé « Fichier d'archive à restaurer ») et un bouton
    « Restaurer ».
-4. Choisir le fichier téléchargé à l'étape 1, cliquer « Restaurer ».
+4. Avant de restaurer l'archive valide, éprouver le refus d'une archive tronquée :
+   couper la seconde moitié du fichier téléchargé à l'étape 1
+   (`head -c $(( $(stat -c%s FICHIER) / 2 )) FICHIER > FICHIER.tronque`), choisir
+   `FICHIER.tronque` dans le champ de fichier, cliquer « Restaurer ».
+   Attendu : la page affiche « This archive file seems to be incorrect. Impossible to
+   load it. ». Puis revenir sur `/` : la redirection vers `/install/` fonctionne
+   toujours et la page « Installer LibreOsteo » s'affiche avec ses deux boutons —
+   l'échec n'a pas laissé l'instance dans un état inutilisable.
+5. Choisir le fichier téléchargé à l'étape 1, cliquer « Restaurer ».
    Attendu : retour à la page de connexion (`/accounts/login/?next=/`, titre de page
-   « Identifiez-vous sur LibreOsteo »).
-5. S'identifier avec `test` / `test`, saisir `Picard` dans le champ de recherche,
+   « Identifiez-vous sur LibreOsteo »). Cette réussite prouve que l'échec de l'étape 4
+   n'a rien laissé derrière lui : avant D3, il laissait la base vidée par le `sqlflush`
+   et une transaction ouverte.
+6. S'identifier avec `test` / `test`, saisir `Picard` dans le champ de recherche,
    valider.
    Attendu : la fiche de Jean-Luc Picard s'affiche ; l'onglet « Consultations »
    liste les deux consultations créées à l'état E2 ; l'onglet « Compte-rendus
