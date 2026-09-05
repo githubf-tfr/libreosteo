@@ -35,6 +35,10 @@ class PaimentModeSerializer(serializers.Serializer):
 
 
 class PaimentSerializer(PaimentModeSerializer):
+    # Memes bornes que la colonne de montant en base : un montant hors bornes est refuse
+    # a la frontiere, en 400, et non par la base. Rien dans le code ne couple les deux
+    # surfaces : elles se modifient ensemble, sinon la validation cesse en silence de
+    # refleter la contrainte de stockage.
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
     currency = serializers.CharField(required=True)
     date = serializers.DateField(required=True)
@@ -71,6 +75,7 @@ class ExaminationInvoicingSerializer(serializers.Serializer):
     status = serializers.CharField(required=True)
     reason = serializers.CharField(required=False, allow_null=True)
     paiment_mode = serializers.CharField(required=False, allow_null=True)
+    # Memes bornes qu'en base, cf. `PaimentSerializer.amount` ci-dessus.
     amount = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=False, allow_null=True
     )
