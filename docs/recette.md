@@ -1412,14 +1412,15 @@ existante ne couvrait la casse.
    sélectionnée: » affiche `110.55` — un nombre, jamais une concaténation du type
    `05555.55`.
 4. Sur la fiche Picard, démarrer une nouvelle consultation et cliquer « Clôturer »
-   (mêmes gestes que R-CON-03, étapes 1 et 2), choisir « Facturée » et saisir cette
-   fois `55.555` — trois décimales — avant de cliquer « Valider ». Rouvrir ensuite le
-   menu « Comptabilité ».
+   (mêmes gestes que R-CON-03, étapes 1 et 2), choisir « Facturée », saisir cette
+   fois `55.555` — trois décimales — puis choisir le moyen de paiement « Espèces »,
+   et cliquer « Valider ».
    Attendu : la fenêtre « Facturation » se ferme, mais une bannière rouge s'affiche,
    portant la ligne `amount :` puis, en puce, le message `Assurez-vous qu'il n'y a
    pas plus de 2 chiffres après la virgule.` ; la consultation reste ouverte dans
-   l'onglet « Consultation en cours », sans encart « Facture » ; la Comptabilité
-   affiche toujours les deux mêmes lignes qu'à l'étape 3, `10001` et `10000` — le
+   l'onglet « Consultation en cours », sans encart « Facture ».
+5. Rouvrir le menu « Comptabilité ».
+   Attendu : toujours les deux mêmes lignes qu'à l'étape 3, `10001` et `10000` — le
    montant à trois décimales est refusé, jamais arrondi en silence, et n'a consommé
    aucun numéro : la facturation suivante repartira de `10002`.
 
