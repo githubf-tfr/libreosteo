@@ -318,7 +318,11 @@ class Invoice(models.Model):
     """
 
     date = models.DateTimeField(_("Date"))
-    amount = models.FloatField(_("Amount"))
+    # Deux decimales parce qu'un montant est une somme d'argent, et que le binaire a
+    # virgule flottante ne la represente pas exactement. Dix chiffres parce que c'est tres
+    # au-dela de tout honoraire et que la borne doit etre dite quelque part : au-dela,
+    # la migration 0058 refuse plutot que de tronquer en silence.
+    amount = models.DecimalField(_("Amount"), max_digits=10, decimal_places=2)
     currency = models.CharField(_("Currency"), max_length=10)
     paiment_mode = models.CharField(_("Paiment mode"), max_length=10)
     header = models.TextField(_("Header"), blank=True)
@@ -413,7 +417,11 @@ class Paiment(models.Model):
     invoice: "models.ManyToManyField[Invoice, Any]" = models.ManyToManyField(
         "Invoice", verbose_name=_("Invoices"), blank=True
     )
-    amount = models.FloatField(_("Amount"))
+    # Deux decimales parce qu'un montant est une somme d'argent, et que le binaire a
+    # virgule flottante ne la represente pas exactement. Dix chiffres parce que c'est tres
+    # au-dela de tout honoraire et que la borne doit etre dite quelque part : au-dela,
+    # la migration 0058 refuse plutot que de tronquer en silence.
+    amount = models.DecimalField(_("Amount"), max_digits=10, decimal_places=2)
     currency = models.CharField(_("Currency"), max_length=10)
     paiment_mode = models.CharField(_("Paiment mode"), max_length=10)
     date = models.DateField(_("Date"))
@@ -476,7 +484,16 @@ class OfficeSettings(models.Model):
         null=False,
         default="SIRET",
     )
-    amount = models.FloatField(_("Amount"), blank=True, null=True, default=None)
+    # Memes bornes que Invoice.amount et Paiment.amount ; `null=True` conserve, le montant
+    # par defaut d'un cabinet pouvant ne pas etre renseigne.
+    amount = models.DecimalField(
+        _("Amount"),
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        default=None,
+    )
     currency = models.CharField(_("Currency"), max_length=10)
     invoice_content = models.TextField(_("Invoice content"), blank=True)
     invoice_footer = models.TextField(_("Invoice footer"), blank=True)

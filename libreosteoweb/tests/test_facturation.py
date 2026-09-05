@@ -125,6 +125,44 @@ class TestFacturation(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Invoice.objects.count(), 0)
 
+    def test_un_montant_a_centimes_est_stocke_au_centime_pres(self):
+        """Un montant est une somme d'argent : le binaire à virgule flottante ne représente
+        pas `55.55` exactement, et l'écart se propagerait jusqu'à l'avoir."""
+        reponse = self.facture(amount=55.55)
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        facture = Invoice.objects.get(id=reponse.data["invoiced"])
+        self.assertEqual(facture.amount, Decimal("55.55"))
+
+    def test_l_avoir_rend_l_oppose_exact_du_montant(self):
+        """`cancel_invoice` calcule `-1 * invoice.amount` : sur un flottant, l'opposé
+        traîne l'écart de représentation du montant d'origine."""
+        creation = self.facture(amount=55.55)
+        facture = Invoice.objects.get(id=creation.data["invoiced"])
+        annulation = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": facture.id}), data={}, format="json"
+        )
+        self.assertEqual(annulation.status_code, status.HTTP_202_ACCEPTED)
+        avoir = Invoice.objects.get(id=annulation.data["credit_note"]["id"])
+        self.assertEqual(avoir.amount, Decimal("-55.55"))
+
+    def test_un_montant_a_trois_decimales_est_refuse(self):
+        """La frontière d'entrée borne le montant au centime depuis que `amount` y est un
+        `DecimalField(max_digits=10, decimal_places=2)` : ce qui ne tient pas au centime est
+        refusé, et non arrondi en silence. L'ancien `FloatField` l'acceptait."""
+        reponse = self.facture(amount=55.555)
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("amount", reponse.data)
+        self.assertEqual(Invoice.objects.count(), 0)
+
+    def test_l_api_de_facturation_rend_un_nombre_json_et_non_une_chaine(self):
+        """La frontière JSON ne bouge pas : `COERCE_DECIMAL_TO_STRING = False`. Sans lui,
+        DRF rendrait `"amount":"55.55"`, `invoice.js:88` sommerait des chaînes et la ligne
+        « Montant total sur la période sélectionnée » afficherait une concaténation."""
+        self.facture(amount=55.55)
+        liste = self.client.get(reverse("invoice-list"))
+        self.assertEqual(liste.status_code, status.HTTP_200_OK)
+        self.assertIn(b'"amount":55.55', liste.content)
+
 
 class TestNumerotationFacture(APITestCase):
     """La séquence est un état persistant partagé : chaque test part d'un cabinet neuf."""
