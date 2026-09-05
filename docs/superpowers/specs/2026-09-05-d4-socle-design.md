@@ -117,6 +117,78 @@ d'un `master` non publié pour le moteur de recherche du produit — exactement 
 s'apprête à interdire au frontend. S'y ajoute que Django 6.1 finit en décembre 2027, avant
 Django 5.2 LTS (avril 2028).
 
+## Ce que l'exécution a établi, et qui révise l'ordre du lot
+
+Trois faits mesurés le 2026-09-05, et un corollaire instruit puis fermé. Ils l'ont été pendant
+l'exécution de la tâche qui ouvrait le lot **dans l'ordre initial** — l'épinglage de
+Python —, donc après la rédaction de cette spec et avant que le lot soit clos. Ils sont
+écrits ici, et non dans un rapport d'incident, parce qu'ils sont durables : les deux premiers
+appartiennent au dépôt et lui survivront, le troisième est une contrainte de l'outillage. Le
+relevé complet, avec les piles d'appel, est
+`.superpowers/sdd/2026-09-05-d4-socle-plan/task-1-report.md`.
+
+**Django 4.2.30 est cassé sous Python 3.14.** `django/template/context.py:39`,
+`BaseContext.__copy__`, écrit `duplicate = copy(super())` — un idiome qui obtient une copie de
+`self` en sautant l'`__copy__` d'une sous-classe. Sous Python 3.14, `copy.copy()` sur un objet
+`super` ne rend plus une instance de la classe réelle, et la ligne suivante lève
+`AttributeError: 'super' object has no attribute 'dicts' and no __dict__ for setting new
+attributes`. Aucun code du produit ni des tests n'est dans la pile : Django seul, atteint par
+deux chemins indépendants — le `Client` de `django.test` (donc DRF `APIClient`) et le rendu
+d'un template d'indexation `django-haystack` sur `post_save`. Django 4.2.30 déclare
+officiellement **Python 3.8 à 3.12** et rien au-delà ; Django 5.2.17 déclare **3.10 à 3.14**.
+Mesure : sous Python 3.14.2, **31 tests unitaires échouent** et 80 ne s'exécutent jamais (fait
+suivant) ; sous Python 3.13.11, les **272 passent**, à code et dépendances strictement
+identiques. La suite fonctionnelle n'est pas atteinte — elle passe par `live_server` et jamais
+par `django.test.Client`, donc le receveur `store_rendered_templates` n'y est jamais connecté.
+
+**Corollaire, instruit et fermé : le produit en service est indemne.** L'image de production
+sert **déjà** Python 3.14.7 avec Django 4.2.30 : la combinaison qui casse en test est en
+service aujourd'hui. La question qui s'ensuivait — le produit en fonctionnement est-il atteint,
+ou seul `django.test.Client` l'est-il ? — a été instruite par une enquête distincte,
+`.superpowers/sdd/2026-09-05-d4-socle-plan/enquete-django42-py314.md`, dont le verdict est net :
+**le défaut est confiné à l'outillage de test unitaire.** Trois établissements, par lecture de
+la source et par mesure. `BaseContext.__copy__` n'a que **deux appelants dans tout Django** —
+`django/test/client.py:267` et `django/test/testcases.py:128` —, tous deux actifs uniquement
+sous `setup_test_environment()`, signal `template_rendered` connecté ; rien dans
+`django/template/`, `django/shortcuts.py`, les vues génériques ni `django/template/backends/`.
+Mesuré dans un venv jetable en 3.14.2 avec Django 4.2.30 seul, `Template.render(Context)`,
+`render_to_string` et le rendu par `RequestContext` avec context_processors **passent tous** ;
+seul un `copy.copy()` explicite sur l'instance casse, et le dépôt n'en fait aucun — il ne
+construit `Context` ni `RequestContext` nulle part. Enfin, l'indexation Haystack synchrone rend
+bien un template à chaque `post_save` en production, mais hors de `setup_test_environment()`,
+donc hors du chemin fautif. La réserve que l'enquête laissait sur l'export XLSX de facture,
+non mesuré directement, **tombe par construction** : le chemin fautif exige
+`setup_test_environment()`, jamais appelé en production, quel que soit l'écran.
+
+**Ce que ce verdict change, et ce qu'il ne change pas.** Il change la nature de la montée du
+cadre : Django 5.2 reste un **incrément de dette**, pas une réparation urgente d'un produit en
+panne, et le réordonnancement suffit — il n'y a pas de correctif à sortir en avance. Il ne
+change **rien** à l'ordre révisé, qui tient exactement pour les mêmes raisons : la suite
+unitaire, elle, est bel et bien cassée, et un incrément qui la laisse rouge viole les deux
+règles du lot.
+
+**Ce que la combinaison en service a appris au dépôt.** `FROM alpine:latest` a fait entrer
+Python 3.14 dans l'image **sans que personne le décide ni le sache**, et une CI restée en 3.13
+rendait l'écart invisible : c'est le constat d'origine du lot, vérifié plus grave qu'annoncé.
+Ce n'est pas un incident refermé par le verdict ci-dessus — c'est la démonstration que
+l'épinglage était nécessaire, et la matière que la clôture versera au `KANBAN.md`.
+
+**La rupture ne se voit pas : elle se masque.** Deux fichiers — `test_dossier_patient.py` et
+`test_exploitation.py` — n'échouent pas, ils **interbloquent pytest à vie**. L'`AttributeError`
+levée en cours de préparation d'un document laisse un writer Whoosh jamais commité, donc un
+`flock()` jamais relâché sur `data/whoosh_index/MAIN_WRITELOCK` ; le writer suivant boucle
+dans `whoosh/writing.py:1012` (`except LockError: time.sleep(self.delay)`), et CPython ne
+permet pas de tuer ce thread. `pytest-timeout` en mode `thread` n'y change rien : le processus
+s'arrête sans résumé et **80 des 272 tests ne sont jamais exécutés**. Le risque est donc
+double — la rupture casse, et elle empêche de compter ce qu'elle casse. Sous CI, seul un délai
+de job y mettrait fin, avec le verdict « ni passé ni échoué, juste tué ».
+
+**`uv` ne distribue que Python 3.14.2 pour cette série.** `uv python install 3.14.7` et
+`uv python install 3.14.4` rendent tous deux « No download found » : au 2026-09-05, l'index de
+distributions d'`uv` ne propose que **3.14.2** pour la branche 3.14, quand l'image de
+production sert **3.14.7**. Le venv de développement ne peut donc pas être au même correctif
+que l'image.
+
 ## Décisions de cadrage
 
 **Cible du moteur : PostgreSQL 18.** Le prix est assumé et il est connu :
@@ -143,10 +215,18 @@ socle jamais éprouvé. `ruff 0.16.5` accepte `target-version = "py314"` sans av
 en émet un sur `py315`, ce qui prouve que la valeur est reconnue et stable), et `mypy 2.3.1`
 accepte `--python-version 3.14`.
 
+**Cible du venv de développement : la plus haute version 3.14.x que `uv` propose**, et non
+3.14.7 en dur. `uv python install 3.14.7` et `uv python install 3.14.4` rendent « No download
+found » ; l'index d'`uv` s'arrête à 3.14.2 pour cette branche, quand l'image sert 3.14.7.
+L'écart de correctif entre le venv et l'image est donc **un fait consigné, pas un défaut à
+corriger** : le lot épingle une branche d'interpréteur, il ne prétend pas synchroniser deux
+canaux de distribution qui ne publient pas au même rythme. Toute tâche qui trouverait 3.14.7
+atteignable par `uv` le prend, sans que ce soit une condition.
+
 **Le serveur d'application est bâti contre l'interpréteur épinglé, et non pris à Alpine.**
 `uwsgi-python3` et `uwsgi-http` sont retirés ; `uwsgi` est compilé par `pip` à la
 construction, comme `psycopg2` l'est déjà. La raison est que l'autre voie viderait
-l'incrément 1 de son sens : `apk add --simulate uwsgi-python3 uwsgi-http` sur
+l'incrément 3 de son sens : `apk add --simulate uwsgi-python3 uwsgi-http` sur
 `python:3.14-alpine` installe **`python3 3.14.7-r1` d'Alpine** parmi ses dix-sept paquets,
 et l'image porterait alors deux interpréteurs — celui de `/usr/local` qu'utilise le venv, et
 celui de `/usr/bin` contre lequel le greffon est compilé. Le lot nommerait une version de
@@ -178,16 +258,173 @@ déjà dérivé entre le développement et la production. `django-stubs` et `dja
 (`requirements/requ-dev.txt:4-5`) suivent, faute de quoi `mypy` produirait des faux positifs
 sur les 104 modules du périmètre et le cliquet se desserrerait par accident.
 
-**Ordre interne : Python, puis PostgreSQL, puis Django.** Le second lien est causal et ne se
-renégocie pas. Le premier est un choix, motivé : l'incrément Python est indépendant des deux
-autres, il est le seul sans aucun risque pour les données, et il change la base dont **tous**
-les étages suivants héritent — le placer en dernier ferait revalider la montée de Django sur
-une base qui vient de changer. Chaque incrément laisse le produit déployable et recettable :
-l'incrément 1 laisse Django 4.2 et PostgreSQL 13 sur un interpréteur épinglé, l'incrément 2
-laisse Django 4.2 sur PostgreSQL 18 — combinaison supportée, Django 4.2 ne posant qu'un
-plancher (≥ 12) et aucun plafond —, l'incrément 3 clôt le lot.
+**Ordre interne : PostgreSQL, puis Django, puis Python.** *Révisé le 2026-09-05, en cours de
+lot, sur un fait mesuré ; le lot n'était pas clos.*
 
-## Incrément 1 — l'interpréteur est épinglé, et il est le même partout
+Cette spec posait l'ordre inverse — « Python, puis PostgreSQL, puis Django » — et le motivait
+ainsi : l'incrément Python est indépendant des deux autres, il est le seul sans aucun risque
+pour les données, et il change la base dont **tous** les étages suivants héritent, si bien que
+le placer en dernier ferait revalider la montée de Django sur une base qui vient de changer.
+Cet argument est battu par un fait, pas par une préférence : **Django 4.2.30 est cassé sous
+Python 3.14** (section précédente). Poser l'interpréteur en premier laisserait la suite
+unitaire cassée — 31 échecs, 80 tests jamais exécutés — pendant toute la durée des deux
+incréments suivants, ce qui viole deux règles que ce lot s'est données : « chaque incrément
+laisse le produit déployable et recettable » et « `make check` vert à chaque commit ». Un
+argument d'ordonnancement ne survit pas à un fait qui rend l'ordre injouable.
+
+Le lien causal, lui, est intact et ne se renégocie pas : **PostgreSQL ≥ 14 avant Django 5.2**.
+Et l'ordre révisé ne crée aucun état non déclaré : Django 5.2 déclarant 3.10 à 3.14,
+l'incrément Django se joue sur Python 3.13, et l'incrément Python arrive sur un cadre qui le
+déclare.
+
+Chaque incrément laisse le produit déployable et recettable, et chacun a été vérifié comme
+combinaison :
+
+1. **PostgreSQL 13 → 18** laisse Django 4.2 sur PostgreSQL 18 et Python 3.13. Côté moteur, la
+   combinaison est supportée : Django 4.2 ne pose qu'un plancher (≥ 12) et aucun plafond. Côté
+   interpréteur, c'est **exactement la combinaison en service aujourd'hui**, que cet incrément
+   ne touche pas : Django 4.2.30 ne déclare pas Python 3.13 — le dépôt est hors périmètre
+   déclaré depuis S1 —, mais les 272 tests y passent, mesuré. Cet incrément ne dégrade donc
+   rien ; il ne fait que ne pas réparer un écart qui lui préexiste.
+2. **Django 4.2 → 5.2.17 LTS** laisse Django 5.2 sur PostgreSQL 18 et Python 3.13.
+   Combinaison entièrement déclarée : Django 5.2 exige PostgreSQL ≥ 14 et déclare Python 3.10
+   à 3.14. C'est le premier état du lot qui soit intégralement dans le périmètre annoncé par
+   le cadre, et il referme l'écart ouvert en S1.
+3. **Python → 3.14** clôt le lot : Django 5.2 sur PostgreSQL 18 et Python 3.14, combinaison
+   déclarée de bout en bout.
+
+Aucun incrément n'introduit donc une combinaison non supportée, et le seul écart de
+déclaration qui traverse le lot est celui qui lui préexistait, refermé au deuxième incrément.
+
+## Incrément 1 — PostgreSQL 13 → 18, données reprises par dump
+
+**Livrable 1 — l'image et le montage.** `Docker/build/postgresql/Dockerfile:1` :
+`FROM postgres:18-alpine`. `Docker/deploy/pg/docker-compose.yml:15` : le point de montage
+passe de `/var/lib/postgresql/data` à `/var/lib/postgresql`, avec le commentaire qui dit
+pourquoi — l'image 18 place le datadir dans `18/docker` sous ce répertoire, et monter l'ancien
+chemin ferait initialiser un cluster neuf à côté des anciens fichiers, sans un mot. Le
+`healthcheck` (`:32-37`) et le `depends_on: condition: service_healthy` (`:44-46`) ne bougent
+pas : la sonde TCP sur `127.0.0.1` reste juste, et elle passe en 3 à 4 secondes sur l'image 18.
+`Docker/deploy/pg/.env.example` : `LIBREOSTEO_DB_STORAGE` gagne la mention que le répertoire
+hôte porte désormais un sous-répertoire `18/`, et `LIBREOSTEO_BAK_STORAGE` cesse d'être un
+volume sans emploi — c'est la destination du dump de montée, et le commentaire le dit.
+
+**Livrable 2 — la procédure de montée, dans `README.rst`.** Le *comment*, intemporel, à côté
+de la section PostgreSQL existante. Six étapes, dont l'ordre est le contenu du livrable :
+
+1. Service applicatif arrêté, `db` seul démarré sur l'image PostgreSQL 13 — aucune écriture ne
+   doit avoir lieu pendant le dump.
+2. `pg_dumpall --no-role-passwords` vers `/var/lib/backup`, c'est-à-dire le bind
+   `${LIBREOSTEO_BAK_STORAGE}`. L'option n'est pas négociable et le texte dit pourquoi :
+   sans elle le vérificateur de mot de passe est réécrit en md5 et l'applicatif ne peut plus
+   s'authentifier contre PostgreSQL 18.
+3. Arrêt complet, puis **mise de côté** de l'ancien répertoire de données — jamais une
+   suppression, et pas avant l'étape 6.
+4. `LIBREOSTEO_DB_STORAGE` pointé sur un répertoire hôte neuf, images reconstruites, `db`
+   seul démarré : l'entrypoint de l'image 18 crée `18/docker`, puis le rôle et la base à
+   partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` et `POSTGRES_DB`.
+5. Rechargement du dump. **Deux `ERROR: … already exists` sont attendus et bénins** — le rôle
+   et la base viennent d'être créés par l'entrypoint ; toute autre erreur arrête la
+   procédure. Le texte les cite mot pour mot pour qu'on ne les confonde pas avec un échec.
+6. Service applicatif démarré. `migrate` ne doit appliquer **aucune** migration : c'est la
+   preuve que le schéma est arrivé entier. La vérification d'authentification se fait depuis
+   le conteneur applicatif, jamais par `exec db psql -h 127.0.0.1` — le `pg_hba.conf` de
+   l'image accorde `trust` au bouclage avant sa règle `scram-sha-256`, et une vérification
+   locale réussit là où le produit échoue.
+
+**Livrable 3 — l'état E0 de la recette.** `docs/recette.md:189-201` purge aujourd'hui le
+contenu direct du répertoire hôte par un conteneur jetable, parce qu'il appartient à l'uid 70.
+La contrainte est inchangée en 18 (même uid), mais l'arborescence gagne un niveau `18/`
+appartenant à `root`. La commande elle-même n'a pas à changer — le conteneur jetable y est
+`root` et supprime les deux niveaux —, mais son commentaire devient faux et est réécrit, et
+l'étape gagne une vérification qui s'arrête si le répertoire n'est pas vide : une purge
+silencieusement incomplète rendrait tous les états suivants faux.
+
+**Ce qui n'est pas touché.** Aucun code applicatif. Le dépôt n'importe jamais
+`django.contrib.postgres`, ne porte aucun `migrations.RunSQL`, aucun `.raw()`, aucun
+`.extra()` ; les trois `connection.cursor()` applicatifs
+(`libreosteoweb/api/views/patient.py:55`, `api/views/consultation.py:146`,
+`api/services/sauvegarde.py:145`) exécutent du SQL produit par Django. Les migrations `0057`
+et `0058` de D3 sont déjà appliquées et leur cast `float8 → numeric` est consommé. L'index
+Whoosh vit dans le volume applicatif (`Libreosteo/settings/base.py:318-321`) et non dans celui
+du moteur ; le chemin par dump ne passant pas par l'ORM, `RealtimeSignalProcessor`
+(`base.py:325`) n'est pas sollicité et l'index reste cohérent.
+
+**Preuve.**
+
+- *Test unitaire* : **aucun**, et c'est délibéré. La suite unitaire tourne sur SQLite ; elle
+  ne peut rien dire d'une montée majeure de PostgreSQL, et un test qui prétendrait la couvrir
+  mentirait. La preuve de cet incrément est entièrement dans la recette et dans l'exécution
+  réelle — c'est la raison pour laquelle le chapeau a écrit « procédure de montée PostgreSQL
+  exécutée au moins une fois » dans le critère d'arrêt.
+- *Non-régression* : les 272 tests unitaires et les 31 fonctionnels restent verts, inchangés.
+- *Exécution réelle* : la procédure jouée depuis l'état E2, en suivant le texte du
+  `README.rst` sans y ajouter un geste. Attendus : les deux `ERROR: … already exists` et rien
+  d'autre au rechargement ; `SHOW server_version` → `18.x` ; aucune ligne `Applying …` au
+  démarrage applicatif ; le patient, les deux consultations, la facture `10000` à `55 €` et le
+  document joint retrouvés par l'interface.
+- *Recette* : R-INST-01, R-INST-02, R-INST-03 (montage, rejeu, persistance sur le nouveau
+  moteur), R-INST-05 (elle exerce `psql` dans le conteneur `db` et nomme la version),
+  R-SAU-01 et R-SAU-02 (l'archive applicative se produit et se recharge sur le moteur neuf),
+  R-RCH-01 et R-RCH-02 (l'index a survécu à une montée qui ne l'a pas touché), R-PAT-03 et
+  R-PAT-07 (la contrainte d'unicité de D3 a bien traversé le dump), R-FAC-01 et R-FAC-05 (les
+  `numeric(10,2)` de D3 aussi).
+
+## Incrément 2 — Django 4.2.30 → 5.2.17 LTS
+
+**Livrable 1 — le cadre et les quatre paquets qui le suivent.**
+`requirements/requirements.txt` : `Django==5.2.17` (`:1`), et chacun des quatre tiers à la
+dernière version publiée qui déclare Django 5.2 — `djangorestframework` (`:6`, plancher 3.16.0),
+`django-filter` (`:4`, plancher 25.1), `django-haystack` (`:5`, **3.4.0, seule version
+publiée qui déclare 5.2**), `django_compressor` (`:9`, plancher 4.6.0 — les 4.5.x ne
+déclarent que jusqu'à 5.1). `drf-excel` (`:17`) suit par prudence : ses classifiers Django ne
+sont apparus que récemment et son lien au cadre passe par DRF. `django-statici18n` (`:15`)
+passe de `>=2.0` à une version exacte. `requirements/requ-dev.txt:4-5` : `django-stubs` et
+`django-stubs-ext` montent à la version qui suit Django 5.2.
+
+**Livrable 2 — la ligne morte du cadre.** `libreosteoweb/__init__.py:15` porte
+`default_app_config`, que Django ne lit plus depuis 4.1 ; l'`AppConfig` réelle est
+`libreosteoweb/apps.py:23`. La ligne part. C'est le seul ménage applicatif du lot, et il
+appartient au cadre qu'on monte, pas au ménage de dépendances explicitement écarté.
+
+**Ce qui ne change pas, et pourquoi il faut l'écrire.** Aucune suppression de Django 5.0, 5.1
+ou 5.2 ne touche ce dépôt — vérifié item par item, sur `*.py` et `*.html` : `USE_TZ` est déjà
+explicite (`Libreosteo/settings/base.py:214`) ; `USE_L10N`, `USE_DEPRECATED_PYTZ`,
+`CSRF_COOKIE_MASKED`, `index_together`, `NullBooleanField`, `CheckConstraint`,
+`PASSWORD_HASHERS`, `length_is`, `make_random_password`, `assertFormsetError`, `ugettext*`,
+`providing_args`, `force_text` et `django.contrib.postgres` sont **absents** ; l'unique
+`timezone.utc` du dépôt (`libreosteoweb/migrations/0040_paiment_date.py:21`) vient de
+`datetime` et non de Django (`:6`) ; ni `DEFAULT_FILE_STORAGE` ni `STATICFILES_STORAGE` ne
+sont définis, donc la bascule vers `STORAGES` est sans objet ; les quatre formulaires du
+produit (`templates/account/login.html:34`, `account/create_admin_account.html:34`,
+`partials/restore.html:14`, `partials/register.html:5`) rendent leurs champs à la main, donc
+le changement de rendu de formulaire ne les atteint pas. **Le risque de cet incrément n'est
+pas dans Django, il est dans `django-haystack`** : le dépôt sous-classe son backend Whoosh
+(`libreosteoweb/api/folding_whoosh_backend.py:1-2`, redéfinition de `build_schema` et de
+`search`), et une signature qui bouge en 3.4.0 casserait la recherche sans casser un import.
+
+**Point de vigilance nommé.** `make check` inclut `manage.py makemigrations --check`
+(`Makefile:51-53`). Si Django 5.2 fait apparaître une migration, elle n'est **pas** commitée
+en aveugle : c'est un fait à instruire — quel champ, pourquoi, et que ferait-elle sur un parc
+en service — avant toute écriture. La migration `0057` de D3 a montré ce qu'une migration non
+instruite coûte sur des données réelles.
+
+**Preuve.**
+
+- *Test unitaire* : **aucun test nouveau**, et c'est le résultat attendu. Ce lot ne change
+  aucun comportement du produit ; les 272 tests existants passent **sans être modifiés**, et
+  toute modification qu'il faudrait leur apporter est un changement de comportement déguisé,
+  donc un signal à instruire et non un ajustement à faire.
+- *Analyse statique* : `make check` vert, `mypy` sur les 104 modules avec les stubs montés,
+  `makemigrations --check` silencieux.
+- *Fonctionnels* : `make test-functional` 31/31.
+- *Recette* : R-RCH-01 et R-RCH-02 (haystack, le point exposé du lot), R-AUTH-01 à R-AUTH-05
+  (`LoginView`/`LogoutView` de `Libreosteo/urls.py:18`), R-INST-01, R-SAU-01 et R-SAU-02
+  (`dumpdata`/`loaddata`), R-IMP-01 à R-IMP-03 (`drf-excel`, `djangorestframework-csv`),
+  R-FAC-01 à R-FAC-05 (DRF et `COERCE_DECIMAL_TO_STRING`, `base.py`), R-PAT-03, R-PAT-06 et
+  R-PAT-07 (le validateur applicatif et la contrainte de D3 sous le nouveau DRF).
+
+## Incrément 3 — l'interpréteur est épinglé, et il est le même partout
 
 **Livrable 1 — l'image.** `Docker/build/http-ready/Dockerfile:6` et `:61` :
 `FROM python:3.14-alpine`. Les deux `FROM` gagnent au passage la casse `AS` que BuildKit
@@ -309,134 +546,6 @@ entretenir une cible abandonnée.
   journal du chapitre 0 (`WSGI app 0 (mountpoint='') ready`, `spawned uWSGI http 1`) que le
   binaire compilé doit rendre à l'identique.
 
-## Incrément 2 — PostgreSQL 13 → 18, données reprises par dump
-
-**Livrable 1 — l'image et le montage.** `Docker/build/postgresql/Dockerfile:1` :
-`FROM postgres:18-alpine`. `Docker/deploy/pg/docker-compose.yml:15` : le point de montage
-passe de `/var/lib/postgresql/data` à `/var/lib/postgresql`, avec le commentaire qui dit
-pourquoi — l'image 18 place le datadir dans `18/docker` sous ce répertoire, et monter l'ancien
-chemin ferait initialiser un cluster neuf à côté des anciens fichiers, sans un mot. Le
-`healthcheck` (`:32-37`) et le `depends_on: condition: service_healthy` (`:44-46`) ne bougent
-pas : la sonde TCP sur `127.0.0.1` reste juste, et elle passe en 3 à 4 secondes sur l'image 18.
-`Docker/deploy/pg/.env.example` : `LIBREOSTEO_DB_STORAGE` gagne la mention que le répertoire
-hôte porte désormais un sous-répertoire `18/`, et `LIBREOSTEO_BAK_STORAGE` cesse d'être un
-volume sans emploi — c'est la destination du dump de montée, et le commentaire le dit.
-
-**Livrable 2 — la procédure de montée, dans `README.rst`.** Le *comment*, intemporel, à côté
-de la section PostgreSQL existante. Six étapes, dont l'ordre est le contenu du livrable :
-
-1. Service applicatif arrêté, `db` seul démarré sur l'image PostgreSQL 13 — aucune écriture ne
-   doit avoir lieu pendant le dump.
-2. `pg_dumpall --no-role-passwords` vers `/var/lib/backup`, c'est-à-dire le bind
-   `${LIBREOSTEO_BAK_STORAGE}`. L'option n'est pas négociable et le texte dit pourquoi :
-   sans elle le vérificateur de mot de passe est réécrit en md5 et l'applicatif ne peut plus
-   s'authentifier contre PostgreSQL 18.
-3. Arrêt complet, puis **mise de côté** de l'ancien répertoire de données — jamais une
-   suppression, et pas avant l'étape 6.
-4. `LIBREOSTEO_DB_STORAGE` pointé sur un répertoire hôte neuf, images reconstruites, `db`
-   seul démarré : l'entrypoint de l'image 18 crée `18/docker`, puis le rôle et la base à
-   partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` et `POSTGRES_DB`.
-5. Rechargement du dump. **Deux `ERROR: … already exists` sont attendus et bénins** — le rôle
-   et la base viennent d'être créés par l'entrypoint ; toute autre erreur arrête la
-   procédure. Le texte les cite mot pour mot pour qu'on ne les confonde pas avec un échec.
-6. Service applicatif démarré. `migrate` ne doit appliquer **aucune** migration : c'est la
-   preuve que le schéma est arrivé entier. La vérification d'authentification se fait depuis
-   le conteneur applicatif, jamais par `exec db psql -h 127.0.0.1` — le `pg_hba.conf` de
-   l'image accorde `trust` au bouclage avant sa règle `scram-sha-256`, et une vérification
-   locale réussit là où le produit échoue.
-
-**Livrable 3 — l'état E0 de la recette.** `docs/recette.md:189-201` purge aujourd'hui le
-contenu direct du répertoire hôte par un conteneur jetable, parce qu'il appartient à l'uid 70.
-La contrainte est inchangée en 18 (même uid), mais l'arborescence gagne un niveau `18/`
-appartenant à `root`. La commande elle-même n'a pas à changer — le conteneur jetable y est
-`root` et supprime les deux niveaux —, mais son commentaire devient faux et est réécrit, et
-l'étape gagne une vérification qui s'arrête si le répertoire n'est pas vide : une purge
-silencieusement incomplète rendrait tous les états suivants faux.
-
-**Ce qui n'est pas touché.** Aucun code applicatif. Le dépôt n'importe jamais
-`django.contrib.postgres`, ne porte aucun `migrations.RunSQL`, aucun `.raw()`, aucun
-`.extra()` ; les trois `connection.cursor()` applicatifs
-(`libreosteoweb/api/views/patient.py:55`, `api/views/consultation.py:146`,
-`api/services/sauvegarde.py:145`) exécutent du SQL produit par Django. Les migrations `0057`
-et `0058` de D3 sont déjà appliquées et leur cast `float8 → numeric` est consommé. L'index
-Whoosh vit dans le volume applicatif (`Libreosteo/settings/base.py:318-321`) et non dans celui
-du moteur ; le chemin par dump ne passant pas par l'ORM, `RealtimeSignalProcessor`
-(`base.py:325`) n'est pas sollicité et l'index reste cohérent.
-
-**Preuve.**
-
-- *Test unitaire* : **aucun**, et c'est délibéré. La suite unitaire tourne sur SQLite ; elle
-  ne peut rien dire d'une montée majeure de PostgreSQL, et un test qui prétendrait la couvrir
-  mentirait. La preuve de cet incrément est entièrement dans la recette et dans l'exécution
-  réelle — c'est la raison pour laquelle le chapeau a écrit « procédure de montée PostgreSQL
-  exécutée au moins une fois » dans le critère d'arrêt.
-- *Non-régression* : les 272 tests unitaires et les 31 fonctionnels restent verts, inchangés.
-- *Exécution réelle* : la procédure jouée depuis l'état E2, en suivant le texte du
-  `README.rst` sans y ajouter un geste. Attendus : les deux `ERROR: … already exists` et rien
-  d'autre au rechargement ; `SHOW server_version` → `18.x` ; aucune ligne `Applying …` au
-  démarrage applicatif ; le patient, les deux consultations, la facture `10000` à `55 €` et le
-  document joint retrouvés par l'interface.
-- *Recette* : R-INST-01, R-INST-02, R-INST-03 (montage, rejeu, persistance sur le nouveau
-  moteur), R-INST-05 (elle exerce `psql` dans le conteneur `db` et nomme la version),
-  R-SAU-01 et R-SAU-02 (l'archive applicative se produit et se recharge sur le moteur neuf),
-  R-RCH-01 et R-RCH-02 (l'index a survécu à une montée qui ne l'a pas touché), R-PAT-03 et
-  R-PAT-07 (la contrainte d'unicité de D3 a bien traversé le dump), R-FAC-01 et R-FAC-05 (les
-  `numeric(10,2)` de D3 aussi).
-
-## Incrément 3 — Django 4.2.30 → 5.2.17 LTS
-
-**Livrable 1 — le cadre et les quatre paquets qui le suivent.**
-`requirements/requirements.txt` : `Django==5.2.17` (`:1`), et chacun des quatre tiers à la
-dernière version publiée qui déclare Django 5.2 — `djangorestframework` (`:6`, plancher 3.16.0),
-`django-filter` (`:4`, plancher 25.1), `django-haystack` (`:5`, **3.4.0, seule version
-publiée qui déclare 5.2**), `django_compressor` (`:9`, plancher 4.6.0 — les 4.5.x ne
-déclarent que jusqu'à 5.1). `drf-excel` (`:17`) suit par prudence : ses classifiers Django ne
-sont apparus que récemment et son lien au cadre passe par DRF. `django-statici18n` (`:15`)
-passe de `>=2.0` à une version exacte. `requirements/requ-dev.txt:4-5` : `django-stubs` et
-`django-stubs-ext` montent à la version qui suit Django 5.2.
-
-**Livrable 2 — la ligne morte du cadre.** `libreosteoweb/__init__.py:15` porte
-`default_app_config`, que Django ne lit plus depuis 4.1 ; l'`AppConfig` réelle est
-`libreosteoweb/apps.py:23`. La ligne part. C'est le seul ménage applicatif du lot, et il
-appartient au cadre qu'on monte, pas au ménage de dépendances explicitement écarté.
-
-**Ce qui ne change pas, et pourquoi il faut l'écrire.** Aucune suppression de Django 5.0, 5.1
-ou 5.2 ne touche ce dépôt — vérifié item par item, sur `*.py` et `*.html` : `USE_TZ` est déjà
-explicite (`Libreosteo/settings/base.py:214`) ; `USE_L10N`, `USE_DEPRECATED_PYTZ`,
-`CSRF_COOKIE_MASKED`, `index_together`, `NullBooleanField`, `CheckConstraint`,
-`PASSWORD_HASHERS`, `length_is`, `make_random_password`, `assertFormsetError`, `ugettext*`,
-`providing_args`, `force_text` et `django.contrib.postgres` sont **absents** ; l'unique
-`timezone.utc` du dépôt (`libreosteoweb/migrations/0040_paiment_date.py:21`) vient de
-`datetime` et non de Django (`:6`) ; ni `DEFAULT_FILE_STORAGE` ni `STATICFILES_STORAGE` ne
-sont définis, donc la bascule vers `STORAGES` est sans objet ; les quatre formulaires du
-produit (`templates/account/login.html:34`, `account/create_admin_account.html:34`,
-`partials/restore.html:14`, `partials/register.html:5`) rendent leurs champs à la main, donc
-le changement de rendu de formulaire ne les atteint pas. **Le risque de cet incrément n'est
-pas dans Django, il est dans `django-haystack`** : le dépôt sous-classe son backend Whoosh
-(`libreosteoweb/api/folding_whoosh_backend.py:1-2`, redéfinition de `build_schema` et de
-`search`), et une signature qui bouge en 3.4.0 casserait la recherche sans casser un import.
-
-**Point de vigilance nommé.** `make check` inclut `manage.py makemigrations --check`
-(`Makefile:51-53`). Si Django 5.2 fait apparaître une migration, elle n'est **pas** commitée
-en aveugle : c'est un fait à instruire — quel champ, pourquoi, et que ferait-elle sur un parc
-en service — avant toute écriture. La migration `0057` de D3 a montré ce qu'une migration non
-instruite coûte sur des données réelles.
-
-**Preuve.**
-
-- *Test unitaire* : **aucun test nouveau**, et c'est le résultat attendu. Ce lot ne change
-  aucun comportement du produit ; les 272 tests existants passent **sans être modifiés**, et
-  toute modification qu'il faudrait leur apporter est un changement de comportement déguisé,
-  donc un signal à instruire et non un ajustement à faire.
-- *Analyse statique* : `make check` vert, `mypy` sur les 104 modules avec les stubs montés,
-  `makemigrations --check` silencieux.
-- *Fonctionnels* : `make test-functional` 31/31.
-- *Recette* : R-RCH-01 et R-RCH-02 (haystack, le point exposé du lot), R-AUTH-01 à R-AUTH-05
-  (`LoginView`/`LogoutView` de `Libreosteo/urls.py:18`), R-INST-01, R-SAU-01 et R-SAU-02
-  (`dumpdata`/`loaddata`), R-IMP-01 à R-IMP-03 (`drf-excel`, `djangorestframework-csv`),
-  R-FAC-01 à R-FAC-05 (DRF et `COERCE_DECIMAL_TO_STRING`, `base.py`), R-PAT-03, R-PAT-06 et
-  R-PAT-07 (le validateur applicatif et la contrainte de D3 sous le nouveau DRF).
-
 ## Fiches de recette touchées
 
 Aucune renumérotation, ni pour les fiches nouvelles ni pour les existantes. Le cahier porte
@@ -463,7 +572,7 @@ dernière — est revalidée sur le client 18 au moment de rejouer la fiche.
 **Chapitre 0 et chapitre 1.** Les commandes de construction et de démarrage
 (`docs/recette.md:33-42`, `:112-124`) ne changent pas : le tag suit le commit et les deux
 `docker build` visent les mêmes `Dockerfile`. La procédure de reset de l'état E0
-(`docs/recette.md:189-201`) change, cf. incrément 2, livrable 3.
+(`docs/recette.md:189-201`) change, cf. incrément 1, livrable 3.
 
 **Passage complet.** Le chapeau exige pour D4 « passage complet de la recette OK », et non le
 rythme ordinaire des seules fiches touchées. Les 48 fiches plus la nouvelle sont donc jouées à
@@ -501,7 +610,7 @@ Aucun des trois ne bouge, et aucun relèvement n'est attendu : le lot n'écrit p
 de code applicatif. Deux valeurs de configuration changent dans le même fichier sans être des
 cliquets — `target-version` et `python_version` — et il ne faut pas les confondre : elles
 suivent la cible, elles ne l'assouplissent pas. Si la couverture bouge de quelques dixièmes,
-c'est le dénominateur (une ligne morte retirée en incrément 3) et non la couverture réelle ;
+c'est le dénominateur (une ligne morte retirée en incrément 2) et non la couverture réelle ;
 le plancher reste à 90 dans tous les cas, il ne descend pas et le lot ne le relève pas.
 
 ## Ce que ce lot change au chapeau
@@ -569,8 +678,8 @@ dépendances entre lots et les critères d'arrêt ne sont pas touchés.
   connexion inimputable.
 - **Aucune réécriture du `README.rst`.** Seules trois lignes sont touchées — les deux
   déclarations de version de Python et la phrase sur l'image `libreosteo-sock` supprimée par
-  D2 —, et le `README.rst` gagne par ailleurs la procédure de montée de l'incrément 2. Les
-  sept autres constats relevés à l'inventaire (incrément 1, livrable 5) restent en l'état et
+  D2 —, et le `README.rst` gagne par ailleurs la procédure de montée de l'incrément 1. Les
+  sept autres constats relevés à l'inventaire (incrément 3, livrable 5) restent en l'état et
   partent en « À faire » au `KANBAN.md` : deux d'entre eux empêchent une installation de
   réussir en suivant le texte, les cinq autres documentent des modes abandonnés en S4. Les
   corriger serait réécrire le chapitre « Installation », donc un travail à cadrer et non un
@@ -619,7 +728,7 @@ dépendances entre lots et les critères d'arrêt ne sont pas touchés.
   — `apk add` de ces deux paquets ramène **`python3 3.14.7-r1` d'Alpine** parmi dix-sept
   paquets. Le lot aurait alors nommé une version de Python tout en laissant le serveur qui
   exécute le produit dépendre d'une autre, leur identité d'ABI n'étant qu'une coïncidence de
-  version du jour ; l'incrément 1 aurait perdu son objet. Deux conséquences chiffrées
+  version du jour ; l'incrément 3 aurait perdu son objet. Deux conséquences chiffrées
   achèvent l'affaire : l'empreinte `apk` de l'image passerait de 12,0 à 51,7 Mio là où la
   compilation coûte 1,5 Mio, et la classe de panne rencontrée en S1 — `uwsgi-http` oublié,
   `UNABLE to load uWSGI plugin`, conteneur sorti — cesserait d'exister avec un binaire
@@ -635,17 +744,17 @@ dépendances entre lots et les critères d'arrêt ne sont pas touchés.
 ## Risques
 
 - **`django-haystack 3.4.0` casse `FoldingWhooshSearchBackend`.** C'est le risque principal de
-  l'incrément 3 : le dépôt redéfinit `build_schema` et `search`
+  l'incrément 2 : le dépôt redéfinit `build_schema` et `search`
   (`libreosteoweb/api/folding_whoosh_backend.py`), et une signature qui bouge ne se verrait
   pas à l'import. Détection : R-RCH-01 et R-RCH-02, plus la recherche exercée par R-INST-02 et
   R-PAT-07. Aucun repli : 3.4.0 est la seule version publiée qui déclare Django 5.2.
-- **Django 4.2.30 sur PostgreSQL 18, état transitoire de l'incrément 2.** La combinaison est
+- **Django 4.2.30 sur PostgreSQL 18, état transitoire de l'incrément 1.** La combinaison est
   supportée sur le papier (4.2 ne pose qu'un plancher ≥ 12), mais la branche 4.2 est de 2023 et
-  n'a jamais été éprouvée contre 18. Si la recette de l'incrément 2 la met en défaut, le fait
-  est journalisé **avant** toute décision, et les incréments 2 et 3 fusionnent — au prix d'un
+  n'a jamais été éprouvée contre 18. Si la recette de l'incrément 1 la met en défaut, le fait
+  est journalisé **avant** toute décision, et les incréments 1 et 2 fusionnent — au prix d'un
   incrément qui n'est plus déployable seul, ce qui est une révision à écrire et à motiver, pas
   un ajustement silencieux.
-- **`makemigrations --check` non silencieux sous Django 5.2.** Traité en incrément 3 : la
+- **`makemigrations --check` non silencieux sous Django 5.2.** Traité en incrément 2 : la
   migration éventuelle s'instruit, elle ne se commite pas.
 - **Perte de données à la montée.** Atténuée par construction : l'ancien répertoire de données
   est mis de côté et n'est jamais supprimé avant que l'instance ne serve sur le nouveau moteur,
@@ -662,15 +771,33 @@ dépendances entre lots et les critères d'arrêt ne sont pas touchés.
   interne PCRE. Aucune n'est utilisée aujourd'hui, tout étant passé en ligne de commande ;
   mais un lot ultérieur qui voudrait du routage uwsgi devra le savoir, et c'est pour cela que
   ce n'est pas dit seulement dans un commentaire du `Dockerfile`.
-- **Le venv de développement en retard sur la CI.** Si `make check` continue de tourner sur
-  3.13 pendant que la CI passe en 3.14, le cliquet est tenu contre le mauvais interpréteur.
-  `uv` est présent et la distribution 3.14 disponible ; la bascule fait partie de l'incrément 1
-  et non d'un après-coup.
+- **Le venv de développement désaccordé de la CI.** Le risque a changé de nature avec l'ordre
+  révisé. Il ne s'agit plus d'un venv en retard : les deux premiers incréments laissent
+  **délibérément** le venv et la CI sur Python 3.13, et c'est l'incrément 3 qui les bascule
+  ensemble, en une seule tâche. Ce qui reste à surveiller est le **désaccord** — un venv en
+  3.14 pendant que `.github/workflows/main.yml` déclare encore 3.13, ou l'inverse : le cliquet
+  serait alors tenu contre un autre interpréteur que celui de la CI. Toute tâche qui trouve le
+  venv sur un interpréteur autre que celui que la CI déclare s'arrête et le signale.
+- **Un incrément qui poserait un interpréteur que le cadre ne déclare pas.** C'est le risque
+  inverse du précédent, et c'est celui qui a coûté la révision d'ordre du 2026-09-05 : Python
+  3.14 posé sous Django 4.2 rend 31 échecs et 80 tests jamais exécutés. La parade est dans
+  l'ordre lui-même — le cadre monte avant l'interpréteur — et le contrôle est mécanique : avant
+  de changer l'interpréteur d'un venv, d'une image ou de la CI, lire les classifiers du Django
+  installé (`importlib.metadata`) et vérifier que la version visée y figure. Un `Requires-Python`
+  permissif ne vaut pas déclaration : Django 4.2.30 porte `>=3.8` **et** s'arrête à 3.12.
+- **L'interblocage Whoosh masque les échecs qu'il devrait afficher.** Sous Python 3.14 avec
+  Django 4.2, une suite cassée ne rend ni « passed » ni « failed » : elle se fige, `flock()`
+  jamais relâché, et 80 tests ne sont jamais exécutés. Toute mesure de suite qui n'affiche pas
+  de résumé final est donc à traiter comme un **échec non compté**, jamais comme un aléa ; le
+  décompte se refait fichier par fichier, dans des processus frais, en purgeant
+  `data/whoosh_index/MAIN_WRITELOCK` entre deux.
 
 ## Critères d'acceptation
 
-1. `make check` vert à chaque commit, sous Python 3.14, cliquets tenus : `fail_under` toujours
-   à 90, périmètre `mypy` toujours à 104 modules au moins, `select` de `ruff` inchangé et
+1. `make check` vert à chaque commit, **sur l'interpréteur que la CI déclare à ce commit** —
+   3.13 pendant les incréments 1 et 2, 3.14 à partir de l'incrément 3 — et vert sous Python
+   3.14 au dernier commit du lot. Cliquets tenus dans tous les cas : `fail_under` toujours à
+   90, périmètre `mypy` toujours à 104 modules au moins, `select` de `ruff` inchangé et
    `ignore` toujours vide.
 2. Les 272 tests unitaires et les 31 tests fonctionnels passent, **sans qu'aucun ait été
    modifié**.
@@ -681,8 +808,9 @@ dépendances entre lots et les critères d'arrêt ne sont pas touchés.
    E2, en la suivant sans y ajouter un geste, et l'instance sert ensuite les données de E2.
 5. `R-INST-06` existe, a été jouée, et aucune fiche existante n'a été renumérotée.
 6. Passage complet de `docs/recette.md`, fiche neuve incluse, à la clôture du lot.
-7. Trois incréments livrés dans l'ordre Python → PostgreSQL → Django, chacun laissant le
-   produit déployable et recettable, ou une révision écrite et motivée expliquant pourquoi
-   deux d'entre eux ont dû fusionner.
+7. Trois incréments livrés dans l'ordre PostgreSQL → Django → Python (ordre révisé le
+   2026-09-05, cf. § « Décisions de cadrage »), chacun laissant le produit déployable et
+   recettable, ou une révision écrite et motivée expliquant pourquoi deux d'entre eux ont dû
+   fusionner.
 8. Les quatre sorties de clôture exigées par le chapeau sont au `KANBAN.md`, et les constats du
    tableau « Socle » du chapeau n'y figurent plus en « À faire ».
