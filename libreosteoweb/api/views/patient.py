@@ -99,6 +99,44 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
             apiserializers.PatientHomonymeSerializer(homonymes, many=True).data
         )
 
+    def _convertir_si_doublon(self, instance, erreur, contexte):
+        """Distingue un doublon reel d'une autre IntegrityError, partagee par
+        `perform_create` et `perform_update` : meme raisonnement, une seule fois. Une FK
+        rompue — l'`OfficeEvent` de `receiver_newpatient`, le `RegularDoctor` de
+        `Patient.doctor` disparu entre la validation et l'ecriture — ressortirait sinon en
+        « Ce patient existe deja », message faux qui masquerait la panne. D'ou cette
+        relecture : on ne convertit que si le doublon est bien la, et toute autre
+        violation repart telle quelle vers la 500 qu'elle merite. Ne pas « simplifier »
+        vers un `except` large : c'est le defaut qu'on corrige.
+
+        `instance.pk` vaut `None` a la creation — l'auto-increment n'est pose qu'apres un
+        INSERT reussi — et vaut deja l'identifiant existant a la mise a jour : on exclut
+        cette ligne de la recherche de doublon uniquement quand elle a un pk, sinon toute
+        mise a jour se detecterait comme son propre doublon.
+        """
+        doublon_qs = models.Patient.objects.filter(
+            family_name__iexact=instance.family_name,
+            first_name__iexact=instance.first_name,
+            birth_date=instance.birth_date,
+        )
+        if instance.pk is not None:
+            doublon_qs = doublon_qs.exclude(pk=instance.pk)
+        # Une ValidationError DRF est une erreur *geree* : Django journalise le 4xx en
+        # `warning` sans `exc_info`, et le `raise … from` ci-dessous n'atteindrait donc
+        # aucun journal. Sans cette ligne, un refus d'integrite ne laisserait aucune trace
+        # serveur. `warning` et non `exception` : un doublon refuse est une issue normale
+        # de course, pas une panne — mais sa trace reste utile au diagnostic.
+        logger.warning("Refus d'intégrité à %s d'un patient" % contexte, exc_info=True)
+        if not doublon_qs.exists():
+            raise erreur
+        # La base a tranche : une operation concurrente a pose le meme triplet entre la
+        # validation du serialiseur et l'ecriture. On rend exactement ce que le
+        # validateur rend — meme message, meme structure — parce que c'est ce que
+        # l'interface affiche et l'attendu litteral de R-PAT-03 etape 1.
+        raise ValidationError(
+            {api_settings.NON_FIELD_ERRORS_KEY: [_("This patient already exists")]}
+        ) from erreur
+
     def perform_create(self, serializer):
         instance = models.Patient(**serializer.validated_data)
         instance.set_user_operation(self.request.user)
@@ -118,42 +156,22 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
             with transaction.atomic():
                 instance.save()
         except IntegrityError as erreur:
-            # Le bloc ci-dessus couvre l'INSERT **et ses recepteurs** `post_save` : toutes
-            # les IntegrityError qui en sortent ne sont pas des doublons de patient. Une
-            # FK rompue — l'`OfficeEvent` de `receiver_newpatient`, le `RegularDoctor` de
-            # `Patient.doctor` disparu entre la validation et l'INSERT — ressortirait
-            # sinon en « Ce patient existe deja », message faux qui masquerait la panne.
-            # D'ou cette relecture : on ne convertit que si le doublon est bien la, et
-            # toute autre violation repart telle quelle vers la 500 qu'elle merite.
-            # Ne pas « simplifier » vers un `except` large : c'est le defaut qu'on corrige.
-            doublon_existe = models.Patient.objects.filter(
-                family_name__iexact=instance.family_name,
-                first_name__iexact=instance.first_name,
-                birth_date=instance.birth_date,
-            ).exists()
-            # Une ValidationError DRF est une erreur *geree* : Django journalise le 4xx en
-            # `warning` sans `exc_info`, et le `raise … from` ci-dessous n'atteindrait donc
-            # aucun journal. Sans cette ligne, un refus d'integrite ne laisserait aucune
-            # trace serveur. `warning` et non `exception` : un doublon refuse est une issue
-            # normale de course, pas une panne — mais sa trace reste utile au diagnostic.
-            logger.warning(
-                "Refus d'intégrité à la création d'un patient", exc_info=True
-            )
-            if not doublon_existe:
-                raise
-            # La base a tranche : une creation concurrente a pose le meme triplet entre la
-            # validation du serialiseur et cet INSERT. On rend exactement ce que le
-            # validateur rend — meme message, meme structure — parce que c'est ce que
-            # l'interface affiche et l'attendu litteral de R-PAT-03 etape 1.
-            raise ValidationError(
-                {api_settings.NON_FIELD_ERRORS_KEY: [_("This patient already exists")]}
-            ) from erreur
+            self._convertir_si_doublon(instance, erreur, "la création")
         serializer.instance = instance
 
     def perform_update(self, serializer):
         serializer.instance.set_user_operation(self.request.user)
         serializer.instance.set_request(self.request)
-        return super(PatientViewSet, self).perform_update(serializer)
+        try:
+            # Meme garde qu'a la creation, et pour la meme raison (`ATOMIC_REQUESTS`) :
+            # deux PATCH concurrents renommant deux patients existants vers le meme
+            # triplet passent tous les deux le validateur, checke avant ecriture, puis le
+            # second `save()` — declenche par `serializer.save()` sous
+            # `super().perform_update` — leve l'IntegrityError que cette garde rattrape.
+            with transaction.atomic():
+                super(PatientViewSet, self).perform_update(serializer)
+        except IntegrityError as erreur:
+            self._convertir_si_doublon(serializer.instance, erreur, "la mise à jour")
 
     def perform_destroy(self, instance):
         is_gdpr_request = (

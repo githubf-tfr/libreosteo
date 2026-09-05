@@ -16,6 +16,7 @@
 import os
 import shutil
 import tempfile
+import threading
 from datetime import date, datetime, timedelta
 from datetime import timezone as fuseau_utc
 from pathlib import PurePosixPath
@@ -23,12 +24,13 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
+from django.db.models import signals
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APITransactionTestCase
 
 from libreosteoweb.api.serializers import PatientSerializer
 from libreosteoweb.api.validators import UniqueTogetherIgnoreCaseValidator
@@ -51,6 +53,7 @@ from libreosteoweb.tests.fixtures import (
     regle_cabinet,
     sans_receivers,
 )
+from libreosteoweb.tests.test_concurrence import sans_atomic_requests
 
 PATIENT_MINIMAL = {
     "family_name": "Picard",
@@ -303,6 +306,84 @@ class TestContrainteUnicitePatient(TestCase):
                 birth_date=date(1980, 1, 1),
             )
         self.assertEqual(Patient.objects.filter(family_name="Picard").count(), 2)
+
+
+class TestConcurrenceMiseAJourPatient(APITransactionTestCase):
+    """`perform_update` doit porter la meme garde IntegrityError que `perform_create`
+    (defaut trouve en revue finale de D3) : deux renommages concurrents vers le meme
+    triplet doivent rendre une 400 propre, jamais une 500. Meme montage que
+    `TestRefusDeLaBase` de `test_concurrence.py` — `APITransactionTestCase` pour la
+    visibilite reelle entre connexions, `sans_atomic_requests()` pour que SQLite ne fige
+    pas son instantane avant l'interception (cf. docstring de ce module)."""
+
+    serialized_rollback = True
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def test_deux_renommages_concurrents_vers_le_meme_triplet_rendent_400(self):
+        with sans_receivers():
+            autre_patient = cree_patient(
+                family_name="Picard",
+                first_name="Jean-Luc",
+                birth_date=date(1935, 7, 13),
+            )
+            patient_a_renommer = cree_patient(
+                family_name="Riker", first_name="William", birth_date=date(1941, 1, 1)
+            )
+        triplet_cible = {
+            "family_name": "Sisko",
+            "first_name": "Benjamin",
+            "birth_date": date(1950, 1, 1),
+        }
+
+        def renomme_l_autre_patient_sur_une_autre_connexion():
+            # Django ouvre une connexion par thread : le faire ici, c'est bien le faire
+            # depuis une seconde connexion, sans rien truquer dans la premiere (meme
+            # motif que `_cree_le_doublon_sur_une_autre_connexion` de test_concurrence.py).
+            try:
+                Patient.objects.filter(pk=autre_patient.id).update(**triplet_cible)
+            finally:
+                connection.close()
+
+        def intercale_le_renommage_concurrent(sender, instance, **kwargs):
+            # Une seule fois : on se deconnecte avant d'agir, sinon la mise a jour
+            # ci-dessous rappellerait ce meme recepteur (meme motif que
+            # `_intercale_le_doublon` dans test_concurrence.py).
+            signals.pre_save.disconnect(
+                intercale_le_renommage_concurrent, sender=Patient
+            )
+            fil = threading.Thread(
+                target=renomme_l_autre_patient_sur_une_autre_connexion
+            )
+            fil.start()
+            fil.join()
+
+        donnees = dict(triplet_cible)
+        donnees["birth_date"] = triplet_cible["birth_date"].isoformat()
+        donnees["consent_check"] = True
+        with sans_receivers():
+            signals.pre_save.connect(intercale_le_renommage_concurrent, sender=Patient)
+            try:
+                with sans_atomic_requests():
+                    reponse = self.client.patch(
+                        reverse("patient-detail", kwargs={"pk": patient_a_renommer.id}),
+                        data=donnees,
+                        format="json",
+                    )
+            finally:
+                signals.pre_save.disconnect(
+                    intercale_le_renommage_concurrent, sender=Patient
+                )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reponse.data["non_field_errors"][0], "Ce patient existe déjà")
+        self.assertEqual(
+            Patient.objects.get(pk=patient_a_renommer.id).family_name, "Riker"
+        )
 
 
 class TestConsultation(APITestCase):
