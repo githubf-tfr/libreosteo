@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -267,7 +268,7 @@ class TestValidateurUnicite(TestCase):
     def test_un_champ_nul_desactive_la_validation(self):
         with sans_receivers():
             cree_patient(first_name="")
-            cree_patient(first_name="")
+            cree_patient(first_name="", birth_date=date(1940, 1, 1))
         validateur = UniqueTogetherIgnoreCaseValidator(
             queryset=Patient.objects.all(),
             fields=("family_name", "first_name"),
@@ -276,6 +277,32 @@ class TestValidateurUnicite(TestCase):
         )
         serialiseur = PatientSerializer()
         validateur({"family_name": "Picard", "first_name": None}, serialiseur)
+
+
+class TestContrainteUnicitePatient(TestCase):
+    """La base porte la meme regle que le validateur du serialiseur, casse comprise."""
+
+    def test_le_meme_triplet_a_casse_differente_est_refuse_par_la_base(self):
+        """La contrainte est fonctionnelle — `Lower()` sur le nom et le prenom — parce que
+        le validateur applicatif compare en `__iexact`. Une contrainte octet a octet
+        laisserait passer ce que l'application refuse deja : la base serait moins stricte
+        que l'application, exactement l'inverse du but."""
+        with sans_receivers():
+            cree_patient(family_name="Picard", first_name="Jean-Luc")
+            with self.assertRaises(IntegrityError):
+                cree_patient(family_name="PICARD", first_name="JEAN-LUC")
+
+    def test_deux_homonymes_de_dates_differentes_restent_creables(self):
+        """L'homonymie avertit sans jamais bloquer (acquis S6) : la contrainte porte sur la
+        clef du validateur — nom, prenom **et** date de naissance —, pas sur l'homonymie."""
+        with sans_receivers():
+            cree_patient(family_name="Picard", first_name="Jean-Luc")
+            cree_patient(
+                family_name="Picard",
+                first_name="Jean-Luc",
+                birth_date=date(1980, 1, 1),
+            )
+        self.assertEqual(Patient.objects.filter(family_name="Picard").count(), 2)
 
 
 class TestConsultation(APITestCase):

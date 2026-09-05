@@ -23,6 +23,8 @@ from typing import Any
 
 from django.conf import settings
 from django.db import models
+from django.db.models import UniqueConstraint
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -133,6 +135,22 @@ class Patient(models.Model):
 
     class Meta:
         permissions = [("patient.data_dump", "Can dump data from patient")]
+        # Meme clef et meme insensibilite a la casse que le validateur du serialiseur
+        # (`libreosteoweb/api/serializers/patient.py`, `UniqueTogetherIgnoreCaseValidator`
+        # sur ("family_name", "first_name", "birth_date"), filtre en `__iexact`). Toute
+        # divergence entre les deux est un defaut : la base doit dire exactement ce que
+        # l'application dit, sans quoi elle laisse passer ce que l'application refuse.
+        # Contrainte a expressions (`Lower`) et non `unique_together`, qui comparerait
+        # octet a octet. La date de naissance fait partie de la clef : deux homonymes de
+        # dates differentes restent creables, l'homonymie avertit sans jamais bloquer.
+        constraints = [
+            UniqueConstraint(
+                Lower("family_name"),
+                Lower("first_name"),
+                "birth_date",
+                name="unique_patient_nom_prenom_naissance",
+            )
+        ]
 
 
 class Children(models.Model):
