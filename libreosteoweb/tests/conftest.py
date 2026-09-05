@@ -34,6 +34,8 @@ from django.conf import settings as reglages_django
 # bute la demonstration du TOCTOU du 2026-09-02 (`KANBAN.md`). Une base de production est
 # un fichier sans cache partage et ne peut pas subir cette erreur precise ; le correctif
 # reste donc cantonne a la configuration de la base de test, jamais au code applicatif.
+# Bascule sur un fichier hors dossier de travail : verrou de fichier ordinaire, celui-la
+# retente par le busy handler, avec un delai d'attente genereux (voir plus bas).
 # Meme motif et meme forme que `tests/functional/conftest.py`, qui a bascule le premier.
 _dossier_base_de_test = tempfile.mkdtemp(prefix="libreosteo-test-unitaire-db-")
 # Django efface le fichier de base en fin de session (`_destroy_test_db`), pas le
@@ -42,13 +44,23 @@ _dossier_base_de_test = tempfile.mkdtemp(prefix="libreosteo-test-unitaire-db-")
 # du module, avant qu'aucune fixture n'existe.
 atexit.register(shutil.rmtree, _dossier_base_de_test, ignore_errors=True)
 # `AppConfig.ready()` (libreosteoweb/apps.py) interroge deja la base a l'import de
-# l'application : `django.db.connections` a donc deja mis en cache la structure de
-# `DATABASES`. Remplacer les sous-dictionnaires `TEST`/`OPTIONS` perdrait ce cache ; on
-# les met a jour en place pour que la mutation soit vue quel que soit l'ordre.
+# l'application, avant meme que ce module ne s'execute : `ConnectionHandler`
+# (`django/db/utils.py`) a donc deja pose les cles par defaut de `DATABASES`, dont un
+# sous-dictionnaire `TEST` complet — `MIGRATE`, `MIRROR`, `CHARSET`… — que
+# `django/db/backends/base/creation.py` relit ensuite. **Remplacer** le sous-dictionnaire
+# (`_base_par_defaut["TEST"] = {"NAME": …}`) effacerait ces cles et leve `KeyError:
+# 'MIGRATE'` a la creation de la base : on les met a jour en place (memes objets, cles
+# ajoutees ou ecrasees), jamais on ne les remplace.
 # django-stubs type chaque connexion de `DATABASES` en `Dict[str, str]` : trop etroit pour
-# les sous-dictionnaires `TEST`/`OPTIONS`.
+# les sous-dictionnaires `TEST`/`OPTIONS`, deja presents dans la configuration Django reelle.
 _base_par_defaut = cast("dict[str, Any]", reglages_django.DATABASES["default"])
 _base_par_defaut.setdefault("TEST", {})["NAME"] = os.path.join(
     _dossier_base_de_test, "test_db.sqlite3"
 )
+# Ce delai ne vaut que pour les attentes que le busy handler retente. Il ne couvre **pas**
+# deux ecritures concurrentes sous `ATOMIC_REQUESTS` : leur `BEGIN` differe prend d'abord
+# un verrou partage, et SQLite rend `SQLITE_BUSY` sans jamais appeler le busy handler
+# quand deux connexions tentent d'en monter un en RESERVED. Une suite qui lance des
+# requetes reellement concurrentes doit en plus emettre `BEGIN IMMEDIATE` :
+# demonstration, mesures et monkeypatch dans `tests/functional/conftest.py` (l. 86-108).
 _base_par_defaut.setdefault("OPTIONS", {})["timeout"] = 20
