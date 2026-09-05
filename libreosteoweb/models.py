@@ -15,11 +15,16 @@
 # import the logging library
 import logging
 import mimetypes
+import re
+import uuid
 from datetime import date
+from pathlib import PurePosixPath
 from typing import Any
 
 from django.conf import settings
 from django.db import models
+from django.db.models import UniqueConstraint
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -130,6 +135,22 @@ class Patient(models.Model):
 
     class Meta:
         permissions = [("patient.data_dump", "Can dump data from patient")]
+        # Meme clef et meme insensibilite a la casse que le validateur du serialiseur
+        # (`libreosteoweb/api/serializers/patient.py`, `UniqueTogetherIgnoreCaseValidator`
+        # sur ("family_name", "first_name", "birth_date"), filtre en `__iexact`). Toute
+        # divergence entre les deux est un defaut : la base doit dire exactement ce que
+        # l'application dit, sans quoi elle laisse passer ce que l'application refuse.
+        # Contrainte a expressions (`Lower`) et non `unique_together`, qui comparerait
+        # octet a octet. La date de naissance fait partie de la clef : deux homonymes de
+        # dates differentes restent creables, l'homonymie avertit sans jamais bloquer.
+        constraints = [
+            UniqueConstraint(
+                Lower("family_name"),
+                Lower("first_name"),
+                "birth_date",
+                name="unique_patient_nom_prenom_naissance",
+            )
+        ]
 
 
 class Children(models.Model):
@@ -297,7 +318,11 @@ class Invoice(models.Model):
     """
 
     date = models.DateTimeField(_("Date"))
-    amount = models.FloatField(_("Amount"))
+    # Deux decimales parce qu'un montant est une somme d'argent, et que le binaire a
+    # virgule flottante ne la represente pas exactement. Dix chiffres parce que c'est tres
+    # au-dela de tout honoraire et que la borne doit etre dite quelque part : au-dela,
+    # la migration 0058 refuse plutot que de tronquer en silence.
+    amount = models.DecimalField(_("Amount"), max_digits=10, decimal_places=2)
     currency = models.CharField(_("Currency"), max_length=10)
     paiment_mode = models.CharField(_("Paiment mode"), max_length=10)
     header = models.TextField(_("Header"), blank=True)
@@ -392,7 +417,11 @@ class Paiment(models.Model):
     invoice: "models.ManyToManyField[Invoice, Any]" = models.ManyToManyField(
         "Invoice", verbose_name=_("Invoices"), blank=True
     )
-    amount = models.FloatField(_("Amount"))
+    # Deux decimales parce qu'un montant est une somme d'argent, et que le binaire a
+    # virgule flottante ne la represente pas exactement. Dix chiffres parce que c'est tres
+    # au-dela de tout honoraire et que la borne doit etre dite quelque part : au-dela,
+    # la migration 0058 refuse plutot que de tronquer en silence.
+    amount = models.DecimalField(_("Amount"), max_digits=10, decimal_places=2)
     currency = models.CharField(_("Currency"), max_length=10)
     paiment_mode = models.CharField(_("Paiment mode"), max_length=10)
     date = models.DateField(_("Date"))
@@ -455,7 +484,16 @@ class OfficeSettings(models.Model):
         null=False,
         default="SIRET",
     )
-    amount = models.FloatField(_("Amount"), blank=True, null=True, default=None)
+    # Memes bornes que Invoice.amount et Paiment.amount ; `null=True` conserve, le montant
+    # par defaut d'un cabinet pouvant ne pas etre renseigne.
+    amount = models.DecimalField(
+        _("Amount"),
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        default=None,
+    )
     currency = models.CharField(_("Currency"), max_length=10)
     invoice_content = models.TextField(_("Invoice content"), blank=True)
     invoice_footer = models.TextField(_("Invoice footer"), blank=True)
@@ -567,13 +605,34 @@ class FileImport(models.Model):
             storage_examination.delete(path_examination)
 
 
+# Extension bornee a un jeu sur : elle finit dans un nom de fichier ecrit sur disque et
+# alimente mimetypes.guess_type (Document.clean). Une extension hors de ce jeu est
+# abandonnee ; le mime_type sera alors vide, comme il l'est deja pour un fichier sans
+# extension. Meme perte pour une extension composee (rapport.tar.gz ne garde que .gz,
+# mimetypes.guess_type n'y reconnait plus application/x-tar) et pour un nom qui n'est
+# qu'une extension (.gitignore : PurePosixPath n'y voit aucun suffixe, comme pour un
+# fichier sans extension).
+_EXTENSION_SURE = re.compile(r"\.[a-z0-9]{1,10}\Z")
+
+
+# Nom fige : la migration 0056_alter_document_document_file la reference par son chemin
+# d'import (libreosteoweb.models.chemin_de_stockage_du_document) ; la renommer ou la
+# deplacer casserait `migrate` depuis zero.
+def chemin_de_stockage_du_document(instance: "Document", nom_televerse: str) -> str:
+    """Nom de stockage non devinable, extension d'origine conservee."""
+    extension = PurePosixPath(nom_televerse).suffix.lower()
+    if not _EXTENSION_SURE.match(extension):
+        extension = ""
+    return f"documents/{uuid.uuid4().hex}{extension}"
+
+
 class Document(models.Model):
     """
     Implements a document to be attached to
     an examination or patient file
     """
 
-    document_file = models.FileField(upload_to="documents")
+    document_file = models.FileField(upload_to=chemin_de_stockage_du_document)
     title = models.TextField(_("Title"))
     notes = models.TextField(_("Notes"), blank=True, null=True, default=None)
     internal_date = models.DateTimeField(_("Adding date"), blank=True, null=False)

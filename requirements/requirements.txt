@@ -12,7 +12,6 @@ sqlparse
 netifaces2
 decorator
 packaging
-django-protected-media
 django-statici18n>=2.0
 pytz
 drf-excel==2.4

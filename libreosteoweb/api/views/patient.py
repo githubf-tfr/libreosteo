@@ -15,14 +15,15 @@
 import logging
 
 from django.conf import settings
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.http import Http404
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from drf_excel.mixins import XLSXFileMixin
 from drf_excel.renderers import XLSXRenderer
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import ParseError, ValidationError
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
@@ -98,18 +99,79 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
             apiserializers.PatientHomonymeSerializer(homonymes, many=True).data
         )
 
+    def _convertir_si_doublon(self, instance, erreur, contexte):
+        """Distingue un doublon reel d'une autre IntegrityError, partagee par
+        `perform_create` et `perform_update` : meme raisonnement, une seule fois. Une FK
+        rompue — l'`OfficeEvent` de `receiver_newpatient`, le `RegularDoctor` de
+        `Patient.doctor` disparu entre la validation et l'ecriture — ressortirait sinon en
+        « Ce patient existe deja », message faux qui masquerait la panne. D'ou cette
+        relecture : on ne convertit que si le doublon est bien la, et toute autre
+        violation repart telle quelle vers la 500 qu'elle merite. Ne pas « simplifier »
+        vers un `except` large : c'est le defaut qu'on corrige.
+
+        `instance.pk` vaut `None` a la creation — l'auto-increment n'est pose qu'apres un
+        INSERT reussi — et vaut deja l'identifiant existant a la mise a jour : on exclut
+        cette ligne de la recherche de doublon uniquement quand elle a un pk, sinon toute
+        mise a jour se detecterait comme son propre doublon.
+        """
+        doublon_qs = models.Patient.objects.filter(
+            family_name__iexact=instance.family_name,
+            first_name__iexact=instance.first_name,
+            birth_date=instance.birth_date,
+        )
+        if instance.pk is not None:
+            doublon_qs = doublon_qs.exclude(pk=instance.pk)
+        # Une ValidationError DRF est une erreur *geree* : Django journalise le 4xx en
+        # `warning` sans `exc_info`, et le `raise … from` ci-dessous n'atteindrait donc
+        # aucun journal. Sans cette ligne, un refus d'integrite ne laisserait aucune trace
+        # serveur. `warning` et non `exception` : un doublon refuse est une issue normale
+        # de course, pas une panne — mais sa trace reste utile au diagnostic.
+        logger.warning("Refus d'intégrité à %s d'un patient" % contexte, exc_info=True)
+        if not doublon_qs.exists():
+            raise erreur
+        # La base a tranche : une operation concurrente a pose le meme triplet entre la
+        # validation du serialiseur et l'ecriture. On rend exactement ce que le
+        # validateur rend — meme message, meme structure — parce que c'est ce que
+        # l'interface affiche et l'attendu litteral de R-PAT-03 etape 1.
+        raise ValidationError(
+            {api_settings.NON_FIELD_ERRORS_KEY: [_("This patient already exists")]}
+        ) from erreur
+
     def perform_create(self, serializer):
         instance = models.Patient(**serializer.validated_data)
         instance.set_user_operation(self.request.user)
         instance.set_request(self.request)
-        instance.full_clean()
-        instance.save()
+        # `validate_constraints=False` : le validateur du serialiseur porte deja la regle
+        # d'unicite (meme clef, meme insensibilite a la casse) et la base la garantit. Une
+        # troisieme verification ici ne fermerait rien de plus — ce serait un troisieme
+        # « check puis insert » — et leverait un `django.core.exceptions.ValidationError`
+        # que DRF ne convertit pas, soit une 500 la ou le produit promet une 400.
+        # `clean()` reste appele : c'est lui qui pose `creation_date`, et c'est la seule
+        # raison pour laquelle ce `full_clean` existe.
+        instance.full_clean(validate_constraints=False)
+        try:
+            # Point de sauvegarde, indispensable sous ATOMIC_REQUESTS : rattraper une
+            # IntegrityError sans `atomic()` imbrique laisserait la transaction de requete
+            # rompue, et toute la suite de la vue echouerait en TransactionManagementError.
+            with transaction.atomic():
+                instance.save()
+        except IntegrityError as erreur:
+            self._convertir_si_doublon(instance, erreur, "la création")
         serializer.instance = instance
 
     def perform_update(self, serializer):
         serializer.instance.set_user_operation(self.request.user)
         serializer.instance.set_request(self.request)
-        return super(PatientViewSet, self).perform_update(serializer)
+        try:
+            # Meme garde qu'a la creation, et pour la meme raison (`ATOMIC_REQUESTS`) :
+            # deux PATCH concurrents renommant deux patients existants vers le meme
+            # triplet passent tous les deux le validateur, checke avant ecriture, puis le
+            # second `save()` — declenche par `serializer.save()` sous
+            # `super().perform_update` — leve l'IntegrityError que cette garde rattrape.
+            with transaction.atomic():
+                super(PatientViewSet, self).perform_update(serializer)
+        except IntegrityError as erreur:
+            self._convertir_si_doublon(serializer.instance, erreur, "la mise à jour")
 
     def perform_destroy(self, instance):
         is_gdpr_request = (

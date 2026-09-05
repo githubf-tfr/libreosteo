@@ -16,16 +16,21 @@
 import os
 import shutil
 import tempfile
+import threading
 from datetime import date, datetime, timedelta
 from datetime import timezone as fuseau_utc
+from pathlib import PurePosixPath
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError, connection
+from django.db.models import signals
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APITransactionTestCase
 
 from libreosteoweb.api.serializers import PatientSerializer
 from libreosteoweb.api.validators import UniqueTogetherIgnoreCaseValidator
@@ -48,6 +53,7 @@ from libreosteoweb.tests.fixtures import (
     regle_cabinet,
     sans_receivers,
 )
+from libreosteoweb.tests.test_concurrence import sans_atomic_requests
 
 PATIENT_MINIMAL = {
     "family_name": "Picard",
@@ -265,7 +271,7 @@ class TestValidateurUnicite(TestCase):
     def test_un_champ_nul_desactive_la_validation(self):
         with sans_receivers():
             cree_patient(first_name="")
-            cree_patient(first_name="")
+            cree_patient(first_name="", birth_date=date(1940, 1, 1))
         validateur = UniqueTogetherIgnoreCaseValidator(
             queryset=Patient.objects.all(),
             fields=("family_name", "first_name"),
@@ -274,6 +280,110 @@ class TestValidateurUnicite(TestCase):
         )
         serialiseur = PatientSerializer()
         validateur({"family_name": "Picard", "first_name": None}, serialiseur)
+
+
+class TestContrainteUnicitePatient(TestCase):
+    """La base porte la meme regle que le validateur du serialiseur, casse comprise."""
+
+    def test_le_meme_triplet_a_casse_differente_est_refuse_par_la_base(self):
+        """La contrainte est fonctionnelle — `Lower()` sur le nom et le prenom — parce que
+        le validateur applicatif compare en `__iexact`. Une contrainte octet a octet
+        laisserait passer ce que l'application refuse deja : la base serait moins stricte
+        que l'application, exactement l'inverse du but."""
+        with sans_receivers():
+            cree_patient(family_name="Picard", first_name="Jean-Luc")
+            with self.assertRaises(IntegrityError):
+                cree_patient(family_name="PICARD", first_name="JEAN-LUC")
+
+    def test_deux_homonymes_de_dates_differentes_restent_creables(self):
+        """L'homonymie avertit sans jamais bloquer (acquis S6) : la contrainte porte sur la
+        clef du validateur — nom, prenom **et** date de naissance —, pas sur l'homonymie."""
+        with sans_receivers():
+            cree_patient(family_name="Picard", first_name="Jean-Luc")
+            cree_patient(
+                family_name="Picard",
+                first_name="Jean-Luc",
+                birth_date=date(1980, 1, 1),
+            )
+        self.assertEqual(Patient.objects.filter(family_name="Picard").count(), 2)
+
+
+class TestConcurrenceMiseAJourPatient(APITransactionTestCase):
+    """`perform_update` doit porter la meme garde IntegrityError que `perform_create`
+    (defaut trouve en revue finale de D3) : deux renommages concurrents vers le meme
+    triplet doivent rendre une 400 propre, jamais une 500. Meme montage que
+    `TestRefusDeLaBase` de `test_concurrence.py` — `APITransactionTestCase` pour la
+    visibilite reelle entre connexions, `sans_atomic_requests()` pour que SQLite ne fige
+    pas son instantane avant l'interception (cf. docstring de ce module)."""
+
+    serialized_rollback = True
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def test_deux_renommages_concurrents_vers_le_meme_triplet_rendent_400(self):
+        with sans_receivers():
+            autre_patient = cree_patient(
+                family_name="Picard",
+                first_name="Jean-Luc",
+                birth_date=date(1935, 7, 13),
+            )
+            patient_a_renommer = cree_patient(
+                family_name="Riker", first_name="William", birth_date=date(1941, 1, 1)
+            )
+        triplet_cible = {
+            "family_name": "Sisko",
+            "first_name": "Benjamin",
+            "birth_date": date(1950, 1, 1),
+        }
+
+        def renomme_l_autre_patient_sur_une_autre_connexion():
+            # Django ouvre une connexion par thread : le faire ici, c'est bien le faire
+            # depuis une seconde connexion, sans rien truquer dans la premiere (meme
+            # motif que `_cree_le_doublon_sur_une_autre_connexion` de test_concurrence.py).
+            try:
+                Patient.objects.filter(pk=autre_patient.id).update(**triplet_cible)
+            finally:
+                connection.close()
+
+        def intercale_le_renommage_concurrent(sender, instance, **kwargs):
+            # Une seule fois : on se deconnecte avant d'agir, sinon la mise a jour
+            # ci-dessous rappellerait ce meme recepteur (meme motif que
+            # `_intercale_le_doublon` dans test_concurrence.py).
+            signals.pre_save.disconnect(
+                intercale_le_renommage_concurrent, sender=Patient
+            )
+            fil = threading.Thread(
+                target=renomme_l_autre_patient_sur_une_autre_connexion
+            )
+            fil.start()
+            fil.join()
+
+        donnees = dict(triplet_cible)
+        donnees["birth_date"] = triplet_cible["birth_date"].isoformat()
+        donnees["consent_check"] = True
+        with sans_receivers():
+            signals.pre_save.connect(intercale_le_renommage_concurrent, sender=Patient)
+            try:
+                with sans_atomic_requests():
+                    reponse = self.client.patch(
+                        reverse("patient-detail", kwargs={"pk": patient_a_renommer.id}),
+                        data=donnees,
+                        format="json",
+                    )
+            finally:
+                signals.pre_save.disconnect(
+                    intercale_le_renommage_concurrent, sender=Patient
+                )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reponse.data["non_field_errors"][0], "Ce patient existe déjà")
+        self.assertEqual(
+            Patient.objects.get(pk=patient_a_renommer.id).family_name, "Riker"
+        )
 
 
 class TestConsultation(APITestCase):
@@ -410,9 +520,13 @@ class TestDocumentsPatient(APITestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        repertoire_media_temp = tempfile.mkdtemp()
-        cls.addClassCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
-        remplacement_media_root = override_settings(MEDIA_ROOT=repertoire_media_temp)
+        cls.repertoire_media_temp = tempfile.mkdtemp()
+        cls.addClassCleanup(
+            shutil.rmtree, cls.repertoire_media_temp, ignore_errors=True
+        )
+        remplacement_media_root = override_settings(
+            MEDIA_ROOT=cls.repertoire_media_temp
+        )
         remplacement_media_root.enable()
         cls.addClassCleanup(remplacement_media_root.disable)
 
@@ -424,9 +538,11 @@ class TestDocumentsPatient(APITestCase):
             self.patient = cree_patient()
         self.client.login(username="test", password="testpw")
 
-    def depose_un_document(self):
+    def depose_un_document(
+        self, nom_fichier="compte-rendu.txt", content_type="text/plain"
+    ):
         fichier = SimpleUploadedFile(
-            "compte-rendu.txt", b"contenu du compte rendu", content_type="text/plain"
+            nom_fichier, b"contenu du compte rendu", content_type=content_type
         )
         return self.client.post(
             reverse("PatientDocuments-list"),
@@ -438,6 +554,37 @@ class TestDocumentsPatient(APITestCase):
             },
             format="multipart",
         )
+
+    # Seul le premier des cinq tests suivants échoue avant que le nom de stockage
+    # devienne opaque ; les autres passent déjà et couvrent en non-régression le
+    # comportement que le changement doit préserver.
+    def test_le_nom_stocke_ne_reprend_rien_du_nom_televerse(self):
+        self.depose_un_document()
+        nom = Document.objects.get().document_file.name
+        self.assertTrue(nom.startswith("documents/"))
+        self.assertNotIn("compte-rendu", nom)
+
+    def test_l_extension_du_fichier_televerse_est_conservee(self):
+        self.depose_un_document()
+        self.assertTrue(Document.objects.get().document_file.name.endswith(".txt"))
+
+    def test_le_type_mime_reste_renseigne_apres_depot(self):
+        self.depose_un_document()
+        self.assertEqual(Document.objects.get().mime_type, "text/plain")
+
+    def test_deux_depots_du_meme_fichier_produisent_deux_noms_distincts(self):
+        self.depose_un_document()
+        self.depose_un_document()
+        noms = {d.document_file.name for d in Document.objects.all()}
+        self.assertEqual(len(noms), 2)
+
+    def test_une_extension_hors_du_jeu_sur_est_abandonnee(self):
+        self.depose_un_document(
+            nom_fichier="rapport.abcdefghijk", content_type="application/octet-stream"
+        )
+        document = Document.objects.get()
+        self.assertEqual(PurePosixPath(document.document_file.name).suffix, "")
+        self.assertIsNone(document.mime_type)
 
     def test_supprimer_un_document_patient_efface_le_document(self):
         depot = self.depose_un_document()
@@ -502,6 +649,80 @@ class TestDocumentsPatient(APITestCase):
             b"For security purpose, no document could be uploaded",
             contenu_enregistre,
         )
+
+    def test_un_anonyme_n_obtient_pas_le_document(self):
+        depot = self.depose_un_document()
+        self.assertEqual(depot.status_code, status.HTTP_201_CREATED)
+        url = Document.objects.get().document_file.url
+        self.client.logout()
+        reponse = self.client.get(url)
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("login") + "?next=" + url)
+        self.assertEqual(reponse.content, b"")
+
+    def test_un_utilisateur_connecte_obtient_le_document(self):
+        self.depose_un_document()
+        url = Document.objects.get().document_file.url
+        reponse = self.client.get(url)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(
+            b"".join(reponse.streaming_content), b"contenu du compte rendu"
+        )
+
+    def test_le_document_est_servi_en_piece_jointe_nommee_par_son_titre(self):
+        self.depose_un_document()
+        url = Document.objects.get().document_file.url
+        reponse = self.client.get(url)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(
+            reponse.headers["Content-Disposition"],
+            'attachment; filename="Compte rendu.txt"',
+        )
+
+    def test_un_titre_hostile_ne_produit_pas_un_en_tete_invalide(self):
+        self.depose_un_document()
+        document = Document.objects.get()
+        document.title = "recu\r\n../../etc/passwd"
+        document.save()
+        reponse = self.client.get(document.document_file.url)
+        self.assertEqual(reponse.status_code, 200)
+        entete = reponse.headers["Content-Disposition"]
+        self.assertTrue(entete.startswith("attachment"))
+        for interdit in ("\r", "\n", "/", "\\"):
+            self.assertNotIn(interdit, entete)
+
+    def test_un_titre_entierement_retire_rend_une_piece_jointe_sans_nom(self):
+        self.depose_un_document()
+        document = Document.objects.get()
+        document.title = "\x01"
+        document.save()
+        reponse = self.client.get(document.document_file.url)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.headers["Content-Disposition"], "attachment")
+
+    def test_un_chemin_qui_sort_du_media_root_ne_rend_aucun_fichier(self):
+        # Code reellement observe pour ce refus de traversee : 400.
+        reponse = self.client.get("/files/documents/../../../../etc/passwd")
+        self.assertGreaterEqual(reponse.status_code, 400)
+        self.assertNotIn(b"root:", reponse.content)
+
+    def test_un_fichier_sans_document_est_force_en_piece_jointe_sans_nom(self):
+        chemin = os.path.join(settings.MEDIA_ROOT, "tmp")
+        os.makedirs(chemin, exist_ok=True)
+        with open(os.path.join(chemin, "import.csv"), "wb") as fichier:
+            fichier.write(b"nom,prenom")
+        reponse = self.client.get("/files/tmp/import.csv")
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.headers["Content-Disposition"], "attachment")
+
+    def test_une_reponse_non_modifiee_ne_porte_pas_de_content_disposition(self):
+        self.depose_un_document()
+        url = Document.objects.get().document_file.url
+        premiere_reponse = self.client.get(url)
+        depuis = premiere_reponse.headers["Last-Modified"]
+        reponse = self.client.get(url, HTTP_IF_MODIFIED_SINCE=depuis)
+        self.assertEqual(reponse.status_code, 304)
+        self.assertNotIn("Content-Disposition", reponse.headers)
 
 
 class TestSessionUtilisateur(APITestCase):

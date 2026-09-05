@@ -19,8 +19,10 @@ import shutil
 import tempfile
 import unittest
 from datetime import date, datetime
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
@@ -345,6 +347,42 @@ class TestIntegrationPatients(APITestCase):
         self.assertEqual(reponse.data["patient"]["imported"], 1)
         self.assertEqual(len(reponse.data["patient"]["errors"]), 1)
         self.assertEqual(Patient.objects.count(), 1)
+
+    def test_une_integrityerror_a_l_enregistrement_est_remontee_sans_interrompre(self):
+        """`Patient` porte desormais une contrainte d'unicite en base (migration 0057) :
+        une course (creation concurrente du meme triplet pendant l'import) fait lever une
+        `IntegrityError` a `serializer.save()`, apres que `is_valid()` l'a pourtant
+        validee. Simulee ici en faisant lever `Patient.save()` pour une seule ligne,
+        plutot qu'une vraie course entre connexions : la panne visee est un `save()` qui
+        leve, quelle qu'en soit l'origine reelle en production. Les lignes valides avant
+        et apres celle en erreur doivent malgre tout etre importees."""
+        original_save = Patient.save
+
+        def leve_pour_worf(self, *args, **kwargs):
+            if self.family_name == "Worf":
+                raise IntegrityError("contrainte simulée")
+            return original_save(self, *args, **kwargs)
+
+        with patch.object(Patient, "save", leve_pour_worf):
+            reponse = self.depose_et_integre(
+                [
+                    ligne_patient(1),
+                    ligne_patient(2, nom="Worf", prenom="Worf", naissance="01/01/1970"),
+                    ligne_patient(
+                        3, nom="Crusher", prenom="Beverly", naissance="13/10/1924"
+                    ),
+                ]
+            )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(reponse.data["patient"]["imported"], 2)
+        erreurs = reponse.data["patient"]["errors"]
+        self.assertEqual(len(erreurs), 1)
+        # Ligne 3 du fichier : en-tête + deux lignes de données avant elle.
+        self.assertEqual(erreurs[0][0], 3)
+        self.assertEqual(Patient.objects.count(), 2)
+        self.assertFalse(Patient.objects.filter(family_name="Worf").exists())
+        self.assertTrue(Patient.objects.filter(family_name="Picard").exists())
+        self.assertTrue(Patient.objects.filter(family_name="Crusher").exists())
 
     def test_ligne_tronquee_est_remontee_en_erreur(self):
         # QUOTE_ALL : une ligne plus courte que les autres fait varier le nombre de

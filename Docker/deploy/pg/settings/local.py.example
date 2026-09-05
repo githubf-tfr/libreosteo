@@ -1,0 +1,34 @@
+# Exemple. Copier en <SETTINGS>/local.py dans le repertoire monte sur /Libreosteo/settings
+# (variable SETTINGS du .env), puis renseigner les deux emplacements vides ci-dessous.
+# Ce fichier n'est charge que par le __init__.py voisin (« from .local import * »),
+# lui-meme importe par Libreosteo/settings/container.py.
+
+# Clef secrete Django. Ce fichier l'emporte sur la variable d'environnement
+# LIBREOSTEO_SECRET_KEY du .env : renseigner l'une ou l'autre, pas forcement les deux.
+# La generer une fois et la conserver — la changer invalide toutes les sessions ouvertes et
+# tous les jetons de reinitialisation de mot de passe en cours (commande de generation :
+# voir Docker/deploy/pg/.env.example).
+SECRET_KEY = ""
+
+host = "db"  # nom du service PostgreSQL dans docker-compose.yml
+port = 5432
+name = "libreosteo"  # = POSTGRES_DB, en dur dans docker-compose.yml
+user = "libreosteo"  # = POSTGRES_USER du .env
+# A renseigner : l'image PostgreSQL officielle exige un mot de passe sur les connexions
+# TCP des que POSTGRES_PASSWORD est defini. Meme valeur que POSTGRES_PASSWORD du .env.
+password = ""
+
+# Le mode conteneur exige PostgreSQL : container.py refuse de demarrer sur tout autre
+# moteur, sqlite compris.
+# ATOMIC_REQUESTS est impose a True par container.py, apres l'import de ce fichier : une
+# valeur ecrite ici serait ecrasee. Une requete HTTP = une transaction, sans exception.
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": name,
+        "USER": user,
+        "PASSWORD": password,
+        "HOST": host,
+        "PORT": port,
+    }
+}

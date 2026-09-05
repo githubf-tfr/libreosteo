@@ -15,6 +15,7 @@
 # -*- coding: utf-8 -*-
 import locale
 from datetime import timedelta
+from decimal import Decimal
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -23,10 +24,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import APITestCase
 
+from libreosteoweb.api.invoicing.generator import ExaminationInvoiceHelper, Generator
 from libreosteoweb.models import (
     ExaminationStatus,
     Invoice,
     InvoiceStatus,
+    OfficeSettings,
     Paiment,
 )
 from libreosteoweb.templatetags.invoice_extras import templatize
@@ -122,6 +125,44 @@ class TestFacturation(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Invoice.objects.count(), 0)
 
+    def test_un_montant_a_centimes_est_stocke_au_centime_pres(self):
+        """Un montant est une somme d'argent : le binaire à virgule flottante ne représente
+        pas `55.55` exactement, et l'écart se propagerait jusqu'à l'avoir."""
+        reponse = self.facture(amount=55.55)
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        facture = Invoice.objects.get(id=reponse.data["invoiced"])
+        self.assertEqual(facture.amount, Decimal("55.55"))
+
+    def test_l_avoir_rend_l_oppose_exact_du_montant(self):
+        """`cancel_invoice` calcule `-1 * invoice.amount` : sur un flottant, l'opposé
+        traîne l'écart de représentation du montant d'origine."""
+        creation = self.facture(amount=55.55)
+        facture = Invoice.objects.get(id=creation.data["invoiced"])
+        annulation = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": facture.id}), data={}, format="json"
+        )
+        self.assertEqual(annulation.status_code, status.HTTP_202_ACCEPTED)
+        avoir = Invoice.objects.get(id=annulation.data["credit_note"]["id"])
+        self.assertEqual(avoir.amount, Decimal("-55.55"))
+
+    def test_un_montant_a_trois_decimales_est_refuse(self):
+        """La frontière d'entrée borne le montant au centime depuis que `amount` y est un
+        `DecimalField(max_digits=10, decimal_places=2)` : ce qui ne tient pas au centime est
+        refusé, et non arrondi en silence. L'ancien `FloatField` l'acceptait."""
+        reponse = self.facture(amount=55.555)
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("amount", reponse.data)
+        self.assertEqual(Invoice.objects.count(), 0)
+
+    def test_l_api_de_facturation_rend_un_nombre_json_et_non_une_chaine(self):
+        """La frontière JSON ne bouge pas : `COERCE_DECIMAL_TO_STRING = False`. Sans lui,
+        DRF rendrait `"amount":"55.55"`, `invoice.js:88` sommerait des chaînes et la ligne
+        « Montant total sur la période sélectionnée » afficherait une concaténation."""
+        self.facture(amount=55.55)
+        liste = self.client.get(reverse("invoice-list"))
+        self.assertEqual(liste.status_code, status.HTTP_200_OK)
+        self.assertIn(b'"amount":55.55', liste.content)
+
 
 class TestNumerotationFacture(APITestCase):
     """La séquence est un état persistant partagé : chaque test part d'un cabinet neuf."""
@@ -178,6 +219,35 @@ class TestNumerotationFacture(APITestCase):
         self.assertEqual(facture.office_identifier, "PRAT")
         self.assertEqual(facture.footer, "Pied praticien")
         self.assertEqual(facture.professional_id, "12345")
+
+    def test_le_numero_est_reserve_sur_la_ligne_et_non_sur_l_objet_en_memoire(self):
+        """Le générateur reçoit du middleware un objet lu à l'entrée de la requête, bien
+        avant la réservation. Celle-ci relit la ligne sous verrou : c'est la valeur en base
+        qui fait foi, jamais celle que porte l'objet."""
+        regle_cabinet(invoice_start_sequence="10000")
+        perime = OfficeSettings.objects.get(id=1)
+        OfficeSettings.objects.filter(id=1).update(invoice_start_sequence="20000")
+        numero = Generator(perime, self.reglages_praticien).get_invoice_number()
+        self.assertEqual(numero, "20000")
+        self.assertEqual(
+            OfficeSettings.objects.get(id=1).invoice_start_sequence, "20001"
+        )
+
+    def test_la_facturation_n_ecrase_pas_le_reste_de_la_ligne_cabinet(self):
+        """La facturation réécrivait la ligne entière du cabinet à partir de l'objet du
+        middleware, lu avant la réservation : toute modification concurrente d'un autre
+        champ disparaissait. Seule la séquence est désormais écrite, sur une ligne fraîche."""
+        with sans_receivers():
+            consultation = cree_consultation(self.patient, therapeut=self.user)
+        perime = OfficeSettings.objects.get(id=1)
+        OfficeSettings.objects.filter(id=1).update(office_phone="05 55 99 99 99")
+        aide = ExaminationInvoiceHelper(perime, self.reglages_praticien, self.user)
+        aide.generate_invoice(
+            consultation, {"amount": Decimal("55.00"), "paiment_mode": "cash"}, None
+        )
+        self.assertEqual(
+            OfficeSettings.objects.get(id=1).office_phone, "05 55 99 99 99"
+        )
 
 
 class TestEncaissement(APITestCase):
@@ -460,3 +530,31 @@ class TestTemplatize(TestCase):
 
     def test_texte_sans_balise_est_rendu_tel_quel(self):
         self.assertEqual(templatize("Aucune balise", {}), "Aucune balise")
+
+    def test_balise_absente_de_l_objet_ne_leve_pas(self):
+        """Ni l'attribut demande, ni `.keys()` : avant le 2026-09-05, `todisplay` n'était
+        jamais affecté dans ce cas et la ligne suivante levait `UnboundLocalError`. Le
+        rendu produit — « None » — est celui déjà existant du cas jumeau, une clé de
+        dictionnaire absente (`obj.get(val, None)` rendu par `_unicode(None)`) : aucune
+        raison que l'absence de l'attribut se comporte autrement selon le type d'`obj`."""
+
+        class SansAttribut:
+            pass
+
+        self.assertEqual(templatize("<inexistant>", SansAttribut()), "None")
+
+    def test_valeur_decimale_rendue_comme_la_valeur_flottante_equivalente(self):
+        """Jumeau décimal de `test_valeur_flottante_rendue_selon_la_locale`. Sans lui, la
+        ligne `Template with 55 EUR` de la facture imprimée deviendrait
+        `Template with 55.00 EUR` dès que le montant est un `Decimal` : `locale.str(55.0)`
+        vaut `'55'`, quand `str(Decimal("55.00"))` vaut `'55.00'`."""
+        for decimal, flottant in [
+            (Decimal("55.00"), 55.0),
+            (Decimal("55.55"), 55.55),
+            (Decimal("0.00"), 0.0),
+            (Decimal("-55.55"), -55.55),
+        ]:
+            with self.subTest(montant=str(decimal)):
+                self.assertEqual(
+                    templatize("<amount>", {"amount": decimal}), locale.str(flottant)
+                )

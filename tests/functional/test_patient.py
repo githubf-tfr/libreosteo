@@ -2,6 +2,8 @@
 
 from datetime import date
 
+import pytest
+from django.test.testcases import FSFilesHandler
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -14,6 +16,7 @@ from libreosteoweb.models import (
 )
 from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
+    attendre_creation_patient,
     attendre_enregistrement_patient,
     attendre_page_prete,
     cloturer_consultation,
@@ -89,9 +92,7 @@ def test_avertissement_d_homonyme_puis_creation(
     modale = page.locator("div.modal-body")
     expect(modale).to_be_visible()
     expect(modale).to_contain_text("Un patient de même nom existe déjà")
-    page.click("#modal-btn-ok")
-
-    attendre_page_prete(page)
+    attendre_creation_patient(page, lambda: page.click("#modal-btn-ok"))
     assert Patient.objects.filter(family_name="Picard").count() == 2
 
 
@@ -131,13 +132,13 @@ def test_charge_html_dans_nom_homonyme_reste_texte_litteral(
     expect(modale).to_be_visible()
     expect(modale).to_contain_text(charge)
     expect(page.locator("#xss-marker")).to_have_count(0)
-    page.click("#modal-btn-ok")
-
-    attendre_page_prete(page)
+    attendre_creation_patient(page, lambda: page.click("#modal-btn-ok"))
     assert Patient.objects.filter(family_name=charge).count() == 2
 
 
-def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None:
+def test_edition_du_dossier_patient(
+    page: Page, live_server: LiveServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
     connexion(page, live_server)
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
@@ -248,6 +249,28 @@ def test_edition_du_dossier_patient(page: Page, live_server: LiveServer) -> None
     assert document.document.title == "Licence LibreOsteo"
     assert document.document.notes == "Licence GNU GPLv3"
     assert document.document.document_date == date(2012, 1, 10)
+
+    # `live_server` (django.test.testcases.LiveServerThread) sert MEDIA_URL
+    # ("/files/") par son propre FSFilesHandler, en amont de l'urlconf : ce
+    # raccourci interne trouve le fichier sur disque et le rend directement par
+    # `django.views.static.serve`, sans jamais passer par `telecharger_fichier`
+    # (donc sans le login requis, sans la piece jointe forcee, sans le titre).
+    # Verifie empiriquement : sans ce patch, la requete ci-dessous recoit 200 en
+    # anonyme avec `Content-Disposition: inline` et le nom de stockage opaque. On
+    # neutralise ce court-circuit pour que la requete traverse reellement
+    # l'application, comme en production ou aucun FSFilesHandler n'existe.
+    monkeypatch.setattr(FSFilesHandler, "_should_handle", lambda self, path: False)
+
+    # Non-regression D1 : la vignette reste affichee et le document reste atteignable
+    # apres la bascule de vue et le renommage opaque. `page.request` partage les
+    # cookies du contexte, donc la session ouverte plus haut.
+    expect(page.locator("div.document_ico a")).to_have_count(1)
+    url_document = document.document.document_file.url
+    assert "patients_1.csv" not in url_document
+    reponse = page.request.get(live_server.url + url_document)
+    assert reponse.status == 200
+    assert "attachment" in reponse.headers["content-disposition"]
+    assert "Licence LibreOsteo.csv" in reponse.headers["content-disposition"]
 
 
 def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) -> None:

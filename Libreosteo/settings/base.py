@@ -105,7 +105,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "compressor",
     "zipcode_lookup",
-    "protected_media",
     "haystack",
     "statici18n",
 ]
@@ -190,7 +189,11 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(DATA_FOLDER, "db.sqlite3"),
-        #'ATOMIC_REQUESTS' : True,
+        # Une requete HTTP = une transaction. Le deploiement de reference ne lit jamais ce
+        # dictionnaire (le settings/ monte redefinit DATABASES en entier, et container.py
+        # impose le reglage sur le dictionnaire effectif) : la ligne est ici pour que le
+        # developpement et la suite unitaire voient le meme regime que la production.
+        "ATOMIC_REQUESTS": True,
     }
 }
 
@@ -230,6 +233,14 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
+    # DRF serialise un DecimalField en **chaine** par defaut. Ce lot rend le stockage et
+    # l'arithmetique Python exacts ; il ne touche pas la frontiere JSON, qui garde sa forme
+    # flottante. Sans ce reglage, `invoice.js:88` sommerait des chaines (`acc + amount`) et
+    # la ligne « Montant total sur la periode selectionnee: 55 » de R-FAC-02 rendrait
+    # « 055 » ; `templates/partials/invoice-list.html:62` afficherait « 55.00 € » la ou
+    # R-FAC-01 et R-FAC-02 attendent « 55 € ». Le total affiche reste donc une somme de
+    # flottants calculee dans le navigateur : son exactitude appartient a D6.
+    "COERCE_DECIMAL_TO_STRING": False,
 }
 
 LOGIN_URL = "accounts/login"
@@ -283,6 +294,16 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        # Les SuspiciousOperation — dont les refus ALLOWED_HOSTS — sont emises par Django
+        # en ERROR sur django.security.<NomException>. Sans cette entree elles remontent au
+        # logger `django`, dont le seul gestionnaire est `null`, et disparaissent. Le
+        # logger enfant est cree paresseusement par Django apres la configuration : il
+        # n'est pas concerne par `disable_existing_loggers`.
+        "django.security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         "libreosteoweb": {
             "handlers": ["console"],
             "level": "INFO",
@@ -309,13 +330,6 @@ COMPRESS_CSS_FILTERS = [
 ]
 
 DISPLAY_SERVICE_NET_HELPER = True
-
-PROTECTED_MEDIA_ROOT = os.path.join(DATA_FOLDER, "media")
-PROTECTED_MEDIA_URL = "/files"
-PROTECTED_MEDIA_LOCATION_PREFIX = "/internal"  # Prefix used in nginx config
-PROTECTED_MEDIA_AS_DOWNLOADS = (
-    False  # Controls inclusion of a Content-Disposition header
-)
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 SEND_INVOICE_FUNC = "libreosteoweb.api.utils.send_invoice_dummy"

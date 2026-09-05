@@ -1,0 +1,10 @@
+# Exemple. Copier en <SETTINGS>/__init__.py dans le repertoire monte sur
+# /Libreosteo/settings (variable SETTINGS du .env), a cote de local.py.
+#
+# Indispensable. Libreosteo/settings/container.py fait « from settings import * », un
+# import absolu : « settings » designe le paquet top-level resolu par sys.path, c'est-a-dire
+# le repertoire monte lui-meme, et non local.py dedans. Sans ce fichier, l'import reussit
+# sur un paquet-espace de noms implicite (PEP 420) et n'importe aucun nom ; DATABASES
+# retombe alors sur le sqlite de base.py. Le conteneur refuse desormais de demarrer dans ce
+# cas (ImproperlyConfigured, cf. la garde de container.py).
+from .local import *

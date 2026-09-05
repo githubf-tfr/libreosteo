@@ -75,6 +75,22 @@ Tenu à la main.
     signalé que ce lot n'est pas un remboursement de dette mais une réécriture d'interface.
     Il est en dernier et derrière un cadrage dédié : aucune ligne de code avant cette spec.
 
+- (2026-09-04) **Conduite du chantier « dette technique » : autonomie jusqu'à D6, D7 si
+  besoin.** Décidé par l'utilisateur à la clôture de D1, puis confirmé : les lots
+  s'enchaînent sans validation intermédiaire — cadrage, spec, plan, exécution, recette,
+  clôture, lot suivant — jusqu'à D6 inclus ; un lot D7 s'ouvre si le chantier fait
+  apparaître de la dette neuve qui ne rentre dans aucun des six. Répartition des rôles
+  fixée dans le même mouvement :
+  - **session centrale** — contrôle, arbitrage, commits ; elle ne rédige ni la spec ni le
+    plan, et vérifie elle-même les faits décisifs des rapports de sous-agents ;
+  - **spec de lot** rédigée par un agent OPUS 5, **plan d'implémentation** par un autre ;
+  - **implémentation** par des sous-agents sonnet — leçon de D1, où le nombre de tours a
+    pesé plus lourd que le prix du modèle ;
+  - **revue systématique**, un siège par tâche, sans exception.
+
+  Une question n'est posée à l'utilisateur que si aucune décision actée n'y répond et
+  qu'elle l'engage seul — un secret, une rotation de clef, une priorité de chantier.
+
 ## À faire
 
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non
@@ -173,7 +189,7 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
 - ~~(S3, tâche 5) `libreosteoweb/api/statistics.py` nomme sa fenêtre du jour d'après le
   jour calendaire UTC puis la borne en horaires locaux~~ — **corrigé le 2026-09-01**,
   défaut C de S3 bis, cf. « Terminé ».
-- (S4, tâche 5) **Détection de doublon patient à la création : résultat instable hors
+- ~~(S4, tâche 5) **Détection de doublon patient à la création : résultat instable hors
   du parcours retenu par `R-PAT-03`.** Constaté en construisant et en rejouant cette
   fiche : créer un patient en doublon exact (même nom, prénom et date de naissance
   qu'un patient déjà existant) sans repasser par le tableau de bord entre la création
@@ -183,7 +199,7 @@ en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé
   `R-PAT-03` couvre délibérément le seul parcours où le refus a été observé de façon
   reproductible — retour explicite sur l'URL racine de l'instance entre les deux
   tentatives (étape 2 de la fiche) — pour que son verdict reste déterministe. Cause
-  non recherchée ici.
+  non recherchée ici.~~ — **fermé le 2026-09-05**, défaut C, par D3 : cf. « Terminé ».
 - (S4, tâche 7) **Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
   sous forme de création manuelle.** Aucune fonction ne permet de créer à la main un
   événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
@@ -226,6 +242,20 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
   demande une base de test sur fichier, bascule que `tests/functional/conftest.py` fait
   déjà pour la même raison.
 
+Le défaut C est **clos par D3 (2026-09-05), par son résultat observable et non par sa
+cause** : cf. « Terminé ». Les deux acquis ci-dessus restent valides et ne se réinstruisent
+pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'être.
+
+### Défauts produit constatés en recette (à traiter, pas encore planifiés)
+
+- **2026-09-04 — le panneau « Démarrer une consultation » ne revient pas sans
+  rechargement.** Constaté à la passe de recette de D1, en montant l'état E2 : après avoir
+  clôturé une consultation, le panneau permettant d'en démarrer une nouvelle ne se
+  ré-affiche pas dans la même session Angular — `reloadExaminations`
+  (`libreosteoweb/static/js/app/patient.js`) recharge la consultation qui vient d'être
+  fermée dans `previousExamination.data` au lieu de la vider. Un rechargement complet de la
+  page suffit à retrouver le bouton. Hors périmètre de D1, non traité.
+
 ### Couverture du cahier de recette (à compléter, pas cette tâche)
 
 - (S4, tâche 10) Le champ « Nom de naissance » du formulaire patient (`R-PAT-01`
@@ -241,38 +271,405 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
 > forment le périmètre du chantier « dette technique » (§ Décisions actées), et ils restent
 > ici jusqu'à ce que le lot qui les ferme soit clos.
 
-- **Critique — documents médicaux servis sans authentification.**
-  `Docker/build/http-ready/Dockerfile:84` sert `--static-map /files=/Libreosteo/data/media`
-  par uwsgi avant Django : la route protégée (`Libreosteo/urls.py:129`,
-  `re_path(r"^files/", include("protected_media.urls"))`) n'est donc jamais atteinte, et les
-  documents gardent leur nom d'origine (`libreosteoweb/models.py:576`,
-  `upload_to="documents"`). `GET /files/documents/<nom>.pdf` sans session renvoie le
-  document — vérifié sur le code. Connexe : `django.security` est absent des loggers de
-  `LOGGING` (`Libreosteo/settings/base.py:250-296`), donc les refus `ALLOWED_HOSTS` que ce
-  sprint vient d'introduire ne laissent aucune trace.
 - **Élevé — socle hors support.** Django 4.2 (fin de support étendu avril 2026), Python de
   l'image non maîtrisé (`FROM alpine:latest` × 2, 3.14 constaté), PostgreSQL 13 (fin de vie
   novembre 2025).
-- **Élevé — intégrité des données.** Aucune contrainte d'unicité en base
-  (`libreosteoweb/models.py`), `ATOMIC_REQUESTS` désactivé (`Libreosteo/settings/base.py:193`),
-  numérotation des factures en lecture-modification-écriture non transactionnelle
-  (`libreosteoweb/api/invoicing/generator.py:72-92`), montants en `FloatField`. Tenu au
-  silence aujourd'hui par `--processes 1 --threads 1` (`Dockerfile:84`), non documenté comme
-  garde-fou.
 - **Élevé — frontend en fin de vie.** AngularJS 1.5.11, jQuery 1.12.4, jQuery UI 1.10.4, CVE
   ouvertes ; construction non reproductible (dépendances Git `#*`, `yarn.lock` ignoré,
   `curl | bash` sans somme de contrôle — `package.json:24-59`, `.gitignore:44`,
   `Docker/build/http-ready/Dockerfile:29`).
-- **Élevé — chaîne de démarrage conteneur.** `migrate` en échec avalé par la priorité des
-  opérateurs du `CMD` (`Dockerfile:84`), pas de `healthcheck` sur `db`
-  (`Docker/deploy/pg/docker-compose.yml:4-16`), images non épinglées, outils de build non
-  purgés dans l'étage `run`, PostgreSQL publié sur l'hôte (`docker-compose.yml:15-16`).
-- **Élevé — repli silencieux sur sqlite.** `Libreosteo/settings/container.py:25-28` : si le
-  volume `settings/` monté n'a pas d'`__init__.py` réexportant `local.py`, l'import réussit
-  sur un paquet-espace de noms vide et `DATABASES` retombe sur le sqlite de `base.py`, sans
-  erreur — contraire à la décision « PostgreSQL uniquement » (S4).
 
 ## Terminé
+
+- **2026-09-05 — D3 Intégrité des données livré** (treize tâches ; spec
+  `docs/superpowers/specs/2026-09-05-d3-integrite-design.md`, plan supprimé une fois
+  achevé). `Patient` porte désormais une contrainte d'unicité fonctionnelle en base
+  (nom/prénom insensibles à la casse, date de naissance), `ATOMIC_REQUESTS` est activé
+  (une requête HTTP = une transaction), la numérotation de facture est relue sous
+  verrou dans la même transaction que son écriture, et les montants sont des
+  `numeric(10,2)` en base comme en API — plus aucun de ces quatre points ne repose sur
+  `--processes 1 --threads 1`.
+
+  **Critère d'arrêt constaté par une exécution réelle** — passe de recette du
+  2026-09-05 sur le commit `b4d16c13ce7f558b7fe890e0478d00b0b6db870b`, instance neuve,
+  volumes `db/` et `data/` purgés, les deux images reconstruites sous le tag `b4d16c1`.
+  Les six sorties de l'étape 1 : `db` en `Up (healthy)`, `libreosteo` en `Up` ;
+  `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK` puis
+  `Applying libreosteoweb.0058_alter_invoice_amount_alter_officesettings_amount_and_more... OK` ;
+  `curl` rend `302 Found` vers `/install/` ; le shell conteneur rend `True` pour
+  `ATOMIC_REQUESTS` ; `\d libreosteoweb_patient` porte l'index
+  `"unique_patient_nom_prenom_naissance" UNIQUE, btree (lower(family_name::text),
+  lower(first_name::text), birth_date)` ; `\d libreosteoweb_invoice` porte
+  `amount | numeric(10,2)`. Course à deux sessions `psql` concurrentes (étape 2, triplet
+  `Crusher`/`Beverly`/`1950-01-01`) : la première session valide, la seconde bloque
+  environ 4 s puis rend `ERROR: duplicate key value violates unique constraint
+  "unique_patient_nom_prenom_naissance"` — une seule ligne subsiste, supprimée ensuite.
+  **Les deux moitiés du critère d'arrêt sont prouvées par deux tests au lieu d'un, et
+  c'est délibéré** : la ligne unique se prouve par un test de concurrence sur fichier
+  (`libreosteoweb/tests/test_concurrence.py`, moteur SQLite de la suite unitaire), le
+  refus applicatif (400, message du validateur) par un test déterministe à deux
+  connexions sur le même moteur ; ni l'un ni l'autre ne peut montrer la course sur le
+  moteur réel — cf. sortie 2 ci-dessous, la raison est structurelle, pas un manque de
+  soin.
+
+  Tableau fiche → verdict (critère d'acceptation 6) :
+
+  | Fiche | Verdict |
+  |---|---|
+  | `R-PAT-07` — doublon à casse différente refusé | OK |
+  | `R-PAT-03` — détection de doublon à la création | OK |
+  | `R-PAT-06` — avertissement d'homonyme à la création | OK |
+  | `R-FAC-01` — facture générée : numéro, montant, mentions | OK |
+  | `R-FAC-02` — liste des factures : contenu et navigation | OK |
+  | `R-THE-02` — données du thérapeute et du cabinet reprises sur la facture | OK |
+  | `R-FAC-05` — montant à centimes | OK |
+  | `R-FAC-03` — numérotation continue sur deux factures successives | OK |
+  | `R-CAB-02` — séquence de départ de facturation | OK |
+  | `R-CAB-03` — refus d'une séquence de facturation non numérique | OK |
+  | `R-SAU-01` — sauvegarde de l'instance | OK |
+  | `R-SAU-02` — restauration de la sauvegarde sur une instance vierge | OK |
+  | `R-INST-05` — migration refusée sur un parc contenant des doublons | **KO** (un écart, détaillé ci-dessous) |
+  | `R-IMP-01` — import d'un fichier de patients | OK |
+  | `R-IMP-02` — import de consultations liées aux patients importés | OK |
+  | `R-CON-03` — clôturer une consultation avec facturation | OK |
+
+  Écart constaté (une entrée, `R-INST-05`, étape 3) : attendu — le journal du
+  redémarrage refusé porte la ligne `Applying
+  libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance...` (que `migrate`
+  écrit et vide explicitement sur stdout avant de lancer la garde — vérifié dans le
+  source Django installé, `migrate.py::migration_progress_callback`), suivie du
+  `CommandError`, sans jamais se terminer par `OK`. Constaté — `docker compose logs`
+  ne porte jamais cette ligne, ni tronquée ni complète : le journal passe directement
+  de `Running migrations:` à `CommandError: Migration refusée : …`, reproduit à
+  l'identique sur deux passes indépendantes, sur le journal complet (pas seulement une
+  fenêtre `--since`). Le message d'erreur lui-même, l'absence de tout nom propre, et
+  l'absence de `WSGI app 0 (mountpoint='') ready` sont, eux, conformes à l'attendu. La
+  cause la plus probable est une perte de la dernière ligne non terminée par un saut de
+  ligne (`ending=""`) au moment où le conteneur sort en erreur, côté collecteur de
+  journal Docker plutôt que côté application — non instruite plus avant, la garde
+  elle-même n'étant pas en cause.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **Le statut du garde-fou de sérialisation change, pas sa valeur.**
+    `--processes 1 --threads 1` reste intact dans le `Dockerfile`, et c'est une
+    décision, pas un oubli : le chapeau reprochait à ce réglage de n'être « documenté
+    nulle part comme tel » ; il l'est désormais, en quatre lignes de commentaire
+    au-dessus du `CMD` (`Docker/build/http-ready/Dockerfile:112-115`). Jusqu'à D3
+    c'était lui, et lui seul, qui tenait l'intégrité au silence ; depuis D3 il est
+    redevenu un choix de capacité, qu'un lot ultérieur pourra lever avec sa propre
+    preuve. C'est la décision la plus discutable du lot, et la seule que D2 semblait
+    attendre dans l'autre sens (« D3 est le prochain lot… Le garde-fou
+    `--processes 1 --threads 1`, que D3 seul lèvera, n'a pas été touché » — D2,
+    ci-dessous). D3 ne le lève pas : il change ce que ce réglage protège.
+  - **Le défaut C est fermé par son résultat observable, pas par sa cause.** « Détection
+    de doublon patient à la création : résultat instable » (S4, tâche 5) et
+    l'investigation du 2026-09-02 restent non concluantes sur la cause. Les deux
+    symptômes disparaissent néanmoins : la double ligne devient impossible (contrainte
+    fonctionnelle en base, `T6`), et la « création silencieuse sans le moindre message »
+    devient impossible aussi — toute création refusée par la base ressort désormais en
+    400 avec le message que l'interface affiche déjà (`T7`). Le TOCTOU reste la
+    meilleure explication disponible et **n'est toujours pas prouvé** : ce lot ne l'a
+    pas réinstruit, conformément aux deux acquis déjà consignés. Si l'instabilité
+    réapparaissait après D3, elle serait d'une autre nature et se rouvrirait avec un
+    constat neuf.
+  - **La preuve de la course est répartie sur trois tests, pas resserrée sur un seul,
+    et c'est un fait mesuré, pas un choix de commodité.** Sous `ATOMIC_REQUESTS`,
+    SQLite n'arbitre pas une course d'insertion comme PostgreSQL : deux connexions
+    SQLite sur fichier, index unique fonctionnel, chacune ouvrant sa transaction
+    **avant** son `SELECT` de vérification, et le perdant reçoit
+    `OperationalError: database is locked`, jamais la violation d'unicité ;
+    transaction ouverte seulement à l'insertion (le test déterministe, T7), il reçoit
+    `IntegrityError`/le 400 applicatif. La différence est l'instantané de lecture, que
+    SQLite fige à la première instruction de la transaction. Le critère n'est pas
+    abaissé — la preuve est répartie : la ligne unique par un test de concurrence sur
+    fichier, le refus applicatif par un test déterministe à deux connexions, et les
+    deux doublés réels sur le moteur PostgreSQL par les deux sessions `psql` ci-dessus.
+  - **`ATOMIC_REQUESTS` seul cassait la restauration**, et le livrable 2 de I1 n'était
+    pas « deux lignes ». `sqlflush` encadre ses instructions d'un `BEGIN;` et d'un
+    `COMMIT;` que `restaurer` rejouait par un curseur brut ; sous transaction ouverte,
+    SQLite lève `cannot start a transaction within a transaction`, et le `COMMIT;`
+    aurait validé la transaction de requête au milieu du rechargement. Mesuré : le
+    réglage décommenté seul faisait échouer **6 des 11 tests** de `TestRestauration`
+    (T1). Deux conséquences journalisées : l'ordre des livrables de I1 s'est inversé,
+    et un `ROLLBACK` manuel d'un test existant, devenu faux, a été retiré.
+  - **La contrainte a invalidé le jeu de données d'un test existant** :
+    `TestValidateurUnicite.test_un_champ_nul_desactive_la_validation` (T6) semait deux
+    patients du même triplet ; le second a reçu une date de naissance différente. Ce
+    que le test prouve — le validateur applicatif ignore la comparaison dès qu'un champ
+    vaut `None` — n'a pas bougé.
+  - **Deux commits hors plan** ont été nécessaires pour tenir la suite fonctionnelle
+    sous `ATOMIC_REQUESTS` : `bf20372` (T2bis, `tests/functional/conftest.py` seul,
+    patch `BEGIN IMMEDIATE` du backend SQLite pour la suite fonctionnelle) et
+    `8105d1d` (T2ter, une barrière d'attente réelle dans `tests/functional/helpers.py`
+    à la place d'un `#loading-bar` jamais affiché sous 100 ms). Le second a corrigé une
+    course de synchronisation UI/test **préexistante**, jusqu'alors masquée par les
+    erreurs de verrou que le premier venait d'éliminer.
+  - **L'atomicité de la restauration (T1) n'est pas observable par l'interface.** Le
+    chemin de restauration se ferme dès qu'un utilisateur existe
+    (`@maintenance_available`), et aucun état « données présentes, zéro utilisateur »
+    n'existe par l'IHM : sa preuve reste unitaire
+    (`test_une_archive_illisible_ne_vide_pas_la_base`). L'essai d'archive tronquée de
+    `R-SAU-02` a été remonté à l'état E0, où il prouve autre chose — qu'un échec de
+    restauration ne laisse rien de cassé derrière lui, ce qu'il a effectivement montré
+    à la passe de recette ci-dessus.
+  - **Durée de `make test` avant et après la bascule sur base sur fichier** (T5,
+    nécessaire à la preuve de concurrence) : **51,363 s avant / 51,864 s après** — la
+    bascule est neutre en temps, elle ne fait pas gagner les 17 s que le plan annonçait
+    (mesurées sur `7bf31f6`, à 249 tests, donc non comparables). `make check` mesuré à
+    la clôture, sur les 262 tests du lot entier : 53,72 s (test seul) / 58,0 s (avec
+    lint et migrations) — un chiffre encore différent, sur un hôte partagé, à ne pas
+    opposer aux deux précédents.
+  - **Écart du manuel corrigé pendant la passe** (`R-PAT-06`, étape 3) : le cahier
+    attendait que la liste de résultats de recherche distingue les deux patients
+    homonymes par leur date de naissance. `Patient.birth_date` n'est pas indexé par
+    Whoosh (`libreosteoweb/search_indexes.py:25`, en commentaire), et le gabarit de
+    résultat (`search-result.html`) n'affiche que `family_name`/`first_name` — la date
+    n'apparaît jamais dans cette liste, sur aucune fiche. Corrigé pour dire ce que
+    `R-PAT-03` disait déjà correctement du même écran : les deux entrées sont
+    strictement indiscernables dans la liste.
+
+  **Ce que cela change à la priorité des lots restants** : D3 étant clos, **D4 devient
+  exécutable** — les contraintes et le changement de type sont désormais appliqués sur
+  des données que la montée de moteur ne déplacera pas au même moment, ce qui était la
+  raison du lien `D3 → D4`. Les deux chaînes causales `D2 → D3 → D4` et `D5 → D6` ne
+  bougent pas. Ce que D3 a délibérément renvoyé plus loin : `--processes 1 --threads 1`
+  intact (D4 pourra le lever, avec sa propre preuve) ; aucune exactitude décimale
+  au-delà de la base et de Python — la frontière JSON garde sa forme flottante et le
+  total de la Comptabilité reste une somme de flottants calculée dans le navigateur
+  (`invoice.js:88`), c'est D6 ; aucune montée de moteur, de cadre ni d'interpréteur,
+  c'est D4 ; aucune reprise des doublons existants sur un parc réel ; aucune refonte du
+  générateur de facture.
+
+  **Ce que cela change au chapeau** : rien au périmètre, rien aux dépendances, rien au
+  critère d'arrêt de D3 dans son exigence. Deux emplacements du tableau des constats
+  avaient dérivé depuis le 2026-09-04 et ont été corrigés au cadrage de la spec — le
+  fait qui les a fait bouger, journalisé ici : `D1` a décalé `models.py` de trois lignes
+  et `base.py` d'une, donc `ATOMIC_REQUESTS` vit à `base.py:192` (et non `:193`), et les
+  trois `FloatField` (devenus `DecimalField`) à `models.py:303,398,461` (et non
+  `300,395,458`). Le critère d'arrêt de D3 est **révisé dans sa preuve, pas dans son
+  exigence** — cf. sortie 2 ci-dessus (SQLite ne peut pas montrer la course comme
+  PostgreSQL sous `ATOMIC_REQUESTS`, d'où la preuve répartie sur trois tests au lieu
+  d'un).
+
+  **Chiffres et cliquets** : 249 → **262** tests unitaires (+13 : un en T1, deux en T4,
+  deux en T6, deux en T7, un en T9, trois en T11, deux en T2bis/T2ter — le compte exact
+  diffère de celui annoncé au plan, qui sous-comptait), couverture 90,70 → **90,74 %**.
+  `fail_under` **reste à 90** — 90,74 % ne mérite pas 91, et le lot n'a pas écrit de
+  test dont la seule fonction serait de gonfler ce chiffre (ruling pris au fil du lot,
+  non rejugé ici). Périmètre `mypy` 102 → **104** modules
+  (`libreosteoweb/tests/conftest.py` et `libreosteoweb/tests/test_concurrence.py`
+  ajoutés). `ruff` : jeu de règles inchangé, `ignore` toujours vide, `ruff format
+  --check .` à 123 fichiers déjà formatés. Migrations ajoutées :
+  `0057_patient_unique_patient_nom_prenom_naissance`,
+  `0058_alter_invoice_amount_alter_officesettings_amount_and_more`. `make
+  test-functional` : 31 passed, inchangé.
+
+  **Addendum du 2026-09-05 — revue finale de branche** (`code-review` sur
+  `f2cdc32~1..b4d16c1`, cinq constats de correction confirmés, corrigés dans la foulée,
+  cinq commits distincts `3c36ba2`, `b0320b3`, `fde558f`, `7654296`, `12a6ec9`) :
+  `perform_update` du patient portait la même course d'intégrité que `perform_create`
+  sans sa garde ; la garde d'arrondi de la migration `0058` divergeait de l'arrondi réel
+  de PostgreSQL sur le cast `float8→numeric` (vérifié contre une instance PostgreSQL 16
+  réelle) ; `sauvegarde.py` classait une `IntegrityError` de restauration en panne moteur
+  au lieu d'archive incorrecte ; l'import CSV/XLSX de patients n'avait aucune garde
+  contre la même course d'intégrité que la création manuelle ; `templatize` pouvait lever
+  `UnboundLocalError` sur une balise sans correspondance. Chiffres après correction :
+  **272** tests unitaires (+10), couverture **90,79 %**, `mypy` et `ruff` inchangés,
+  `fail_under` toujours à 90.
+
+- **2026-09-04 — D2 Conteneur livré** (onze tâches ; spec
+  `docs/superpowers/specs/2026-09-04-d2-conteneur-design.md`, plan supprimé une fois
+  achevé). La chaîne de démarrage du déploiement de référence dit désormais ce qu'elle
+  fait : `db` porte un `healthcheck` **en TCP** et le service applicatif l'attend
+  (`condition: service_healthy`), un `migrate` en échec fait sortir le conteneur au lieu
+  d'être avalé, les images sont épinglées et jamais tirées, un repli sur sqlite est refusé
+  au démarrage, l'étage `run` ne porte plus d'outils de construction, et les trois
+  artefacts de déploiement morts ont disparu.
+
+  **Critère d'arrêt constaté par une exécution réelle** — passe de recette du 2026-09-04
+  sur le commit `a22cc1a`, instance neuve, volumes `db/` et `data/` purgés, les deux images
+  reconstruites sous ce commit :
+
+  | Fiche | Verdict |
+  |---|---|
+  | `R-INST-01` — première installation | OK |
+  | `R-INST-02` — rejeu idempotent | OK |
+  | `R-INST-03` — persistance au redémarrage | OK |
+  | `R-INST-04` — échec de démarrage visible (nouvelle) | OK |
+  | `R-DOC-02` — consulter et télécharger le document joint | OK |
+  | `R-IMP-01` — import d'un fichier de patients | OK |
+
+  Aucun écart produit. **Un seul `docker compose … up -d`** sur volume neuf amène
+  l'instance à servir : 83 migrations `Applying … OK`, puis `WSGI app 0 (mountpoint='')
+  ready` et `spawned uWSGI http 1`, `curl` rendant `302 Found` vers `/install/` — **sans
+  `pg_isready`, sans `restart`**, le contournement que la recette imposait à chaque montage
+  sur volume neuf depuis S4. Le même `up -d` rejoué ne recrée ni ne redémarre aucun
+  conteneur et ne rejoue aucune migration (83 avant, 83 après) ; `5432` n'est plus joignable
+  depuis l'hôte.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **`--socket-timeout 60` ferme la cause de la troncature mesurée en D1**, et l'offload
+    n'est plus qu'un confort. Observation menée à la clôture, protocole de D1 rejoué **sans**
+    `--offload-threads 1` : document de 12 Mo, client ralenti, `size_download` = 12 000 000,
+    fichier reçu identique à l'original, **aucun** `uwsgi_response_sendfile_do() TIMEOUT`.
+    Le délai d'écriture par défaut d'uwsgi sur la socket valait 4 s et n'était réglé nulle
+    part ; il l'est. `--offload-threads 1` reste, pour son bénéfice propre — libérer l'unique
+    worker pendant un transfert.
+  - **`exec uwsgi` ne suffit pas à un arrêt propre.** La réaction par défaut d'uwsgi à
+    `SIGTERM` est un *rechargement*, pas une extinction : `docker compose stop` attendait le
+    délai de grâce complet puis tuait le conteneur — 10,3 s et `Exited (137)` mesurés.
+    `--die-on-term` ajouté : 1,3 s, `Exited (0)`, `goodbye to uWSGI`. C'est aussi ce qui rend
+    la fiche `R-INST-04` jouable, `restart libreosteo` rejouant enfin le `CMD`.
+  - **Un `pg_isready` sans `-h` est un faux positif.** Pendant `initdb`, l'entrypoint officiel
+    de l'image PostgreSQL lance un serveur temporaire en `listen_addresses=''`, qui n'écoute
+    que la socket Unix : la sonde répond « accepting connections » alors qu'aucune connexion
+    TCP n'est possible. C'est ce qui rendait le contournement manuel insuffisant — il fallait
+    parfois le répéter — et c'est pourquoi le `healthcheck` sonde `127.0.0.1`.
+  - **Les images du compose portaient les noms du dépôt Docker Hub amont, sans tag.** Sur une
+    machine sans image locale, `up` ne s'arrêtait pas : il tirait le binaire d'amont sous le
+    nom que le fork croit être le sien. Tag obligatoire plus `pull_policy: never` : une image
+    absente est désormais une erreur, vérifié — l'échec porte sur l'image absente sans une
+    seule ligne `Pulling`.
+  - **`psycopg2` n'a pas de roue Linux sur PyPI** : il se compile à chaque construction, ce
+    qui explique que la purge de l'étage `run` n'ait jamais été faite — `python3-dev` était
+    en couche persistante sans être déclaré dans `.build-deps`. Déclaré, `linux-headers`
+    supprimé (inutile, vérifié par construction complète), le contenu de l'image passe de
+    **246 Mo à 108 Mo**, `import psycopg2` reste bon et l'instance migre et sert.
+  - **`django-secret-key`, supprimé avec `Docker/build/git/develop/`, était un générateur de
+    clef** — un script qui appelle `get_random_string(50, …)` — et non une valeur stockée :
+    aucune rotation n'est en jeu. Dit ici pour que son nom, dans l'historique, n'inquiète
+    personne plus tard.
+  - **Une image retaguée garde le contenu de son commit d'origine.** Consigne du contrôleur
+    prise en défaut en cours de lot : une tâche a démarré **silencieusement sur sqlite**
+    parce que son image précédait le commit de la garde. Retaguer n'est admis que si aucun
+    commit intermédiaire ne touche ce que l'image embarque ; la recette, elle, reconstruit.
+  - **Écart du manuel corrigé pendant la passe** : atteindre l'état E2 exigeait un geste que
+    le chapitre 1 ne décrivait pas — fermer le volet de la consultation qu'on vient de
+    clôturer pour que « Démarrer une consultation » redevienne disponible. C'est la face
+    « manuel » du défaut produit relevé à la clôture de D1 et journalisé en « À faire » : le
+    défaut reste entier, la recette n'y bute plus.
+
+  **Ce que cela change à la priorité des lots restants** : rien à la structure — les deux
+  chaînes causales `D2 → D3 → D4` et `D5 → D6` ne bougent pas. **D3 est le prochain lot** et
+  hérite d'un terrain assaini : une recette reproductible, sans contournement manuel, et un
+  démarrage qui échoue bruyamment — un échec de migration de D3 ne sera plus indiscernable
+  d'un aléa de démarrage, ce qui était la raison même de faire D2 d'abord. Le garde-fou
+  `--processes 1 --threads 1`, que D3 seul lèvera, n'a pas été touché.
+
+  **Ce que cela change au chapeau** : le libellé de D2 avait été amendé au cadrage du lot,
+  l'utilisateur ayant étendu le ménage des artefacts morts à `Docker/deploy/sqlite/` et
+  `Docker/build/git/develop/` en plus de `Docker/build/sock-ready/`. Vingt-trois fichiers
+  sont partis : le `Dockerfile` de `sock-ready` et la cible `make build-sock-ready`, les
+  seize fichiers de l'installeur standalone sqlite, et les six de `git/develop`. Tous
+  restent dans `git` — les ressortir est un `git revert`. Rien d'autre ne bouge au chapeau.
+
+  **Chiffres et cliquets** : 248 → 249 tests unitaires, 31 tests fonctionnels inchangés —
+  les deux suites rejouées sur le commit recetté, `make check` vert et `make test-functional`
+  31/31 en 4 min 56 —, couverture 90,70 % inchangée. Plancher `fail_under` à 90, périmètre `mypy` à 102 fichiers,
+  jeu de règles `ruff` inchangé, `ignore` toujours vide — aucun cliquet desserré, aucun
+  relevé mérité par ce lot. Images au commit recetté : `libreosteo-http` 563 Mo,
+  `libreosteo-pg` 383 Mo.
+
+  **Non fait, décidé à la spec** : aucune configuration de la base par variables
+  d'environnement (le montage exige toujours un `settings/` monté, arbitré au cadrage :
+  c'eût été du code applicatif nouveau dans un lot d'infrastructure) ; rien de D3
+  (`ATOMIC_REQUESTS`, contraintes d'unicité, `--processes 1 --threads 1`) ; rien de D4
+  (`FROM alpine:latest`, `postgres:13-alpine` restent) ; rien de D5 ; aucune publication
+  d'images dans un registre ; aucune reprise d'une instance qui aurait tourné sur le repli
+  sqlite — elle refusera de démarrer, et son message nomme le fichier où ses données se
+  trouvent ; aucun contrôleur de `Dockerfile` ni de `compose` dans `make check`, qui reste
+  exactement le job `quality` de la CI ; aucune suppression au-delà des trois répertoires
+  nommés — les mentions de `sqlite3` dans `setup.py` appartiennent au gel `cx_Freeze` du mode
+  standalone et n'ont pas été touchées ; aucun secret généré ni proposé, les deux fichiers
+  d'exemple ajoutés ne portant que des emplacements vides.
+
+- **2026-09-04 — D1 Exposition livré** (douze tâches ; spec
+  `docs/superpowers/specs/2026-09-04-d1-exposition-design.md`, plan supprimé une fois
+  achevé). Les documents médicaux ne sont plus servis par uwsgi avant Django : le
+  `--static-map /files=/Libreosteo/data/media` est retiré du `Dockerfile`, la route
+  `/files/documents/<nom>` est rendue par une vue du dépôt derrière
+  `LoginRequiredMiddleware` puis `login_required`, en pièce jointe forcée nommée par le
+  titre du document ; les fichiers sont désormais stockés sous un identifiant opaque, et
+  le refus d'accès anonyme est tracé en `WARNING` sur `django.security`. La dépendance
+  `django-protected-media` a été retirée, devenue inutile.
+
+  **Critère d'arrêt constaté par une exécution réelle** — passe de recette du 2026-09-04
+  sur le commit `9b0718f`, instance neuve montée en conteneur + PostgreSQL
+  (`Docker/deploy/pg/`), les deux images reconstruites, document de recette stocké sous
+  `d7d4088eb7ca416a8276b53574f092a8.csv` :
+
+  | Fiche | Verdict |
+  |---|---|
+  | `R-DOC-02` — consulter et télécharger le document joint | OK |
+  | `R-DOC-05` — accès non authentifié à un document | OK |
+  | `R-SAU-01` — sauvegarde de l'instance | OK |
+
+  Aucun écart produit, aucun écart du manuel : `docs/recette.md` n'a pas bougé pendant la
+  passe. Sur l'instance qui tournait, en anonyme `302 Found`,
+  `Location: /accounts/login/?next=/files/documents/d7d4088eb7ca416a8276b53574f092a8.csv`,
+  `Content-Length: 0` — aucun octet du document ; authentifié, `200 OK`,
+  `Content-Disposition: attachment; filename="Radiographie lombaire.csv"`,
+  `Content-Length: 47250` reçus en entier ; journal du conteneur,
+  `WARNING ... middleware query path files/documents/d7d4088eb7ca416a8276b53574f092a8.csv,
+  authentication required. redirect to authentication form /accounts/login/`. L'archive de
+  `R-SAU-01` ne contient qu'un membre `documents/d7d4088eb7ca416a8276b53574f092a8.csv`, et
+  aucun `patients_1.csv` : le nom téléversé n'est plus dans la sauvegarde non plus.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **L'offload uwsgi ne fait pas gagner du temps, il empêche une troncature.** Observation
+    A/B sur instance réelle (T4) : avec `--offload-threads 1`, gros fichier 58,53 s et sonde
+    concurrente `/api/patients` 0,032 s ; sans, 47,04 s et 0,054 s. Le contrôle décisif n'est pas là : sans
+    l'option, le téléchargement est **tronqué** — 9 724 672 octets rendus sur 12 000 000
+    attendus, `uwsgi_response_sendfile_do() TIMEOUT` après 4,1 s, reproduit trois fois sur
+    trois. La cause est le délai d'écriture par défaut d'uwsgi sur la socket, que ce dépôt
+    ne règle nulle part. Option conservée, et le commentaire du `Dockerfile` dit maintenant
+    ce qu'elle évite réellement.
+  - **`django-protected-media` force `PROTECTED_MEDIA_AS_DOWNLOADS` à `False` dans le
+    paquet lui-même** : il ne lit pas le réglage du projet. Le rendu *inline* d'un document
+    sur l'origine de l'application n'était donc pas désactivable par configuration — un
+    `.svg` ou un `.html` téléversé s'y exécutait avec le cookie de session du lecteur. C'est
+    ce fait, plus que la redondance du paquet, qui a justifié de le retirer au profit d'une
+    vue du dépôt.
+  - **Changement visible pour l'utilisateur** : ce qui s'affichait dans un onglet — un PDF,
+    une image — se télécharge désormais, et le fichier récupéré porte le **titre** du
+    document (`Radiographie lombaire.csv`), plus le nom téléversé.
+  - **`live_server` de `pytest-django` court-circuitait la route testée** : son
+    `_MediaFilesHandler` sert `MEDIA_URL` avant l'urlconf et les intergiciels
+    (`django/test/testcases.py:1688,1778`), donc la suite fonctionnelle ne traversait jamais
+    `/files`. Neutralisé par `monkeypatch` dans le seul test concerné.
+  - **Constat de passe, hors des trois fiches** : entre deux consultations d'un même
+    patient, le panneau « Démarrer une consultation » ne se ré-affiche pas dans la même
+    session Angular (`static/js/app/patient.js`, `reloadExaminations` laisse
+    `previousExamination.data` sur la consultation fermée) ; un rechargement complet de la
+    page suffit. Qualifié défaut produit, parti en « À faire » — hors périmètre de D1.
+
+  **Ce que cela change à la priorité des lots restants** : rien à la structure — les deux
+  chaînes causales `D2 → D3 → D4` et `D5 → D6` ne bougent pas. **D2 reste prioritaire** et
+  hérite de deux faits mesurés ici : le délai d'écriture socket d'uwsgi (4 s par défaut),
+  que rien dans le dépôt ne règle et qui appartient à la chaîne de démarrage ; et le
+  contournement `pg_isready` puis `restart libreosteo`, encore nécessaire pour monter cette
+  clôture sur un volume neuf, que le `healthcheck` de D2 doit supprimer.
+
+  **Ce que cela change au chapeau** : le libellé de D1 avait déjà été corrigé au cadrage du
+  lot, sur le fait que retirer le `static-map` récupère `LoginRequiredMiddleware` — le
+  contrôle d'accès du dépôt — et non un contrôle d'accès qu'aurait apporté
+  `django-protected-media`, qui n'en porte aucun. Fait journalisé ici ; rien d'autre ne
+  bouge au chapeau.
+
+  **Chiffres et cliquets** : 233 → 248 tests unitaires, 31 tests fonctionnels inchangés,
+  couverture 90,57 % → 90,70 %. Plancher `fail_under` inchangé à 90, périmètre `mypy`
+  101 → 102 fichiers, jeu de règles `ruff` inchangé, aucun cliquet desserré ; `make check`
+  est de nouveau exactement le job `quality` de la CI, l'étape `migrations-check` lui ayant
+  été ajoutée. La passe fonctionnelle jouée pendant les constructions d'images de la recette
+  a échoué une fois sur `test_avertissement_d_homonyme_puis_creation` (barrière d'URL
+  ui-router du helper `connexion`, 15 s dépassées) ; rejoué seul deux fois, puis suite
+  complète sur machine calme, 31/31 verts — contention de charge, pas régression.
+
+  **Non fait, décidé à la spec** : aucune reprise des documents déjà stockés (un fichier
+  déposé avant ce lot garde son nom d'origine, parc mixte assumé), aucune liste blanche de
+  types rendus *inline* (la pièce jointe est forcée pour tous), aucun travail sur
+  `Docker/build/sock-ready/` (son sort appartient à D2). Le contrôle d'accès par objet part
+  en « Points en suspens ».
 
 - **2026-09-02 — S6, défauts produit livré** (onze tâches ; spec
   `docs/superpowers/specs/2026-09-02-defauts-produit-design.md`, plan supprimé une fois
@@ -1263,6 +1660,61 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
 _(vide — prochain `git fetch upstream` à faire avant divergence significative)_
 
 ## Points en suspens
+
+### Ouvert par le chantier « dette technique »
+
+- **2026-09-05 — aucune contrainte sur `Invoice.number`, et le garde-fou de séquence
+  compare des textes.** Le champ est un `TextField` (`libreosteoweb/models.py`), et le
+  garde-fou qui interdit de repositionner la séquence trop bas
+  (`libreosteoweb/api/views/administration.py`, `perform_update`) compare le nombre
+  demandé à `Max("number")`, c'est-à-dire au maximum **lexicographique** d'un texte :
+  sur un parc portant `9999` à côté de `10002`, ce maximum vaut `9999` et la séquence se
+  laisse ramener sur des numéros déjà émis. Et un parc peut déjà porter des numéros en
+  double — précisément ceux que la course fermée par I2 (D3) a pu produire : poser la
+  contrainte transformerait cet historique en panne de facturation au démarrage. La
+  question — la numérotation doit-elle être unique par cabinet, et que faire des parcs
+  qui ne le sont pas ? — exigerait une reprise de parc que rien n'a instruite. Confirmé
+  hors périmètre par le contrôleur au cadrage du lot D3.
+- **2026-09-05 — l'index Whoosh n'est pas transactionnel.** `RealtimeSignalProcessor`
+  (`Libreosteo/settings/base.py`) écrit l'index à chaque `save()`, hors de toute
+  transaction : sous `ATOMIC_REQUESTS` (D3), une requête annulée peut laisser dans
+  l'index une entrée sans ligne en base. Le remède existe déjà et est recetté —
+  `R-RCH-02`, reconstruction de l'index. Le rendre cohérent demanderait de câbler
+  `transaction.on_commit` dans le processeur de signal de Haystack : hors lot.
+- **2026-09-05 — la garde de `0058` laisse une fenêtre résiduelle de 3 doubles par
+  signe.** Autour de `99 999 999,995 €`, les valeurs dont le `%.15g` de PostgreSQL vaut
+  exactement l'ex aequo restent classées « à arrondir » par la garde et feraient tomber
+  l'`ALTER` sur `numeric field overflow` — bande d'environ `4,5e-8`, inatteignable en
+  pratique (T11). Ne pas « corriger » : c'est un rétrécissement strict d'une fenêtre qui
+  portait ~335 000 valeurs avant la garde, à 3 après.
+- **2026-09-05 — `sauvegarde.py:158` rapporte un défaut d'archive comme une panne de
+  moteur.** La restauration attrape `DatabaseError` (dont `IntegrityError` hérite) et le
+  rapporte en `BaseIndisponible` ; une archive antérieure à `0058` portant un montant
+  `>= 10^8` lève `decimal.InvalidOperation`, non capturée par ce bloc, avec le même
+  effet trompeur. Le fautif est l'archive rechargée, pas le moteur ; aucune donnée n'est
+  perdue (transaction de `f2cdc32`). Non corrigé, hors lot.
+- **2026-09-05 — `docs/recette.md` interprète `date -u` en heure locale au filtrage des
+  journaux.** `docker compose logs --since` prend l'horodatage produit par `date -u`
+  (naïf) et l'interprète en heure **locale** : sur un hôte Europe/Paris la borne recule
+  d'une à deux heures selon la saison. Sans danger pour un attendu positif, mais
+  affaiblit l'attendu négatif de `R-INST-05` étape 3 (« aucune ligne `WSGI app … ready`
+  pour ce démarrage ») — un démarrage antérieur pourrait s'y glisser. Correctif à
+  appliquer un jour : `date +%Y-%m-%dT%H:%M:%S%z` (avec les deux-points de fuseau,
+  `%:z`, pour rester lisible par `docker compose logs --since`).
+- **2026-09-05 — le refus des trois décimales n'a pas de contrepartie côté client, et
+  rien n'avertit que `0058` arrondit.** Le serveur refuse désormais un montant à plus de
+  deux décimales (`DecimalField.validate_precision`), mais `validateAmount`
+  (`static/js/...`) ne le vérifie pas côté navigateur — la saisie n'est bloquée qu'au
+  retour du serveur. Et ni `README.md` ni `KANBAN.md` ne disaient à l'exploitant que la
+  migration `0058` arrondit les montants hérités, ni qu'un retour arrière rend le type
+  `double precision` **sans rendre les décimales perdues**. Non corrigé, hors lot.
+
+- **2026-09-04 — aucun contrôle d'accès par objet sur les documents.** Depuis D1, la route
+  `/files/documents/<nom>` exige une session, mais **tout utilisateur authentifié peut lire
+  tout document**, y compris par une URL devinée ou transmise. La vue ne décide jamais qui a
+  le droit de lire quel dossier : définir cette règle est une question métier que rien dans
+  le dépôt ne spécifie, de même nature que celle des dates de consultation après
+  facturation. Ne se tranche pas dans un lot de dette.
 
 ### Comportements figés par S2 sans avoir été tranchés
 

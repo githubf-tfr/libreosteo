@@ -126,7 +126,7 @@ urlpatterns = [
         r"^zipcode_lookup/",
         include(("zipcode_lookup.urls", "zipcode_lookup"), namespace="zipcode-lookup"),
     ),
-    re_path(r"^files/", include("protected_media.urls")),
+    re_path(r"^files/(?P<path>.*)$", views.telecharger_fichier, name="fichier-media"),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 js_info_dict = {"domain": "djangojs", "packages": ("libreosteoweb",)}
@@ -143,5 +143,3 @@ urlpatterns += [
         name="javascript-catalog",
     ),
 ]
-
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

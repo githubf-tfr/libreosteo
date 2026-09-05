@@ -263,6 +263,32 @@ class TestLoginRequiredMiddleware(APITestCase):
         self.assertEqual(reponse.status_code, 302)
         self.assertEqual(reponse.url, reverse("login"))
 
+    def test_le_refus_d_authentification_est_journalise_en_warning(self):
+        with sans_receivers():
+            cree_praticien()
+        with self.assertLogs("libreosteoweb.middleware", level="WARNING") as journal:
+            reponse = self.client.get("/")
+        self.assertEqual(reponse.status_code, 302)
+        self.assertIn("authentication required", journal.output[0])
+
+
+class TestTraceDesOperationsSuspectes(APITestCase):
+    """Refus d'un hôte hors ALLOWED_HOSTS.
+
+    Ce test prouve que Django *émet* l'enregistrement, jamais qu'il est *configuré*
+    pour sortir : `assertLogs` pose son propre gestionnaire sur le logger et lui
+    impose son niveau. La configuration — bloc `loggers` de `LOGGING` — ne se
+    constate qu'à l'exécution : étape 3 de la fiche R-DOC-05 et clôture du lot.
+    """
+
+    def test_un_hote_non_autorise_est_refuse_et_trace(self):
+        with self.assertLogs(
+            "django.security.DisallowedHost", level="ERROR"
+        ) as journal:
+            reponse = self.client.get("/", HTTP_HOST="mechant.example")
+        self.assertEqual(reponse.status_code, 400)
+        self.assertIn("mechant.example", journal.output[0])
+
 
 class TestOfficeSettingsMiddleware(TestCase):
     def setUp(self):

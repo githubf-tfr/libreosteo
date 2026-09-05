@@ -6,7 +6,7 @@ APP := libreosteo
 help:
 	@echo "Building LibreOsteo docker image"
 
-build: build-http-ready build-sock-ready
+build: build-http-ready
 
 build-http-ready:
 	@echo "Build LibreOsteo app (Http ready)"
@@ -14,14 +14,6 @@ build-http-ready:
 	docker buildx build --platform=linux/amd64 -f Docker/build/http-ready/Dockerfile . -t $(REPOSITORY)/$(APP)-http:$(TAG)-amd64 --push --output type=registry
 	docker buildx build --platform=linux/arm64 -f Docker/build/http-ready/Dockerfile . -t $(REPOSITORY)/$(APP)-http:$(TAG)-arm64 --push --output type=registry
 	docker buildx imagetools create -t ${REPOSITORY}/${APP}-http:${TAG} ${REPOSITORY}/${APP}-http:${TAG}-amd64 ${REPOSITORY}/${APP}-http:${TAG}-arm64
-
-
-build-sock-ready:
-	@echo "Build LibreOsteo app (Sock ready)"
-	docker login
-	docker buildx build --platform=linux/amd64 -f Docker/build/sock-ready/Dockerfile . -t $(REPOSITORY)/$(APP)-sock:$(TAG)-amd64 --push --output type=registry
-	docker buildx build --platform=linux/arm64 -f Docker/build/sock-ready/Dockerfile . -t $(REPOSITORY)/$(APP)-sock:$(TAG)-arm64 --push --output type=registry
-	docker buildx imagetools create -t ${REPOSITORY}/${APP}-sock:${TAG} ${REPOSITORY}/${APP}-sock:${TAG}-amd64 ${REPOSITORY}/${APP}-sock:${TAG}-arm64
 
 build-postgres:
 	@echo "Build Postgresql (for libreosteo)"
@@ -56,8 +48,12 @@ test-functional:
 	  --tracing=retain-on-failure --screenshot=only-on-failure --output=test-results \
 	  2>&1 | tee pytest-functional.log
 
-check: lint test
+migrations-check:
+	@echo "Etat des migrations"
+	$(PYTHON) ./manage.py makemigrations --check
 
-.PHONY: lint test test-functional check
+check: lint migrations-check test
+
+.PHONY: lint test test-functional migrations-check check
 
 .DEFAULT_GOAL := help

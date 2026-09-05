@@ -16,6 +16,7 @@
 import locale
 import logging
 import re
+from decimal import Decimal
 
 from django import template
 
@@ -38,7 +39,20 @@ def templatize(value, obj):
                 todisplay = getattr(obj, val)
             elif hasattr(obj, "keys"):
                 todisplay = obj.get(val, None)
-            if type(todisplay) is float:
+            else:
+                # Ni l'attribut nomme, ni un dictionnaire dont la clef pourrait manquer :
+                # meme rendu que ce dernier cas (`obj.get(val, None)`), pour qu'une balise
+                # introuvable se comporte pareil quel que soit le type d'`obj`, plutot que
+                # de laisser `todisplay` non affecte -- l'`UnboundLocalError` que ce
+                # commentaire corrige.
+                todisplay = None
+            # Un montant est desormais un Decimal. Le branchement ne reconnaissait que le
+            # flottant, si bien qu'un Decimal repartait par la branche `else`, donc par
+            # `str()`, qui garde les zeros de queue de `decimal_places=2` : la facture
+            # imprimee aurait affiche '55.00' la ou elle affichait '55'. `locale.str`, lui,
+            # rend deja pour un Decimal la meme chaine que pour le flottant equivalent --
+            # il convertit par `%.12g` -- : il suffit de le laisser passer par ici.
+            if isinstance(todisplay, (float, Decimal)):
                 return _unicode(locale.str(todisplay))
             else:
                 return _unicode(todisplay)

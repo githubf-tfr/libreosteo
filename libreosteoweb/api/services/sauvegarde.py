@@ -30,7 +30,7 @@ from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.core.serializers.base import DeserializationError
-from django.db import DatabaseError, connection
+from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.db.models import signals
 
 from libreosteoweb import models
@@ -118,29 +118,38 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
             (receiver_newpatient, models.Patient),
         ]
 
-        with block_disconnect_all_signal(
-            signal=signals.post_save, receivers_senders=receivers_senders
+        # `transaction.atomic()` englobe le vidage ET le rechargement : c'est la seule
+        # facon de ne pas laisser l'instance vide quand `loaddata` echoue. Avant, une
+        # archive illisible detectee pendant `loaddata` laissait la base tronquee, et
+        # ATOMIC_REQUESTS n'y aurait rien change : `LoadDump.post` rattrape ses propres
+        # erreurs, donc aucune exception ne sort de la vue et Django valide.
+        with (
+            transaction.atomic(),
+            block_disconnect_all_signal(
+                signal=signals.post_save, receivers_senders=receivers_senders
+            ),
         ):
             logger.info("Signals were disactivated, perform clearing of the database")
             buf = StringIO()
             call_command("sqlflush", no_color=True, stdout=buf)
+            # `sqlflush` encadre ses instructions d'un BEGIN et d'un COMMIT
+            # (`BaseCommand.output_transaction`). Les rejouer par un curseur brut est
+            # desormais faux : le BEGIN leve « cannot start a transaction within a
+            # transaction » sous SQLite, et le COMMIT validerait la transaction en cours
+            # au milieu du rechargement. C'est `atomic()` ci-dessus qui ouvre et valide.
+            instructions = [
+                s.strip()
+                for s in buf.getvalue().split("\n")
+                if s.strip() and s.strip() not in ("BEGIN;", "COMMIT;")
+            ]
             with connection.cursor() as cursor:
-                deferred_delete = ""
-                for s in buf.getvalue().split("\n"):
-                    if (
-                        "django_content_type" not in s
-                        and "COMMIT" not in s
-                        and len(s.strip()) > 0
-                    ):
-                        logger.info("Execute query : %s" % s)
-                        cursor.execute(s)
-                    else:
-                        if len(s.strip()) > 0:
-                            deferred_delete = deferred_delete + "\n" + s
-                for s in deferred_delete.split("\n"):
-                    if len(s.strip()) > 0:
-                        logger.info(s)
-                        cursor.execute(s)
+                # `django_content_type` est reference par des cles etrangeres : son vidage
+                # passe en dernier. C'etait deja le cas, par un accumulateur de chaines.
+                immediates = [s for s in instructions if "django_content_type" not in s]
+                differees = [s for s in instructions if "django_content_type" in s]
+                for s in immediates + differees:
+                    logger.info("Execute query : %s" % s)
+                    cursor.execute(s)
             # It means that the settings.FIXTURE_DIRS should be set in settings
             previous = settings.FIXTURE_DIRS
             settings.FIXTURE_DIRS = [tempfile.gettempdir()]
@@ -162,6 +171,12 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
         CommandError,
         UnicodeDecodeError,
         DeserializationError,
+        # `IntegrityError` hérite de `DatabaseError` : sans cette ligne, elle tombait
+        # dans l'`except DatabaseError` ci-dessous (le suivant testé, Python évaluant les
+        # `except` dans l'ordre) et ressortait en panne moteur (500) alors qu'une
+        # contrainte violée par les objets de l'archive — PK dupliquée, FK rompue — est
+        # un défaut de l'archive, pas de la base.
+        IntegrityError,
     ) as erreur:
         # La journalisation de l'échec appartient à l'appelant, qui seul sait ce qu'il en
         # fait : la journaliser ici aussi produirait deux traces pour un seul incident.

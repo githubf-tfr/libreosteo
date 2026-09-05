@@ -27,78 +27,59 @@ Claude, le scratchpad de session convient (`.../scratchpad/recette/`).
 ```sh
 SCRATCH=/chemin/de/travail/jetable   # à adapter, hors du dépôt
 mkdir -p "$SCRATCH"/{db,bak,data,settings}
+TAG=$(git rev-parse --short HEAD)   # tag des deux images : le commit effectivement bâti
 ```
 
 **Étape 1 — image PostgreSQL :**
 
 ```sh
-docker build -t libreosteo/libreosteo-pg -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
+docker build -t libreosteo/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
 ```
 
 **Étape 2 — image HTTP** (contexte = racine du dépôt) :
 
 ```sh
-docker build -t libreosteo/libreosteo-http -f Docker/build/http-ready/Dockerfile .
+docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
 ```
 
-**Étape 3 — environnement compose.** Dans `$SCRATCH/settings/`, deux fichiers (aucun des
-deux n'est fourni tel quel par le dépôt pour ce montage) :
-
-`$SCRATCH/settings/local.py` — assemblé à partir de `Docker/build/git/develop/local.py.pg`
-(motif `host`/`port`/`name`/`user` avant le bloc `DATABASES`, repris de
-`Docker/build/git/develop/launch-libreosteo.sh`), en y ajoutant `PASSWORD` : le template lu
-ne le porte pas, mais l'image PostgreSQL officielle exige un mot de passe sur les connexions
-TCP dès que `POSTGRES_PASSWORD` est défini.
-
-```python
-SECRET_KEY = "<valeur jetable>"  # génération ci-dessous
-
-host = "db"  # nom du service compose
-port = 5432
-name = "libreosteo"  # POSTGRES_DB, en dur dans docker-compose.yml
-user = "libreosteo"  # = POSTGRES_USER
-password = "recette"  # = POSTGRES_PASSWORD, valeur jetable
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": name,
-        "USER": user,
-        "PASSWORD": password,
-        "HOST": host,
-        "PORT": port,
-    }
-}
-```
-
-`SECRET_KEY` jetable, à générer (jamais une valeur écrite en dur ni réutilisée d'une passe à
-l'autre) :
+**Étape 3 — environnement compose.** Les deux fichiers de réglages sont fournis par le
+dépôt sous forme d'exemples : les copier, puis renseigner les deux emplacements vides.
+Rien n'est à récrire à la main.
 
 ```sh
-python3 -c "import secrets; print(secrets.token_urlsafe(38))"
+cp Docker/deploy/pg/settings/__init__.py.example "$SCRATCH/settings/__init__.py"
+cp Docker/deploy/pg/settings/local.py.example    "$SCRATCH/settings/local.py"
 ```
 
+Dans `$SCRATCH/settings/local.py`, renseigner :
+
+- `SECRET_KEY` — une valeur **jetable**, générée pour la passe et jamais réutilisée d'une
+  passe à l'autre :
+
+  ```sh
+  python3 -c "import secrets; print(secrets.token_urlsafe(38))"
+  ```
+
+- `password` — la même valeur que `POSTGRES_PASSWORD` du `.env` ci-dessous.
+
 **Clef secrète obligatoire.** Que ce soit via `settings/local.py` comme ci-dessus, ou en la
-confiant directement à `LIBREOSTEO_SECRET_KEY` dans `.env` (voie que suit
-`Docker/deploy/pg/.env.example`, sans autre montage de `settings/`), une valeur est
+confiant directement à `LIBREOSTEO_SECRET_KEY` dans `.env` (en complément du `settings/`
+monté, jamais à sa place — voir ci-dessous), une valeur est
 désormais exigée : `Libreosteo/settings/container.py` refuse de démarrer sans elle. Constat
 exact si elle manque : le service sort en erreur (`docker compose ... ps` affiche
 `Exited`), et `logs libreosteo` montre `ImproperlyConfigured: SECRET_KEY absente ...` suivi
 de `no app loaded. GAME OVER`. `LIBREOSTEO_ALLOWED_HOSTS` (hôtes autorisés séparés par des
 virgules) a pour défaut `localhost,127.0.0.1`, qui suffit pour cette recette.
 
-`$SCRATCH/settings/__init__.py` — **indispensable**, non fourni par aucun template du
-dépôt pour ce montage. `Libreosteo/settings/container.py` fait `from settings import *`
-(import absolu) : `settings` désigne alors le paquet top-level résolu via `sys.path`, c'est-
-à-dire le volume monté à `/Libreosteo/settings` lui-même, pas `local.py` dedans. Sans ce
-fichier, l'import réussit silencieusement (paquet-espace de noms implicite, PEP 420) mais
-n'importe aucun nom : `DATABASES` retombe sur le défaut sqlite de `base.py`, sans la moindre
-erreur.
-
-```python
-# $SCRATCH/settings/__init__.py
-from .local import *
-```
+`$SCRATCH/settings/__init__.py` est **indispensable**, et le fichier d'exemple dit
+pourquoi : `Libreosteo/settings/container.py` fait `from settings import *` (import
+absolu), donc `settings` désigne le paquet top-level résolu via `sys.path`, c'est-à-dire le
+volume monté à `/Libreosteo/settings` lui-même, pas `local.py` dedans. Sans ce fichier,
+l'import réussit (paquet-espace de noms implicite, PEP 420) mais n'importe aucun nom, et
+`DATABASES` retombe sur le défaut sqlite de `base.py`. Cette erreur n'est plus silencieuse :
+le service sort en erreur et le journal montre
+`ImproperlyConfigured: Moteur de base de données inattendu : django.db.backends.sqlite3 ...`
+— c'est ce que la fiche R-INST-04 met à l'épreuve.
 
 `$SCRATCH/.env` (contenu aligné sur `Docker/deploy/pg/.env.example`, committé, chemins
 substitués via `$SCRATCH` — un fichier `.env` n'est pas un script shell, la variable ne s'y
@@ -110,6 +91,7 @@ LIBREOSTEO_DB_STORAGE=$SCRATCH/db
 LIBREOSTEO_BAK_STORAGE=$SCRATCH/bak
 DATA=$SCRATCH/data
 SETTINGS=$SCRATCH/settings
+LIBREOSTEO_IMAGE_TAG=$TAG
 POSTGRES_USER=libreosteo
 POSTGRES_PASSWORD=recette
 LIBREOSTEO_SECRET_KEY=<la même valeur jetable que ci-dessus, ou une autre>
@@ -117,44 +99,41 @@ LIBREOSTEO_ALLOWED_HOSTS=localhost,127.0.0.1
 EOF
 ```
 
+**Tag d'image obligatoire.** `LIBREOSTEO_IMAGE_TAG` nomme la construction réellement faite
+aux étapes 1 et 2 ; les deux services la réclament (`${LIBREOSTEO_IMAGE_TAG:?…}`) et portent
+`pull_policy: never`. Absente ou vide, `docker compose` refuse toute commande et ne démarre
+rien : `error while interpolating services.db.image: required variable LIBREOSTEO_IMAGE_TAG
+is missing a value: renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example`.
+Renseignée avec un tag qu'aucune image locale ne porte, l'échec est
+`No such image: libreosteo/libreosteo-pg:<tag>`, **sans aucun tirage** : le dépôt Docker Hub
+d'amont porte les mêmes noms d'images, et rien ne doit en descendre un binaire que ce fork
+n'a pas construit.
+
 `docker-compose.yml` transmet ces deux variables au conteneur ; `settings/local.py`
 l'emporte ensuite sur `LIBREOSTEO_SECRET_KEY` pour ce montage précis (import `from settings
 import *` dans `container.py`), mais les renseigner ici évite l'avertissement « variable
-not set » de `docker compose` et documente la voie normale d'un déploiement sans
-`settings/` monté.
+is not set » de `docker compose`. Attention : `LIBREOSTEO_SECRET_KEY` **seule ne suffit
+pas** à démarrer. Elle ne configure pas la base de données, et depuis D2 le mode conteneur
+refuse tout moteur autre que PostgreSQL : un montage sans `settings/` retomberait sur le
+sqlite de `base.py` et sortirait en `ImproperlyConfigured`. Le volume `settings/` est
+obligatoire.
 
 **Étape 4 — démarrage :**
 
 ```sh
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo
 ```
 
-**Contournement à prévoir sur un volume `db/` neuf** — `docker-compose.yml` n'a que
-`depends_on: - db` (attend le *démarrage* du conteneur pg, pas sa disponibilité TCP). Sur un
-volume neuf, `initdb` prend plus longtemps que le démarrage du conteneur http : la migration
-échoue (connexion refusée), le `CMD` du Dockerfile avale l'erreur et lance quand même
-`uwsgi` — l'instance répond alors en 500 (schéma absent), migrations jamais rejouées
-automatiquement. Sur volume neuf, ce n'est pas une précaution rare : à l'usage, il a été
-nécessaire à chaque reconstruction sur volume neuf, parfois deux fois de suite (le premier
-`restart` peut lui-même arriver trop tôt, avant la fin de l'initialisation interne de
-Postgres, même si `pg_isready` a déjà répondu). Appliquer, puis vérifier :
-
-```sh
-docker exec <conteneur_db> pg_isready   # attendre "accepting connections"
-docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
-docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo
-```
-
-`restart` rejoue le `CMD` (donc `migrate`) proprement. Le critère pour savoir s'il faut
-recommencer se lit dans ce dernier journal : tant qu'il ne montre pas les migrations
-`Applying ... OK` suivies de `WSGI app 0 (mountpoint='') ready`, refaire `pg_isready` puis
-`restart`. Sur un volume déjà initialisé (pg démarre vite), ce contournement n'est
-généralement pas nécessaire.
-
-Attendu (hors course ci-dessus) : toutes les migrations `Applying ... OK`, puis
-`WSGI app 0 (mountpoint='') ready`, `spawned uWSGI http 1`. `import_zipcodes` échoue
-systématiquement en sandbox (réseau deny par défaut) — non bloquant, à ignorer.
+Attendu : sur un volume `db/` neuf comme sur un volume déjà initialisé, ce seul `up -d`
+suffit. `docker compose ... ps` montre `db` en `Up (healthy)` — le service applicatif
+n'est lancé qu'une fois la sonde TCP passante — puis `libreosteo` en `Up` ; le journal
+montre toutes les migrations `Applying ... OK`, puis `WSGI app 0 (mountpoint='') ready` et
+`spawned uWSGI http 1`. Aucun `pg_isready`, aucun `restart` : si l'un des deux paraît
+nécessaire, c'est un écart produit, à noter comme tel. `import_zipcodes` échoue
+systématiquement en sandbox (réseau deny par défaut) — non bloquant, à ignorer, une ligne
+du journal le dit désormais explicitement.
 
 **Étape 5 — vérification externe :**
 
@@ -217,10 +196,6 @@ docker run --rm -v "$SCRATCH/db:/target" alpine sh -c 'rm -rf /target/* /target/
 docker run --rm -v "$SCRATCH/data:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* 2>/dev/null; true'
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
 ```
-
-Volume neuf : appliquer le contournement de l'étape 4 du montage (`pg_isready` puis
-`restart libreosteo`, à répéter tant que le journal ne montre pas les migrations
-appliquées, cf. chapitre 0) — à prévoir, pas une simple option.
 
 Attendu : `GET /` redirige vers `/install/`, page « Installer LibreOsteo », boutons
 « Restaurer la base de données » et « Enregistrer l'administrateur ».
@@ -307,8 +282,10 @@ Bouton « Clôturer ». Dans la fenêtre « Facturation » : choisir « Facturé
 Montant se pré-remplit à `55`, valeur du cabinet — ne pas le modifier), moyen de paiement
 « Chèque », bouton « Valider ».
 
-**3. Seconde consultation, non facturée** — retour sur l'onglet « Consultations »,
-« Démarrer une consultation ».
+**3. Seconde consultation, non facturée** — la clôture de la première consultation laisse
+affiché son détail (onglet « Consultations » déjà actif) : cliquer le bouton « × » en haut
+à droite du panneau (info-bulle « Fermer ce volet ») pour revenir à la chronologie, où
+« Démarrer une consultation » redevient disponible.
 
 | Champ | Valeur |
 |---|---|
@@ -430,9 +407,18 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : aucune erreur au démarrage ; `GET /` redirige vers
    `/accounts/login/?next=/` (l'administrateur créé à l'état E1 est toujours présent,
    aucune ré-installation n'est proposée).
-2. S'identifier avec `test` / `test`.
+2. Rejouer immédiatement la même commande `up -d`, sans rien arrêter ni purger :
+   `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d`.
+   Attendu : la sortie annonce `Running` pour les deux services, `db` recevant en plus les
+   lignes `Waiting` puis `Healthy` — Compose les réaffiche à chaque `up -d` dès qu'une
+   dépendance `condition: service_healthy` existe, ce n'est pas un redémarrage. Aucun
+   `Recreated`, aucun `Started`, aucun `Restarting` ; `docker compose ... ps` affiche les
+   mêmes conteneurs, sous les mêmes noms et avec le même âge qu'avant la commande ; le
+   journal du service applicatif ne porte aucune ligne `Applying ...` nouvelle (aucune
+   migration n'est rejouée).
+3. S'identifier avec `test` / `test`.
    Attendu : titre de page « LibreOsteo » ; connexion acceptée.
-3. Dans le champ de recherche (en haut de l'écran), saisir `Picard`, valider.
+4. Dans le champ de recherche (en haut de l'écran), saisir `Picard`, valider.
    Attendu : la fiche patient de Jean-Luc Picard s'affiche (titre de page contenant
    « Picard Jean-Luc ») ; l'onglet « Consultations » liste les deux consultations créées
    à l'état E2 ; l'onglet « Compte-rendus médicaux » liste le document
@@ -461,6 +447,188 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : titre de page « LibreOsteo » directement, sans repasser par la page de
    connexion (la session reste valide) ; le patient `Picard` reste accessible depuis le
    champ de recherche.
+
+### R-INST-04 — Échec de démarrage visible
+
+- **Domaine** : Installation
+- **Couverture auto** : non — un `CMD` de conteneur ne s'exerce depuis aucun processus
+  pytest ; cette fiche est la seule preuve du comportement de démarrage.
+- **État requis** : E0. Cette fiche n'écrit aucune donnée et rend l'instance à l'état où
+  elle l'a prise : elle est jouable depuis n'importe lequel des trois états, sans
+  reconstruction, et ne contraint pas la fiche suivante.
+
+**Étapes**
+
+1. Arrêter le seul service de base de données, puis redémarrer le service applicatif :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml stop db
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
+   ```
+
+   Le `--since` n'est pas un confort : `logs` sans borne rend tout l'historique du
+   conteneur, y compris les démarrages réussis précédents, et leurs lignes
+   `WSGI app 0 (mountpoint='') ready` feraient lire un faux écart.
+
+   Attendu : `ps -a` affiche le service `libreosteo` en `Exited` avec un **code de sortie
+   non nul** ; le journal montre la trace d'erreur de `migrate`
+   (`django.db.utils.OperationalError`, avec `could not translate host name "db"` ou
+   `connection refused` selon l'état de la résolution DNS du réseau compose) et **ne
+   contient, pour ce démarrage, aucune ligne `WSGI app 0 (mountpoint='') ready`** : uwsgi
+   n'a jamais été lancé.
+2. Remettre la base en marche et relancer :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml start db
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo
+   curl -sD - -o /dev/null http://localhost:8085/
+   ```
+
+   Attendu : `db` repasse en `Up (healthy)`, `libreosteo` en `Up` ; le journal montre
+   `WSGI app 0 (mountpoint='') ready` ; `curl` rend `302 Found` — l'instance sert de
+   nouveau, dans l'état où la fiche l'a prise.
+3. Priver le `settings/` monté de son `__init__.py`, puis redémarrer le service applicatif :
+
+   ```sh
+   mv "$SCRATCH/settings/__init__.py" "$SCRATCH/settings/__init__.py.retire"
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
+   ls "$SCRATCH/data"
+   ```
+
+   Attendu : `libreosteo` en `Exited` avec un code de sortie non nul ; le journal porte
+   `ImproperlyConfigured: Moteur de base de données inattendu :
+   django.db.backends.sqlite3. Le mode conteneur exige PostgreSQL
+   (django.db.backends.postgresql ou django.db.backends.postgresql_psycopg2). Cause la
+   plus fréquente : le volume monté sur /Libreosteo/settings ne porte pas d'__init__.py
+   réexportant local.py, ...`, message qui nomme PostgreSQL, l'absence d'`__init__.py` et
+   `data/db.sqlite3` comme fichier dans lequel l'instance aurait écrit ; **aucune ligne
+   `WSGI app 0 (mountpoint='') ready`** pour ce démarrage ; `ls "$SCRATCH/data"` ne montre
+   **aucun fichier `db.sqlite3`**.
+4. Remettre le fichier en place et redémarrer :
+
+   ```sh
+   mv "$SCRATCH/settings/__init__.py.retire" "$SCRATCH/settings/__init__.py"
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   curl -sD - -o /dev/null http://localhost:8085/
+   ```
+
+   Attendu : `libreosteo` repasse en `Up`, le journal montre `WSGI app 0 (mountpoint='')
+   ready`, `curl` rend `302 Found` — l'instance est rendue dans l'état où la fiche l'a
+   prise.
+
+### R-INST-05 — Migration refusée sur un parc contenant des doublons
+
+- **Domaine** : Installation
+- **Couverture auto** : non — une migration qui refuse de s'appliquer ne s'exerce
+  depuis aucun processus pytest, la garde ne trouvant jamais rien sur une base de test
+  vierge. Cette fiche est la seule preuve du comportement.
+- **État requis** : E2. C'est une répétition de montée de version, sur le précédent de
+  R-INST-04 : elle insère puis supprime une ligne, et rend l'instance dans l'état où
+  elle l'a prise — aux données près seulement, la séquence d'identité des patients
+  restant avancée d'un cran par la ligne insérée puis supprimée. Aucune fiche ne dépend
+  d'une valeur d'identifiant.
+
+**Étapes**
+
+1. Arrêter le service applicatif et ramener le schéma **avant** la migration
+   d'unicité — le parc que la fiche simule est une instance en service qui n'a jamais
+   vu D3 :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml stop libreosteo
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     run --rm --entrypoint sh libreosteo -c \
+     "python3 ./manage.py migrate libreosteoweb 0056 --settings=Libreosteo.settings.container"
+   ```
+
+   Attendu : `Unapplying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK`,
+   précédé du `Unapplying` de chaque migration postérieure à `0057` que l'arbre porte au
+   jour du passage (il n'y en a aucune à ce jour).
+2. Insérer par `psql` un doublon du patient de l'état E2, **en majuscules** — c'est ce
+   qui met à l'épreuve l'insensibilité à la casse de la garde. La copie passe par une
+   table temporaire : `SELECT *` reprend toutes les colonnes sans avoir à les nommer, et
+   `nextval` donne à la copie un identifiant neuf sans désaccorder la séquence de la
+   colonne d'identité — un `INSERT ... SELECT *` direct recopierait l'identifiant et
+   serait refusé sur la clef primaire :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c \
+     "CREATE TEMP TABLE copie AS SELECT * FROM libreosteoweb_patient WHERE family_name = 'Picard';
+      UPDATE copie SET id = nextval(pg_get_serial_sequence('libreosteoweb_patient', 'id')),
+                       family_name = upper(family_name), first_name = upper(first_name);
+      INSERT INTO libreosteoweb_patient SELECT * FROM copie;"
+   ```
+
+   Attendu : `INSERT 0 1` — et lui seul : le client `psql` de l'image (PostgreSQL 13)
+   n'affiche que le statut de la dernière instruction d'un `-c` qui en porte plusieurs.
+   Vérifier ensuite le compte :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c "SELECT count(*) FROM libreosteoweb_patient;"
+   ```
+
+   Attendu : `2` — l'état E2 ne porte qu'un patient, la copie en majuscules est le second.
+3. Redémarrer le service applicatif, sur l'image portant les migrations de D3 :
+
+   ```sh
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
+   ```
+
+   Attendu : `ps -a` affiche le service `libreosteo` en `Exited` avec un **code de
+   sortie non nul** ; le journal porte, après la ligne
+   `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance...` (que
+   `migrate` écrit avant de lancer la garde, et que rien ne vient terminer par un `OK`),
+   le message `CommandError: Migration refusée : la base contient 1 triplet(s) (nom,
+   prénom, date de naissance) en double sans tenir compte de la casse, que la nouvelle
+   contrainte d'unicité interdit. Patients concernés (identifiants) : <deux
+   identifiants>. Aucun dossier n'est fusionné ni supprimé automatiquement : ce sont
+   des données de santé, la résolution est manuelle. Pour les lister : SELECT id,
+   family_name, first_name, birth_date FROM libreosteoweb_patient WHERE id IN (...)
+   ORDER BY lower(family_name), lower(first_name), birth_date, id;` — **aucun nom de
+   patient n'y figure**, seulement des identifiants ; et **aucune ligne
+   `WSGI app 0 (mountpoint='') ready`** pour ce démarrage.
+4. Jouer la requête que le message donne, pour vérifier qu'elle liste bien les
+   dossiers concernés :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c "<la requête SELECT du message>"
+   ```
+
+   Attendu : deux lignes, `Picard` / `Jean-Luc` et `PICARD` / `JEAN-LUC`, même date de
+   naissance.
+5. Supprimer la ligne insérée à l'étape 2, puis redémarrer :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c "DELETE FROM libreosteoweb_patient WHERE family_name = 'PICARD';"
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
+   curl -sD - -o /dev/null http://localhost:8085/
+   ```
+
+   Attendu : `DELETE 1` — l'opérateur `=` de PostgreSQL distingue la casse, seule la
+   copie part ; puis
+   `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance... OK`,
+   puis `WSGI app 0 (mountpoint='') ready` ; `curl` rend `302 Found` ; l'instance sert
+   de nouveau, avec les données de l'état E2 intactes.
+
+**Constat** : la migration refuse et explique, elle ne répare pas. C'est une
+indisponibilité, et elle tombe au moment de la mise à jour — cette fiche la répète pour
+que personne ne la découvre en production.
 
 ### Authentification
 
@@ -857,8 +1025,35 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — l'avertissement
    n'a pas empêché la création.
 3. Dans le champ de recherche, saisir `Picard`, valider.
-   Attendu : la liste de résultats affiche deux entrées « Picard Jean-Luc », l'une
-   née le 13/07/1935, l'autre le 01/01/1980.
+   Attendu : la liste de résultats affiche deux entrées « Picard Jean-Luc »,
+   strictement indiscernables l'une de l'autre dans la liste — la date de naissance
+   n'y figure pas (`birth_date` n'est pas indexé par Whoosh,
+   `libreosteoweb/search_indexes.py`), même constat qu'à l'étape 3 de `R-PAT-03`.
+
+### R-PAT-07 — Doublon à casse différente refusé
+
+- **Domaine** : Patient
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_dossier_patient.py::TestContrainteUnicitePatient::test_le_meme_triplet_a_casse_differente_est_refuse_par_la_base
+  (la contrainte de base, au niveau du modèle ; le parcours écran, la modale d'homonyme
+  et le message affiché n'ont pas d'équivalent automatisé)
+- **État requis** : E2
+
+**Étapes**
+
+1. Lien « Nouveau patient », saisir `PICARD` (Nom de famille), `JEAN-LUC` (Prénom),
+   `13`/`07`/`1935` (date de naissance, identique au patient déjà en base), cocher le
+   consentement, cliquer « Initialiser la fiche patient ».
+   Attendu : une fenêtre modale d'avertissement d'homonyme s'ouvre d'abord ; cliquer
+   « Ok ». Reste ensuite sur le formulaire « Nouveau patient » (aucune navigation) ;
+   message affiché « Ce patient existe déjà » — **le même** qu'à l'étape 1 de
+   `R-PAT-03`, alors que la casse diffère.
+2. Dans le champ de recherche, saisir `Picard`, valider.
+   Attendu : la liste de résultats affiche **une seule** entrée, « Picard Jean-Luc ».
+
+**Constat** : le validateur applicatif dit, casse comprise, ce que la base garantit — le
+refus de la base elle-même est prouvé par le test cité en « Couverture auto ». Aucune fiche
+existante ne couvrait la casse.
 
 ### Documents patient
 
@@ -891,7 +1086,13 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 ### R-DOC-02 — Consulter et télécharger le document joint
 
 - **Domaine** : Documents patient
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
+  test_le_document_est_servi_en_piece_jointe_nommee_par_son_titre (vérifie au niveau
+  route que la réponse porte `Content-Disposition: attachment` avec le titre du
+  document comme nom de fichier ; il n'exerce **pas** le déclenchement réel du
+  téléchargement par le navigateur, ni l'affichage de la vignette de l'étape 1, qui
+  restent manuels)
 - **État requis** : E2
 
 **Étapes**
@@ -900,8 +1101,9 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : une vignette de document, titre en gras « Radiographie lombaire », date
    affichée `01-01-2024`, libellé « Notes » suivi du texte « Document de recette ».
 2. Cliquer sur l'icône du document, dans la vignette.
-   Attendu : un nouvel onglet s'ouvre et le téléchargement du fichier
-   `patients_1.csv` démarre.
+   Attendu : le téléchargement du fichier `Radiographie lombaire.csv` démarre (le
+   fichier téléchargé porte le titre du document, pas le nom téléversé) ; aucun
+   aperçu ne s'affiche dans l'onglet.
 
 ### R-DOC-03 — Supprimer un document
 
@@ -959,6 +1161,36 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : la ligne de facturation créée à l'état E2 est toujours présente : N° de
    facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de paiement
    `Chèque`, État `Réglée` — la facture n'est pas supprimée par la cascade.
+
+### R-DOC-05 — Accès non authentifié à un document
+
+- **Domaine** : Documents patient
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
+  test_un_anonyme_n_obtient_pas_le_document (vérifie le refus au niveau de la route
+  Django avec le client de test ; il n'exerce **pas** le montage conteneur — ni uwsgi
+  ni ses `--static-map`, qui sont précisément ce que cette fiche met à l'épreuve — ni
+  la configuration des journaux, que seule l'étape 3 constate)
+- **État requis** : E2
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Compte-rendus médicaux ». Sur la
+   vignette « Radiographie lombaire », relever l'adresse cible de l'icône du document
+   (clic droit sur l'icône → « Copier l'adresse du lien »).
+   Attendu : une adresse de la forme
+   `http://localhost:8085/files/documents/<nom de fichier>`.
+2. Menu utilisateur → « Déconnexion », puis appeler l'adresse relevée dans la barre
+   d'adresse du navigateur.
+   Attendu : le formulaire de connexion s'affiche (titre de page « Identifiez-vous sur
+   LibreOsteo ») et l'adresse devient
+   `http://localhost:8085/accounts/login/?next=/files/documents/<nom de fichier>` ;
+   aucun téléchargement ne démarre et aucun contenu de fichier ne s'affiche.
+3. Lire le journal du conteneur applicatif :
+   `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs libreosteo`.
+   Attendu : une ligne de la forme `WARNING <horodatage> middleware query path
+   files/documents/<nom de fichier>, authentication required. redirect to
+   authentication form /accounts/login/`.
 
 ### Consultation
 
@@ -1148,6 +1380,54 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 **Constat** : une consultation clôturée sans honoraires ne génère aucune facture, pas même
 à montant zéro — ni ligne en Comptabilité, ni section Facture sur la consultation elle-même
 (à comparer à l'étape 1, où seule la première consultation, facturée, apparaît).
+
+### R-FAC-05 — Montant à centimes
+
+- **Domaine** : Facturation
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_facturation.py::TestFacturation::test_un_montant_a_centimes_est_stocke_au_centime_pres
+  et ::test_un_montant_a_trois_decimales_est_refuse
+  (l'exactitude du montant stocké et le refus des trois décimales ; ni la facture
+  imprimée, ni la ligne de Comptabilité, ni le total sur la période, ni le message
+  affiché au refus n'ont d'équivalent automatisé)
+- **État requis** : E2. Cette fiche facture durablement une nouvelle consultation,
+  consommant le numéro `10001`, et laisse en outre une consultation ouverte (celle
+  de l'étape 4, dont la clôture est refusée) : remonter l'état E2 (chapitre 1) avant
+  de jouer une autre fiche qui en dépend — en particulier avant R-FAC-02 et R-FAC-04,
+  dont les attendus littéraux annoncent « une seule ligne » en Comptabilité et un
+  total de `55`, et avant R-CON-03 et R-FAC-03, dont les numéros attendus partent
+  de `10001`.
+
+**Étapes**
+
+1. Depuis l'état E2, créer et clôturer une nouvelle consultation facturée (mêmes gestes
+   que R-CON-03, étapes 1 à 3), en **remplaçant** le montant pré-rempli `55` par
+   `55.55`, moyen de paiement « Espèces ».
+   Attendu : le panneau affiche un encart « Facture » avec le lien `n° 10001`.
+2. Cliquer le bouton d'impression (icône imprimante verte).
+   Attendu : un nouvel onglet s'ouvre ; le contenu porte `Template with 55.55 EUR` et
+   une ligne « HONORAIRES » avec le montant `55,55 EUR` — pas `55,56`, pas
+   `55,549999`.
+3. Menu « Comptabilité ».
+   Attendu : deux lignes ; celle du numéro `10001` affiche Montant `55.55 €`
+   (celle du `10000` affiche toujours `55 €`) ; la ligne « Montant total sur la période
+   sélectionnée: » affiche `110.55` — un nombre, jamais une concaténation du type
+   `05555.55`.
+4. Sur la fiche Picard, démarrer une nouvelle consultation et cliquer « Clôturer »
+   (mêmes gestes que R-CON-03, étapes 1 et 2), choisir « Facturée », saisir cette
+   fois `55.555` — trois décimales — puis choisir le moyen de paiement « Espèces »,
+   et cliquer « Valider ».
+   Attendu : la fenêtre « Facturation » se ferme, mais une bannière rouge s'affiche,
+   portant la ligne `amount :` puis, en puce, le message `Assurez-vous qu'il n'y a
+   pas plus de 2 chiffres après la virgule.` ; la consultation reste ouverte dans
+   l'onglet « Consultation en cours », sans encart « Facture ».
+5. Rouvrir le menu « Comptabilité ».
+   Attendu : toujours les deux mêmes lignes qu'à l'étape 3, `10001` et `10000` — le
+   montant à trois décimales est refusé, jamais arrondi en silence, et n'a consommé
+   aucun numéro : la facturation suivante repartira de `10002`.
+
+**Constat** : elle ne prouverait rien avant D3 ; après, elle est le seul garde-fou de
+recette contre un `decimal_places` mal posé ou une frontière JSON passée aux chaînes.
 
 ### Médecins traitants
 
@@ -1375,7 +1655,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
 1. Menu utilisateur → « Import/export ».
    Attendu : titre de page « Gestion de l'import/export » ; onglet « Archiver la
-   base de données » actif par défaut ; texte « Cette fonction vous aider à
+   base de données » actif par défaut ; texte « Cette fonction vous aide à
    archiver et restaurer le système entier. » ; panneau « Archiver » avec un lien
    « obtenir l'archive » et le texte « Ce fichier est le contenu complet de votre
    base. Il peut uniquement être utilisé par LibreOsteo. Utilisez-le afin de
@@ -1385,8 +1665,9 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    Attendu : téléchargement d'un fichier nommé `<horodatage ISO>-libreosteo.db`
    (horodatage du téléchargement) ; ce fichier est une archive zip contenant
    `dump.json` (le contenu de la base), `meta` (le numéro de version de
-   l'application) et les documents joints aux patients (ici,
-   `documents/patients_1.csv`, le document joint à l'état E2).
+   l'application) et les documents joints aux patients, sous `documents/` — un
+   seul membre ici, le document joint à l'état E2, nommé par un identifiant
+   opaque suivi de `.csv` (le nom téléversé n'est plus conservé).
 
 ### R-SAU-02 — Restauration de la sauvegarde sur une instance vierge
 
@@ -1396,13 +1677,18 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
   (teste le rechargement de l'archive au niveau API ; ni le parcours écran — page
   d'installation puis formulaire de restauration —, ni la fidélité réelle des
   données restaurées, ne sont automatisés : l'archive rechargée par ce test porte un
-  dump vide)
+  dump vide). L'atomicité de la restauration — une archive illisible est refusée sans
+  vider la base — est couverte par
+  libreosteoweb/tests/test_exploitation.py::TestRestauration::test_une_archive_illisible_ne_vide_pas_la_base ;
+  le parcours écran de l'essai d'archive tronquée, lui, n'est pas automatisé
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
   instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,
   l'instance contient les données de l'état E2 mais n'a pas été reconstruite par
   la procédure du chapitre 1 — rejouer l'état visé (chapitre 1) avant de jouer une
-  autre fiche qui en dépend.
+  autre fiche qui en dépend. L'essai d'archive tronquée ne change pas cet état final :
+  il est refusé sans rien écrire, et à l'issue de la fiche l'instance porte toujours
+  les données de l'état E2.
 
 **Étapes**
 
@@ -1419,10 +1705,21 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    être obtenue depuis le logiciel avec la fonction Importer/Exporter/Archiver. » ;
    un champ de fichier (libellé « Fichier d'archive à restaurer ») et un bouton
    « Restaurer ».
-4. Choisir le fichier téléchargé à l'étape 1, cliquer « Restaurer ».
+4. Avant de restaurer l'archive valide, éprouver le refus d'une archive tronquée :
+   couper la seconde moitié du fichier téléchargé à l'étape 1
+   (`head -c $(( $(stat -c%s FICHIER) / 2 )) FICHIER > FICHIER-tronque.db`), choisir
+   `FICHIER-tronque.db` dans le champ de fichier, cliquer « Restaurer ».
+   Attendu : le panneau affiche « Ce fichier d'archive semble être incorrect. Impossible
+   de le charger. ». Puis revenir sur `/` : la redirection vers `/install/` fonctionne
+   toujours et la page « Installer LibreOsteo » s'affiche avec ses deux boutons —
+   l'échec n'a pas laissé l'instance dans un état inutilisable.
+5. Cliquer de nouveau « Restaurer la base de données », choisir le fichier téléchargé
+   à l'étape 1, cliquer « Restaurer ».
    Attendu : retour à la page de connexion (`/accounts/login/?next=/`, titre de page
-   « Identifiez-vous sur LibreOsteo »).
-5. S'identifier avec `test` / `test`, saisir `Picard` dans le champ de recherche,
+   « Identifiez-vous sur LibreOsteo »). Cette réussite prouve que l'échec de l'étape 4
+   n'a rien laissé derrière lui : avant D3, il laissait la base vidée par le `sqlflush`
+   et une transaction ouverte.
+6. S'identifier avec `test` / `test`, saisir `Picard` dans le champ de recherche,
    valider.
    Attendu : la fiche de Jean-Luc Picard s'affiche ; l'onglet « Consultations »
    liste les deux consultations créées à l'état E2 ; l'onglet « Compte-rendus
