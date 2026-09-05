@@ -403,6 +403,14 @@ pas dans Django, il est dans `django-haystack`** : le dépôt sous-classe son ba
 (`libreosteoweb/api/folding_whoosh_backend.py:1-2`, redéfinition de `build_schema` et de
 `search`), et une signature qui bouge en 3.4.0 casserait la recherche sans casser un import.
 
+**Correctif (task 6bis, recette).** Cette affirmation était fausse : l'inventaire avait manqué
+`LogoutView`, dont Django 5.2 retire le support de GET (`http_method_names = ["post",
+"options"]`) alors que `index.html:93` et `404.html:263` l'appelaient par un lien GET ordinaire
+— fiche R-AUTH-03 en échec (`405`), refermée en task 6bis. C'est précisément pourquoi le
+régime de preuve du lot ne repose pas sur l'inventaire seul. `make test-functional` passait
+31/31 sur ce lot : la suite Playwright ne couvre pas la déconnexion, un trou de couverture que
+seule la recette manuelle a rattrapé.
+
 **Point de vigilance nommé.** `make check` inclut `manage.py makemigrations --check`
 (`Makefile:51-53`). Si Django 5.2 fait apparaître une migration, elle n'est **pas** commitée
 en aveugle : c'est un fait à instruire — quel champ, pourquoi, et que ferait-elle sur un parc
