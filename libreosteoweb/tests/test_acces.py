@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+import re
+
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.models import Session
 from django.db import connection
@@ -364,3 +366,43 @@ class TestOneSessionPerUser(APITestCase):
         enregistrement.save()
         reponse = client.get("/jsi18n/")
         self.assertEqual(reponse.status_code, 200)
+
+
+class TestDeconnexion(APITestCase):
+    """R-AUTH-03 : un clic sur « Deconnexion » depuis une session authentifiee doit
+    reellement fermer la session. Le test rejoue le controle tel qu'il est rendu dans
+    la page (lien GET ou formulaire POST), sans presumer du mecanisme — verifier
+    `http_method_names` sur la vue serait tester un rouage, pas le comportement."""
+
+    def setUp(self):
+        with sans_receivers():
+            cree_praticien()
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def _commande_de_deconnexion(self, page):
+        url_deconnexion = reverse("logout")
+        if re.search(r'<a[^>]+href="%s"' % re.escape(url_deconnexion), page):
+            return self.client.get, url_deconnexion
+        formulaires = re.findall(r"<form\b[^>]*>", page, re.IGNORECASE)
+        for formulaire in formulaires:
+            porte_action = 'action="%s"' % url_deconnexion in formulaire
+            porte_methode = 'method="post"' in formulaire.lower()
+            if porte_action and porte_methode:
+                return self.client.post, url_deconnexion
+        self.fail("aucun controle de deconnexion trouve dans la page d'accueil")
+
+    def test_le_clic_sur_deconnexion_ferme_reellement_la_session(self):
+        page = self.client.get("/").content.decode()
+        agir, url_deconnexion = self._commande_de_deconnexion(page)
+
+        reponse = agir(url_deconnexion)
+        self.assertNotEqual(
+            reponse.status_code,
+            405,
+            "la deconnexion est refusee par la methode HTTP utilisee",
+        )
+
+        verification = self.client.get("/")
+        self.assertEqual(verification.status_code, 302)
+        self.assertTrue(verification.url.startswith(reverse("login")))

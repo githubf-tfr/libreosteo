@@ -260,7 +260,8 @@
         <!--li><a href="accounts/settings"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
         </li-->
         <li class="divider"></li>
-        <li><a href="accounts/logout"><i class="fa fa-sign-out fa-fw"></i> {% trans "Logout" %}</a>
+        <li><a href="#" onclick="document.getElementById('logout-form').submit(); return false;"><i class="fa fa-sign-out fa-fw"></i> {% trans "Logout" %}</a>
+            <form id="logout-form" method="post" action="{% url "logout" %}" style="display: none;">{% csrf_token %}</form>
         </li>
     </ul>
     <!-- /.dropdown-user -->
