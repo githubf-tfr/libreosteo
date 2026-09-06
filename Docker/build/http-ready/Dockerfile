@@ -84,16 +84,24 @@ ENV PATH="$VIRTUAL_ENV/bin:/root/.yarn/bin:$PATH"
 # (elle n'est pas copiee dans l'etage "run"). Aucune valeur de clef reelle n'entre dans un
 # fichier du depot.
 ENV LIBREOSTEO_SECRET_KEY="django-insecure-developpement-et-tests-uniquement"
-# NE PAS DECOUPER CE RUN. yarn, collectstatic, compilejsi18n et compress sont dans une
-# seule commande, et c'est la seule raison pour laquelle la construction aboutit :
-# VOLUME /Libreosteo/node_modules est declare plus haut dans ce fichier, et Docker jette du
-# calque committe toute ecriture faite sous un chemin declare VOLUME. L'arbre node_modules
-# n'existe donc que le temps de ce RUN, et il ne se retrouve dans aucune image.
-# Mettre l'installation yarn dans son propre calque pour la mettre en cache est la
-# tentation naturelle -- elle augmente maintenant que la ligne porte --frozen-lockfile et
-# que deux COPY la precedent -- et elle casserait la construction SANS MESSAGE CLAIR :
-# collectstatic ne trouverait plus rien sous le lien libreosteoweb/static/components.
-# C'est une limitation assumee, pas un defaut a reparer (lot D5, spec 2026-09-06).
+# node_modules et VOLUME -- affirmation corrigee (tache T7bis, 2026-09-06). Ce commentaire
+# disait auparavant que Docker jette du calque committe toute ecriture faite sous un chemin
+# declare VOLUME, que node_modules ne se retrouvait donc dans aucune image, et qu'il ne
+# fallait jamais decouper ce RUN sous peine de casser la construction sans message clair.
+# C'est faux avec le builder de ce depot : `make build-http-ready` appelle `docker buildx
+# build` (BuildKit). Sous BuildKit, VOLUME est une metadonnee sans effet a la construction --
+# l'arbre node_modules (6572 entrees, verifie par extraction directe des calques, `docker
+# save` + `tar tf`, sans passer par `docker run`) est bien present dans le calque de l'etage
+# "build" ET dans l'image finale via le COPY --from=build ci-dessous. VOLUME n'agit qu'au
+# demarrage d'un conteneur (`docker run`) : un volume anonyme est alors monte sur ce chemin,
+# pre-rempli par une copie du contenu deja present dans l'image a cet endroit.
+# Consequence sur le decoupage : une variante de ce RUN coupee en deux (yarn install d'un
+# cote, collectstatic/compilejsi18n/compress de l'autre), construite --no-cache avec
+# `docker buildx build`, aboutit et produit un node_modules et un static/CACHE strictement
+# identiques (memes empreintes de contenu, memes neuf noms output.<hash>) a la construction
+# monolithique. L'avertissement ne tient donc plus, sur aucun motif mesure, et il est retire.
+# Ce RUN reste neanmoins une seule commande : personne n'a demande son decoupage, et corriger
+# une affirmation fausse n'est pas une occasion de reorganiser le build.
 RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn install --frozen-lockfile && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base && python3 ./manage.py compilejsi18n && python3 ./manage.py compress --force --settings=Libreosteo.settings.base
 RUN rm libreosteoweb/static/components
 
