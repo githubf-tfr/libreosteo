@@ -725,7 +725,8 @@ elles ne la paraphrasent pas.
 1. Première passe : suivre les étapes 1 à 3 du `README.rst`.
    Attendu : les deux constructions aboutissent ; la commande de l'étape 2 sort en 0 —
    `yarn install --frozen-lockfile` n'a **pas** eu à réécrire le lock ; l'empreinte (a),
-   l'empreinte (b) et les deux noms `output.<hash>` sont relevés et notés.
+   l'empreinte (b) et les neuf noms `output.<hash>` (six CSS, trois JS) sont relevés
+   et notés.
 2. Lecture du gel, sur l'arbre de cette même passe :
    `grep -c '"@components/' package.json` rend **29** ;
    `grep -n '"@components/[^"]*": "[^"]*"' package.json | grep -vE '#[0-9a-f]{40}"'` ne
@@ -733,12 +734,12 @@ elles ne la paraphrasent pas.
    `git ls-files yarn.lock` rend `yarn.lock` — il est versionné ;
    `grep -c "install --frozen-lockfile" Docker/build/http-ready/Dockerfile
    .github/workflows/main.yml` rend `1` pour chacun ;
-   `grep -n "yarnpkg.com/install.sh" Docker/ .github/` ne rend **rien** ;
+   `grep -rn "yarnpkg.com/install.sh" Docker/ .github/` ne rend **rien** ;
    `grep -nE '^(nodejs|npm|rcssmin|rjsmin)' requirements/requirements.txt` et le premier
    `apk add` du `Dockerfile` montrent **quatre versions exactes**, aucune plage.
 3. Seconde passe, à une **autre date** : rejouer l'étape 1 à l'identique, sur le même
-   commit, avec `docker build --no-cache`.
-   Attendu : **les deux empreintes et les deux noms `output.<hash>` sont identiques à
+   commit, avec `docker buildx build --no-cache`.
+   Attendu : **les deux empreintes et les neuf noms `output.<hash>` sont identiques à
    ceux de l'étape 1, caractère pour caractère.** La moindre différence est un **KO** :
    elle signifie qu'une valeur de la chaîne de construction n'est pas figée. Consigner la
    sortie exacte du `diff`, ne rien ajuster.
