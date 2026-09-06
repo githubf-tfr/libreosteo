@@ -520,7 +520,7 @@ Ajouter à `$SCRATCH/preuves-i1.txt` : les verdicts, le commit recetté, le tag 
 ```sh
 make check
 git add docs/recette.md
-git commit -m "docs: corriger un ecart du manuel releve a la recette de l'increment 2"
+git commit -m "docs: corriger un ecart du manuel releve a la recette de l'increment 1"
 ```
 
 **Critère de fin :** `R-INST-06` jouée et OK sur une montée réellement exécutée depuis E2 ; les douze fiches du Step 3 en OK ; `$SCRATCH/preuves-i1.txt` complet.
