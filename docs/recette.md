@@ -1942,11 +1942,12 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 
 - **Domaine** : Recherche, index, tableau de bord
 - **Couverture auto** : oui —
-  libreosteoweb/tests/test_exploitation.py::TestStatistiques::test_les_donnees_du_jour_sont_comptees
-  (compte, sur une construction équivalente à l'état E2 — un patient, deux
-  consultations —, les nouveaux patients et les consultations ; le compteur
-  « Retour » n'est pas couvert avec les mêmes valeurs, et le rendu Angular des
-  tuiles n'est pas exercé)
+  tests/functional/test_tableau_de_bord.py::test_compteurs_du_tableau_de_bord
+  (libreosteoweb/tests/test_exploitation.py::TestStatistiques::
+  test_les_donnees_du_jour_sont_comptees compte, au niveau API, les nouveaux
+  patients et les consultations sur une construction équivalente ; ce test-ci lit
+  les trois compteurs — dont « Retour » — dans les tuiles rendues, sur les trois
+  vues Semaine/Mois/Année)
 - **État requis** : E2. Les valeurs exactes ci-dessous supposent que l'état E2 a été
   construit dans la semaine, le mois et l'année du passage — ces fenêtres démarrent au
   lundi local, au 1er du mois et au 1er janvier (`libreosteoweb/api/statistics.py:147-190`) ;
@@ -1968,11 +1969,11 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 
 - **Domaine** : Recherche, index, tableau de bord
 - **Couverture auto** : oui —
-  libreosteoweb/tests/test_exploitation.py::TestBorneDeFinDeJournee::
-  test_un_acte_juste_apres_minuit_local_compte_dans_aujourdhui
-  (vérifie au niveau API que la borne de fin de journée est locale et non calendaire
-  UTC ; ni le rendu Angular de la tuile, ni l'étape de rechargement de cette fiche, ne
-  sont exercés)
+  tests/functional/test_tableau_de_bord.py::test_statistiques_du_jour
+  (libreosteoweb/tests/test_exploitation.py::TestBorneDeFinDeJournee::
+  test_un_acte_juste_apres_minuit_local_compte_dans_aujourdhui vérifie au niveau API
+  que la borne de fin de journée est locale et non calendaire UTC ; ce test-ci lit la
+  tuile rendue, avant et après un rechargement de page complet)
 - **État requis** : E2, construit sans chevaucher minuit local. Le chapitre 1 ne
   garantit au minimum qu'une des deux consultations datée du jour du passage ; sans
   chevauchement de minuit entre les deux clôtures, aucune des deux ne peut retomber
