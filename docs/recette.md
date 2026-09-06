@@ -1467,7 +1467,7 @@ existante ne couvrait la casse.
 ### R-FAC-02 — Liste des factures : contenu et navigation
 
 - **Domaine** : Facturation
-- **Couverture auto** : non
+- **Couverture auto** : oui — tests/functional/test_facturation.py::test_liste_des_factures
 - **État requis** : E2
 
 **Étapes**
@@ -1491,7 +1491,8 @@ existante ne couvrait la casse.
 ### R-FAC-03 — Numérotation continue sur deux factures successives
 
 - **Domaine** : Facturation
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_facturation.py::test_numerotation_continue_sur_deux_factures
 - **État requis** : E2. Cette fiche facture durablement deux nouvelles consultations
   à la suite, consommant les numéros `10001` et `10002` : remonter l'état E2
   (chapitre 1) avant de jouer une autre fiche qui en dépend, en particulier avant de
@@ -1540,10 +1541,8 @@ existante ne couvrait la casse.
 - **Domaine** : Facturation
 - **Couverture auto** : oui —
   libreosteoweb/tests/test_facturation.py::TestFacturation::test_un_montant_a_centimes_est_stocke_au_centime_pres
-  et ::test_un_montant_a_trois_decimales_est_refuse
-  (l'exactitude du montant stocké et le refus des trois décimales ; ni la facture
-  imprimée, ni la ligne de Comptabilité, ni le total sur la période, ni le message
-  affiché au refus n'ont d'équivalent automatisé)
+  et ::test_un_montant_a_trois_decimales_est_refuse,
+  tests/functional/test_facturation.py::test_montant_a_centimes
 - **État requis** : E2. Cette fiche facture durablement une nouvelle consultation,
   consommant le numéro `10001`, et laisse en outre une consultation ouverte (celle
   de l'étape 4, dont la clôture est refusée) : remonter l'état E2 (chapitre 1) avant

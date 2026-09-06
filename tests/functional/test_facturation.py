@@ -1,6 +1,7 @@
 """Cas repris de tests/core/008_invoice_functionality.robot."""
 
 import re
+from decimal import Decimal
 
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
@@ -290,3 +291,167 @@ def test_avoir_sur_facture_deja_emise(
     expect(page.locator("#main")).to_contain_text("Template with 55 EUR")
     expect(page.locator("#invoice-number")).to_contain_text(remplacante.number)
     expect(page.locator("#invoice-number")).to_contain_text(facture_initiale.number)
+
+
+def revenir_a_la_chronologie(page: Page) -> None:
+    """Ferme le panneau de detail pour retrouver le bouton « Demarrer une consultation ».
+
+    Apres une cloture, `reloadExaminations` (patient.js) affiche le detail de la
+    consultation qui vient de se fermer a la place de la chronologie
+    (`previousExamination.data` devient non nul, `timeline.html` disparait sous son
+    `ng-if`) : `#new-examination-btn` reste hors du DOM tant que ce panneau est
+    ouvert. Le bouton « × » (`ng-click="model = null"`, examination.html) le referme
+    — meme geste que E2 (chapitre 0, « Seconde consultation, non facturée »). Ne
+    clique que si le panneau est bien ouvert : au tout premier appel d'un test, la
+    chronologie est deja affichee et ce bouton n'existe pas encore dans le DOM.
+    """
+    bouton_fermer = page.locator("button.close.pull-right:visible")
+    if bouton_fermer.count() > 0:
+        bouton_fermer.click()
+
+
+def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
+    """Cas de R-FAC-02, docs/recette.md:1467-1489."""
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="invoiced", moyen="check")
+    attendre_page_prete(page)
+    facture = Invoice.objects.get()
+
+    page.click("a[href='#/invoices']")
+    attendre_page_prete(page)
+    expect(page.locator("h1")).to_contain_text("Comptabilité")
+
+    ligne = page.locator("tbody tr")
+    expect(ligne).to_have_count(1)
+    expect(ligne).to_contain_text(facture.number)
+    expect(ligne).to_contain_text("Jean-Luc Picard")
+    expect(ligne).to_contain_text("55 €")
+    expect(ligne).to_contain_text("Chèque")
+    expect(ligne).to_contain_text("Réglée")
+
+    # `context.expect_page` (nouvel onglet) est reserve a T13 par le plan (Porte de
+    # sortie) : la navigation se prouve, comme `test_consultation_facturee` le fait
+    # deja pour R-FAC-01, par la cible du lien plutot que par l'ouverture reelle.
+    menu_actions = ligne.locator("ul.dropdown-menu")
+    ligne.locator("button.dropdown-toggle").click()
+    expect(menu_actions).to_be_visible()
+    expect(menu_actions).to_contain_text("Imprimer")
+    expect(menu_actions).to_contain_text("Annuler")
+    expect(menu_actions.locator("a:has-text('Imprimer')")).to_have_attribute(
+        "href", f"/invoice/{facture.id}"
+    )
+
+
+def test_numerotation_continue_sur_deux_factures(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Cas de R-FAC-03, docs/recette.md:1491-1513.
+
+    Deux consultations facturees a la suite recoivent des numeros consecutifs, et
+    l'ecran l'affiche — pas seulement l'ORM, deja prouve par
+    libreosteoweb/tests/test_facturation.py::TestNumerotationFacture.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="invoiced", moyen="check")
+    attendre_page_prete(page)
+    premiere_facture = Invoice.objects.get()
+    # `reloadExaminations` (patient.js) affiche deja le detail de la consultation
+    # qui vient de se fermer : pas de navigation supplementaire pour lire son numero.
+    expect(page.locator("#page-wrapper")).to_contain_text(
+        f"n° {premiere_facture.number}"
+    )
+
+    revenir_a_la_chronologie(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="invoiced", moyen="cash")
+    attendre_page_prete(page)
+    seconde_facture = Invoice.objects.exclude(id=premiere_facture.id).get()
+    expect(page.locator("#page-wrapper")).to_contain_text(
+        f"n° {seconde_facture.number}"
+    )
+    assert int(seconde_facture.number) == int(premiere_facture.number) + 1
+
+    page.click("a[href='#/invoices']")
+    attendre_page_prete(page)
+    lignes = page.locator("tbody tr")
+    expect(lignes).to_have_count(2)
+    expect(lignes.nth(0)).to_contain_text(seconde_facture.number)
+    expect(lignes.nth(1)).to_contain_text(premiere_facture.number)
+
+
+def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
+    """Cas de R-FAC-05, docs/recette.md:1538-1580.
+
+    Les deux moities de la fiche : (a) un montant a deux decimales est accepte et
+    affiche sans concatenation de chaines ; (b) un montant a trois decimales est
+    refuse, sans consommer de numero — c'est le refus qui garde D3 au niveau ecran.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+
+    # (a) premiere consultation, montant par defaut (55, cheque).
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="invoiced", moyen="check")
+    attendre_page_prete(page)
+
+    # (a) deuxieme consultation, montant a centimes (55.55, especes) :
+    # `cloturer_consultation` ne permet pas un montant personnalise, on reprend
+    # ses gestes ici.
+    revenir_a_la_chronologie(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    page.click("#close-examination")
+    page.check("input[value=invoiced]")
+    expect(page.locator("#amount")).to_have_value("55")
+    page.fill("#amount", "55.55")
+    page.check("input[value=cash]")
+    page.click("button.btn-primary:has-text('Valider')")
+    expect(page.locator("#current-examination")).to_be_hidden()
+    attendre_page_prete(page)
+
+    facture_a_centimes = Invoice.objects.get(amount=Decimal("55.55"))
+    # Meme idiome que `test_consultation_facturee` pour R-FAC-01 : page.goto direct
+    # vers la facture imprimee, pas de clic sur le bouton d'impression (nouvel
+    # onglet, primitive reservee a T13 par le plan).
+    page.goto(f"{live_server.url}/invoice/{facture_a_centimes.id}")
+    expect(page.locator("#main")).to_contain_text("Template with 55.55 EUR")
+    expect(page.locator("#main")).to_contain_text("55,55 EUR")
+
+    page.goto(f"{live_server.url}/#/invoices")
+    attendre_page_prete(page)
+    lignes = page.locator("tbody tr")
+    expect(lignes).to_have_count(2)
+    expect(lignes.filter(has_text=facture_a_centimes.number)).to_contain_text("55.55 €")
+    expect(page.locator("div.mb-3")).to_contain_text("110.55")
+
+    # (b) troisieme consultation, montant a trois decimales : refuse.
+    numeros_avant = set(Invoice.objects.values_list("number", flat=True))
+    page.goto(f"{live_server.url}/#/patient/{patient.id}")
+    attendre_page_prete(page)
+    revenir_a_la_chronologie(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    page.click("#close-examination")
+    page.check("input[value=invoiced]")
+    expect(page.locator("#amount")).to_have_value("55")
+    page.fill("#amount", "55.555")
+    page.check("input[value=cash]")
+    page.click("button.btn-primary:has-text('Valider')")
+
+    banniere = page.locator("div.growl-item.alert-danger")
+    expect(banniere).to_contain_text("amount :")
+    expect(banniere).to_contain_text("chiffres après la virgule")
+    expect(page.locator("#current-examination")).to_be_visible()
+    expect(page.locator("#current-examination")).not_to_contain_text("Facture")
+
+    assert set(Invoice.objects.values_list("number", flat=True)) == numeros_avant
