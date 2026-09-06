@@ -1,8 +1,10 @@
 """Cas repris de tests/core/008_invoice_functionality.robot."""
 
 import re
+from datetime import date
 from decimal import Decimal
 
+from django.template.defaultfilters import date as filtre_date_django
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -25,6 +27,7 @@ from tests.functional.helpers import (
     creer_patient,
     enregistrer_formulaire,
     ouvrir_nouvelle_consultation,
+    ouvrir_profil_therapeute,
     ouvrir_reglages_cabinet,
     saisir_consultation,
 )
@@ -455,3 +458,104 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     expect(page.locator("#current-examination")).not_to_contain_text("Facture")
 
     assert set(Invoice.objects.values_list("number", flat=True)) == numeros_avant
+
+
+def definir_nom_du_therapeute(page: Page) -> None:
+    """Complete le profil therapeute (E1, etape 3, docs/recette.md:223-276).
+
+    Meme copie locale que test_agenda.py, pour la meme raison : `last_name` et
+    `first_name` ne sont pas semes par le socle ORM (`tests/functional/conftest.py::
+    socle`), a la difference de `professional_id` et `quality` (`TherapeutSettings`).
+    Sans ce passage par l'interface, `invoice.therapeut_name`/`therapeut_first_name`
+    (`api/invoicing/generator.py:47-48`, lus depuis `user.last_name`/`first_name`)
+    restent vides, et la signature « Tester Robot » attendue sur la facture imprimee
+    ne tient pas.
+    """
+    ouvrir_profil_therapeute(page)
+    page.fill("input[name='last_name']", "Tester")
+    page.fill("input[name=first_name]", "Robot")
+    enregistrer_formulaire(page)
+
+
+def test_impression_de_facture_reprend_cabinet_et_therapeute(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Cas de R-THE-02, docs/recette.md:997-1021.
+
+    Nouvel onglet ouvert par le clic « Imprimer » (`context.expect_page`, primitive
+    reservee a T13 par le plan, porte de sortie), contenu lu dans l'ordre par
+    recherche successive des quinze elements dans le HTML brut de l'onglet — pas
+    dans le texte rendu, dont le decoupage en cellules de tableau ne garantit aucun
+    espace fiable entre "HONORAIRES" et le montant.
+    """
+    connexion(page, live_server)
+    definir_nom_du_therapeute(page)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="invoiced", moyen="check")
+    attendre_page_prete(page)
+    facture = Invoice.objects.get()
+    assert facture.number == "10000"
+
+    # `InvoiceListCtrl` (invoice.js) appelle `getInvoices()` depuis trois sources
+    # independantes — le `$watch('filters.dateRange', ...)` (premier digest),
+    # `OfficeSettingsServ.get` et `MyUserIdServ.then` — chacune remplacant
+    # `$scope.invoices` par un tableau neuf : `ng-repeat` recree alors la ligne
+    # entiere (nouveaux objets, donc nouveau `$$hashKey`), fermant tout menu
+    # ouvert sur l'ancienne ligne. Ni `attendre_page_prete` (meme course que dans
+    # `ouvrir_reglages_cabinet`, sous le seuil de 100 ms d'angular-loading-bar) ni
+    # `page.wait_for_load_state("networkidle")` (rend la main entre deux de ces
+    # trois requetes, avant que la derniere ne soit meme partie : constate par
+    # instrumentation directe des evenements reseau) ne barrent cette course.
+    # `MyUserIdServ.then` est le seul des trois callbacks a poser
+    # `filters.therapeut_id`, donc le seul dont l'appel a `getInvoices()` envoie
+    # `therapeut_id` dans la requete : c'est deterministement le dernier des
+    # trois rechargements, quel que soit l'ordre d'arrivee des deux autres
+    # reponses (confirme sur plusieurs lancements instrumentes). Attendre sa
+    # reponse est donc une vraie barriere de fin, contrairement aux deux
+    # precedentes.
+    with page.expect_response(
+        lambda reponse: (
+            "/api/invoices" in reponse.url and "therapeut_id=" in reponse.url
+        )
+    ):
+        page.click("a[href='#/invoices']")
+    ligne = page.locator("tbody tr")
+    ligne.locator("button.dropdown-toggle").click()
+    with page.context.expect_page() as info_nouvel_onglet:
+        ligne.locator("ul.dropdown-menu a:has-text('Imprimer')").click()
+    onglet_facture = info_nouvel_onglet.value
+    onglet_facture.wait_for_load_state()
+
+    expect(onglet_facture).to_have_title(
+        f"{date.today():%Y-%m-%d}-{facture.number}-Picard_Jean-Luc"
+    )
+
+    ligne_lieu_date = f"À Le Vigen, le {filtre_date_django(date.today(), 'd F Y')}"
+    elements_attendus = [
+        "Cabinet 1",
+        "27 rue Haute",
+        "87110 Le Vigen",
+        "05 55 12 13 14",
+        "SIRET : 52282868700022",
+        "Tester Robot",
+        "Ostéopathe DO",
+        "Adeli : 67654684",
+        "Jean-Luc Picard",
+        ligne_lieu_date,
+        f"Facture {facture.number}",
+        "Template with 55 EUR",
+        "Règlement par chèque",
+        "HONORAIRES",
+        "55,00 EUR",
+        "Footer",
+    ]
+    contenu = onglet_facture.content()
+    position = -1
+    for element in elements_attendus:
+        nouvelle_position = contenu.find(element, position + 1)
+        assert nouvelle_position > position, (
+            f"'{element}' absent ou hors ordre (a partir de la position {position})"
+        )
+        position = nouvelle_position

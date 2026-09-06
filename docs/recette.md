@@ -1006,7 +1006,8 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 ### R-THE-02 — Données du thérapeute et du cabinet reprises sur la facture
 
 - **Domaine** : Thérapeute
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_facturation.py::test_impression_de_facture_reprend_cabinet_et_therapeute
 - **État requis** : E2
 
 **Étapes**
@@ -1805,10 +1806,10 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 
 - **Domaine** : Sauvegarde/restauration
 - **Couverture auto** : oui —
-  libreosteoweb/tests/test_exploitation.py::TestSauvegarde::test_l_archive_contient_le_dump_et_la_version
-  (teste le contenu de l'archive au niveau API ; ni le parcours écran — menu puis
-  onglet —, ni l'inclusion des documents joints, ne sont automatisés : ce test ne
-  crée aucun patient, donc aucun document)
+  tests/functional/test_sauvegarde.py::test_archive_obtenue_depuis_l_ecran
+  (libreosteoweb/tests/test_exploitation.py::TestSauvegarde::
+  test_l_archive_contient_le_dump_et_la_version teste deja le contenu de
+  l'archive au niveau API, sans creer de patient ni de document)
 - **État requis** : E2
 
 **Étapes**
