@@ -56,7 +56,8 @@ Tenu à la main.
     épinglées, repli silencieux sur sqlite converti en erreur.
   - **D3 Intégrité** — contraintes d'unicité en base, `ATOMIC_REQUESTS`, numérotation de
     facture transactionnelle, montants en `DecimalField`. Ferme le défaut C.
-  - **D4 Socle** — version de Python épinglée, PostgreSQL 13 → 17, Django 4.2 → 5.x.
+  - **D4 Socle** — version de Python épinglée, ~~PostgreSQL 13 → 17~~ **13 → 18**
+    (cf. « Terminé »), Django 4.2 → 5.x.
   - **D5 Build** — `yarn.lock` versionné, refs de `package.json` figées, installation de
     yarn à somme de contrôle.
   - **D6 Frontend** — migration AngularJS 1.5 / jQuery 1.12.
@@ -263,7 +264,7 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   jouées à ce jour : une fiche couvrant un nom de naissance distinct du nom d'usage
   manque au cahier. Ne pas renuméroter les fiches existantes pour la créer.
 
-### Renvoyé par D4 (2026-09-05)
+### Renvoyé par D4 (2026-09-06)
 
 - **`--processes 1 --threads 1` n'est pas levé.** Ce n'est plus un garde-fou
   d'intégrité depuis D3 (`Docker/build/http-ready/Dockerfile`, bloc de commentaires
@@ -296,6 +297,23 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   installation de réussir en suivant le texte, les cinq autres décrivent des modes
   abandonnés** : le tri appartient au lot qui prendra le `README.rst`. (Les numéros
   de ligne sont ceux d'avant D4 ; ils ont bougé, repérer par le texte.)
+- **`404.html` non exercé unitairement par le test de non-régression de la
+  déconnexion.** `TestDeconnexion`
+  (`libreosteoweb/tests/test_acces.py:371`) ne rejoue le contrôle que depuis la page
+  d'accueil (`self.client.get("/")`) ; le lien de déconnexion de `404.html:263-264`,
+  corrigé de façon identique par construction (même formulaire caché, même POST),
+  n'est touché par aucun test. Risque résiduel non mesuré : le rendu de
+  `{% csrf_token %}` dans le contexte propre à `page_not_found`.
+- **Six lignes non figées dans `requirements/requirements.txt:10-16`** :
+  `setuptools-bower`, `sqlparse`, `netifaces2`, `decorator`, `packaging`, `pytz`.
+  L'argument qui a fait épingler `django-statici18n` dans ce même lot — une version
+  non figée dans un lot nommé Socle se contredit — vaut identiquement pour elles ;
+  ni la spec ni la clôture de D4 ne les nomment.
+- **Le champ `**Prérequis**` de `R-INST-06`** (`docs/recette.md:657`) est hors du
+  schéma de fiche du chapitre 2 (`docs/recette.md:327-383` : Domaine, Couverture
+  auto, État requis, Étapes — pas de `Prérequis`). Sans urgence : le schéma est déjà
+  en retard sur l'usage, `**Constat**` étant dans le même cas sur cinq fiches
+  (`:641`, `:703`, `:1128`, `:1454`, `:1503`).
 
 ### Dette technologique — analyse automatisée du 2026-09-02, triée le 2026-09-04
 
@@ -422,12 +440,15 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   `R-AUTH-03`. C'est le signal attendu, pas une anomalie — ce lot n'a touché aucun
   test existant, il en a **ajouté un**, pour un comportement qui n'existait pas
   encore à tester (cf. « Ce que le lot a appris »). Trois cliquets constatés
-  **inchangés** : `fail_under` toujours à `90` (90,79 % → 91,07 %, un dixième qui ne
-  mérite pas de le relever, même ruling qu'à la clôture de D3) ; périmètre `mypy`
+  **inchangés** : `fail_under` toujours à `90` (90,79 % → 91,07 %, soit 0,28 point,
+  qui ne mérite pas de le relever — la hausse vient d'un test de non-régression et
+  d'un dénominateur qui a bougé, pas d'un effort de couverture, même ruling qu'à la
+  clôture de D3) ; périmètre `mypy`
   toujours à 104 modules ; `select = ["E4","E7","E9","F","I"]` et `ignore = []`
-  inchangés. `target-version = "py314"` et `python_version = "3.14"` **ont changé**
-  dans ce même `pyproject.toml` : ce ne sont pas des cliquets, ils suivent la cible
-  épinglée par ce lot, ils ne l'assouplissent pas.
+  inchangés. `python_version = "3.14"` **a changé** dans ce même `pyproject.toml` :
+  ce n'est pas un cliquet, il suit la cible épinglée par ce lot, il ne l'assouplit
+  pas. `target-version` reste `"py313"` — ce n'est pas un oubli mais une décision,
+  cf. « Ce que le lot a appris » ci-dessous.
 
   **Ce que le lot a appris, et qui n'était pas su au cadrage :**
   - **`FROM alpine:latest` avait fait entrer Python 3.14 dans l'image sans que
