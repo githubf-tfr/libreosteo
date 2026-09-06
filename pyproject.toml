@@ -36,6 +36,13 @@ omit = [
 fail_under = 90
 
 [tool.ruff]
+# Reste volontairement en retrait sur l'interpreteur de developpement (3.14, cf.
+# [tool.mypy] python_version ci-dessous) : a partir de "py314", ruff prefere la
+# syntaxe PEP 758 (`except A, B:` sans parentheses), qui n'existe qu'a partir de
+# Python 3.14 et rendrait le depot non importable sous 3.13. Ne pas relever sans
+# assumer le reformatage de 4 fichiers (Libreosteo/zip_loader.py,
+# libreosteoweb/api/file_integrator.py, libreosteoweb/api/utils.py,
+# libreosteoweb/api/views/administration.py).
 target-version = "py313"
 extend-exclude = ["libreosteoweb/migrations", "node_modules", ".venv", ".tools"]
 
@@ -55,7 +62,7 @@ ignore = []
 "Libreosteo/settings/*.py" = ["F403", "F405"]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 plugins = ["mypy_django_plugin.main"]
 # Périmètre volontairement restreint : seuls les modules qui passent déjà figurent
 # ici. Un module rejoint la liste quand il est annoté. Même cliquet que la couverture.

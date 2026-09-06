@@ -34,7 +34,7 @@ HOW-TO try it ?
 ===============
 
 Requirements :
-  - Python 3.8+
+  - Python 3.14
   - pip
   - nodejs
   - yarn
@@ -317,7 +317,7 @@ To change the default port of the server, write a file server.cfg like this  (to
 Development
 ===========
 
-This fork runs on Python 3.13. Install the runtime and the development
+This fork runs on Python 3.14. Install the runtime and the development
 dependencies in your virtualenv ::
 
     pip install -r requirements/requirements.txt
