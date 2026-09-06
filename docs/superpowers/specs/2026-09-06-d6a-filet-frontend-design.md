@@ -9,7 +9,9 @@ sont pas repris ici. Cette spec ne conçoit que D6a.
 Le lot s'exécute sur le build que D5 vient de figer (`KANBAN.md`, clôture du 2026-09-06) :
 `yarn.lock` versionné et opposable par `--frozen-lockfile`, 29 refs sur SHA, tarball yarn
 vérifié, Node/npm/`rcssmin`/`rjsmin` épinglés, et surtout une mesure enfin possible de ce
-que l'image sert — les **neuf noms `output.<hash>`**, six CSS et trois JS. D6a est le lot
+que l'image sert — les **neuf noms `output.<hash>`** dans l'arbre bâti par `compress --force`
+(le service réel en ajoute un dixième en français, cf. le résidu légué à D6b), six CSS et
+trois JS. D6a est le lot
 qui rend cette mesure utilisable comme filet, et non plus seulement comme preuve de
 reproductibilité.
 
@@ -267,7 +269,9 @@ couverture. *Coût si faux* : sept tests Playwright de plus que nécessaire — 
 unitaires existants restent, et le coût est celui de leur écriture, pas d'une régression.
 
 **A2 — La suite fonctionnelle doit exercer l'arbre compressé, pas l'arbre collecté.** Ce que
-le chantier protège est le produit livré ; le produit livré sert neuf bundles. Faire tourner
+le chantier protège est le produit livré ; le produit livré sert neuf bundles dans l'arbre
+bâti par `compress --force` (le service réel en ajoute un dixième en français, cf. le résidu
+légué à D6b). Faire tourner
 la suite sur 20 balises `<script>` séparées, c'est recetter une chaîne et en livrer une
 autre — le motif exact d'A4 en D5. *Coût si faux* : la suite paie la compression une fois
 par exécution de `make static`, et un défaut de la chaîne de compression fait tomber les
@@ -423,6 +427,13 @@ rendent **la même liste de neuf noms de fichiers**, comparée par
 chantier 4 : le compte de neuf y tient. Après X15/T18 (§ Chantier 4), le bundle JS de
 `404.html` disparaît et **la même méthode porte sur huit noms** — c'est cette valeur que T19
 reconstate à la clôture, pas neuf (§ Critère d'arrêt).
+
+> **Précision ajoutée le 2026-09-06 par le contrôleur (arbitrage R28, sur mesure de T2).**
+> Cette égalité porte sur **l'arbre bâti** — ce que `make static` et `manage.py compress
+> --force` écrivent — et reste vraie telle quelle : le relevé se fait après `make static`,
+> **avant toute exécution de la suite fonctionnelle** (§ « Ce que D6a lègue à D6b » pour ce
+> que le service réel ajoute). Relevé après coup, le `diff` rend dix noms contre neuf, et ce
+> n'est pas X4 qui est falsifiée : c'est la précondition du relevé qui n'a pas été tenue.
 
 **X5 — Le job CI `functional` n'a plus de commande de préparation en propre.** Les lignes
 `.github/workflows/main.yml:56-58` (`yarn install`, `collectstatic`, `compilejsi18n`) sont
@@ -689,6 +700,12 @@ nouvelle empreinte, la date, et la mention que la valeur de D5 est remplacée et
 Aucune renumérotation, aucun changement de procédure : `README.rst:365-427` reste valable
 tel quel.
 
+> **Précondition du relevé (R28).** La liste de huit qui fixe l'empreinte (b) se relève après
+> `make static`, avant toute exécution de `make test-functional` — sinon la liste locale porte
+> un neuvième nom, le bundle français produit à la volée au premier rendu (§ « Ce que D6a
+> lègue à D6b »), et l'empreinte enregistrée ne serait pas celle des huit noms que ce lot
+> déclare.
+
 **X19 — `main` reste livrable à chaque commit.** `make check` vert — c'est exactement le job
 `quality` de la CI — cliquets tenus : `fail_under = 90` (`pyproject.toml:36`) ne descend pas,
 la liste `[tool.mypy] files` ne rétrécit pas, `select = ["E4","E7","E9","F","I"]` et
@@ -801,7 +818,10 @@ quand, les cinq propositions suivantes sont vraies simultanément sur `main`** :
    commit (`README.rst:410-414`) sont **identiques**, `diff` des deux listes vide. Huit et
    non neuf : à la clôture, X15/T18 (chantier 4) a déjà retiré le bundle JS de `404.html`
    (§ X4, § X18). Et `grep -c 'collectstatic\|compilejsi18n\|yarn install'
-   .github/workflows/main.yml` rend `0`.
+   .github/workflows/main.yml` rend `0`. **Ordre requis (R28)** : les deux listes se relèvent
+   après `make static`, avant `make test-functional` — sinon la liste locale porte un
+   neuvième nom que celle de l'image n'a pas, et le `diff` échoue pour une raison étrangère
+   au critère (§ « Ce que D6a lègue à D6b »).
 2. **Le filet couvre 42 fiches sur 50 au navigateur.** `make test-functional` rend
    **0 échec** ; le comptage apparié fiche→couverture, restreint au chapitre 3, rend
    **42 fiches nommant un `tests/functional/…::…`, 0 fiche couverte par un test unitaire
@@ -897,8 +917,8 @@ framework applicatif. Le socle visuel — Bootstrap 3.2.0, SB Admin 2, metisMenu
 en dépend encore, et c'est le sous-ensemble de D5 dont la valeur ne s'évapore pas
 (`KANBAN.md:407-414`).
 
-**Deux résidus que D6a laisse sciemment, et qui sont du travail de D6b, pas de la dette
-oubliée.** *(Un troisième, envisagé à la conception — `bootstrap.min.js`, `sb-admin-2.js` et
+**Trois résidus que D6a laisse sciemment, et qui sont du travail de D6b, pas de la dette
+oubliée.** *(Un autre, envisagé à la conception — `bootstrap.min.js`, `sb-admin-2.js` et
 `metisMenu.min.js` qui seraient restés chargés et inertes sur `404.html` — a été retiré par
 l'arbitrage R27 : le bloc `{% compress js %}` de `404.html` disparaît en entier, ces trois
 fichiers ne s'y chargent donc plus. Ils continuent de se charger normalement sur `index.html`
@@ -911,6 +931,20 @@ et `install.html`, hors du périmètre de ce lot.)*
    navigue entièrement par `ui.router` depuis longtemps, et `$routeParams` y rend toujours
    un objet vide : c'est un routage à moitié migré, en place depuis l'amont. D6b hérite
    d'une base où ce demi-état n'existe plus.
+3. **Un dixième bundle, écrit à la volée au premier rendu en français, que `manage.py
+   compress` n'écrit jamais.** Constat mesuré par T2 (arbitrage R28), pas un défaut introduit
+   par D6a : aucun réglage du dépôt ne définit `COMPRESS_OFFLINE` (défaut `False`,
+   `compressor/conf.py:72`), donc `{% compress %}` compresse aussi à la volée, au rendu de
+   requête. Le rendu hors ligne de `manage.py compress` n'a pas de `LANGUAGE_CODE` dans son
+   contexte, si bien que le `{% if LANGUAGE_CODE == 'fr' %}` d'`index.html:210-213` est faux
+   au build et vrai en requête réelle : la page rendue en français charge un bundle distinct,
+   `static/CACHE/js/output.a316f1465475.js`, seul à porter `moment.locale('fr')`. **Ce
+   dixième bundle n'est pas un bundle de plus dans l'arbre bâti** — l'affirmation que l'image
+   sert neuf bundles (huit après T18) reste vraie de ce que `compress --force` écrit — **c'est
+   un bundle de plus dans le service réel**, écrit au premier rendu et non au build ; l'image se
+   comporte de la même façon, servant elle aussi ce dixième bundle dès qu'une requête réelle
+   la rend en français. Le corriger (poser `COMPRESS_OFFLINE`, ou donner `LANGUAGE_CODE` au
+   rendu hors ligne) sort du périmètre de D6a : D6b hérite du fait, mesuré, pas du correctif.
 
 **Ce que D6a n'apprend pas et que D6b devra mesurer lui-même** : le coût réel de la
 réécriture des 3878 lignes de `js/app/` (moins les 205 purgées), dont `patient.js` porte 973
@@ -968,4 +1002,4 @@ artefact nouveau :
    désormais sur un filet qualifié. Le § « Ce que D6a lègue à D6b » en est l'entrée.
 4. **Ce que cela change au chapeau**, y compris ce que D6a a délibérément renvoyé plus loin :
    au minimum le découpage R24 lui-même, le renvoi reconduit de la seconde passe de
-   `R-INST-07`, et les deux résidus légués à D6b.
+   `R-INST-07`, et les trois résidus légués à D6b.

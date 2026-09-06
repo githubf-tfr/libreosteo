@@ -97,6 +97,8 @@ docker run --rm -w /Libreosteo libreosteo/libreosteo-http:$TAG sh -c \
 
 Les deux rendent **neuf** chemins jusqu'à T18 inclus (T18 relève encore neuf noms **avant** son propre retrait, Step 1) ; **huit** à partir du relevé d'après T18 et pour T19. Toute tâche qui relève ces noms écrit sa sortie dans `"$SCRATCH/mesures/noms-<tâche>-<avant|apres>.txt"` et les compare par `diff`.
 
+**Précondition du relevé, arbitrage R28 (2026-09-06, sur mesure de T2).** Le relevé se fait **après `make static` et avant toute exécution de la suite fonctionnelle**, côté local comme côté image. Aucun réglage du dépôt ne définit `COMPRESS_OFFLINE` (défaut `False`, `compressor/conf.py:72`) : `{% compress %}` compresse donc aussi à la volée, au rendu de chaque requête. Le rendu hors ligne de `manage.py compress` n'a pas de `LANGUAGE_CODE` dans son contexte, si bien que le `{% if LANGUAGE_CODE == 'fr' %}` d'`index.html:210-213` est faux au build et vrai en requête réelle : la première page rendue en français écrit un **dixième** bundle, `static/CACHE/js/output.a316f1465475.js` (`t2-noms-apres.txt` : 9 après `make static` ; `t2-noms-apres-suite.txt` : 10 après que la suite a tourné), que `manage.py compress` n'écrit jamais lui-même. **Oublier cette précondition ne fausse pas l'égalité local/image (X4) : le `diff` rend dix noms contre neuf, et l'écart n'est pas un défaut du lot** — c'est la précondition du relevé qui n'a pas été tenue. Vaut pour toute tâche qui relève ces noms, en particulier T4 et T19, et pour tout régime de preuve qui compare un « avant » à un « après » (§ « Régimes de preuve »).
+
 ---
 
 ## Ce que le plan tranche, parce que la spec le lui laisse
@@ -224,6 +226,8 @@ Les tâches qui montent une pile compose (T17, et T19 pour `R-INST-07`) ferment 
 | T19 | inerte | documentation seule : **huit noms identiques** (T18 a déjà fait disparaître le neuvième), et l'égalité X4 reconstatée sur l'image finale |
 
 **La prédiction s'écrit dans le rapport de tâche AVANT le premier geste d'édition**, et le relevé d'après la confirme exactement : pas un nom de plus, pas un de moins. Un écart arrête la tâche et remonte au contrôleur.
+
+**Chaque relevé « avant » comme « après » de ce tableau obéit à la précondition de R28** (§ « La commande qui relève les neuf noms ») : après `make static`, avant toute exécution de la suite fonctionnelle. Une tâche dont le relevé « après » suit une exécution de `make test-functional` (ou de tout test qui rend une page authentifiée) peut voir un dixième nom apparaître — c'est le cas mesuré en T2, § T2 Step 6 — sans que ce soit un défaut de la tâche ni une entorse au régime inerte.
 
 ---
 
@@ -463,7 +467,7 @@ git commit -m "build: une cible make static prepare l'arbre servi, et la suite f
 
 **Régime de preuve : inerte.** Le conftest n'est pas servi. **Prédiction, écrite avant** : les neuf noms sont identiques avant et après, et le hachage global de `static/` aussi.
 
-**Le fait qui rend cette tâche nécessaire, à relire avant d'éditer.** La suite tourne sous `Libreosteo.settings`, qui est `from .dev import *` (`Libreosteo/settings/__init__.py:15`), donc `COMPRESS_ENABLED = False` (`Libreosteo/settings/dev.py:25`). Sous ce réglage, `{% compress %}` rend le contenu d'origine sans rien concaténer — raccourci explicite de `compressor/templatetags/compress.py:109-114`, `COMPRESS_PRECOMPILERS` étant vide. La page d'accueil sert alors **une vingtaine de balises `<script>`** là où le produit en sert une.
+**Le fait qui rend cette tâche nécessaire, à relire avant d'éditer.** La suite tourne sous `Libreosteo.settings`, qui est `from .dev import *` (`Libreosteo/settings/__init__.py:15`), donc `COMPRESS_ENABLED = False` (`Libreosteo/settings/dev.py:25`). Sous ce réglage, `{% compress %}` rend le contenu d'origine sans rien concaténer — raccourci explicite de `compressor/templatetags/compress.py:109-114`, `COMPRESS_PRECOMPILERS` étant vide. La page d'accueil sert alors **57 balises `<script>`** (mesuré, `t2-step1-compte-scripts.log`) là où le produit en sert une.
 
 **Le piège de cette tâche, nommément.** `COMPRESS_ROOT` a pour défaut `STATIC_ROOT`. Le conftest déplace `STATIC_ROOT` vers `static/collecte-inutilisee` (`:44`, chemin jamais écrit, pour que `FileSystemFinder` accepte `STATICFILES_DIRS = [<racine>/static]`). **Poser `COMPRESS_ENABLED = True` sans poser `COMPRESS_ROOT` ferait chercher les bundles dans un répertoire vide** : `{% compress %}` les recompresserait à la volée et les écrirait sous `static/collecte-inutilisee/CACHE/`, que les finders ne servent pas — 404 sur chaque bundle, ou pire, une page qui rend sans son JS. **Les deux réglages vont ensemble, ou aucun.**
 
@@ -476,7 +480,7 @@ make static
 ./.venv/bin/python -m pytest tests/functional/test_authentification.py -q --no-cov
 ```
 
-Attendu : les trois tests passent. Puis, pour établir le point de départ, ajouter **temporairement** dans `test_les_statiques_de_l_application_sont_servis` un `print(page.eval_on_selector_all("script[src]", "n => n.length"))` et relancer : attendu **une vingtaine**. **Retirer le `print` avant de continuer** — il ne doit pas entrer au commit.
+Attendu : les trois tests passent. Puis, pour établir le point de départ, ajouter **temporairement** dans `test_les_statiques_de_l_application_sont_servis` un `print(page.eval_on_selector_all("script[src]", "n => n.length"))` et relancer : attendu **57** (mesuré, pas « une vingtaine »). **Retirer le `print` avant de continuer** — il ne doit pas entrer au commit.
 
 - [ ] **Step 2 : écrire le test qui échoue**
 
@@ -542,6 +546,18 @@ ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css | LC_ALL=C sort \
 ```
 
 Attendu : aucune sortie. Neuf noms identiques.
+
+> **Constat R28, 2026-09-06.** Ce relevé suit les Steps 1, 3 et 5, qui ont déjà fait tourner
+> la suite fonctionnelle (`COMPRESS_ENABLED = True` depuis le Step 4) : au moment de ce `diff`,
+> `static/CACHE/js/` porte déjà le dixième bundle écrit au premier rendu en français,
+> `output.a316f1465475.js` (§ « La commande qui relève les neuf noms »). Mesuré :
+> `noms-T1-apres.txt` compte 9 lignes, le relevé de ce Step 6 en compte 10
+> (`t2-noms-apres.txt` avant la suite, `t2-noms-apres-suite.txt` après). **Ce n'est pas un
+> défaut de cette tâche ni une entorse au régime inerte** : le nœud comparé par le régime
+> inerte est celui que `make static` écrit, pas celui qu'une requête en français écrit à la
+> volée. La comparaison probante des neuf noms « inertes » de cette tâche est le relevé fait
+> immédiatement après `make static`, avant toute exécution de pytest — `t2-noms-apres.txt`,
+> à neuf lignes — et non le relevé de ce Step 6, pris après que la suite a tourné.
 
 - [ ] **Step 7 : revue, commit**
 
@@ -654,6 +670,8 @@ git commit -m "ci: le job functional prepare l'arbre par make static, sans comma
 - Produit : **la propriété sur laquelle repose tout le reste du lot** — la liste locale et la liste de l'image sont identiques, donc les régimes de preuve des tâches suivantes se relèvent localement. Et la procédure écrite qui permet de la reconstater, dont T19 se sert.
 
 **Régime de preuve : inerte** (le `README.rst` n'est pas servi). **Mais la substance de la tâche n'est pas là** : c'est l'égalité local/image, mesurée sur le même commit.
+
+**Précondition du relevé (R28) : les Steps 1 et 3 s'exécutent avant tout test.** Ni `make test-functional` ni aucun test qui rend une page authentifiée n'a encore tourné à ce stade de la tâche — Step 7 est le premier. C'est ce qui garantit que les deux `wc -l` de cette tâche rendent bien 9, et non 10 (§ « La commande qui relève les neuf noms »).
 
 **Ce que dit la spec, et qu'il faut avoir en tête si l'égalité échoue.** `STATIC_URL = "/static/"` (`Libreosteo/settings/base.py:219`) et `COMPRESS_CSS_HASHING_METHOD = "content"` (`:338`) sont dans `base.py`, dont héritent `dev.py` comme `container.py`, et l'image bâtit ses actifs sous `--settings=Libreosteo.settings.base` (`Dockerfile:105`). Les mêmes sources **doivent** donc rendre les mêmes neuf noms des deux côtés. **Si elles ne les rendent pas** : la cause est identifiée **avant tout autre travail** — candidat le plus probable, une différence de `SITE_ROOT` se propageant à un chemin absolu écrit dans un bundle (`base.py:37-56`). Le critère ne baisse pas ; soit la cause se corrige, soit elle est écrite comme une limitation avec la mesure qui l'établit, et **l'arbitrage remonte au contrôleur avant que l'incrément 3 ne commence**.
 
@@ -1829,6 +1847,8 @@ Attendu de `make check` : `mypy` compte **un module de plus** ; de `grep -c` : *
 
 **Régime de preuve : inerte** pour ses propres commits, et **reconstat de X4** sur l'image finale.
 
+**Précondition du relevé (R28), respectée par l'ordre du Step 1 ci-dessous.** `make test-functional` n'y est appelé **qu'après** le `diff` des deux listes, jamais avant : le relevé porte huit noms de part et d'autre, pas neuf côté local avec un dixième bundle français écrit au premier rendu (§ « La commande qui relève les neuf noms »). Ne pas réordonner ces commandes.
+
 - [ ] **Step 1 : proposition 1 — la suite exerce l'arbre livré**
 
 ```sh
@@ -1897,7 +1917,7 @@ Attendu : la dernière commande ne rend que son en-tête. **Aucune image `libreo
 1. **Le critère d'arrêt constaté par une exécution réelle** : les cinq propositions, avec les sorties de commande qui les établissent, et l'empreinte de `R-INST-07` d'après D6a.
 2. **Ce que le lot a appris et qui n'était pas su au cadrage.** Trois points sont déjà acquis et y figurent même si rien d'autre ne s'ajoute : le filet navigateur réel était de **21 fiches sur 50** et non de 31 sur 51, l'écart venant de neuf fiches déclarées couvertes par un test unitaire ; **ni le local ni la CI n'exerçaient l'arbre compressé**, ce que la formulation « écart local/CI » du renvoi de D5 sous-estimait ; et **`ngRoute` n'était pas mort**, `$routeParams` étant injecté dans une directive vivante. **S'y ajoute la correction C1 de ce plan** : la prédiction de X11 annonçait 2 noms sur 9 là où la mesure en donne 3, `404.html` chargeant `app.js` et `doctor.js` — **et l'arbitrage R27, qui la remplace à son tour** : le relevé de T17 montre que `bootstrap.min.js` arrête l'exécution du bundle fusionné dès sa ligne 5, si bien que réparer `404.html` en ne retirant que les huit scripts applicatifs aurait laissé « la console est vide » faux. T18 retire le bloc `{% compress js %}` en entier ; le bundle JS de `404.html` ne change plus, il **disparaît** — neuf noms deviennent huit.
 3. **Ce que cela change à la priorité des lots restants** : D6b est le seul lot restant, et la question qu'il doit trancher — cible technique et stratégie de bascule — se pose désormais sur un filet qualifié. Le § « Ce que D6a lègue à D6b » de la spec en est l'entrée.
-4. **Ce que cela change au chapeau**, y compris ce que D6a a délibérément renvoyé plus loin : le découpage R24 lui-même ; le renvoi reconduit de la seconde passe de `R-INST-07` ; les **deux résidus légués à D6b** (le champ de recherche inerte de `404.html:277-283`, le demi-état de routage dont `DoctorCtrl` était le témoin — un troisième résidu envisagé à la conception, trois scripts qui seraient restés inertes sur `404.html`, disparaît avec l'arbitrage R27) ; **et les deux constats versés au passage** : les scripts chargés depuis `oss.maxcdn.com` (`account/login.html:23-24`, domaine éteint, bloc conditionnel IE8, hors périmètre) et les **15 tests Playwright qu'aucune fiche ne nomme**, dont le rattachement inverse est un travail de tenue du cahier.
+4. **Ce que cela change au chapeau**, y compris ce que D6a a délibérément renvoyé plus loin : le découpage R24 lui-même ; le renvoi reconduit de la seconde passe de `R-INST-07` ; les **trois résidus légués à D6b** (le champ de recherche inerte de `404.html:277-283`, le demi-état de routage dont `DoctorCtrl` était le témoin, le dixième bundle français écrit à la volée au premier rendu — arbitrage R28 — que `manage.py compress` n'écrit jamais ; un autre résidu envisagé à la conception, trois scripts qui seraient restés inertes sur `404.html`, disparaît avec l'arbitrage R27) ; **et les deux constats versés au passage** : les scripts chargés depuis `oss.maxcdn.com` (`account/login.html:23-24`, domaine éteint, bloc conditionnel IE8, hors périmètre) et les **15 tests Playwright qu'aucune fiche ne nomme**, dont le rattachement inverse est un travail de tenue du cahier.
 
 - [ ] **Step 8 : supprimer ce plan, et `$SCRATCH`**
 
