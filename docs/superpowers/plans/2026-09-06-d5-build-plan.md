@@ -30,7 +30,17 @@
 - **Français** dans les commentaires et la documentation française. Sujets de commit **sans accent** (convention du dépôt). **Les commentaires des `Dockerfile`, du `docker-compose.yml` et des fichiers CI sont sans accent** : s'y conformer. `docs/recette.md` et `KANBAN.md` portent leurs accents.
 - **`README.rst` est en anglais de bout en bout**, y compris les sections ajoutées par le fork. Les ajouts de ce lot y sont donc **en anglais** (arbitrage de ce plan, cf. § « Ce que le plan tranche »), comme D4 l'avait fait pour la procédure de montée PostgreSQL.
 - **`ruff format` inspecte les fichiers de `docs/`.** Ce plan ne contient aucun bloc Python (uniquement ` ```sh `, ` ```dockerfile `, ` ```yaml `, ` ```json `, ` ```rst `, ` ```text `) : `./.venv/bin/python -m ruff format --check docs/` doit rendre **`14 files already formatted`** tant que ce plan existe, et **`13`** après sa suppression en T10. **Le contenu d'un bloc se copie avec l'indentation exactement telle qu'écrite ici.**
-- **Aucun secret généré ni proposé**, nulle part.
+- **Aucun secret généré ni proposé pour un usage réel**, nulle part — et aucune valeur
+  inventée là où le dépôt en fournit une. Les identifiants PostgreSQL de recette sont ceux
+  de `Docker/deploy/pg/.env.example` (`POSTGRES_USER=libreosteo`, `POSTGRES_PASSWORD=recette`,
+  valeurs jetables et documentées comme telles).
+  **Une exception, prescrite par le cahier et non par ce plan** : la `SECRET_KEY` d'un
+  montage de recette est une valeur **jetable, générée pour la passe et jamais réutilisée**,
+  produite par la commande que le chapitre 0 donne (`docs/recette.md:56-60`,
+  `python3 -c "import secrets; print(secrets.token_urlsafe(38))"`). Le conteneur refuse de
+  démarrer sans elle, il n'existe donc pas de valeur d'exemple à reprendre. Cette exception
+  ne vaut que pour un montage jetable de recette : rien de ce qui est généré ainsi n'entre
+  dans le dépôt, ni ne sert deux fois.
 - **Index git partagé** : avant chaque `git commit`, lancer `git diff --cached --name-only` et vérifier qu'il ne contient que les fichiers de la tâche en cours.
 - **Toute correction passe par une revue avant commit**, y compris à deux lignes (`superpowers:requesting-code-review`).
 - **Aucune fiche de `docs/recette.md` n'est renumérotée.** `R-INST-07` est neuve et s'insère à la fin du domaine « Installation », juste après `R-INST-06` et avant le titre `### Authentification`. Le dépôt compte **50 en-têtes `### R-`** avant ce lot (49 fiches plus le doublon illustratif du chapitre 2), **51** après.
