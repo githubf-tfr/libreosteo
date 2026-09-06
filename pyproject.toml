@@ -36,11 +36,14 @@ omit = [
 fail_under = 90
 
 [tool.ruff]
-# Reste volontairement en retrait sur l'interpreteur de developpement (3.14, cf.
-# [tool.mypy] python_version ci-dessous) : a partir de "py314", ruff prefere la
-# syntaxe PEP 758 (`except A, B:` sans parentheses), qui n'existe qu'a partir de
-# Python 3.14 et rendrait le depot non importable sous 3.13. Ne pas relever sans
-# assumer le reformatage de 4 fichiers (Libreosteo/zip_loader.py,
+# Reste volontairement en retrait du plancher d'execution, qui est 3.14 (cf.
+# [tool.mypy] python_version ci-dessous), pour une raison unique : sous "py314",
+# `ruff format` adopterait la syntaxe PEP 758 (`except A, B:` sans parentheses)
+# dans 4 fichiers. Cette syntaxe se lit comme l'`except E, e:` de Python 2, qui
+# signifiait tout autre chose (capturer l'exception sous le nom `e`, pas les
+# types A et B) - c'est cette ambiguite, et elle seule, qui tient ce plancher en
+# retrait ; aucun canal ne sert plus reellement Python 3.13. Ne pas relever sans
+# assumer le reformatage de ces 4 fichiers (Libreosteo/zip_loader.py,
 # libreosteoweb/api/file_integrator.py, libreosteoweb/api/utils.py,
 # libreosteoweb/api/views/administration.py).
 target-version = "py313"

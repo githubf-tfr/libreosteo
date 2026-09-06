@@ -42,8 +42,8 @@ class Singleton(type):
 
 # Résidu Python 2 : `unicode` était le type texte natif de cet interpréteur.
 # Le `try/except NameError` qui suivait visait à retomber sur `str` en Python 3,
-# mais `unicode` n'existe plus dans aucun Python 3 (le projet ne cible que la
-# 3.13, cf. `target-version` dans ce fichier) : le corps du `try` levait donc un
+# mais `unicode` n'existe plus dans aucun Python 3 (le projet exécute en 3.14,
+# cf. `python_version` dans `pyproject.toml`) : le corps du `try` levait donc un
 # `NameError` à chaque import du module, systématiquement rattrapé — un
 # `NameError` latent, pas une simple remarque de typage. Équivalent direct sous
 # Python 3 : `str` est le type texte natif, donc `_unicode` vaut `str`.
