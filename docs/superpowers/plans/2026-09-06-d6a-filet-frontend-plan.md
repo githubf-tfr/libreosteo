@@ -82,7 +82,7 @@
 
 ### La commande qui relève les neuf noms — définie une fois, référencée partout
 
-**Côté local**, après `make static` :
+**Côté local**, le relevé exige, dans cet ordre : `rm -rf static/CACHE/`, puis `make static`, puis le `ls` trié :
 
 ```sh
 ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css | LC_ALL=C sort
@@ -680,6 +680,7 @@ git commit -m "ci: le job functional prepare l'arbre par make static, sans comma
 - [ ] **Step 1 : relever la liste locale**
 
 ```sh
+rm -rf static/CACHE/
 make static
 ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css | LC_ALL=C sort \
   > "$SCRATCH/mesures/noms-T4-local.txt"
@@ -1853,6 +1854,7 @@ Attendu de `make check` : `mypy` compte **un module de plus** ; de `grep -c` : *
 
 ```sh
 TAG=$(git rev-parse --short HEAD)
+rm -rf static/CACHE/
 make static
 ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css | LC_ALL=C sort \
   > "$SCRATCH/mesures/cloture-local.txt"
