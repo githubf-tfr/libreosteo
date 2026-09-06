@@ -169,6 +169,7 @@ files = [
     "tests/functional/test_import_csv.py",
     "tests/functional/test_installation.py",
     "tests/functional/test_patient.py",
+    "tests/functional/test_recherche.py",
     "tests/functional/test_therapeute.py",
     "winserver.py",
     "zipcode_lookup/__init__.py",

@@ -1187,9 +1187,8 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 
 - **Domaine** : Patient
 - **Couverture auto** : oui —
-  libreosteoweb/tests/test_dossier_patient.py::TestContrainteUnicitePatient::test_le_meme_triplet_a_casse_differente_est_refuse_par_la_base
-  (la contrainte de base, au niveau du modèle ; le parcours écran, la modale d'homonyme
-  et le message affiché n'ont pas d'équivalent automatisé)
+  libreosteoweb/tests/test_dossier_patient.py::TestContrainteUnicitePatient::test_le_meme_triplet_a_casse_differente_est_refuse_par_la_base,
+  tests/functional/test_patient.py::test_avertissement_d_homonyme_puis_creation
 - **État requis** : E2
 
 **Étapes**
@@ -1916,10 +1915,11 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 ### R-RCH-02 — Reconstruction de l'index
 
 - **Domaine** : Recherche, index, tableau de bord
-- **Couverture auto** : non (libreosteoweb/tests/test_exploitation.py::
-  TestReconstructionIndex::test_le_personnel_peut_reconstruire_l_index vérifie qu'un
-  membre du personnel peut déclencher la reconstruction et reçoit une réponse
-  positive, mais ne vérifie pas qu'une recherche redevient probante ensuite)
+- **Couverture auto** : oui —
+  tests/functional/test_recherche.py::test_reconstruction_de_l_index_depuis_le_menu
+  (libreosteoweb/tests/test_exploitation.py::TestReconstructionIndex::
+  test_le_personnel_peut_reconstruire_l_index vérifie que la reconstruction répond
+  200 ; ce test-ci vérifie en plus qu'une recherche redevient probante ensuite)
 - **État requis** : E2
 
 **Étapes**

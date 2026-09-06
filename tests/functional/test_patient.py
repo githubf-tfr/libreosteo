@@ -94,6 +94,43 @@ def test_avertissement_d_homonyme_puis_creation(
     expect(modale).to_contain_text("Un patient de même nom existe déjà")
     attendre_creation_patient(page, lambda: page.click("#modal-btn-ok"))
     assert Patient.objects.filter(family_name="Picard").count() == 2
+    # La fiche patient qui vient de s'ouvrir declenche plusieurs appels $http
+    # asynchrones (examens, documents, medecin traitant...) que le clic ci-dessous
+    # n'attend pas : sans cette barriere, un clic trop tot sur "Nouveau patient" est
+    # absorbe en silence par une transition ui-router encore en vol (meme famille de
+    # course que celle documentee dans `helpers.connexion`).
+    attendre_page_prete(page)
+
+    # R-PAT-07 : meme nom a la casse differente, meme date de naissance que le patient
+    # d'origine (13/07/1935) -- l'avertissement d'homonyme s'ouvre comme au-dessus, mais
+    # la creation est cette fois refusee : la contrainte d'unicite ignore la casse
+    # (UniqueTogetherIgnoreCaseValidator, api/serializers/patient.py) et voit un doublon
+    # exact malgre `PICARD`/`JEAN-LUC`.
+    page.click("a:has-text('Nouveau patient')")
+    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    page.fill("input[name=family_name]", "PICARD")
+    page.fill("input[name=first_name]", "JEAN-LUC")
+    page.fill("input.dd", "13")
+    page.fill("input.mm", "07")
+    page.fill("input.yy", "1935")
+    page.check("#consent")
+    page.click("button.btn.btn-primary")
+
+    modale = page.locator("div.modal-body")
+    expect(modale).to_be_visible()
+    page.click("#modal-btn-ok")
+    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    expect(page.locator("div.growl-item.alert-danger")).to_contain_text(
+        "Ce patient existe déjà"
+    )
+    assert Patient.objects.filter(family_name="Picard").count() == 2
+
+    # La recherche ne voit toujours que les deux homonymes deja crees : la tentative
+    # refusee n'a rien ajoute a l'index.
+    page.fill("div.custom-search-form input", "Picard")
+    page.click("div.custom-search-form span > button")
+    expect(page.locator("h3.page-header")).to_contain_text("Picard")
+    expect(page.locator("div.search-entry")).to_have_count(2)
 
 
 def test_charge_html_dans_nom_homonyme_reste_texte_litteral(
