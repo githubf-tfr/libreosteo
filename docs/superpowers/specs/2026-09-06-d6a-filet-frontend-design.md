@@ -492,9 +492,19 @@ déclaré.** Dans un seul commit, et dans cet ordre logique :
    ajoutée signifie une re-résolution et arrête l'incrément.
 
 *Preuve* : régime déclaré. **Prédiction, écrite avant** : changent le bundle JS d'`index.html`
-et le bundle JS d'`install.html` ; ne changent pas le bundle JS de `404.html` — `doctor.js`
-y est chargé, mais `angular-route.min.js` n'y est pas et `DoctorCtrl` en sort — ni aucun des
-six bundles CSS. Soit **2 noms sur 9 changent**. Plus : `make test-functional` vert sur les
+et le bundle JS d'`install.html`, **et aussi le bundle JS de `404.html`** : son bloc
+`{% compress js %}` (`404.html:426-448`) porte `app.js` (`:441`) et `doctor.js` (`:443`),
+les deux fichiers que cette exigence modifie, et le nom d'un bundle est le hachage du
+contenu concaténé de ses nœuds. Ne changent pas les six bundles CSS. Soit **3 noms sur 9
+changent**.
+
+> **Corrigé le 2026-09-06 par la session centrale (arbitrage R26).** Cette prédiction
+> annonçait « 2 noms sur 9 » et se contredisait elle-même — « `DoctorCtrl` en sort » est
+> précisément ce qui change le contenu du bundle. Le fait a été relevé par l'agent du plan
+> et vérifié de la main du contrôleur sur `404.html:426-448`. L'ordre des incréments n'est
+> pas modifié pour autant : réparer `404.html` avant la purge rendrait le « 2 sur 9 » vrai,
+> mais avancerait le seul changement de comportement du lot pour faire coïncider un chiffre.
+> Coût si faux : un nom de plus à justifier au relevé de X11. Plus : `make test-functional` vert sur les
 52 tests, ce qui est la seule chose qui puisse démontrer qu'aucune injection ne casse.
 *Condition d'arrêt de l'exigence* : si un `$routeParams` ou un `$route` non recensé
 apparaît en cours de tâche, **la purge est abandonnée et le fait est écrit** — le lot ne
@@ -586,7 +596,9 @@ supprimée par celle qui la consomme en dernier.
 aucune image du lot. Le motif est écrit : D5 a laissé 17 Go.
 
 **X18 — La référence de `R-INST-07` est re-baseline par ce lot.** Les incréments des régimes
-déclarés changent cinq des neuf noms `output.<hash>` (2 par X11, 2 par X13, 1 par X15) et
+déclarés changent cinq des neuf noms `output.<hash>` — 3 par X11 (bundles JS d'`index.html`,
+d'`install.html` et de `404.html`), 2 par X13, et X15 n'en ajoute aucun de neuf puisqu'il
+supprime le bundle JS de `404.html` déjà compté — et
 donc l'empreinte (b) de `R-INST-07`. La valeur enregistrée par la passe 1 de D5
 (`dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`, `KANBAN.md:384-388`)
 devient caduque, et la « passe de confirmation restant à jouer » consignée au même endroit
@@ -625,7 +637,7 @@ soit isolé.
    Playwright que la suite n'utilise pas encore ; les séparer évite qu'un blocage
    d'outillage retarde les dix premières.
 5. **Purge inerte.** X10. Régime inerte, seul de son espèce : neuf noms identiques.
-6. **Purge `ngRoute`.** X11. Régime déclaré, 2 noms sur 9.
+6. **Purge `ngRoute`.** X11. Régime déclaré, 3 noms sur 9.
 7. **Purge CSS.** X13. Régime déclaré, 2 noms sur 9.
 8. **`404.html`.** X14, X12, X15, X16. Régime déclaré, 1 nom sur 9. En dernier parce que
    c'est le seul changement de comportement du lot, et qu'isolé il s'impute sans ambiguïté.
