@@ -1652,7 +1652,8 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 ### R-AGE-01 — Génération automatique d'un événement à la création d'un patient
 
 - **Domaine** : Agenda
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_agenda.py::test_evenement_genere_a_la_creation_d_un_patient
 - **État requis** : E1. Il n'existe pas de fonction dédiée pour créer manuellement un
   événement d'agenda : chaque création de patient ou de consultation en dépose un
   automatiquement, journalisé sur le tableau de bord (fiche suivante). Cette fiche
@@ -1676,7 +1677,8 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 ### R-AGE-02 — Regroupement et navigation depuis les événements du tableau de bord
 
 - **Domaine** : Agenda
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_agenda.py::test_regroupement_et_navigation_depuis_le_tableau_de_bord
 - **État requis** : E2
 
 **Étapes**
