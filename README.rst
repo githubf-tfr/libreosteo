@@ -427,6 +427,41 @@ Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
    between the two dates. Any difference is a defect: this project does not intentionally
    change what it serves without a code change.
 
+Comparing local bundle names to the image
+==========================================
+
+The same ``output.<hash>`` names are also compared between a local checkout and the image,
+for a different reason than the frozen dependency tree above: the same Django settings
+module builds them on both sides. ``STATIC_URL`` and ``COMPRESS_CSS_HASHING_METHOD`` are set
+in ``Libreosteo/settings/base.py``, inherited by every settings module including
+``container.py``, and the image builds its static assets under
+``--settings=Libreosteo.settings.base``. The two are therefore expected to produce the same
+bundle names.
+
+The local ``static/CACHE/`` is only reliable right after a clean ``make static``.
+``make static`` passes no ``--clear`` and erases nothing, so a stale bundle from an earlier
+build lingers underneath a new one. Worse, ``{% compress %}`` also compresses on the fly at
+render time, because no setting turns ``COMPRESS_OFFLINE`` on: the first page rendered in
+French writes one more bundle than ``compress --force`` ever writes on its own. Always wipe
+the directory first and read the list before running any test suite::
+
+    rm -rf static/CACHE/
+
+Get the local list with ``make static``, then the same ``ls`` used for fingerprint (b)
+above::
+
+    make static
+    ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css | LC_ALL=C sort
+
+Get the image list with the ``docker run`` already shown for fingerprint (b)::
+
+    docker run --rm -w /Libreosteo libreosteo/libreosteo-http:$TAG sh -c \
+      'ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css' | LC_ALL=C sort
+
+Both lists must be identical, and ``diff`` between them must produce no output. Any
+difference is a defect, and the most likely cause is a setting that overrides a value
+inherited from ``base.py``.
+
 Vendored third-party assets
 ===========================
 
