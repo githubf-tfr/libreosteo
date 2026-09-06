@@ -20,7 +20,6 @@
     "@components/angular-i18n": "angular/bower-angular-i18n#c2083adc17be7cdcc9ae68e698d35cb2fdb9e690",
     "@components/angular-loading-bar": "chieffancypants/angular-loading-bar#d734873e52ded18fa27d67f52272ae43267dfd63",
     "@components/angular-resource": "angular/bower-angular-resource#9c261ab3b6afb7d6ac5b09d0d2191ed7d6c77f80",
-    "@components/angular-route": "angular/bower-angular-route#cdb9db456ece8b3f80a638bb7bd69dc2dcd4eee9",
     "@components/angular-sanitize": "angular/bower-angular-sanitize#84df06c4ec4f1eef7f9d0b849b9fdf5433c2669c",
     "@components/angular-scroll": "oblador/angular-scroll#ce0b3e6bfd0d7fff98702cdb8dc83998ed32861a",
     "@components/angular-toArrayFilter": "petebacondarwin/angular-toArrayFilter#9715ece12f759a76070ed51f24c953e08d714633",

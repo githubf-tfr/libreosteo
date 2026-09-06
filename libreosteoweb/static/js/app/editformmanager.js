@@ -123,7 +123,7 @@ editFormManager.directive('editFormControl', ['$timeout', function($timeout) {
         attr.saveOnLostFocus = false;
       }
     },
-    controller: ['$scope', '$routeParams', 'loEditFormManager', '$element', function($scope, $routeParams, loEditFormManager, $element) {
+    controller: ['$scope', 'loEditFormManager', '$element', function($scope, loEditFormManager, $element) {
       var actions = [];
       if ($scope.save != null) {
         actions.push(new Callback('save', $scope.save));

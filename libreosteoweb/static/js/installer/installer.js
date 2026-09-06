@@ -16,7 +16,6 @@
     along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 */
 var installer = angular.module('libreosteoinstaller', [
-    'ngRoute',
     'ngCookies',
     'ui.bootstrap',
     'ngAnimate',

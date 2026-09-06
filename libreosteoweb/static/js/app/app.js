@@ -16,7 +16,6 @@
     along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 */
 var libreosteoApp = angular.module('libreosteo', [
-    'ngRoute',
     'ngCookies',
     'xeditable',
     'ui.bootstrap',

@@ -31,11 +31,6 @@ doctor.factory('DoctorServ', ['$resource',
 ]);
 
 
-doctor.controller('DoctorCtrl', ['$scope', '$routeParams', 'DoctorServ', function ($scope, $routeParams, DoctorServ) {
-    "use strict";
-    $scope.doctorDetails = DoctorServ.get({doctorId : $routeParams.doctorId});
-}]);
-
 var DoctorAddFormCtrl = function($scope, $uibModalInstance) {
     "use strict";
     $scope.doctor = {
