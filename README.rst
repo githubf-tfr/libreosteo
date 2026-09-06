@@ -46,10 +46,18 @@ Install system dependencies, for example, on Debian-like sytem, that would be ::
 
     sudo apt install python3-pip python3-venv nodejs linux-headers-$(uname -r) curl git
 
-For yarnpkg, the last version contains a bug with one of dependency (see https://github.com/yarnpkg/yarn/issues/7890 ).
-Install yarnpkg by a manual installation of explicit version ::
+Yarn is pinned to 1.21.1: 1.22.x corrupts one dependency's symlink
+(``node_modules/@components/moment/meteor/moment.js`` comes out cyclic, breaking
+``collectstatic`` with ``ELOOP``) — a yarn 1.22.x regression established by the D5 build
+work, not an upstream tarball defect (see ``KANBAN.md``). Skip ``curl | bash`` too: its
+upstream installer silently drops signature verification when ``gpg`` is missing. Download
+and verify the same tarball the Docker image installs instead
+(``Docker/build/http-ready/Dockerfile``) ::
 
-  curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.21.1
+  curl -fsSL -o /tmp/yarn.tar.gz https://github.com/yarnpkg/yarn/releases/download/v1.21.1/yarn-v1.21.1.tar.gz
+  echo "d1d9f4a0f16f5ed484e814afeb98f39b82d4728c6c8beaafb5abc99c02db6674  /tmp/yarn.tar.gz" | sha256sum -c -
+  tar -xzf /tmp/yarn.tar.gz -C /tmp
+  export PATH="/tmp/yarn-v1.21.1/bin:$PATH"
 
 Retrieve the content of the project from Git repository ::
 
@@ -69,7 +77,7 @@ Then retrieve the python requirements ::
 
 Install Javascript dependencies ::
 
-    yarn
+    yarn install --frozen-lockfile
 
 Initialize the database ::
 
@@ -365,18 +373,26 @@ The point of that freeze is checkable, and this is how you check it.
 Two full builds made **on two different dates** must produce the same two fingerprints.
 Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
 
-1. **Build the image from scratch, then the build stage on top of it.** The second build
-   deliberately does *not* pass ``--no-cache``: it must reuse the very layers the first one
-   produced, so that the toolchain being measured is the one that was shipped::
+1. **Build the image from scratch, then the build stage on top of it, with the same
+   builder ``make build`` uses.** The builder changes what a layer contains — see
+   fingerprint (a) below — so use ``docker buildx build`` (BuildKit, ``Makefile:14-16``),
+   not plain ``docker build``. The second build deliberately does *not* pass
+   ``--no-cache``: it must reuse the very layers the first one produced, so that the
+   toolchain being measured is the one that was shipped::
 
-       docker build --no-cache -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
-       docker build --target build -t libreosteo/libreosteo-http:$TAG-build -f Docker/build/http-ready/Dockerfile .
+       docker buildx build --no-cache -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+       docker buildx build --target build -t libreosteo/libreosteo-http:$TAG-build -f Docker/build/http-ready/Dockerfile .
 
-2. **Fingerprint (a), the installed tree.** ``node_modules`` is in **no** image: the
-   ``VOLUME /Libreosteo/node_modules`` declared near the top of the Dockerfile makes Docker
-   discard anything written under that path. The tree is therefore re-installed in a
-   throwaway container built on the shipped build stage, so that Node, npm and yarn are the
-   pinned ones::
+2. **Fingerprint (a), the installed tree.** It is *not* read from the shipped image: under
+   BuildKit, the builder above, ``VOLUME /Libreosteo/node_modules`` has no effect at build
+   time, and ``node_modules`` — 6572 entries, checked by extracting the layers directly
+   (``docker save`` + ``tar tf``) — is present both in the ``build`` stage layer and in the
+   final image. But ``VOLUME`` does act the moment a container is *run*: an anonymous
+   volume gets mounted over that path, pre-filled from the image, so reading it from a
+   running container would measure that volume, not the shipped layer. The tree is
+   therefore re-installed in a throwaway container built on the shipped build stage
+   instead, so that the toolchain measured — Node, npm and yarn — is the one that was
+   shipped::
 
        docker run --rm \
          -v "$PWD/package.json:/mesure/package.json:ro" \
