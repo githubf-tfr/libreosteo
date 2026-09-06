@@ -7,7 +7,16 @@ djangorestframework==3.18.0
 cherrypy==18.10.0
 djangorestframework-csv==3.0.0
 django_compressor==4.6.0
-setuptools-bower
+# rcssmin et rjsmin ne sont pas des dependances de confort : ce sont les deux filtres qui
+# produisent les octets servis. base.py pose COMPRESS_CSS_FILTERS = [CssAbsoluteFilter,
+# rCSSMinFilter] et le filtre JS par defaut de django_compressor est rJSMinFilter. Jusqu'a
+# django_compressor 4.4 ils arrivaient en transitif ET EPINGLES A L'EXACT (rcssmin==1.1.1,
+# rjsmin==1.2.1) ; la 4.6, livree par D4, a retire ce plafond (« Removed top pin for rcssmin
+# and rjsmin dependencies », changelog v4.6). Sans les deux lignes ci-dessous, deux
+# constructions faites a deux dates rendraient des bundles differents A ARBRE FRONTEND
+# IDENTIQUE. Toute montee de django_compressor doit relever ces deux valeurs en meme temps.
+rcssmin==1.2.2
+rjsmin==1.2.5
 sqlparse
 netifaces2
 decorator
