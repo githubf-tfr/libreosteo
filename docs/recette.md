@@ -170,6 +170,15 @@ pas à l'attendu. Un écart **du manuel** — un libellé qui ne correspond plus
 parce qu'il omet un comportement délibéré de l'application — est un défaut du manuel, pas
 du produit : il se corrige au fil de la passe et ne donne jamais lieu à un KO.
 
+### Règle : ce qui s'automatise et ce qui reste manuel
+
+Une fiche est automatisée si son objet est un comportement de l'interface servie par
+l'application — ce qu'une réécriture de front peut casser. Elle reste manuelle si son
+objet est le montage (image, conteneur, volume, moteur), ou un état que la suite ne
+peut pas fabriquer honnêtement. Corollaire : une fiche couverte par un test Django qui
+n'ouvre aucun navigateur ne compte pas comme automatisée pour ce qui touche à
+l'interface — la parenthèse du champ `Couverture auto` le dit alors explicitement.
+
 ### Consignation
 
 Le cahier lui-même **ne se coche jamais** — aucune case, aucun verdict, aucune date n'y
@@ -1309,12 +1318,12 @@ existante ne couvrait la casse.
 ### R-DOC-05 — Accès non authentifié à un document
 
 - **Domaine** : Documents patient
-- **Couverture auto** : oui —
+- **Couverture auto** : non — le test unitaire
   libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
-  test_un_anonyme_n_obtient_pas_le_document (vérifie le refus au niveau de la route
-  Django avec le client de test ; il n'exerce **pas** le montage conteneur — ni uwsgi
-  ni ses `--static-map`, qui sont précisément ce que cette fiche met à l'épreuve — ni
-  la configuration des journaux, que seule l'étape 3 constate)
+  test_un_anonyme_n_obtient_pas_le_document existe et n'est pas supprimé, mais ne vaut
+  pas couverture d'écran : il n'exerce **pas** le montage conteneur — ni uwsgi ni ses
+  `--static-map`, qui sont précisément ce que cette fiche met à l'épreuve — ni la
+  configuration des journaux, que seule l'étape 3 constate
 - **État requis** : E2
 
 **Étapes**
@@ -1816,15 +1825,19 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 ### R-SAU-02 — Restauration de la sauvegarde sur une instance vierge
 
 - **Domaine** : Sauvegarde/restauration
-- **Couverture auto** : oui —
+- **Couverture auto** : non — la restauration se fait sur une instance vierge, et la
+  suite fabrique une base par test : elle ne peut pas fabriquer honnêtement une instance
+  vierge à restaurer sans réécrire son socle (`tests/functional/conftest.py`, fixtures
+  `socle` et `environnement_isole`). Les tests unitaires existants restent, sans valoir
+  couverture d'écran :
   libreosteoweb/tests/test_exploitation.py::TestRestauration::test_archive_de_la_version_courante_est_rechargee
   (teste le rechargement de l'archive au niveau API ; ni le parcours écran — page
   d'installation puis formulaire de restauration —, ni la fidélité réelle des
   données restaurées, ne sont automatisés : l'archive rechargée par ce test porte un
-  dump vide). L'atomicité de la restauration — une archive illisible est refusée sans
-  vider la base — est couverte par
-  libreosteoweb/tests/test_exploitation.py::TestRestauration::test_une_archive_illisible_ne_vide_pas_la_base ;
-  le parcours écran de l'essai d'archive tronquée, lui, n'est pas automatisé
+  dump vide) et
+  libreosteoweb/tests/test_exploitation.py::TestRestauration::test_une_archive_illisible_ne_vide_pas_la_base
+  (l'atomicité de la restauration — une archive illisible est refusée sans vider la
+  base — ; le parcours écran de l'essai d'archive tronquée, lui, n'est pas automatisé)
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
   instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,
