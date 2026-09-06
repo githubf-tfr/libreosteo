@@ -92,6 +92,53 @@ Tenu à la main.
   Une question n'est posée à l'utilisateur que si aucune décision actée n'y répond et
   qu'elle l'engage seul — un secret, une rotation de clef, une priorité de chantier.
 
+- (2026-09-06) **Aucun contrôle d'accès par objet sur les documents, pour le moment.**
+  L'état constaté depuis D1 — tout utilisateur authentifié peut lire tout document, y
+  compris par une URL devinée ou transmise — est assumé, pas subi. Le point reste ouvert
+  pour un lot ultérieur. Tranche l'entrée « Points en suspens » du 2026-09-04 sur le même
+  sujet (cf. ci-dessous).
+- (2026-09-06) **La numérotation de facture doit être unique, par cabinet.** L'unicité
+  pertinente porte sur `(officesettings_id, number)`, pas sur `number` seul : le
+  multi-cabinet est réel et actif (`OfficeSettingsMiddleware.process_request`,
+  `libreosteoweb/middleware.py:139-177`), et la séquence est déjà par cabinet
+  (`OfficeSettings.invoice_start_sequence`, `invoice_prefix_sequence`,
+  `libreosteoweb/models.py:500-503`), réservée sous `select_for_update()` dans un
+  `transaction.atomic()` explicite depuis D3
+  (`libreosteoweb/api/invoicing/generator.py:80-101`). Tranche l'entrée « Points en
+  suspens » du 2026-09-05 sur le même sujet (cf. ci-dessous).
+- (2026-09-06) **Une consultation déjà facturée peut être redatée, à condition que la
+  redatation soit tracée.** Tranche l'entrée « Points en suspens » du 2026-08-30 sur les
+  dates de consultation après facturation (cf. ci-dessous). Aucune trace n'existe
+  aujourd'hui pour une modification de consultation : `receiver_examination`
+  (`libreosteoweb/api/receivers.py:90-100`) n'a aucune branche de mise à jour, et aucun
+  type d'`OfficeEvent` ne correspond à une modification de consultation — tracer la
+  redatation suppose donc de créer ce type, pas d'en réactiver un.
+- (2026-09-06) **Arbitrage session centrale — le lot D6 est scindé en D6a puis D6b.** D6a
+  qualifie le filet de test et assainit : combler les 20 fiches de recette sur 51 sans
+  couverture automatisée (`docs/recette.md`), fermer l'écart entre l'arbre exercé en
+  local et celui exercé en CI par la suite Playwright (cf. « Renvoyé par D5 »
+  ci-dessous), purger le code mort frontend, réparer `404.html`. D6b porte la bascule de
+  framework, dont la cible n'est pas choisie et se décidera à la clôture de D6a. Motif :
+  la spec du chantier (`docs/superpowers/specs/2026-09-04-dette-technique-design.md`,
+  § D6) pose que « le cadrage de D6 qualifie l'adéquation du filet avant de choisir la
+  stratégie » et que, si le filet est jugé insuffisant, « l'étendre est le premier
+  incrément du lot ». Le filet est jugé insuffisant : 20 des 51 fiches de recette n'ont
+  aucune couverture automatisée. La scission va **plus loin que la spec**, qui faisait de
+  cette extension un incrément et non un lot : elle en fait un lot parce que le contenu
+  de D6a — filet, écart local/CI, code mort, `404.html` — se livre et se clôt seul, ce
+  que la règle « chantier arrêtable à toute frontière de lot » valorise, et parce que la
+  cible de D6b s'arbitrera mieux sur ce que D6a aura mesuré. Coût si faux : un lot de
+  plus, et la bascule décalée d'autant.
+- (2026-09-06) **Arbitrage session centrale — la date de facture est la date de la
+  consultation, recopiée à l'émission puis figée.** Motif : l'utilisateur a demandé
+  l'égalité des deux dates et la redatation d'une consultation facturée ; les deux ne
+  tiennent pas ensemble si la date de facture *dérive* de celle de la consultation,
+  puisqu'une redatation déplacerait alors la date d'un document fiscal déjà remis. La
+  recopie à l'émission donne l'égalité au moment qui compte et laisse la facture
+  immuable ensuite. Coût si faux : en facturation différée, la facture porte la date de
+  la séance et non celle de son émission ; si l'exercice comptable doit suivre la date
+  d'émission, l'arbitrage est à reprendre — et il faudra alors garder les deux dates.
+
 ## À faire
 
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non
@@ -396,6 +443,74 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   probablement diverger l'empreinte (a) pour une raison étrangère à l'arbre de
   dépendances lui-même — à vérifier alors, et à exclure de l'empreinte si la divergence
   se confirme.
+
+### Constats de facturation (2026-09-06)
+
+> Constat en lecture seule, préalable aux décisions du même jour (cf. « Décisions
+> actées ») et aux candidats D7 ci-dessous. Chaque affirmation est adossée à un
+> `chemin:ligne` vérifié.
+
+- **La relation `Examination.invoices` n'est pas un groupement.** Le
+  `ManyToManyField` (`libreosteoweb/models.py:203`) porte, pour **une seule**
+  consultation, un historique facture → avoir, 1 pour 1 à l'origine : la migration
+  `0037_auto_20190506_1653.py` (`migrate_invoice_examination`, lignes 7-12) copie
+  l'ancien `ForeignKey` unique `Examination.invoice` dans le nouveau M2M, exactement 1
+  pour 1, à l'introduction même de celui-ci. Un seul point d'écriture ajoute une
+  facture à une consultation (`current_examination.invoices.add(current_invoice)`,
+  `libreosteoweb/api/invoicing/generator.py:169`), et `InvoiceViewSet` est un
+  `ReadOnlyModelViewSet` (`libreosteoweb/api/views/facturation.py:60`) : pas de
+  création de facture par l'API.
+- **`Invoice.date` vaut `timezone.now()` à la création**, jamais la date de la
+  consultation (`libreosteoweb/api/invoicing/generator.py:69` pour la facture
+  normale, `:133` pour l'avoir) ; `Examination.date`
+  (`libreosteoweb/models.py:191`) est un champ indépendant. En facturation
+  différée, les deux dates divergent — c'est ce que l'arbitrage du 2026-09-06 sur la
+  date de facture change (cf. « Décisions actées »).
+- **Ce qui dépend de `Invoice.date`** : le filtre de la liste/export des factures
+  (`filterset_fields`, `libreosteoweb/api/views/facturation.py:65`), l'écran de
+  liste des factures (`buildAPIFilter`,
+  `libreosteoweb/static/js/app/invoice.js:74-81`), l'export CSV/XLSX
+  (`InvoiceSerializer.Meta`, `fields = "__all__"`,
+  `libreosteoweb/api/serializers/facturation.py:62-65`, colonne `date` du
+  renderer CSV, `libreosteoweb/api/renderers.py:70-106`), le tri par défaut
+  (`Invoice.Meta.ordering = ["-date"]`, `libreosteoweb/models.py:396-397`), et le
+  gabarit de la facture (nom de fichier et mention « À {lieu}, le {date} »,
+  `libreosteoweb/templates/invoice/invoice-result.html:6,55`).
+  `libreosteoweb/api/statistics.py` ne l'utilise jamais : ses compteurs
+  (`compute_statistics`, lignes 59-68) travaillent sur `Patient.creation_date` et
+  `Examination.date` — les statistiques sont donc insensibles à l'arbitrage du
+  2026-09-06 sur `Invoice.date`.
+- **Aucune trace n'existe aujourd'hui pour une modification de consultation.**
+  `receiver_examination` (`libreosteoweb/api/receivers.py:90-100`) n'a aucune
+  branche de mise à jour : sur création, un `OfficeEvent` est construit et
+  sauvegardé, sur mise à jour rien ne se passe. Aucun type d'`OfficeEvent` ne
+  correspond à une modification de consultation, ni côté `Patient.TYPE_*`
+  (`libreosteoweb/models.py:133-134`) ni côté `OfficeSettings.*`
+  (`libreosteoweb/models.py:508-511`) : « tracer la redatation » (cf. « Décisions
+  actées ») suppose donc de créer ce type, pas d'en réactiver un. Le voisin connu —
+  `receiver_newpatient` construit `TYPE_UPDATE_PATIENT` puis n'appelle jamais
+  `save()` (`libreosteoweb/api/receivers.py:80-87`) — est toujours vrai.
+- **Côté client, le champ date de la consultation reste éditable quel que soit
+  `status`** (`libreosteoweb/templates/partials/examination.html:17`) ; seule une
+  borne maximale existe en JavaScript (`maxExaminationDate`,
+  `libreosteoweb/static/js/app/examination.js:358-363`), sans contrepartie serveur
+  depuis la suppression de `_validate_examination_date` (2026-09-02) et sans borne
+  minimale.
+
+### Candidats pour D7 (2026-09-06, non décidés)
+
+> D7 n'est pas décidé : il se cadre à la clôture de D6, avec ce que D6 aura produit.
+> Trois candidats identifiés le 2026-09-06 :
+
+- **Facturation** — unicité `(officesettings_id, number)` avec la reprise de parc que
+  la contrainte exige, garde-fou de séquence en comparaison numérique (cf. « Points en
+  suspens »), application de l'arbitrage du 2026-09-06 sur `Invoice.date` (cf.
+  « Décisions actées »), création du type d'événement qui trace la redatation.
+- **Whoosh** — moteur de recherche sans mainteneur depuis 2016 (`Whoosh==2.7.4`), porte
+  la recherche du produit ; déjà signalé comme dette de fond par D4 (cf. « Renvoyé par
+  D4 » ci-dessus).
+- **Ménage** — dépendances mortes, chapitre « Installation » du `README.rst`,
+  reliquats de recette déjà renvoyés par D4 et D5.
 
 ### Dette technologique — analyse automatisée du 2026-09-02, triée le 2026-09-04
 
@@ -2241,7 +2356,10 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   contrainte transformerait cet historique en panne de facturation au démarrage. La
   question — la numérotation doit-elle être unique par cabinet, et que faire des parcs
   qui ne le sont pas ? — exigerait une reprise de parc que rien n'a instruite. Confirmé
-  hors périmètre par le contrôleur au cadrage du lot D3.
+  hors périmètre par le contrôleur au cadrage du lot D3. **Tranché le 2026-09-06** :
+  l'unicité doit porter sur `(officesettings_id, number)`, avec la reprise de parc que
+  cela exige (cf. « Décisions actées » et « Candidats pour D7 » § Facturation) ; la
+  comparaison de ce garde-fou doit devenir numérique dans le même lot.
 - **2026-09-05 — l'index Whoosh n'est pas transactionnel.** `RealtimeSignalProcessor`
   (`Libreosteo/settings/base.py`) écrit l'index à chaque `save()`, hors de toute
   transaction : sous `ATOMIC_REQUESTS` (D3), une requête annulée peut laisser dans
@@ -2281,7 +2399,9 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   tout document**, y compris par une URL devinée ou transmise. La vue ne décide jamais qui a
   le droit de lire quel dossier : définir cette règle est une question métier que rien dans
   le dépôt ne spécifie, de même nature que celle des dates de consultation après
-  facturation. Ne se tranche pas dans un lot de dette.
+  facturation. Ne se tranche pas dans un lot de dette. **Tranché le 2026-09-06** : pas de
+  contrôle d'accès par objet, pour le moment — assumé, pas subi ; le point reste ouvert
+  pour plus tard (cf. « Décisions actées »).
 
 ### Comportements figés par S2 sans avoir été tranchés
 
@@ -2297,5 +2417,8 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   et sa logique paraissait inversée. Sa suppression ne tranche pas la question qu'elle
   prétendait porter — une consultation peut être redatée après facturation sans qu'aucune
   règle ne l'interdise ni ne l'autorise explicitement quelque part dans le dépôt. Toujours
-  à trancher avant tout travail sur la facturation.
+  à trancher avant tout travail sur la facturation. **Tranché le 2026-09-06** : une
+  consultation déjà facturée peut être redatée, à condition que la redatation soit tracée
+  (cf. « Décisions actées »). Ce qui manque pour tracer cette redatation est détaillé en
+  « Constats de facturation ».
 
