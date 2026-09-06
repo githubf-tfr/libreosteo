@@ -1,5 +1,7 @@
 """Cas repris de tests/core/002_login_user.robot."""
 
+import re
+
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -44,3 +46,21 @@ def test_les_statiques_de_l_application_sont_servis(
     reponse = page.request.get(f"{live_server.url}/static/jsi18n/fr/djangojs.js")
     assert reponse.status == 200
     assert page.evaluate("typeof angular") == "object"
+
+
+def test_la_page_sert_les_bundles_compresses(
+    page: Page, live_server: LiveServer
+) -> None:
+    """La suite exerce ce que l'image sert : un bundle, pas vingt fichiers.
+
+    Sous `dev.py`, COMPRESS_ENABLED est faux et `{% compress %}` rend le contenu
+    d'origine : la suite recetterait une chaine que le produit ne sert pas. Ce test
+    echoue des que le reglage repasse a faux — c'est ce qui en fait un cliquet.
+    """
+    connexion(page, live_server)
+    sources = page.eval_on_selector_all(
+        "script[src]", "noeuds => noeuds.map((n) => n.getAttribute('src'))"
+    )
+    motif = re.compile(r"^/static/CACHE/js/output\.[0-9a-f]{12}\.js$")
+    assert len([source for source in sources if motif.match(source)]) == 1, sources
+    assert [source for source in sources if "/static/js/app/" in source] == []

@@ -46,6 +46,15 @@ reglages_django.STATICFILES_DIRS = [str(RACINE / "static")]
 # django-stubs type `get_finder` comme une fonction nue ; a l'execution c'est un
 # `functools.lru_cache`, qui porte bien `cache_clear`.
 finders.get_finder.cache_clear()  # type: ignore[attr-defined]
+# Le produit sert neuf bundles `output.<hash>` (Docker/build/http-ready/Dockerfile:105) ;
+# la suite doit servir les memes, sans quoi elle recette une chaine et le produit en livre
+# une autre. `Libreosteo.settings` est dev.py, ou COMPRESS_ENABLED est faux : on rebascule.
+reglages_django.COMPRESS_ENABLED = True
+# Indissociable de la ligne precedente. COMPRESS_ROOT vaut STATIC_ROOT par defaut, et on
+# vient justement de deplacer STATIC_ROOT vers un chemin jamais ecrit. Sans cette ligne,
+# {% compress %} chercherait les bundles dans un repertoire vide, les reecrirait la, et les
+# finders ne les serviraient pas. `make static` (Makefile) les a deja ecrits sous static/.
+reglages_django.COMPRESS_ROOT = str(RACINE / "static")
 
 # La base de test par defaut de Django, sous sqlite3, est en memoire mais **a cache
 # partage entre threads** (`sqlite3/creation.py` la nomme
