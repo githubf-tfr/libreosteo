@@ -25,7 +25,14 @@ run:
 run-pg:
 	docker-compose --env-file=.env -f Docker/deploy/pg/docker-compose.yml up
 
-PYTHON := ./.venv/bin/python
+# `?=` et non `:=` : le job CI `functional` (.github/workflows/main.yml) n'a pas de .venv,
+# il installe ses dependances dans l'interpreteur de setup-python. Il appelle donc
+# `make static PYTHON=python`. Le comportement local ne change pas.
+PYTHON ?= ./.venv/bin/python
+# yarn n'est ni dans le PATH ni installe au meme endroit des deux cotes :
+# .tools/yarn/bin/yarn en local (pose par .tools/libreosteo-devenv.sh), $HOME/.yarn/bin/yarn
+# en CI. On prend le premier qui existe, et on n'installe jamais rien depuis le Makefile.
+YARN ?= $(firstword $(wildcard $(PWD)/.tools/yarn/bin/yarn $(HOME)/.yarn/bin/yarn) yarn)
 SHELL := /bin/bash
 
 lint:
@@ -38,7 +45,19 @@ test:
 	@echo "Tests unitaires et couverture"
 	$(PYTHON) -m pytest
 
-test-functional:
+static:
+	@echo "Preparation de l'arbre statique servi"
+	# Les quatre commandes de Docker/build/http-ready/Dockerfile:105, dans cet ordre.
+	# Les deux --settings ne sont pas decoratifs : `Libreosteo.settings` est dev.py, ou
+	# COMPRESS_ENABLED est faux ; sous ce reglage `compress` n'ecrit aucun bundle et
+	# {% compress %} rend le contenu d'origine. `compilejsi18n` tourne sur le defaut,
+	# comme dans l'image.
+	$(YARN) install --frozen-lockfile
+	$(PYTHON) ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base
+	$(PYTHON) ./manage.py compilejsi18n
+	$(PYTHON) ./manage.py compress --force --settings=Libreosteo.settings.base
+
+test-functional: static
 	@echo "Tests fonctionnels Playwright"
 	set -o pipefail; \
 	if [ -d "$(PWD)/.tools/playwright-browsers" ]; then \
@@ -54,6 +73,6 @@ migrations-check:
 
 check: lint migrations-check test
 
-.PHONY: lint test test-functional migrations-check check
+.PHONY: lint test test-functional migrations-check check static
 
 .DEFAULT_GOAL := help
