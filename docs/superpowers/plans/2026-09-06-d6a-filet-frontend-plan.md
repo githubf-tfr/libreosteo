@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** livrer le lot D6a tel que sa spec le décrit — la suite Playwright exerce enfin les neuf bundles `output.<hash>` que l'image sert, ici comme en CI ; 21 fiches de recette gagnent une preuve d'écran et 8 restent manuelles avec leur motif ; `loTypeAhead`, `loInlineEdit`, les gabarits et règles CSS orphelins et `ngRoute` sortent de l'arbre ; `404.html` cesse de lever une cascade de `ReferenceError` — puis clore le lot sur ses cinq propositions, mesurées.
+**Goal:** livrer le lot D6a tel que sa spec le décrit — la suite Playwright exerce enfin les bundles `output.<hash>` que l'image sert (neuf avant le chantier 4, huit après, § X15), ici comme en CI ; 21 fiches de recette gagnent une preuve d'écran et 8 restent manuelles avec leur motif ; `loTypeAhead`, `loInlineEdit`, les gabarits et règles CSS orphelins et `ngRoute` sortent de l'arbre ; `404.html` cesse de lever l'erreur unique de `bootstrap.min.js` qui arrêtait son bundle fusionné — puis clore le lot sur ses cinq propositions, mesurées.
 
 **Architecture:** dix-neuf tâches, dans l'ordre des neuf incréments de la spec. T1–T3 outillent l'arbre exercé (incrément 1). T4 constate l'égalité local/image (incrément 2) et **c'est elle qui rend toutes les preuves suivantes relevables localement**. T5–T9 comblent le filet, première vague (incrément 3). T10–T13 le comblent, seconde vague (incrément 4). T14 purge en régime inerte (incrément 5), T15 purge `ngRoute` (incrément 6), T16 purge les règles CSS (incrément 7), T17–T18 réparent `404.html` (incrément 8). T19 clôt (incrément 9). **La session centrale ne code pas** : chaque tâche est exécutée par un sous-agent, revue par un autre, et commitée par la session centrale.
 
@@ -19,9 +19,19 @@
 
 **C1 — La prédiction de X11 est fausse : trois noms sur neuf changent, pas deux.** La spec écrit (X11, *Preuve*) : « ne changent pas le bundle JS de `404.html` — `doctor.js` y est chargé, mais `angular-route.min.js` n'y est pas et `DoctorCtrl` en sort — […] Soit **2 noms sur 9 changent** ». Mesure : le bloc `{% compress js %}` de `404.html:426-448` porte **`app.js` (`:441`) et `doctor.js` (`:443`)**, et X11 modifie ces deux fichiers (retrait de `'ngRoute',` dans `app.js:19`, retrait du contrôleur `DoctorCtrl` dans `doctor.js:34-37`). Le nom d'un bundle est le hachage du **contenu concaténé de ses nœuds** (`README.rst:418-421`) : deux nœuds changeant de contenu, le nom du bundle JS de `404.html` **ne peut pas** être identique. La justification de la spec est d'ailleurs auto-contradictoire — « `DoctorCtrl` en sort » est précisément la raison pour laquelle le bundle bouge.
 
-*Conséquence tenue par ce plan* : **T15 prédit 3 noms sur 9** — bundle JS d'`index.html`, bundle JS d'`install.html`, bundle JS de `404.html` — et aucun des six CSS. Le total du lot ne bouge pas : les cinq noms distincts annoncés par X18 restent cinq (les deux JS d'`index`/`install` et le JS de `404` par T15, les deux CSS par T16 ; T18 rechange le JS de `404`, déjà compté). **X18 reste vrai tel quel.**
+*Conséquence tenue par ce plan* : **T15 prédit 3 noms sur 9** — bundle JS d'`index.html`, bundle JS d'`install.html`, bundle JS de `404.html` — et aucun des six CSS. Le total du lot ne bouge pas : les cinq noms distincts annoncés par X18 restent cinq (les deux JS d'`index`/`install` et le JS de `404` par T15, les deux CSS par T16). **X18 reste vrai tel quel.**
 
-*Ordre alternatif écarté, et pourquoi il est écarté* : jouer T18 (`404.html`) **avant** T15 sortirait `app.js` et `doctor.js` du bundle de `404.html` et rendrait littéralement vraie la prédiction « 2 sur 9 » de X11. Ce plan ne le fait pas, pour deux raisons de fait : la spec range `404.html` **en dernier** parce que c'est le seul changement de comportement du lot et qu'isolé il s'impute sans ambiguïté (§ Découpage, incrément 8) ; et T17 (relevé X14) doit mesurer le comportement d'avant sur un arbre où les huit fichiers applicatifs sont encore chargés. Réordonner pour faire coïncider un chiffre avec une prédiction serait ajuster la mesure à la prévision.
+> **Remplacé le 2026-09-06 par le contrôleur, sur mesure de T17 (arbitrage R27).** La phrase
+> « T18 rechange le JS de `404`, déjà compté » ne tient plus. Le relevé de T17 établit que
+> `bootstrap.min.js` arrête l'exécution du bundle fusionné dès sa ligne 5 : réparer `404.html`
+> en ne retirant que les huit scripts applicatifs aurait laissé le bundle en place (avec
+> `bootstrap.min.js`, `sb-admin-2.js`, `metisMenu.min.js`), un nom changé de plus mais la
+> console non vide. T18 retire donc le bloc `{% compress js %}` **en entier** : le bundle JS
+> de `404.html` ne change plus une troisième fois, il **disparaît**. Le total du lot bouge
+> bien : neuf noms de départ deviennent **huit** à la clôture, pas neuf. § X15 de la spec, et
+> le corrigé de X18.
+
+*Ordre alternatif écarté, et pourquoi il est écarté* : jouer T18 (`404.html`) **avant** T15 sortirait `app.js` et `doctor.js` du bundle de `404.html` et rendrait littéralement vraie la prédiction « 2 sur 9 » de X11 — mais cela ne tient plus non plus avec R27, puisque T18 retire le bundle entier plutôt que de le modifier. Ce plan ne réordonne pas T15/T18, pour deux raisons de fait : la spec range `404.html` **en dernier** parce que c'est le seul changement de comportement du lot et qu'isolé il s'impute sans ambiguïté (§ Découpage, incrément 8) ; et T17 (relevé X14) doit mesurer le comportement d'avant sur un arbre où les huit fichiers applicatifs sont encore chargés. Réordonner pour faire coïncider un chiffre avec une prédiction serait ajuster la mesure à la prévision.
 
 **C2 — `installer.js` n'est pas où la spec le laisse entendre.** X11 point 3 écrit « retrait de `'ngRoute'` d'`app.js:19` et d'`installer.js:19` ». Le chemin réel est **`libreosteoweb/static/js/installer/installer.js:19`**, pas `js/app/`. Sans conséquence sur le fond ; noté pour que T15 ne cherche pas au mauvais endroit.
 
@@ -49,7 +59,7 @@
 - **`ruff format` inspecte les fichiers de `docs/`, y compris les blocs ` ```python ` des `.md`.** Mesuré : `./.venv/bin/python -m ruff format --check docs/` rend **`14 files already formatted`** avant ce plan, **`15`** tant qu'il existe, **`14`** après sa suppression en T19. **Tout bloc ` ```python ` de ce plan se recopie caractère pour caractère** : il est déjà au format `ruff` (guillemets doubles, 88 colonnes, virgules terminales).
 - **Index git partagé** : avant chaque `git commit`, lancer `git diff --cached --name-only` et vérifier qu'il ne contient que les fichiers de la tâche en cours.
 - **Toute tâche passe par une revue avant commit**, sans exception, y compris à deux lignes (`superpowers:requesting-code-review`). Le siège de revue est tenu par **un autre sous-agent** que celui qui a implémenté.
-- **Accès réseau requis** pour T1 (`yarn install`), T4, T17 et T19 (constructions d'image). Une tâche qui ne peut pas atteindre le réseau s'arrête et le signale au lieu de contourner.
+- **Accès réseau requis** pour T1 (`yarn install`), T4, T17, T18 (Step 6, arbitrage R27) et T19 (constructions d'image). Une tâche qui ne peut pas atteindre le réseau s'arrête et le signale au lieu de contourner.
 - **Aucun secret généré ni proposé pour un usage réel.** Les identifiants PostgreSQL de recette sont ceux de `Docker/deploy/pg/.env.example` (`POSTGRES_USER=libreosteo`, `POSTGRES_PASSWORD=recette`). **Une exception, prescrite par le cahier et non par ce plan** : la `SECRET_KEY` d'un montage de recette est une valeur jetable produite par la commande du chapitre 0 (`docs/recette.md:56-60`), jamais réutilisée, jamais versionnée. Elle ne concerne que T17 et T19.
 - Périmètre d'écriture : `/home/vtramier/claude/libreosteo` uniquement.
 
@@ -57,9 +67,9 @@
 
 | Chose | Valeur |
 |---|---|
-| Bundles servis par l'image | **9** — 6 CSS, 3 JS |
-| Blocs `{% compress css %}` | **7**, pour 6 fichiers (`login.html` et `create_admin_account.html` se rabattent sur le même) |
-| Blocs `{% compress js %}` | **3** — `index.html:168`, `install.html:62`, `404.html:426` |
+| Bundles servis par l'image | **9** avant T18, **8** après (6 CSS, 3 JS → 6 CSS, 2 JS) — arbitrage R27, § X15 |
+| Blocs `{% compress css %}` | **7**, pour 6 fichiers (`login.html` et `create_admin_account.html` se rabattent sur le même) — inchangé par T18 |
+| Blocs `{% compress js %}` | **3** avant T18 — `index.html:168`, `install.html:62`, `404.html:426` — **2** après : T18 retire le bloc de `404.html` en entier |
 | Fiches de domaine de `docs/recette.md` | **50** (`grep -c '^### R-'` rend 51 : le chapitre 2 recopie `R-AUTH-02` en exemple, `:369`) |
 | Filet navigateur au départ | **21 fiches sur 50** |
 | Fiches couvertes par un test unitaire seul | **9** — comptent comme non couvertes (A1) |
@@ -85,14 +95,14 @@ docker run --rm -w /Libreosteo libreosteo/libreosteo-http:$TAG sh -c \
   'ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css' | LC_ALL=C sort
 ```
 
-Les deux rendent **neuf** chemins. Toute tâche qui relève ces noms écrit sa sortie dans `"$SCRATCH/mesures/noms-<tâche>-<avant|apres>.txt"` et les compare par `diff`.
+Les deux rendent **neuf** chemins jusqu'à T18 inclus (T18 relève encore neuf noms **avant** son propre retrait, Step 1) ; **huit** à partir du relevé d'après T18 et pour T19. Toute tâche qui relève ces noms écrit sa sortie dans `"$SCRATCH/mesures/noms-<tâche>-<avant|apres>.txt"` et les compare par `diff`.
 
 ---
 
 ## Ce que le plan tranche, parce que la spec le lui laisse
 
-1. **Après T4, la preuve des neuf noms se relève localement ; l'image n'est rebâtie qu'en T17 et T19.** X10, X11, X13 et X15 écrivent que les noms sont relevés « sur l'image bâtie du commit précédent puis du commit du changement ». C'est exactement ce que **X4 rend inutile** : l'incrément 2 existe pour établir que la liste locale et la liste de l'image sont identiques, et cette égalité, une fois établie, est la garde permanente que la spec elle-même lègue à D6b (§ « Ce que D6a lègue à D6b »). Rebâtir deux images par incrément déclaré coûterait **huit constructions** pour reprouver une propriété déjà prouvée — et c'est précisément le geste qui a laissé 17 Go à D5, motif de X17. **Filet de la simplification** : T19 rebâtit l'image et **reconstate l'égalité X4** ; si la liste locale avait dérivé de la liste de l'image pendant le lot, T19 le voit et l'arbitrage remonte au contrôleur avant la clôture. Le critère d'arrêt n'est pas allégé, il est constaté une fois de plus qu'une fois.
-2. **Aucune image n'est conservée d'une tâche à l'autre.** X17 prévoit une exception nommée pour l'image qu'une tâche suivante réutilise ; ce plan **n'en nomme aucune**, parce que le point 1 supprime le besoin. Trois tâches seulement bâtissent (T4, T17, T19) et chacune supprime ce qu'elle a créé.
+1. **Après T4, la preuve des neuf noms se relève localement ; l'image n'est rebâtie qu'en T17, T18 (Step 6, arbitrage R27) et T19.** X10, X11, X13 et X15 écrivent que les noms sont relevés « sur l'image bâtie du commit précédent puis du commit du changement ». C'est exactement ce que **X4 rend inutile** : l'incrément 2 existe pour établir que la liste locale et la liste de l'image sont identiques, et cette égalité, une fois établie, est la garde permanente que la spec elle-même lègue à D6b (§ « Ce que D6a lègue à D6b »). Rebâtir deux images par incrément déclaré coûterait **huit constructions** pour reprouver une propriété déjà prouvée — et c'est précisément le geste qui a laissé 17 Go à D5, motif de X17. **Filet de la simplification** : T19 rebâtit l'image et **reconstate l'égalité X4** ; si la liste locale avait dérivé de la liste de l'image pendant le lot, T19 le voit et l'arbitrage remonte au contrôleur avant la clôture. Le critère d'arrêt n'est pas allégé, il est constaté une fois de plus qu'une fois.
+2. **Aucune image n'est conservée d'une tâche à l'autre.** X17 prévoit une exception nommée pour l'image qu'une tâche suivante réutilise ; ce plan **n'en nomme aucune**, parce que le point 1 supprime le besoin. Quatre tâches seulement bâtissent (T4, T17, T18, T19) et chacune supprime ce qu'elle a créé. **T18 bâtit** depuis l'arbitrage R27 : la console vide de X15 se mesure sur E1, pas seulement au `live_server` de son test pytest.
 3. **`PYTHON` et `YARN` deviennent surchargeables dans le `Makefile`.** `PYTHON := ./.venv/bin/python` (`Makefile:26`) est une affectation ferme, et le job CI `functional` n'a **pas** de `.venv` : il installe ses dépendances dans l'interpréteur de `setup-python`. Sans `?=`, X5 est irréalisable — la CI appellerait une cible qui invoque un interpréteur inexistant. Même chose pour `yarn`, installé sous `.tools/yarn/bin/yarn` en local (`.tools/libreosteo-devenv.sh:55-61`) et sous `$HOME/.yarn/bin/yarn` en CI (`.github/workflows/main.yml:38-43`). T1 pose les deux ; T3 s'en sert. **Le comportement local de `make check` ne change pas d'un octet.**
 4. **La suite fonctionnelle reste hors de `make check`.** Écarté par la spec ; rappelé ici parce que X19 exige `make test-functional` vert à chaque commit et que la tentation de l'y ajouter « pour ne pas l'oublier » serait de contredire `pyproject.toml:9-10`.
 5. **`R-THE-02` est testée dans `tests/functional/test_facturation.py`, bien que sa fiche relève du domaine « Thérapeute ».** Le test a besoin de tout le montage de facturation (consultation clôturée, facture, menu Comptabilité) que ce fichier porte déjà. Le champ `Couverture auto` de la fiche nomme le test, chemin complet : le cahier reste exact, seul le rangement diffère.
@@ -141,7 +151,7 @@ Les deux rendent **neuf** chemins. Toute tâche qui relève ces noms écrit sa s
 | `libreosteoweb/static/css/typeahead.css` | T16 | quatre règles retirées, `.search-container` conservée + commentaire |
 | `libreosteoweb/static/js/app/inline-edit.js` | T18 | supprimé |
 | `libreosteoweb/static/js/app/templates/inline-textarea.html` | T18 | supprimé |
-| `libreosteoweb/templates/404.html` | T18 | `ng-app`/`xmlns:ng` `:5`, `ng-controller` `:37` et `:277`, `ng-model`/`ng-keydown` `:281`, `ng-click` `:283`, huit `<script>` `:441-447` |
+| `libreosteoweb/templates/404.html` | T18 | `ng-app`/`xmlns:ng` `:5`, `ng-controller` `:37` et `:277`, `ng-model`/`ng-keydown` `:281`, `ng-click` `:283`, bloc `{% compress js %}` entier `:426-448` (onze `<script>`, de `bootstrap.min.js` à `user.js`) — `polyfiller.js` `:425`, hors bloc, reste |
 
 **Modifiés, documentation :** `docs/recette.md` (T5 et toutes les tâches de test, T18, T19), `KANBAN.md` (T19), ce plan (supprimé par T19).
 
@@ -170,14 +180,14 @@ Les deux rendent **neuf** chemins. Toute tâche qui relève ces noms écrit sa s
 | T15 | `sonnet` | cinq gestes couplés, une condition d'arrêt à honorer, un `yarn.lock` à réaligner | `sonnet` | juger qu'aucune injection ne casse demande de relire les consommateurs |
 | T16 | `sonnet` | quatre règles à retirer, une à conserver, un commentaire à écrire | `haiku` | liste de contrôle entièrement écrite |
 | T17 | `sonnet` | monter E1 sur l'image, piloter un navigateur, relever une console : exécution, aucun code | `sonnet` | juger si le relevé établit ce qu'il prétend établir |
-| T18 | `sonnet` | un test rouge-puis-vert, huit lignes retirées, une fiche neuve, un domaine neuf | `sonnet` | seul changement de comportement du lot |
+| T18 | `sonnet` | un test rouge-puis-vert, le bloc `{% compress js %}` retiré en entier (onze `<script>`), une fiche neuve, un domaine neuf | `sonnet` | seul changement de comportement du lot |
 | T19 | **`opus`** | la clôture arbitre le compte final (42/50, éventuellement ajusté), reconduit le renvoi `R-INST-07` et écrit les quatre sorties du chapeau — seul endroit où le lot tranche sur une mesure | **`opus`** | idem |
 
 ---
 
 ## Ménage Docker (X17)
 
-**Trois tâches seulement bâtissent une image** : T4, T17, T19. **Aucune image n'est conservée d'une tâche à l'autre** (§ « Ce que le plan tranche », point 2) — X17 prévoit une exception nommée, ce plan n'en nomme aucune.
+**Quatre tâches seulement bâtissent une image** : T4, T17, T18 (Step 6, arbitrage R27), T19. **Aucune image n'est conservée d'une tâche à l'autre** (§ « Ce que le plan tranche », point 2) — X17 prévoit une exception nommée, ce plan n'en nomme aucune.
 
 Chacune de ces trois tâches se termine par, littéralement :
 
@@ -210,8 +220,8 @@ Les tâches qui montent une pile compose (T17, et T19 pour `R-INST-07`) ferment 
 | T15 | **déclaré** | **3 noms sur 9 changent** (correction C1) : bundle JS d'`index.html`, bundle JS d'`install.html`, bundle JS de `404.html`. **Ne changent pas** : les six CSS. Plus : le contenu de chaque bundle changé ne diffère que par les lignes retirées, vérifié par extraction et `diff` |
 | T16 | **déclaré** | **2 noms sur 9 changent** : premier bundle CSS d'`index.html` (`:15-36`) et bundle CSS de `404.html` (`:14-30`), les deux seuls à référencer `css/typeahead.css`. **Ne changent pas** : les quatre autres CSS ni les trois JS |
 | T17 | — | aucun changement d'arbre : la tâche ne commite rien |
-| T18 | **déclaré** | **1 nom sur 9 change** : bundle JS de `404.html` (`:426-448`). **Ne changent pas** : les deux autres JS ni aucun des six CSS |
-| T19 | inerte | documentation seule : **neuf noms identiques**, et l'égalité X4 reconstatée sur l'image finale |
+| T18 | **déclaré** | **le nom JS de `404.html` (`:426-448`) disparaît** — arbitrage R27, le bloc retiré en entier n'a plus de nœud à hacher. **Neuf noms deviennent huit.** **Ne changent pas** : les deux autres JS ni aucun des six CSS |
+| T19 | inerte | documentation seule : **huit noms identiques** (T18 a déjà fait disparaître le neuvième), et l'égalité X4 reconstatée sur l'image finale |
 
 **La prédiction s'écrit dans le rapport de tâche AVANT le premier geste d'édition**, et le relevé d'après la confirme exactement : pas un nom de plus, pas un de moins. Un écart arrête la tâche et remonte au contrôleur.
 
@@ -1350,6 +1360,11 @@ git commit -m "refactor: purger le module loTypeAhead, mort et jamais charge"
 > **3 noms sur 9 changent** : le bundle JS d'`index.html` (`:168-239`), le bundle JS d'`install.html` (`:62-85`) et **le bundle JS de `404.html` (`:426-448`)** — ce dernier parce qu'il porte `app.js` (`:441`) et `doctor.js` (`:443`), tous deux modifiés par cette tâche, et que le nom d'un bundle est le hachage du contenu concaténé de ses nœuds.
 > **Ne changent pas** : aucun des six bundles CSS.
 > **Plus** : le contenu de chaque bundle changé ne diffère que par les lignes retirées, vérifié par extraction et `diff`.
+>
+> **Ne survit qu'à l'intérieur de cet incrément, avant le chantier 4.** Une fois T18 joué
+> (arbitrage R27), le bundle JS de `404.html` **disparaît** plutôt que de changer une
+> quatrième fois : la clôture ne compare plus « 3 sur 9 » mais « le nom JS de `404.html`
+> disparaît, huit noms restent » (spec, § X11 corrigée).
 
 **Le piège de cette tâche, à relire avant d'éditer.** `$routeProvider` n'apparaît nulle part — c'est exact, et c'est le motif sur lequel le dossier d'entrée du cadrage a conclu à tort. **`$routeParams` apparaît trois fois** : `doctor.js:34` et `:36` (dans `DoctorCtrl`), et `editformmanager.js:126` (dans le contrôleur de la directive `editFormControl`, `:98`, **bien vivante** — `partials/examination.html` et `partials/patient-detail.html` l'utilisent). `$routeParams` n'est fourni **que** par `angular-route` : balayage de tous les composants chargés par `index.html` et `install.html`, `angular-ui-router.min.js` en rend 0, `angular.min.js` en rend 0, seul `angular-route/angular-route.min.js` en rend 3. **Retirer `'ngRoute'` seul casserait l'injection** : `Unknown provider: $routeParamsProvider`. L'ordre des cinq gestes n'est pas décoratif.
 
@@ -1553,6 +1568,19 @@ git commit -m "refactor: retirer les quatre regles CSS orphelines, garder search
 - **le champ de recherche ne fait rien** (`:277-283`) : un `<input>` et un bouton qui ne peuvent rien faire ;
 - **aucun artefact d'interpolation visible** : la page ne comporte aucune `{$ … $}`.
 
+> **Mesuré, et différent de l'attendu ci-dessus (arbitrage R27).** T17 a joué son Step 2 sur
+> E1 (`"$SCRATCH/mesures/404-avant.md"`). Relevé réel : **un seul** message de console,
+> `Error: "Bootstrap's JavaScript requires jQuery"` (`pageerror`, pas un `ReferenceError`),
+> levé par `bootstrap.min.js` dès sa ligne 5 du fichier fusionné — `{% compress js %}`
+> concatène les onze `<script>` en un seul fichier, et ce `throw` arrête l'exécution du
+> fichier entier. `sb-admin-2.js`, `metisMenu.min.js` et les huit scripts applicatifs ne
+> s'exécutent donc jamais, et `app.js` ne lève jamais `angular is not defined`. Le clic normal
+> sur le lien de déconnexion échoue (`TimeoutError`) : le menu déroulant qui le révèle ne
+> s'ouvre jamais, faute de jQuery — **déjà cassé avant T18**. Le relevé s'est replié sur
+> l'invocation directe du handler `onclick` (DOM natif), qui fonctionne : c'est ce repli qui
+> isole le comportement du lien de celui, distinct, du menu. Le champ de recherche ne fait
+> rien, comme prédit. Aucune interpolation visible, comme prédit.
+
 - [ ] **Step 1 : écrire l'attendu, puis monter E1 selon le chapitre 0**
 
 Suivre `docs/recette.md:26-145` littéralement : les deux images (`libreosteo/libreosteo-pg:$TAG`, `libreosteo/libreosteo-http:$TAG`), les deux fichiers de réglages copiés depuis leurs `.example`, la `SECRET_KEY` **jetable** produite par la commande du cahier (`:56-60`), le `.env` bâti sur `Docker/deploy/pg/.env.example`, puis `docker compose … up -d`. **`LIBREOSTEO_ALLOWED_HOSTS` a pour défaut `localhost,127.0.0.1`, qui suffit.** Créer le premier utilisateur pour atteindre E1.
@@ -1563,11 +1591,23 @@ Un script jetable **dans `$SCRATCH`, jamais dans le dépôt**, piloté par le Pl
 
 - [ ] **Step 3 : vérifier les deux comportements que X15 promet de ne pas changer**
 
-Dans le même script : cliquer le lien de déconnexion et constater qu'on atterrit sur la page d'identification ; puis, reconnecté et de retour sur la page 404, saisir du texte dans le champ de recherche de la barre latérale, cliquer le bouton, et constater qu'**il ne se passe rien** — pas de navigation, pas de requête réseau.
+Dans le même script : cliquer le toggle du menu utilisateur, constater qu'il ne s'ouvre pas
+(faute de jQuery), puis cliquer le lien de déconnexion normalement et constater l'échec
+(`TimeoutError`, le lien n'étant pas révélé) ; **se replier sur l'invocation directe du
+handler `onclick`** (DOM natif) et constater qu'on atterrit alors sur la page
+d'identification — c'est ce repli qui isole le comportement du lien de celui, distinct, du
+menu qui le révèle. Puis, reconnecté et de retour sur la page 404, saisir du texte dans le
+champ de recherche de la barre latérale, cliquer le bouton, et constater qu'**il ne se passe
+rien** — pas de navigation, pas de requête réseau.
 
 - [ ] **Step 4 : confronter le relevé à l'attendu**
 
-Le rapport de tâche porte, côte à côte, l'attendu du Step 1 et le relevé. **Un écart n'est pas un détail** : si moins de trois `ReferenceError` sortent, ou si le lien de déconnexion ne fonctionne pas, la conception de X15 est à réviser **avant** T18 et le fait remonte au contrôleur.
+Le rapport de tâche porte, côte à côte, l'attendu du Step 1 et le relevé. **Un écart n'est pas
+un détail** : la mesure a montré **un seul** message (pas trois `ReferenceError`) et un menu
+déroulant qui ne s'ouvre pas (la déconnexion ne fonctionne qu'invoquée directement) — cet
+écart a été remonté au contrôleur, qui a rendu l'arbitrage R27 : X15 retire le bloc
+`{% compress js %}` de `404.html` en entier, pas seulement les huit scripts applicatifs (voir
+la spec, § X15).
 
 - [ ] **Step 5 : ménage compose et Docker**
 
@@ -1580,7 +1620,7 @@ docker images --filter reference='libreosteo/*'
 
 Attendu : la dernière commande ne rend que son en-tête. **`"$SCRATCH/mesures/"` n'est pas supprimé** — T18 et T19 en ont besoin ; seuls les répertoires de la passe (`db/`, `bak/`, `data/`, `settings/`) et le `.env` le sont.
 
-**Critère de fin :** `"$SCRATCH/mesures/404-avant.md"` existe et porte la liste complète des erreurs de console, le code HTTP 404, le constat que le lien de déconnexion fonctionne et que le champ de recherche ne fait rien ; l'attendu et le relevé sont confrontés ; aucune image `libreosteo/*` ne subsiste ; **aucun commit**.
+**Critère de fin :** `"$SCRATCH/mesures/404-avant.md"` existe et porte la liste complète des erreurs de console (un seul message mesuré, pas trois), le code HTTP 404, le constat que le lien de déconnexion fonctionne **invoqué directement** (le clic normal échoue, le menu ne s'ouvrant pas) et que le champ de recherche ne fait rien ; l'attendu et le relevé sont confrontés, l'écart écrit et remonté (arbitrage R27) ; aucune image `libreosteo/*` ne subsiste ; **aucun commit**.
 
 ---
 
@@ -1591,25 +1631,42 @@ Attendu : la dernière commande ne rend que son en-tête. **`"$SCRATCH/mesures/"
 **Files:**
 - Create: `tests/functional/test_pages_erreur.py` — `test_la_page_404_ne_leve_aucune_erreur_de_console`
 - Modify: `pyproject.toml` — `    "tests/functional/test_pages_erreur.py",` après `"tests/functional/test_medecins.py",`
-- Modify: `libreosteoweb/templates/404.html` — `ng-app="libreosteo"` et `xmlns:ng` (`:5`), les deux `ng-controller` (`:37`, `:277`), `ng-model` et `ng-keydown` (`:281`), `ng-click` (`:283`), les **huit** `<script>` applicatifs (`:441-447`)
+- Modify: `libreosteoweb/templates/404.html` — `ng-app="libreosteo"` et `xmlns:ng` (`:5`), les deux `ng-controller` (`:37`, `:277`), `ng-model` et `ng-keydown` (`:281`), `ng-click` (`:283`), le bloc `{% compress js %}` **en entier** (`:426-448`, onze `<script>` de `bootstrap.min.js` à `user.js`, et ses commentaires HTML) — `polyfiller.js` (`:425`), hors bloc, reste
 - Delete: `libreosteoweb/static/js/app/inline-edit.js` (116 lignes)
 - Delete: `libreosteoweb/static/js/app/templates/inline-textarea.html`
 - Modify: `docs/recette.md` — un **quatorzième domaine « Pages d'erreur »** après « Recherche, index, tableau de bord » ; la fiche neuve `R-ERR-01 — Page inexistante` ; la ligne « un des treize chapitres du cahier » (`:334`) qui passe à **quatorze**
 
 **Interfaces:**
 - Consomme : `"$SCRATCH/mesures/404-avant.md"` (T17), dont la fiche `R-ERR-01` résume le comportement d'avant ; `helpers.connexion`.
-- Produit : `tests/functional/test_pages_erreur.py` et sa ligne `mypy` ; la fiche `R-ERR-01`.
+- Produit : `tests/functional/test_pages_erreur.py` et sa ligne `mypy` ; `"$SCRATCH/mesures/404-apres.md"` (Step 6), sur lequel la fiche `R-ERR-01` s'appuie autant que sur T17 ; la fiche `R-ERR-01`.
 
-**Régime de preuve : déclaré.** **Prédiction, écrite avant :**
+**Régime de preuve : déclaré.** **Prédiction, écrite avant, et corrigée par rapport à la
+conception initiale (arbitrage R27, cf. relevé de T17) :**
 
-> **1 nom sur 9 change** : le bundle JS de `404.html` (`:426-448`), qui perd ses huit nœuds applicatifs.
-> **Ne changent pas** : les deux autres bundles JS ni aucun des six bundles CSS. `inline-edit.js` n'est nœud d'aucun autre bloc — `index.html:223` le chargeait **en commentaire**, ligne déjà retirée par T14 ; `inline-textarea.html` n'est nœud d'aucun bloc.
+> **Le bundle JS de `404.html` (`:426-448`) disparaît**, plutôt que de changer de contenu :
+> le bloc `{% compress js %}` est retiré **en entier** — ses onze `<script>`, de
+> `bootstrap.min.js` à `user.js`, pas seulement ses huit nœuds applicatifs — et il ne reste
+> plus de nœud à hacher. **Neuf noms `output.<hash>` deviennent huit.**
+> **Ne changent pas** : les deux autres bundles JS ni aucun des six bundles CSS.
+> `inline-edit.js` n'est nœud d'aucun autre bloc — `index.html:223` le chargeait **en
+> commentaire**, ligne déjà retirée par T14 ; `inline-textarea.html` n'est nœud d'aucun bloc.
 
-**Pourquoi le retrait et pas la complétion.** Compléter le bundle exigerait de charger, sur une page d'erreur, jQuery, `angular.min.js`, les **vingt-neuf** dépendances déclarées par `app.js:18-47` et les **vingt** fichiers applicatifs qui en définissent une partie — c'est-à-dire la totalité du bundle JS d'`index.html`, **1,7 Mo mesurés**, pour afficher « page non trouvée ». Il faudrait en outre donner un `ui-view` et une configuration d'état à une page qui n'en a pas, sans quoi `ui.router` n'aurait nulle part où rendre. Retirer coûte huit lignes et rend la page conforme à ce qu'elle fait déjà. **Aucune capacité n'est retirée à l'utilisateur** : ce lot supprime du code qui ne s'exécute pas.
+**Pourquoi le retrait total, et pas le retrait partiel prévu à la conception.** Le périmètre
+initial ne retirait que les huit `<script>` applicatifs, laissant `bootstrap.min.js`,
+`sb-admin-2.js` et `metisMenu.min.js` en tête du bloc. T17 mesure que cela aurait laissé
+l'attendu de X15 — « la console est vide » — **faux** : `bootstrap.min.js` resterait premier
+du bundle fusionné et lèverait la même erreur, à l'identique. Retirer le bloc entier rend la
+promesse vraie, et **aucun comportement n'est perdu, et c'est mesuré, pas déduit** :
+`bootstrap.min.js` lève dès sa ligne 5, donc `sb-admin-2.js` et `metisMenu.min.js` ne
+s'exécutaient déjà pas. **Écarté au même arbitrage** : ajouter `jquery.min.js` pour réparer le
+menu déroulant — réparation par ajout, hors du cadre de X15, et un framework entier chargé sur
+une page d'erreur.
 
-**Attendu, avant et après.** *Avant* : la page rend le chrome SB Admin statique, sans comportement JS, et la console porte la cascade de `ReferenceError` de T17. *Après* : la page rend **le même chrome, à l'identique visuellement**, et la console est **vide**. Le lien de déconnexion fonctionne dans les deux cas ; le champ de recherche ne fait rien dans les deux cas.
+**Pourquoi le retrait et pas la complétion.** Compléter le bundle exigerait de charger, sur une page d'erreur, jQuery, `angular.min.js`, les **vingt-neuf** dépendances déclarées par `app.js:18-47` et les **vingt** fichiers applicatifs qui en définissent une partie — c'est-à-dire la totalité du bundle JS d'`index.html`, **1,7 Mo mesurés**, pour afficher « page non trouvée ». Il faudrait en outre donner un `ui-view` et une configuration d'état à une page qui n'en a pas, sans quoi `ui.router` n'aurait nulle part où rendre. Retirer coûte onze lignes (le bloc entier) et rend la page conforme à ce qu'elle fait déjà. **Aucune capacité n'est retirée à l'utilisateur** : ce lot supprime du code qui ne s'exécute pas.
 
-**Ne sont pas touchés, et c'est explicite :** le lien de déconnexion et son formulaire caché (`:263-264`) ; **le markup du champ de recherche** (`:277-283`), qui reste tel quel — le rendre fonctionnel serait une fonctionnalité neuve, le retirer serait une décision d'interface que personne n'a demandée, et c'est légué à D6b ; `js/bootstrap.min.js`, `js/sb-admin-2.js` et `metisMenu.min.js`, qui **restent chargés et inertes**, faute de jQuery — les retirer aurait doublé la taille du changement sans rien changer à ce que l'utilisateur voit ; les deux blocs CSS ; `components/webshim/…/polyfiller.js` (`:426`), hors bloc.
+**Attendu, avant et après.** *Avant* : la page rend le chrome SB Admin statique, sans comportement JS, et la console porte le message unique de `bootstrap.min.js` mesuré par T17. *Après* : la page rend **le même chrome, à l'identique visuellement** — `bootstrap.min.js`, `sb-admin-2.js` et `metisMenu.min.js` n'y contribuaient déjà à aucun rendu — et la console est **vide**, mesurée sur E1 (Step 6 ci-dessous) et non déduite. Le lien de déconnexion, invoqué directement, fonctionne dans les deux cas ; le menu déroulant qui le révèle ne s'ouvre dans aucun des deux — c'est déjà cassé avant ce retrait, pas une régression qu'il introduit. Le champ de recherche ne fait rien dans les deux cas.
+
+**Ne sont pas touchés, et c'est explicite :** le lien de déconnexion et son formulaire caché (`:263-264`) ; **le markup du champ de recherche** (`:277-283`), qui reste tel quel — le rendre fonctionnel serait une fonctionnalité neuve, le retirer serait une décision d'interface que personne n'a demandée, et c'est légué à D6b ; les deux blocs CSS ; `components/webshim/…/polyfiller.js` (`:425`), hors bloc. **Retirés avec le bloc, et ce n'est plus un résidu légué à D6b :** `js/bootstrap.min.js`, `js/sb-admin-2.js` et `metisMenu.min.js` cessent de se charger sur `404.html` — ils continuent de se charger normalement sur `index.html` et `install.html`, hors périmètre de cette tâche.
 
 **Le test doit être rouge avant le correctif, et ce n'est pas un commit intermédiaire.** X19 exige `make test-functional` vert à chaque commit : la contre-épreuve se joue **dans la tâche**, sa sortie est portée au rapport, et le commit est unique.
 
@@ -1657,17 +1714,17 @@ def test_la_page_404_ne_leve_aucune_erreur_de_console(
     assert erreurs == []
 ```
 
-Puis, dans le même fichier, un second test sur le lien de déconnexion de cette page — le trou que D4 avait nommément consigné (`KANBAN.md:364-370`) : `TestDeconnexion` (`libreosteoweb/tests/test_acces.py:371`) ne rejoue le contrôle que depuis `/`, et le lien de `404.html` n'est touché par aucun test.
+Puis, dans le même fichier, un second test sur le lien de déconnexion de cette page — le trou que D4 avait nommément consigné (`KANBAN.md:364-370`) : `TestDeconnexion` (`libreosteoweb/tests/test_acces.py:371`) ne rejoue le contrôle que depuis `/`, et le lien de `404.html` n'est touché par aucun test. **Ce second test invoque le handler `onclick` directement** (`page.eval_on_selector`, sur le sélecteur du lien, appelant `element.click()` ou son `onclick`), **et non un clic après ouverture du menu utilisateur** : le relevé de T17 établit que ce menu ne s'ouvre pas, faute de jQuery, avant comme après ce retrait — un test qui passerait par le menu échouerait pour une raison étrangère à ce que X15 promet, et masquerait la vraie preuve.
 
 ```sh
 ./.venv/bin/python -m pytest tests/functional/test_pages_erreur.py -q --no-cov
 ```
 
-Attendu : **FAIL** sur `assert erreurs == []`, et la liste porte les `ReferenceError` relevées par T17. **Cette sortie entre au rapport de tâche : c'est la contre-épreuve, et un test qui ne peut pas échouer ne prouve rien.**
+Attendu : **FAIL** sur `assert erreurs == []`, et la liste porte le message unique de `bootstrap.min.js` relevé par T17 (pas une liste de `ReferenceError`). **Cette sortie entre au rapport de tâche : c'est la contre-épreuve, et un test qui ne peut pas échouer ne prouve rien.**
 
 - [ ] **Step 3 : appliquer le retrait**
 
-Dans `404.html` : `:5` perd `xmlns:ng="http://angularjs.org"` et `ng-app="libreosteo"` ; `:37` et `:277` perdent leur `ng-controller` ; `:281` perd `ng-model` et `ng-keydown` ; `:283` perd `ng-click` ; les huit lignes `:441-447` (`app.js`, `patient.js`, `doctor.js`, `examination.js`, `inline-edit.js`, `timeline.js`, `search.js`, `user.js`) et le commentaire `<!-- web Application -->` qui les introduit sont retirés du bloc `{% compress js %}`.
+Dans `404.html` : `:5` perd `xmlns:ng="http://angularjs.org"` et `ng-app="libreosteo"` ; `:37` et `:277` perdent leur `ng-controller` ; `:281` perd `ng-model` et `ng-keydown` ; `:283` perd `ng-click` ; **le bloc `{% compress js %}` (`:426-448`) est retiré en entier** — ses onze `<script>`, de `bootstrap.min.js` à `user.js`, tous les commentaires HTML qui les séparent (`<!-- Core Scripts … -->`, `<!-- SB Admin Scripts … -->`, `<!-- Metis Menu … -->`, `<!-- Angular framework -->`, `<!-- web Application -->`), et les balises `{% compress js %}`/`{% endcompress %}` elles-mêmes, puisqu'il ne reste rien à compresser. Le `<script>` de `polyfiller.js` (`:425`), **hors bloc**, n'est pas touché.
 
 **Contre-vérification avant de supprimer les deux fichiers :**
 
@@ -1702,26 +1759,55 @@ ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css | LC_ALL=C sort \
 diff "$SCRATCH/mesures/noms-T18-avant.txt" "$SCRATCH/mesures/noms-T18-apres.txt"
 ```
 
-Attendu : **une** ligne en `<` et **une** en `>`, dans `static/CACHE/js/`. **Deux noms JS et les six noms CSS sont identiques.**
+Attendu : **une** ligne en `<`, dans `static/CACHE/js/` — le nom JS de `404.html`, qui
+disparaît — et **aucune** en `>` : rien ne le remplace, contrairement à un simple changement
+de contenu. **Les deux autres noms JS et les six noms CSS sont identiques.** Neuf noms
+avant, huit après.
 
-- [ ] **Step 6 : la fiche `R-ERR-01` et le quatorzième domaine**
+- [ ] **Step 6 : mesurer la console vide sur un montage E1 (exigence ajoutée par
+      l'arbitrage R27) — même protocole que T17**
 
-Créer, en fin de chapitre 3, un domaine `### Pages d'erreur`, puis la fiche `R-ERR-01 — Page inexistante` selon le schéma du chapitre 2 : `Domaine : Pages d'erreur` ; `Couverture auto : oui — tests/functional/test_pages_erreur.py::test_la_page_404_ne_leve_aucune_erreur_de_console` ; **`État requis : E1`** — la page 404 ne dépend d'aucune donnée ; puis des étapes numérotées **avec attendu littéral par étape**, dérivées du relevé de T17 : navigation vers une route inexistante depuis une session ouverte, code 404, chrome SB Admin rendu, **console vide**, lien de déconnexion fonctionnel, champ de recherche inerte.
+La console vide ne se déduit **jamais** de la lecture du gabarit : comme X14, elle se mesure
+sur un navigateur réel, après le retrait. **Arbitrage du contrôleur** : T17 a déjà supprimé
+son `"$SCRATCH/.env"` et ses réglages copiés à son propre Step 5 — rien de ce montage-là ne
+survit — donc T18 **monte son propre E1**, en suivant le chapitre 0 de `docs/recette.md`
+comme T17 l'a fait à son Step 1, sans dépendre d'aucun reste de T17 autre que le relevé
+`"$SCRATCH/mesures/404-avant.md"` : rebâtir les deux images du commit de ce retrait
+(`libreosteo/libreosteo-http:$TAG`, `libreosteo/libreosteo-pg:$TAG`), les deux fichiers de
+réglages copiés depuis leurs `.example`, une `SECRET_KEY` **jetable, propre à T18**, produite
+par la commande du cahier (`docs/recette.md:56-60`) — **jamais celle d'une autre tâche,
+jamais une valeur réutilisée** —, un `.env` propre à T18 bâti sur
+`Docker/deploy/pg/.env.example`, puis `docker compose … up -d` et la création du premier
+utilisateur. Puis un script Playwright jetable **dans `$SCRATCH`, jamais dans le dépôt**, qui
+pose `page.on("console", …)` et `page.on("pageerror", …)`, se connecte, navigue vers une route
+inexistante, et écrit dans `"$SCRATCH/mesures/404-apres.md"` le code HTTP, la liste complète
+des messages de console, et le titre de la page.
+
+Attendu : **zéro** message de console — c'est la seule différence attendue avec
+`"$SCRATCH/mesures/404-avant.md"` (T17). Confronter les deux relevés dans le rapport de
+tâche. Puis **son propre ménage** compose et Docker (mêmes commandes et même attendu que T17,
+Step 5) : `"$SCRATCH/mesures/"` n'est pas supprimé — T19 en a besoin — seuls le `.env` de T18
+et les répertoires de sa propre passe le sont ; aucune image `libreosteo/*` ne subsiste à
+l'issue de ce step.
+
+- [ ] **Step 7 : la fiche `R-ERR-01` et le quatorzième domaine**
+
+Créer, en fin de chapitre 3, un domaine `### Pages d'erreur`, puis la fiche `R-ERR-01 — Page inexistante` selon le schéma du chapitre 2 : `Domaine : Pages d'erreur` ; `Couverture auto : oui — tests/functional/test_pages_erreur.py::test_la_page_404_ne_leve_aucune_erreur_de_console` ; **`État requis : E1`** — la page 404 ne dépend d'aucune donnée ; puis des étapes numérotées **avec attendu littéral par étape**, dérivées du relevé de T17 et du Step 6 ci-dessus : navigation vers une route inexistante depuis une session ouverte, code 404, chrome SB Admin rendu, **console vide (mesurée sur E1, pas déduite)**, lien de déconnexion fonctionnel **par invocation directe du handler** (le menu qui le révèle ne s'ouvrant pas), champ de recherche inerte.
 
 Et modifier `docs/recette.md:334` : « un des **quatorze** chapitres du cahier ». **Aucune fiche n'est renumérotée.**
 
-- [ ] **Step 7 : relever le cliquet `mypy`, revue, commit**
+- [ ] **Step 8 : relever le cliquet `mypy`, revue, commit**
 
 ```sh
 make check
 grep -c '^### R-' docs/recette.md
 git diff --cached --name-only
-git commit -m "fix: 404.html cesse de charger huit scripts qui ne peuvent pas s'executer"
+git commit -m "fix: 404.html ne charge plus le bundle js qui ne peut pas s'executer"
 ```
 
 Attendu de `make check` : `mypy` compte **un module de plus** ; de `grep -c` : **52** (51 avant, plus `R-ERR-01`).
 
-**Critère de fin :** `test_la_page_404_ne_leve_aucune_erreur_de_console` était **rouge avant** le retrait et est **vert après**, les deux sorties au rapport ; **un seul** nom sur neuf a changé ; la fiche `R-ERR-01` existe sous un quatorzième domaine ; le champ de recherche et le lien de déconnexion sont intacts ; `make check` et `make test-functional` verts.
+**Critère de fin :** `test_la_page_404_ne_leve_aucune_erreur_de_console` était **rouge avant** le retrait et est **vert après**, les deux sorties au rapport ; **le nom JS de `404.html` a disparu — neuf noms deviennent huit** ; la console vide a été mesurée sur E1 (Step 6), pas déduite ; la fiche `R-ERR-01` existe sous un quatorzième domaine ; le champ de recherche est intact et le lien de déconnexion fonctionne par invocation directe de son handler ; `make check` et `make test-functional` verts.
 
 ---
 
@@ -1791,7 +1877,7 @@ Attendu : **PASS**, et le rapport de T18 établit qu'il échouait avant le corre
 
 - [ ] **Step 5 : proposition 5 — `main` est livrable, et `R-INST-07` rejouée**
 
-Jouer la fiche `R-INST-07` (`docs/recette.md:707-778`) selon la procédure du `README.rst:365-427`, **sur le commit de clôture**, et enregistrer la **nouvelle empreinte (b)**. La valeur de D5 (`dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`, `KANBAN.md:384-388`) **devient caduque** : le `KANBAN.md` porte la nouvelle empreinte, la date, et la mention qu'elle remplace celle de D5 **et pourquoi** — les incréments des régimes déclarés ont changé cinq des neuf noms. **Aucune renumérotation, aucun changement de procédure : `README.rst:365-427` reste valable tel quel.**
+Jouer la fiche `R-INST-07` (`docs/recette.md:707-778`) selon la procédure du `README.rst:365-427`, **sur le commit de clôture**, et enregistrer la **nouvelle empreinte (b)**. La valeur de D5 (`dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`, `KANBAN.md:384-388`) **devient caduque** : le `KANBAN.md` porte la nouvelle empreinte, la date, et la mention qu'elle remplace celle de D5 **et pourquoi** — les incréments des régimes déclarés ont touché cinq des neuf noms de départ (3 par T15, 2 par T16), et T18 en a fait disparaître un déjà touché : **la liste que `R-INST-07` enregistre porte huit noms, pas neuf**. **Aucune renumérotation, aucun changement de procédure : `README.rst:365-427` reste valable tel quel.**
 
 **Et le renvoi de D5 est reconduit, pas clos** : D5 demandait une seconde passe de `R-INST-07` à une date réellement différente ; D6a change la référence et ne peut pas satisfaire cette demande dans sa propre durée. Le `KANBAN.md` **reconduit le renvoi sur la valeur d'après D6a**.
 
@@ -1809,9 +1895,9 @@ Attendu : la dernière commande ne rend que son en-tête. **Aucune image `libreo
 - [ ] **Step 7 : les quatre sorties au `KANBAN.md`**
 
 1. **Le critère d'arrêt constaté par une exécution réelle** : les cinq propositions, avec les sorties de commande qui les établissent, et l'empreinte de `R-INST-07` d'après D6a.
-2. **Ce que le lot a appris et qui n'était pas su au cadrage.** Trois points sont déjà acquis et y figurent même si rien d'autre ne s'ajoute : le filet navigateur réel était de **21 fiches sur 50** et non de 31 sur 51, l'écart venant de neuf fiches déclarées couvertes par un test unitaire ; **ni le local ni la CI n'exerçaient l'arbre compressé**, ce que la formulation « écart local/CI » du renvoi de D5 sous-estimait ; et **`ngRoute` n'était pas mort**, `$routeParams` étant injecté dans une directive vivante. **S'y ajoute la correction C1 de ce plan** : la prédiction de X11 annonçait 2 noms sur 9 là où la mesure en donne 3, `404.html` chargeant `app.js` et `doctor.js`.
+2. **Ce que le lot a appris et qui n'était pas su au cadrage.** Trois points sont déjà acquis et y figurent même si rien d'autre ne s'ajoute : le filet navigateur réel était de **21 fiches sur 50** et non de 31 sur 51, l'écart venant de neuf fiches déclarées couvertes par un test unitaire ; **ni le local ni la CI n'exerçaient l'arbre compressé**, ce que la formulation « écart local/CI » du renvoi de D5 sous-estimait ; et **`ngRoute` n'était pas mort**, `$routeParams` étant injecté dans une directive vivante. **S'y ajoute la correction C1 de ce plan** : la prédiction de X11 annonçait 2 noms sur 9 là où la mesure en donne 3, `404.html` chargeant `app.js` et `doctor.js` — **et l'arbitrage R27, qui la remplace à son tour** : le relevé de T17 montre que `bootstrap.min.js` arrête l'exécution du bundle fusionné dès sa ligne 5, si bien que réparer `404.html` en ne retirant que les huit scripts applicatifs aurait laissé « la console est vide » faux. T18 retire le bloc `{% compress js %}` en entier ; le bundle JS de `404.html` ne change plus, il **disparaît** — neuf noms deviennent huit.
 3. **Ce que cela change à la priorité des lots restants** : D6b est le seul lot restant, et la question qu'il doit trancher — cible technique et stratégie de bascule — se pose désormais sur un filet qualifié. Le § « Ce que D6a lègue à D6b » de la spec en est l'entrée.
-4. **Ce que cela change au chapeau**, y compris ce que D6a a délibérément renvoyé plus loin : le découpage R24 lui-même ; le renvoi reconduit de la seconde passe de `R-INST-07` ; les **trois résidus légués à D6b** (le champ de recherche inerte de `404.html:277-283`, les trois scripts inertes qui restent chargés par `404.html`, le demi-état de routage dont `DoctorCtrl` était le témoin) ; **et les deux constats versés au passage** : les scripts chargés depuis `oss.maxcdn.com` (`account/login.html:23-24`, domaine éteint, bloc conditionnel IE8, hors périmètre) et les **15 tests Playwright qu'aucune fiche ne nomme**, dont le rattachement inverse est un travail de tenue du cahier.
+4. **Ce que cela change au chapeau**, y compris ce que D6a a délibérément renvoyé plus loin : le découpage R24 lui-même ; le renvoi reconduit de la seconde passe de `R-INST-07` ; les **deux résidus légués à D6b** (le champ de recherche inerte de `404.html:277-283`, le demi-état de routage dont `DoctorCtrl` était le témoin — un troisième résidu envisagé à la conception, trois scripts qui seraient restés inertes sur `404.html`, disparaît avec l'arbitrage R27) ; **et les deux constats versés au passage** : les scripts chargés depuis `oss.maxcdn.com` (`account/login.html:23-24`, domaine éteint, bloc conditionnel IE8, hors périmètre) et les **15 tests Playwright qu'aucune fiche ne nomme**, dont le rattachement inverse est un travail de tenue du cahier.
 
 - [ ] **Step 8 : supprimer ce plan, et `$SCRATCH`**
 
@@ -1850,13 +1936,13 @@ git commit -m "docs: supprimer le plan D6a, acheve"
 | X8 — 8 fiches restent manuelles | T5 |
 | X9 — le périmètre `mypy` grandit | T8, T9, T10, T11, T12, T13, T18 — **7 fichiers neufs**, 104 → 111 |
 | X10 — `loTypeAhead` purgé, régime inerte | T14 |
-| X11 — `ngRoute` purgé, régime déclaré | T15 (prédiction corrigée, cf. C1) |
-| X12 — `loInlineEdit` purgé | T18 |
+| X11 — `ngRoute` purgé, régime déclaré | T15 (prédiction corrigée, cf. C1, puis R27) |
+| X12 — `loInlineEdit` purgé | T18 (disparaît avec le bloc entier, arbitrage R27) |
 | X13 — quatre règles CSS orphelines | T16 |
-| X14 — comportement d'avant mesuré | T17 |
-| X15 — le remède est le retrait | T18 |
+| X14 — comportement d'avant mesuré | T17 (attendu corrigé par la mesure, arbitrage R27) |
+| X15 — le remède est le retrait | T18 (retrait du bloc `{% compress js %}` en entier, arbitrage R27) |
 | X16 — la page 404 entre au filet | T18 |
-| X17 — ménage Docker | T4, T17, T19 ; constaté par T19 |
+| X17 — ménage Docker | T4, T17, T18, T19 ; constaté par T19 |
 | X18 — `R-INST-07` re-baseline | T19 |
 | X19 — `main` livrable à chaque commit | toutes, par `make check && make test-functional` avant chaque commit |
 

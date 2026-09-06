@@ -160,6 +160,18 @@ instruction. Aucune ligne d'Angular ne s'exécute. Les six attributs Angular de 
 `:281`, `ng-click` `:283`) sont du texte inerte. La page ne comporte **aucune**
 interpolation `{$ … $}` (`grep -c '{\$'` → 0), donc aucun artefact visible.
 
+> **Corrigé le 2026-09-06 par le contrôleur, sur mesure de T17 (arbitrage R27).** La
+> « cascade » ci-dessus était une lecture du gabarit, pas une mesure du navigateur, et elle
+> est fausse : `{% compress js %}` fusionne les onze `<script>` en **un seul fichier**
+> (`static/CACHE/js/output.e6fde0cf656d.js`), et un `throw` dans ce fichier arrête son
+> exécution entière, pas seulement le nœud qui l'a levé. Le relevé réel, sur E1, ne porte
+> **qu'un seul message** : `Error: "Bootstrap's JavaScript requires jQuery"`, levé par
+> `bootstrap.min.js` dès sa ligne 5 du fichier fusionné. `sb-admin-2.js`, `metisMenu.min.js`
+> et les huit fichiers applicatifs ne s'exécutent donc **jamais** — `app.js` ne lève jamais
+> `angular is not defined`, faute d'atteindre sa première instruction. La conclusion tient
+> quand même : aucune ligne d'Angular ne s'exécute, les six attributs sont inertes. Ce qui
+> change, c'est le mécanisme et sa conséquence sur X15 (§ Chantier 4).
+
 Deux conséquences que la conception doit porter. **Ce qui marche encore sur cette page
 marche sans JS** : le lien de déconnexion (`404.html:263-264`) est un `<a href="#"
 onclick="document.getElementById('logout-form').submit()">` plus un formulaire caché en
@@ -209,6 +221,11 @@ trois.** Relevé exhaustif : `index.html:16` et `:240`, `account/login.html:14`,
 6 fichiers, et le total de neuf. **Cela nomme précisément quel bundle chaque modification
 déplace**, et c'est ce qui permet à chaque incrément de porter une prédiction falsifiable
 plutôt qu'un « rien ne devrait bouger ».
+
+**Ce compte de neuf tient avant le chantier 4, pas après.** X15 (§ Chantier 4, arbitrage R27)
+retire le bloc `{% compress js %}` de `404.html` en entier : le troisième bloc `js` disparaît,
+et non les deux autres. Après T18, deux blocs `js` produisent deux fichiers, les sept blocs
+`css` en produisent toujours six, soit un total de **huit**.
 
 **Le critère R20 ne s'applique pas partout, et le prétendre serait faux.** L'arbitrage R20
 de D5 (spec D5, § « Critère d'arrêt et sa mesure », empreinte (b)) pose que les neuf noms
@@ -344,6 +361,13 @@ dans cet ordre :
 3. Le contenu du bundle changé ne diffère que par les lignes retirées — vérifié par
    extraction des deux bundles et `diff`.
 
+**Un changement déclaré peut aussi faire disparaître un nom plutôt que le renommer** — c'est
+le cas de X15/T18 (§ Chantier 4, arbitrage R27) : retirer le bloc `{% compress js %}` de
+`404.html` en entier ne laisse aucun nœud à hacher, et le bundle cesse d'exister. La preuve
+reste la même dans sa forme (prédiction avant, relevé après, coïncidence exacte) mais porte
+sur un **total de noms attendus qui baisse d'une unité**, neuf devenant huit — ce n'est plus
+seulement un contenu qui change, c'est une ligne de la liste qui disparaît.
+
 **Un incrément ne mélange jamais les deux régimes**, et un incrément du régime déclaré ne
 change qu'une famille de bundles à la fois. C'est la leçon de l'incrément 4 de D5 (« isolé,
 une différence de bundle s'impute sans ambiguïté »).
@@ -395,7 +419,10 @@ l'arbre livré ».
 *Preuve* : sur le même commit, `ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css`
 après `make static`, et la commande de `README.rst:410-414` sur l'image bâtie de ce commit,
 rendent **la même liste de neuf noms de fichiers**, comparée par
-`diff <(...) <(...)` qui ne rend rien.
+`diff <(...) <(...)` qui ne rend rien. Cette égalité est constatée à l'incrément 2, avant le
+chantier 4 : le compte de neuf y tient. Après X15/T18 (§ Chantier 4), le bundle JS de
+`404.html` disparaît et **la même méthode porte sur huit noms** — c'est cette valeur que T19
+reconstate à la clôture, pas neuf (§ Critère d'arrêt).
 
 **X5 — Le job CI `functional` n'a plus de commande de préparation en propre.** Les lignes
 `.github/workflows/main.yml:56-58` (`yarn install`, `collectstatic`, `compilejsi18n`) sont
@@ -510,11 +537,20 @@ changent**.
 apparaît en cours de tâche, **la purge est abandonnée et le fait est écrit** — le lot ne
 force pas une suppression que la mesure refuse.
 
+> **R26 remplacée le 2026-09-06 par le contrôleur (arbitrage R27).** Ce « 3 noms sur 9
+> changent » ne survit qu'à l'intérieur de cet incrément, avant le chantier 4. Une fois
+> X15/T18 joué, le bundle JS de `404.html` — celui-là même qu'`app.js` et `doctor.js`
+> venaient de modifier — **disparaît** plutôt que de changer une fois de plus. La
+> prédiction qui tient à la clôture du lot n'est donc plus « 3 noms sur 9 » mais : **le nom
+> JS de `404.html` disparaît, les huit autres bundles sont inchangés par cet incrément-là**
+> (§ X15). X11 lui-même ne se rejoue pas ; c'est sa conséquence qui se lit autrement une
+> fois le lot fini.
+
 **X12 — `loInlineEdit` est purgé avec `404.html`, en régime déclaré.** Sont supprimés
 `libreosteoweb/static/js/app/inline-edit.js`, `libreosteoweb/static/js/app/templates/inline-textarea.html`
 (son unique gabarit existant) et la ligne `404.html:444`. Cette exigence est **jointe à X15**
 dans le même incrément : `404.html:444` est le seul chargeur du fichier, et les deux
-changements déplacent le même bundle.
+changements disparaissent avec le même bundle, retiré en entier (§ X15, arbitrage R27).
 *Preuve* : portée par X15.
 
 **X13 — Les quatre règles CSS orphelines sortent, `.search-container` reste.** Dans
@@ -536,18 +572,52 @@ correctif, une tâche relève, sur l'image du commit précédent et un navigateu
 des erreurs de console de la page 404 authentifiée, et le fait qu'aucun des huit fichiers
 applicatifs ne s'exécute.
 *Preuve* : le relevé est porté au rapport de tâche puis résumé dans la fiche `R-ERR-01`
-(X16) et au `KANBAN.md` à la clôture. **Attendu avant** : au moins trois `ReferenceError`
-(jQuery pour `bootstrap.min.js` et `sb-admin-2.js`, `angular` pour `app.js` et les sept
-suivants) ; le lien de déconnexion fonctionne ; le champ de recherche ne fait rien.
+(X16) et au `KANBAN.md` à la clôture. **Attendu avant, prédit à la conception** : au moins
+trois `ReferenceError` (jQuery pour `bootstrap.min.js` et `sb-admin-2.js`, `angular` pour
+`app.js` et les sept suivants) ; le lien de déconnexion fonctionne ; le champ de recherche ne
+fait rien.
+
+> **Corrigé le 2026-09-06 par le contrôleur, sur mesure de T17 (arbitrage R27).** Le prédit
+> ci-dessus était une lecture du gabarit ; le mesuré, sur E1, est différent et le remplace.
+> **Un seul message** de console : `Error: "Bootstrap's JavaScript requires jQuery"`, levé par
+> `bootstrap.min.js` dès sa ligne 5 du fichier fusionné — `{% compress js %}` concatène les
+> onze `<script>` en un seul fichier, et ce `throw` arrête l'exécution du fichier entier, pas
+> seulement du nœud qui l'a levé. `sb-admin-2.js`, `metisMenu.min.js` et les huit scripts
+> applicatifs ne s'exécutent donc **jamais**, et `app.js` ne lève **jamais**
+> `angular is not defined`, faute d'atteindre sa première instruction. Le menu déroulant ne
+> s'ouvre jamais non plus (jQuery absent), donc **la déconnexion au clic est déjà cassée avant
+> X15** — le handler `onclick` du lien, DOM natif, reste fonctionnel s'il est invoqué
+> directement, ce qui isole le comportement du lien de celui, distinct et déjà cassé, du menu
+> qui le révèle. Le champ de recherche ne fait rien, comme prédit. Relevé complet :
+> `"$SCRATCH/mesures/404-avant.md"` (T17).
 
 **X15 — Le remède est le retrait, et c'est un changement voulu.** Sont retirés de
 `404.html` : l'attribut `ng-app="libreosteo"` et le `xmlns:ng` de `:5`, les deux
 `ng-controller` (`:37`, `:277`), les `ng-model` et `ng-keydown` de `:281`, le `ng-click` de
-`:283`, et les huit `<script>` applicatifs `:441-447` (`app.js`, `patient.js`, `doctor.js`,
-`examination.js`, `inline-edit.js`, `timeline.js`, `search.js`, `user.js`). Ne sont **pas**
-touchés : le lien de déconnexion et son formulaire caché (`:263-264`), le markup du champ de
-recherche, `bootstrap.min.js` / `sb-admin-2.js` / `metisMenu.min.js` (qui restent inertes,
-faute de jQuery — leur sort est réglé par le legs à D6b, pas ici), les deux blocs CSS.
+`:283`, et **le bloc `{% compress js %}` en entier** (`:426-448`) — ses **onze** `<script>`,
+de `bootstrap.min.js` à `user.js`, et les commentaires HTML qui les séparent — et non les huit
+`<script>` applicatifs seuls. Ne sont **pas** touchés : le lien de déconnexion et son
+formulaire caché (`:263-264`), le markup du champ de recherche, les deux blocs CSS, et le
+`<script>` de `components/webshim/…/polyfiller.js` (`:425`), qui charge **hors** du bloc et
+reste donc en place.
+
+> **Arbitrage R27, 2026-09-06.** Le périmètre initial ne retirait que les huit `<script>`
+> applicatifs, laissant `bootstrap.min.js`, `sb-admin-2.js` et `metisMenu.min.js` en tête du
+> bloc `{% compress js %}`. Le relevé de T17 (X14) montre que ce périmètre aurait laissé
+> l'attendu de X15 — « la console est vide » — **faux** : `bootstrap.min.js` resterait premier
+> du bundle et lèverait la même erreur, à l'identique. Retirer le bloc entier rend la promesse
+> vraie, et **aucun comportement n'est perdu, et c'est mesuré, pas déduit** : bootstrap lève
+> dès sa ligne 5, donc `sb-admin-2.js` et `metisMenu.min.js` ne s'exécutaient déjà pas ; le
+> menu déroulant ne s'ouvre pas aujourd'hui, il ne s'ouvrira pas davantage après. La page 404
+> est statique. **Écarté au même arbitrage** : ajouter `jquery.min.js` pour réparer le menu
+> déroulant — réparation par ajout, hors du cadre de cette exigence (le remède est le retrait,
+> pas la complétion), et un framework entier chargé sur une page d'erreur pour un menu qui ne
+> sert qu'à révéler un lien de déconnexion déjà accessible autrement.
+> **Exigence ajoutée par ce même arbitrage** : la console vide ne se déduit jamais de la
+> lecture du gabarit. Elle se **mesure**, après retrait, sur un montage E1, par le même
+> protocole que X14 — script Playwright jetable, `page.on("console")` et
+> `page.on("pageerror")`. La fiche `R-ERR-01` (X16) décrit ce qui est mesuré, pas ce qu'on en
+> déduit.
 
 **Pourquoi ce remède et pas l'autre.** Compléter le bundle exigerait de charger, sur une page
 d'erreur, jQuery, `angular.min.js`, les **vingt-neuf** dépendances déclarées par
@@ -557,19 +627,24 @@ c'est-à-dire la totalité du bundle JS d'`index.html`, 1,7 Mo mesurés
 donner un `ui-view` et une configuration d'état à une page qui n'en a pas, sans quoi
 `ui.router` n'aurait nulle part où rendre. Le coût est celui d'une page complète ; le
 bénéfice est un champ de recherche sur la page 404, fonctionnalité que personne n'a demandée
-et qui n'a jamais fonctionné. Retirer coûte huit lignes et rend la page conforme à ce qu'elle
+et qui n'a jamais fonctionné. Retirer coûte onze lignes et rend la page conforme à ce qu'elle
 fait déjà.
 
 **Attendu, avant et après.** *Avant* : la page rend le chrome SB Admin statique, sans
-comportement JS, et la console porte la cascade de `ReferenceError` de X14. *Après* : la
-page rend **le même chrome, à l'identique visuellement**, et la console est **vide**. Le lien
-de déconnexion fonctionne dans les deux cas. Le champ de recherche ne fait rien dans les deux
-cas. **Aucune capacité n'est retirée à l'utilisateur** : ce lot supprime du code qui ne
-s'exécute pas, il ne supprime pas une fonction qui marchait.
+comportement JS, et la console porte le message unique de `bootstrap.min.js` mesuré par X14.
+*Après* : la page rend **le même chrome, à l'identique visuellement** — `bootstrap.min.js`,
+`sb-admin-2.js` et `metisMenu.min.js` n'y contribuaient déjà à aucun rendu, faute de jQuery —
+et la console est **vide**, mesurée et non déduite. Le lien de déconnexion invoqué directement
+fonctionne dans les deux cas ; le menu déroulant qui le révèle ne s'ouvre dans aucun des deux.
+Le champ de recherche ne fait rien dans les deux cas. **Aucune capacité n'est retirée à
+l'utilisateur** : ce lot supprime du code qui ne s'exécute pas, il ne supprime pas une
+fonction qui marchait.
 
-*Preuve* : régime déclaré, incrément commun avec X12. **Prédiction, écrite avant** : change
-le bundle JS de `404.html` (`:426-448`) ; ne changent pas les deux autres JS ni aucun des
-six CSS. Soit **1 nom sur 9 change**. Plus la fiche `R-ERR-01` et son test (X16).
+*Preuve* : régime déclaré, incrément commun avec X12. **Prédiction, écrite avant** : le bundle
+JS de `404.html` (`:426-448`) **disparaît** — il n'a plus aucun nœud à hacher — plutôt que de
+changer de contenu ; ne changent pas les deux autres bundles JS ni aucun des six bundles CSS.
+**Les neuf noms `output.<hash>` deviennent huit** (6 CSS, 2 JS). Plus la fiche `R-ERR-01` et
+son test (X16), plus la mesure de la console vide sur E1 (ci-dessus).
 
 **X16 — La page 404 entre au filet.** Une fiche neuve `R-ERR-01 — Page inexistante`, sous un
 **quatorzième domaine « Pages d'erreur »** créé au chapitre 3 après « Recherche, index,
@@ -577,12 +652,15 @@ tableau de bord » ; la ligne du chapitre 2 qui dit « un des treize chapitres d
 (`docs/recette.md:334`) passe à quatorze. Aucune fiche existante n'est renumérotée. Et un
 test `tests/functional/test_pages_erreur.py::test_la_page_404_ne_leve_aucune_erreur_de_console`
 qui, sous `DEBUG = False` (la page technique de Django sort sinon) et session ouverte, navigue
-vers une route inexistante, constate le code 404, l'absence d'erreur de console, et le
-fonctionnement du lien de déconnexion — le trou que D4 avait nommément consigné
-(`KANBAN.md:364-370`).
-*Preuve* : le test est **rouge avant le correctif de X15** (les `ReferenceError` sont là) et
-vert après. Un test qui ne peut pas échouer ne prouve rien — c'est la contre-épreuve que D5
-a imposée à `R-INST-07` (spec D5, § Recette).
+vers une route inexistante, constate le code 404 et l'absence d'erreur de console ; un second
+test constate que le handler du lien de déconnexion, **invoqué directement** (le menu qui le
+révèle ne s'ouvrant pas, § X14), fonctionne toujours — le trou que D4 avait nommément consigné
+(`KANBAN.md:364-370`). La fiche `R-ERR-01` décrit ces deux faits comme mesurés, pas comme
+attendus : « console vide » et « déconnexion fonctionne au handler direct, menu non ouvrant »
+y sont deux lignes distinctes.
+*Preuve* : le test est **rouge avant le correctif de X15** (le message de `bootstrap.min.js`
+est là) et vert après. Un test qui ne peut pas échouer ne prouve rien — c'est la contre-épreuve
+que D5 a imposée à `R-INST-07` (spec D5, § Recette).
 
 ### Transverse
 
@@ -596,9 +674,12 @@ supprimée par celle qui la consomme en dernier.
 aucune image du lot. Le motif est écrit : D5 a laissé 17 Go.
 
 **X18 — La référence de `R-INST-07` est re-baseline par ce lot.** Les incréments des régimes
-déclarés changent cinq des neuf noms `output.<hash>` — 3 par X11 (bundles JS d'`index.html`,
-d'`install.html` et de `404.html`), 2 par X13, et X15 n'en ajoute aucun de neuf puisqu'il
-supprime le bundle JS de `404.html` déjà compté — et
+déclarés touchent cinq des neuf noms `output.<hash>` de départ — 3 par X11 (bundles JS
+d'`index.html`, d'`install.html` et de `404.html`), 2 par X13 — et X15 n'en ajoute aucun de
+neuf puisqu'il **supprime** le bundle JS de `404.html` déjà compté, plutôt que de le changer
+une fois de plus. **La liste finale, celle que `R-INST-07` enregistre, porte huit noms, pas
+neuf** : les deux bundles JS restants (`index.html`, `install.html`, tous deux changés par
+X11) et les six bundles CSS (dont deux changés par X13). C'est cette liste de huit qui fixe
 donc l'empreinte (b) de `R-INST-07`. La valeur enregistrée par la passe 1 de D5
 (`dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`, `KANBAN.md:384-388`)
 devient caduque, et la « passe de confirmation restant à jouer » consignée au même endroit
@@ -639,8 +720,10 @@ soit isolé.
 5. **Purge inerte.** X10. Régime inerte, seul de son espèce : neuf noms identiques.
 6. **Purge `ngRoute`.** X11. Régime déclaré, 3 noms sur 9.
 7. **Purge CSS.** X13. Régime déclaré, 2 noms sur 9.
-8. **`404.html`.** X14, X12, X15, X16. Régime déclaré, 1 nom sur 9. En dernier parce que
-   c'est le seul changement de comportement du lot, et qu'isolé il s'impute sans ambiguïté.
+8. **`404.html`.** X14, X12, X15, X16. Régime déclaré, le nom JS de `404.html` **disparaît**
+   (neuf noms deviennent huit) ; les huit autres sont inchangés par cet incrément. En dernier
+   parce que c'est le seul changement de comportement du lot, et qu'isolé il s'impute sans
+   ambiguïté.
 9. **La preuve.** X18 : `R-INST-07` rejouée, `README.rst` et `KANBAN.md` mis à jour, X17
    constaté.
 
@@ -714,10 +797,11 @@ Binaire, mesurable, constaté par exécution réelle. **Le lot est clos quand, e
 quand, les cinq propositions suivantes sont vraies simultanément sur `main`** :
 
 1. **La suite exerce l'arbre livré.** `make static && make test-functional` passe ; la liste
-   des neuf noms `output.<hash>` produite localement et celle extraite de l'image du même
-   commit (`README.rst:410-414`) sont **identiques**, `diff` des deux listes vide. Et
-   `grep -c 'collectstatic\|compilejsi18n\|yarn install' .github/workflows/main.yml` rend
-   `0`.
+   des **huit** noms `output.<hash>` produite localement et celle extraite de l'image du même
+   commit (`README.rst:410-414`) sont **identiques**, `diff` des deux listes vide. Huit et
+   non neuf : à la clôture, X15/T18 (chantier 4) a déjà retiré le bundle JS de `404.html`
+   (§ X4, § X18). Et `grep -c 'collectstatic\|compilejsi18n\|yarn install'
+   .github/workflows/main.yml` rend `0`.
 2. **Le filet couvre 42 fiches sur 50 au navigateur.** `make test-functional` rend
    **0 échec** ; le comptage apparié fiche→couverture, restreint au chapitre 3, rend
    **42 fiches nommant un `tests/functional/…::…`, 0 fiche couverte par un test unitaire
@@ -774,10 +858,12 @@ spec **avant** la clôture, avec le fait qui l'a provoqué. Ce qui est exclu est
 condition d'arrêt — la purge est abandonnée, le fait est écrit, le reste du lot continue.
 `ngRoute` n'est le préalable de rien d'autre.
 
-**Le retrait de `404.html` change le rendu visuel.** *Probabilité jugée très faible* : aucun
-des huit fichiers retirés ne s'exécute, et les deux blocs CSS ne sont pas touchés. *Si le
-risque se réalise* : c'est qu'un des huit avait un effet de bord au chargement, ce qui
-contredirait X14 ; le relevé de X14 est alors rejoué et la conception révisée avant le
+**Le retrait de `404.html` change le rendu visuel.** *Probabilité jugée très faible*, et
+mesurée : aucun des onze fichiers du bloc retiré ne contribue au rendu — `bootstrap.min.js`
+lève dès sa ligne 5 (X14), donc `sb-admin-2.js` et `metisMenu.min.js` ne s'exécutaient déjà
+pas — et les deux blocs CSS ne sont pas touchés. *Si le risque se réalise* : c'est que l'un
+des onze avait un effet de bord au chargement avant même l'erreur de `bootstrap.min.js`, ce
+qui contredirait X14 ; le relevé de X14 est alors rejoué et la conception révisée avant le
 correctif.
 
 **`R-INST-07` ne se rejoue pas à une date réellement différente.** Le renvoi de D5
@@ -811,16 +897,17 @@ framework applicatif. Le socle visuel — Bootstrap 3.2.0, SB Admin 2, metisMenu
 en dépend encore, et c'est le sous-ensemble de D5 dont la valeur ne s'évapore pas
 (`KANBAN.md:407-414`).
 
-**Trois résidus que D6a laisse sciemment, et qui sont du travail de D6b, pas de la dette
-oubliée.**
+**Deux résidus que D6a laisse sciemment, et qui sont du travail de D6b, pas de la dette
+oubliée.** *(Un troisième, envisagé à la conception — `bootstrap.min.js`, `sb-admin-2.js` et
+`metisMenu.min.js` qui seraient restés chargés et inertes sur `404.html` — a été retiré par
+l'arbitrage R27 : le bloc `{% compress js %}` de `404.html` disparaît en entier, ces trois
+fichiers ne s'y chargent donc plus. Ils continuent de se charger normalement sur `index.html`
+et `install.html`, hors du périmètre de ce lot.)*
 
 1. **Le champ de recherche inerte de `404.html:277-283`.** Il rend, il ne fait rien, et
    D6a ne le retire pas : ce serait une décision d'interface. D6b réécrira la page et
    tranchera.
-2. **`bootstrap.min.js`, `sb-admin-2.js` et `metisMenu.min.js` restent chargés par
-   `404.html` sans jQuery**, donc inertes eux aussi. Les retirer aurait doublé la taille du
-   changement de X15 sans changer ce que l'utilisateur voit ; ils sortiront avec la page.
-3. **`DoctorCtrl` disparaît, mais le motif qui l'avait rendu inutile reste.** Le produit
+2. **`DoctorCtrl` disparaît, mais le motif qui l'avait rendu inutile reste.** Le produit
    navigue entièrement par `ui.router` depuis longtemps, et `$routeParams` y rend toujours
    un objet vide : c'est un routage à moitié migré, en place depuis l'amont. D6b hérite
    d'une base où ce demi-état n'existe plus.
@@ -848,6 +935,11 @@ faire à partir d'un comptage de lignes serait une estimation déguisée en fait
   X13 fait le même travail à coût nul.
 - **Retirer `ngRoute` en une ligne, comme le suggère le dossier d'entrée.** Casserait
   l'injection de `editFormControl`, directive vivante. Mesuré, § « Problème ».
+- **Ajouter `jquery.min.js` à `404.html` pour réparer le menu déroulant.** Écarté par
+  l'arbitrage R27 : c'est une réparation par ajout, hors du cadre de X15 (le remède est le
+  retrait, pas la complétion), et cela chargerait un framework entier sur une page d'erreur
+  pour un menu qui ne sert qu'à révéler un lien de déconnexion déjà accessible par son handler
+  direct. Voir § X15.
 - **Ajouter la suite fonctionnelle à `make check`.** `pyproject.toml:9-10` écrit
   explicitement que `make test` et le job `quality` ne changent pas de contenu, et la suite
   fonctionnelle a son propre rythme et son propre outillage (Chromium). D6a exige qu'elle
@@ -876,4 +968,4 @@ artefact nouveau :
    désormais sur un filet qualifié. Le § « Ce que D6a lègue à D6b » en est l'entrée.
 4. **Ce que cela change au chapeau**, y compris ce que D6a a délibérément renvoyé plus loin :
    au minimum le découpage R24 lui-même, le renvoi reconduit de la seconde passe de
-   `R-INST-07`, et les trois résidus légués à D6b.
+   `R-INST-07`, et les deux résidus légués à D6b.
