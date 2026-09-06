@@ -179,9 +179,11 @@ désormais en commentaire à côté du motif.
 - Frontend AngularJS 1.5, jQuery 1.12, Bootstrap 3 : tous en fin de support, sans
   correctifs de sécurité. Une migration serait un chantier majeur et romprait la
   compatibilité amont — à ne pas engager sans décision explicite.
-- Dépendances frontend référencées par branche ou tag Git chez des tiers (`#*` pour une
+- ~~Dépendances frontend référencées par branche ou tag Git chez des tiers (`#*` pour une
   dizaine d'entre elles) et `yarn.lock` ignoré par `.gitignore` : le build n'est pas
-  reproductible.
+  reproductible.~~ — **corrigé le 2026-09-06**, D5 : 29 refs figées sur SHA 40-hex,
+  `yarn.lock` versionné et opposable par `--frozen-lockfile` aux trois appels. Cf.
+  « Terminé ».
 - (S1) 18 `except:` nus et 10 imports hors en-tête, neutralisés par `ignore = ["E722",
   "E402"]` dans la configuration `ruff`. Les corriger change la gestion d'erreurs sans
   filet de test : c'est du ressort de S2.
@@ -273,6 +275,11 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   étape 1, placeholder vérifié) n'est rempli ni vérifié par aucune des 42 fiches
   jouées à ce jour : une fiche couvrant un nom de naissance distinct du nom d'usage
   manque au cahier. Ne pas renuméroter les fiches existantes pour la créer.
+- **Le champ « État requis » de `R-INST-07`** (`docs/recette.md:712`) porte la valeur
+  `aucun`, hors de l'énumération E0 | E1 | E2 du chapitre 2 (`docs/recette.md:157`,
+  `:336`). Cohérent avec le contenu de la fiche — elle ne monte aucune instance, elle
+  bâtit et compare deux constructions — mais le schéma documenté ne prévoit pas cette
+  valeur. Constaté par la revue finale de D5, non traité.
 
 ### Renvoyé par D4 (2026-09-06)
 
@@ -327,6 +334,29 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 ### Renvoyé par D5 (2026-09-06)
 
+- **La passe de confirmation de `R-INST-07` reste à jouer.** La passe 1 a eu lieu le
+  2026-09-06T10:47:31+02:00 (commit `d84fdb2`), empreinte des artefacts servis
+  `dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`. Une seconde passe, à
+  une date réellement différente, reste à jouer pour confirmer la reproductibilité dans le
+  temps — cf. « Terminé » ci-dessous, § « Critère d'arrêt ».
+- **`FROM python:3.14-alpine` reste le dernier intrant mobile de la chaîne de
+  construction**, et c'est assumé, pas oublié : le couplage aux versions `apk` de
+  `nodejs`/`npm` que ce même lot épingle est voulu, puisqu'il fait échouer la
+  construction bruyamment dès que la base bouge, plutôt que de laisser Node ou npm
+  flotter en silence (cf. le commentaire au-dessus du premier `apk add` du Dockerfile).
+- **La garde SHA-256 de la CI (`.github/workflows/main.yml:44-48`) ne bloque que par le
+  `-eo pipefail` implicite de GitHub Actions**, là où le `Dockerfile` porte sa propre
+  vérification `sha256sum -c` et est donc auto-porteur. Comportement correct — vérifié —
+  mais le caractère bloquant de cette garde n'est lisible nulle part dans le workflow
+  lui-même. À rendre explicite dans un lot ultérieur.
+- **Faux ami `angular-timeago`.** Le paquet `@components/angular-timeago` est purgé par
+  D5 (dépendance morte), mais un module Angular du même nom vit dans le dépôt, sans
+  rapport : `libreosteoweb/static/js/plugins/timeAgo.js`, dont `app.js:28` dépend. La
+  purge est sûre — elle ne touche pas ce fichier — mais rien ne l'écrit noir sur blanc :
+  un lecteur futur qui verrait `angular-timeago` disparaître de `package.json` pourrait
+  vouloir « réparer » la purge en le cherchant dans les dépendances Git. Une clause dans
+  la ligne d'inventaire du `README.rst` (§ « Vendored third-party assets ») suffirait à
+  couper court ; non écrite par ce lot.
 - **Aucune montée de version frontend.** A6 a gelé l'arbre du 2026-08-30, **CVE connues
   comprises** : c'est assumé et c'est l'objet de D6. Le gel des refs Angular perdra
   d'ailleurs sa valeur avec AngularJS ; les **neuf familles vendorisées** — Bootstrap
@@ -398,8 +428,9 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   **Critère d'arrêt constaté par une exécution réelle** — passe 1 du
   2026-09-06T10:47:31+02:00, commit `d84fdb2`, images `libreosteo/libreosteo-{http,pg}
   :d84fdb2` : empreinte (a), l'arbre installé — réinstallé `yarn install
-  --frozen-lockfile` dans un conteneur jetable bâti sur l'étage `build` livré, seule
-  mesure fidèle puisque `node_modules` n'existe que le temps du `RUN` de construction —
+  --frozen-lockfile` dans un conteneur jetable bâti sur l'étage `build` livré, pour que la
+  chaîne d'outils mesurée soit celle qui est livrée, et parce qu'un `docker run` sur l'image
+  monte un volume anonyme sur ce chemin — on mesurerait alors le volume, pas le calque —
   `fb6a6492af05cf93231c786cc774721774f5d8eb3ce6656e7ffac51b4bc2677a` ; empreinte (b), ce
   qui est servi (`static/`, `manifest.json` exclu, cf. plus bas) :
   `dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`, avec les neuf noms
@@ -452,7 +483,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     calculé sur la **mtime** du fichier référencé, que `collectstatic` réécrit à chaque
     passe. Corrigé par `COMPRESS_CSS_HASHING_METHOD = "content"`
     (`Libreosteo/settings/base.py`). Quatre CSS sur six variaient d'une passe à l'autre ;
-    les trois JS, filtrés par `rJSMinFilter` seul, étaient épargnés.
+    les trois JS, filtrés par `rJSMinFilter` seul, étaient épargnés. **Conséquence
+    assumée : les octets servis pour les six bundles CSS, et donc leurs noms
+    `output.<hash>`, ont changé entre avant et après D5** — sans effet produit, mais
+    c'est le seul changement d'octets servis du lot.
   - **`static/CACHE/manifest.json` reste non déterministe**, sans réglage pour le corriger :
     son ordre d'écriture dépend de l'achèvement d'un `ThreadPoolExecutor`
     (`compressor/management/commands/compress.py:275`), clés et valeurs restant identiques.
