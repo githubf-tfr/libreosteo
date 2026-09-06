@@ -183,15 +183,21 @@ Throughout, ``$COMPOSE`` stands for
        $COMPOSE down
        mv /path/to/db /path/to/db.pg13
 
-4. **Point ``LIBREOSTEO_DB_STORAGE`` at a new, empty host directory, rebuild both images,
-   and start the engine alone.** The PostgreSQL 18 entrypoint creates ``18/docker`` under
-   the mount point, then creates the role and the database from ``POSTGRES_USER``,
-   ``POSTGRES_PASSWORD`` and ``POSTGRES_DB``::
+4. **Empty out ``LIBREOSTEO_DB_STORAGE`` (or point it at a new directory), rebuild both
+   images under the current commit, and carry that tag into ``.env`` before starting the
+   engine alone.** The PostgreSQL 18 entrypoint creates ``18/docker`` under the mount
+   point, then creates the role and the database from ``POSTGRES_USER``,
+   ``POSTGRES_PASSWORD`` and ``POSTGRES_DB``. ``$COMPOSE`` reads its image tag from
+   ``LIBREOSTEO_IMAGE_TAG`` in ``.env`` (see ``Docker/deploy/pg/.env.example``): skipping
+   the last line below leaves that variable pointing at the old tag, so ``$COMPOSE up -d
+   db`` would silently restart the PostgreSQL 13 image against the fresh directory
+   instead of the PostgreSQL 18 one just built::
 
        mkdir -p /path/to/db
        TAG=$(git rev-parse --short HEAD)
        docker build -t libreosteo/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
        docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+       sed -i "s/^LIBREOSTEO_IMAGE_TAG=.*/LIBREOSTEO_IMAGE_TAG=$TAG/" .env
        $COMPOSE up -d db
 
 5. **Reload the dump.** Copy ``dumpall.sql`` into the new ``LIBREOSTEO_BAK_STORAGE``
