@@ -23,6 +23,7 @@ from tests.functional.helpers import (
     connexion,
     creer_patient,
     joindre_document,
+    libelle_date_longue,
     ouvrir_nouvelle_consultation,
     rechercher_patient,
     remplir_editeur_hallo,
@@ -427,3 +428,76 @@ def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
     assert Invoice.objects.count() == 1
     assert OfficeEvent.objects.count() == 0
     assert PatientDocument.objects.count() == 0
+
+
+def revenir_a_la_chronologie(page: Page) -> None:
+    """Ferme le panneau de detail pour retrouver le bouton « Demarrer une consultation ».
+
+    Apres une cloture, `reloadExaminations` (patient.js) affiche le detail de la
+    consultation qui vient de se fermer a la place de la chronologie
+    (`previousExamination.data` devient non nul, `timeline.html` disparait sous son
+    `ng-if`) : `#new-examination-btn` reste hors du DOM tant que ce panneau est
+    ouvert. Le bouton « × » (`ng-click="model = null"`, examination.html) le referme
+    — meme geste que E2 (chapitre 0, « Seconde consultation, non facturée »). Ne
+    clique que si le panneau est bien ouvert : au tout premier appel d'un test, la
+    chronologie est deja affichee et ce bouton n'existe pas encore dans le DOM.
+    """
+    bouton_fermer = page.locator("button.close.pull-right:visible")
+    if bouton_fermer.count() > 0:
+        bouton_fermer.click()
+
+
+def test_timeline_consultations_et_documents(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Cas de R-PAT-04, docs/recette.md:1113-1130.
+
+    Deux consultations closes dans la meme execution (l'une facturee et reglee, l'autre
+    non) construisent l'equivalent de l'etat E2 requis par la fiche, sans chevauchement
+    de minuit local possible — meme construction que
+    `test_tableau_de_bord.py::construire_etat_e2`.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="invoiced", moyen="check")
+    attendre_page_prete(page)
+
+    revenir_a_la_chronologie(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="notinvoiced", raison="Suivi")
+    attendre_page_prete(page)
+    revenir_a_la_chronologie(page)
+
+    page.click("#examinations")
+    titres = page.locator("h4.timeline-title")
+    expect(titres).to_have_count(2)
+    seance_du_jour = f"Séance du {libelle_date_longue(date.today())}"
+    expect(titres.nth(0)).to_contain_text(seance_du_jour)
+    expect(titres.nth(1)).to_contain_text(seance_du_jour)
+    # Les deux entrees sont badgees en vert (type == 1, la valeur par defaut d'une
+    # consultation), mais distinguees par leur icone : coche pour la facturee et reglee
+    # (status == 2), interdiction pour la non facturee (status == 3).
+    expect(page.locator("div.timeline-badge.success")).to_have_count(2)
+    expect(page.locator("div.timeline-badge i.fa-check")).to_have_count(1)
+    expect(page.locator("div.timeline-badge i.fa-ban")).to_have_count(1)
+    corps = page.locator("div.timeline-body")
+    expect(corps).to_have_count(2)
+    expect(corps.nth(0)).to_contain_text("Motif de consultation")
+    expect(corps.nth(1)).to_contain_text("Motif de consultation")
+
+    page.click("#medicalreports")
+    joindre_document(
+        page,
+        CHEMIN_DOCUMENT,
+        "Radiographie lombaire",
+        "01/01/2024",
+        "Document de recette",
+    )
+    expect(page.locator(".document_title")).to_have_text("Radiographie lombaire")
+    expect(page.locator(".doc_date")).to_have_text("01-01-2024")
+    expect(page.locator(".document_notes")).to_have_text("Notes")
+    expect(page.locator(".document_partialnote")).to_contain_text("Document de recette")

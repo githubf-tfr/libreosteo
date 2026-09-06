@@ -1113,7 +1113,8 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 ### R-PAT-04 — Timeline du patient : consultations et documents
 
 - **Domaine** : Patient
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_patient.py::test_timeline_consultations_et_documents
 - **État requis** : E2
 
 **Étapes**
@@ -1589,7 +1590,8 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 ### R-MED-01 — Créer un médecin traitant
 
 - **Domaine** : Médecins traitants
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_medecins.py::test_creation_d_un_medecin_traitant
 - **État requis** : E1. Le seul point d'accès du logiciel à la création d'un médecin
   traitant est le sélecteur présent sur la fiche d'un patient : cette fiche crée un
   patient supplémentaire dans la seule finalité d'atteindre ce sélecteur, et le
@@ -1622,7 +1624,8 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 ### R-MED-02 — Rattacher un médecin traitant à un patient
 
 - **Domaine** : Médecins traitants
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_medecins.py::test_rattachement_d_un_medecin_a_un_patient
 - **État requis** : E2. Cette fiche rattache durablement un médecin traitant au
   patient Picard : à l'issue de son exécution, remonter l'état E2 (chapitre 1) avant
   de jouer une autre fiche qui en dépend.

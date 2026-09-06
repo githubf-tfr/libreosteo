@@ -169,6 +169,7 @@ files = [
     "tests/functional/test_facturation.py",
     "tests/functional/test_import_csv.py",
     "tests/functional/test_installation.py",
+    "tests/functional/test_medecins.py",
     "tests/functional/test_patient.py",
     "tests/functional/test_recherche.py",
     "tests/functional/test_tableau_de_bord.py",
