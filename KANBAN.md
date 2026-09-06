@@ -114,16 +114,17 @@ Tenu à la main.
   type d'`OfficeEvent` ne correspond à une modification de consultation — tracer la
   redatation suppose donc de créer ce type, pas d'en réactiver un.
 - (2026-09-06) **Arbitrage session centrale — le lot D6 est scindé en D6a puis D6b.** D6a
-  qualifie le filet de test et assainit : combler les 20 fiches de recette sur 51 sans
-  couverture automatisée (`docs/recette.md`), fermer l'écart entre l'arbre exercé en
+  qualifie le filet de test et assainit : combler les fiches de recette sans preuve
+  d'écran — 50 fiches, dont 21 seulement couvertes par un test navigateur, 9 par un test
+  Django unitaire seul et 20 par rien (`docs/recette.md`) — fermer l'écart entre l'arbre exercé en
   local et celui exercé en CI par la suite Playwright (cf. « Renvoyé par D5 »
   ci-dessous), purger le code mort frontend, réparer `404.html`. D6b porte la bascule de
   framework, dont la cible n'est pas choisie et se décidera à la clôture de D6a. Motif :
   la spec du chantier (`docs/superpowers/specs/2026-09-04-dette-technique-design.md`,
   § D6) pose que « le cadrage de D6 qualifie l'adéquation du filet avant de choisir la
   stratégie » et que, si le filet est jugé insuffisant, « l'étendre est le premier
-  incrément du lot ». Le filet est jugé insuffisant : 20 des 51 fiches de recette n'ont
-  aucune couverture automatisée. La scission va **plus loin que la spec**, qui faisait de
+  incrément du lot ». Le filet est jugé insuffisant : 29 des 50 fiches n'ont aucune
+  preuve d'écran. La scission va **plus loin que la spec**, qui faisait de
   cette extension un incrément et non un lot : elle en fait un lot parce que le contenu
   de D6a — filet, écart local/CI, code mort, `404.html` — se livre et se clôt seul, ce
   que la règle « chantier arrêtable à toute frontière de lot » valorise, et parce que la
