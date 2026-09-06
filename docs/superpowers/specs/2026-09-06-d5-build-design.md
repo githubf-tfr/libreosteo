@@ -202,6 +202,18 @@ lien). Le critère se mesure sur **deux empreintes** : l'arbre installé *et* `s
 noms `output.<hash>` (§ « Critère d'arrêt »). *Coût si faux* : une empreinte de plus à
 calculer et à comparer dans la fiche de recette, quelques minutes par passe.
 
+*Correction du 2026-09-06, relevée par la tâche T7bis
+(`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`).* Le motif ci-dessus est
+faux : `node_modules` n'est pas un répertoire que le calque final ne porte pas. Mesure par
+extraction directe des calques (`docker save` + `tar tf`, sans passer par `docker run`) :
+6572 entrées présentes dans le calque de l'étage `build`, et tout autant dans l'image finale
+via `COPY --from=build /Libreosteo ./Libreosteo` (constat T7, confirmé indépendamment par
+T7bis). `VOLUME` n'a d'effet qu'au démarrage d'un conteneur — `docker run` monte alors un
+volume anonyme pré-rempli depuis l'image — pas à la construction sous BuildKit, le builder de
+ce dépôt (`docker buildx build`, `Makefile:14-16`). **La conclusion d'A1 n'en est pas
+affectée** : le critère d'arrêt porte sur ce qui est servi parce que c'est le produit livré
+qui compte, pas parce que `node_modules` serait absent d'un calque — seul le motif change.
+
 **A2 — `rcssmin` et `rjsmin` entrent dans le lot**, épinglés aux versions installées
 (`rcssmin==1.2.2`, `rjsmin==1.2.5`), avec la justification portée à côté de la valeur.
 *Coût si faux* : deux lignes à maintenir dans `requirements.txt`, et une montée de
@@ -371,6 +383,23 @@ Ce paragraphe est la raison, désormais cherchable ; le lot la recopie en commen
 `Dockerfile`, au-dessus du `RUN`, au même endroit et selon le même usage que les blocs que D1,
 D2 et D4 y ont laissés.
 
+*Correction du 2026-09-06, relevée par la tâche T7bis
+(`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`).* Toute cette section — et
+donc le commentaire qu'elle a fait recopier dans le `Dockerfile` — repose sur une affirmation
+fausse, et sa conclusion aussi. Mesure : sous BuildKit, le builder de ce dépôt (`docker buildx
+build`, `Makefile:14-16`), `VOLUME` ne jette rien au moment de la construction ;
+`node_modules` est présent dans le calque de l'étage `build` (6572 entrées, extraction directe
+des calques par `docker save` + `tar tf`). Et surtout, ce que cette section prédisait n'arrive
+pas : une variante du `Dockerfile` avec ce `RUN` découpé en deux (`yarn install` d'un côté,
+`collectstatic`/`compilejsi18n`/`compress` de l'autre), construite `--no-cache` avec `docker
+buildx build`, **aboutit**, et produit un `node_modules` et un `static/CACHE` strictement
+identiques (mêmes empreintes de contenu, mêmes neuf noms `output.<hash>`) à la construction
+monolithique. L'avertissement « NE PAS DÉCOUPER CE RUN » ne tient donc plus sur son motif
+d'origine, et la mesure ne lui en trouve pas d'autre : il est retiré du commentaire du
+`Dockerfile` (T7bis). Le `RUN` reste néanmoins une seule commande dans le dépôt tel quel :
+personne n'a demandé son découpage, et corriger une affirmation fausse n'est pas une occasion
+de réorganiser le build.
+
 ## Critère d'arrêt et sa mesure
 
 Le chapeau pose : « deux installations faites à des dates différentes produisent le même arbre
@@ -400,6 +429,15 @@ précise ce qu'on mesure**, ce qui relève du *comment* et non du *jusqu'où*.
    livré**, donc avec le Node, le npm et le yarn épinglés par ce lot. C'est la seule mesure
    fidèle disponible qui ne demande pas de modifier le `Dockerfile` pour se mesurer, et elle
    satisfait l'intention de la clause : la chaîne d'outils mesurée est celle qui est livrée.
+
+   *Correction du 2026-09-06, relevée par la tâche T7bis
+   (`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`).* Le motif invoqué par la
+   correction ci-dessus — « `node_modules` n'existe dans aucune image » — est lui-même faux,
+   pour la raison décrite à A1 : extraction directe des calques, 6572 entrées présentes dans
+   l'étage `build` et dans l'image finale. **La méthode de mesure retenue pour l'empreinte (a)
+   n'en est pas affectée** : réinstaller dans un conteneur jetable bâti sur l'étage `build`
+   livré reste une mesure fidèle, indépendamment du sort réel de `node_modules` dans l'image —
+   c'est un fait distinct du motif erroné qui l'accompagnait, et qui seul est corrigé ici.
 2. **Plus aucune ref flottante ne subsiste dans la chaîne**, ce qui se vérifie par lecture et
    se prouve par (1) : aucune valeur de `package.json` sans SHA 40-hex, `yarn.lock` versionné
    et copié dans l'image, `--frozen-lockfile` sur les trois appels, `nodejs`/`npm`, `rcssmin`
