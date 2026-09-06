@@ -182,7 +182,7 @@ non sur `node_modules`. Le chapeau écrivait D5 comme un lot purement frontend ;
 plus, parce que la chaîne qui produit les fichiers servis traverse désormais deux paquets
 Python non bornés.
 
-**Ce que la révision ne fait pas** : elle ne touche pas aux quatre autres lignes non figées
+**Ce que la révision ne fait pas** : elle ne touche pas aux cinq autres lignes non figées
 de `requirements/requirements.txt` que D4 a renvoyées plus loin (`setuptools-bower`,
 `sqlparse`, `netifaces2`, `decorator`, `packaging`, `pytz` — `KANBAN.md:307-312`). Le critère
 de tri est mécanique et non discrétionnaire : **est dans D5 ce qui entre dans la chaîne de
@@ -203,7 +203,8 @@ noms `output.<hash>` (§ « Critère d'arrêt »). *Coût si faux* : une emprein
 calculer et à comparer dans la fiche de recette, quelques minutes par passe.
 
 *Correction du 2026-09-06, relevée par la tâche T7bis
-(`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`).* Le motif ci-dessus est
+(`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`, mais ce répertoire n'est
+pas versionné — `.gitignore:56`, scratchpad de session, volatil).* Le motif ci-dessus est
 faux : `node_modules` n'est pas un répertoire que le calque final ne porte pas. Mesure par
 extraction directe des calques (`docker save` + `tar tf`, sans passer par `docker run`) :
 6572 entrées présentes dans le calque de l'étage `build`, et tout autant dans l'image finale
@@ -384,7 +385,8 @@ Ce paragraphe est la raison, désormais cherchable ; le lot la recopie en commen
 D2 et D4 y ont laissés.
 
 *Correction du 2026-09-06, relevée par la tâche T7bis
-(`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`).* Toute cette section — et
+(`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`, mais ce répertoire n'est
+pas versionné — `.gitignore:56`, scratchpad de session, volatil).* Toute cette section — et
 donc le commentaire qu'elle a fait recopier dans le `Dockerfile` — repose sur une affirmation
 fausse, et sa conclusion aussi. Mesure : sous BuildKit, le builder de ce dépôt (`docker buildx
 build`, `Makefile:14-16`), `VOLUME` ne jette rien au moment de la construction ;
@@ -431,8 +433,10 @@ précise ce qu'on mesure**, ce qui relève du *comment* et non du *jusqu'où*.
    satisfait l'intention de la clause : la chaîne d'outils mesurée est celle qui est livrée.
 
    *Correction du 2026-09-06, relevée par la tâche T7bis
-   (`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`).* Le motif invoqué par la
-   correction ci-dessus — « `node_modules` n'existe dans aucune image » — est lui-même faux,
+   (`.superpowers/sdd/2026-09-06-d5-build-plan/task-7bis-report.md`, mais ce répertoire
+   n'est pas versionné — `.gitignore:56`, scratchpad de session, volatil).* Le motif invoqué
+   par la correction ci-dessus — « `node_modules` n'existe dans aucune image » — est lui-même
+   faux,
    pour la raison décrite à A1 : extraction directe des calques, 6572 entrées présentes dans
    l'étage `build` et dans l'image finale. **La méthode de mesure retenue pour l'empreinte (a)
    n'en est pas affectée** : réinstaller dans un conteneur jetable bâti sur l'étage `build`
@@ -445,7 +449,8 @@ précise ce qu'on mesure**, ce qui relève du *comment* et non du *jusqu'où*.
 3. **`make check` vert**, cliquets tenus, et la fiche `R-INST-07` passée.
 
 *Correction du 2026-09-06, relevée par l'enquête sur les bundles non reproductibles
-(`.superpowers/sdd/2026-09-06-d5-build-plan/enquete-bundles-non-reproductibles.md`).* Cette
+(`.superpowers/sdd/2026-09-06-d5-build-plan/enquete-bundles-non-reproductibles.md`, mais ce
+répertoire n'est pas versionné — `.gitignore:56`, scratchpad de session, volatil).* Cette
 section supposait l'empreinte (b) atteignable telle quelle. **Elle ne l'était pas, et depuis
 le fork** : `CssAbsoluteFilter` suffixe chaque `url(...)` du hash de la mtime du fichier
 référencé, que `collectstatic` réécrit à chaque construction — quatre bundles CSS sur six
@@ -571,7 +576,21 @@ lot ne touche à aucun module Python applicatif. Valeurs de départ, à la point
 - **Aucun changement de comportement du produit.** Le lot ne touche ni un gabarit, ni un JS
   applicatif, ni un module Python d'application. Si une empreinte servie change entre avant et
   après, c'est un défaut du lot, pas un effet attendu.
-- **Les quatre autres lignes non figées de `requirements/requirements.txt`** restent où D4 les
+
+  *Correction du 2026-09-06, relevée par la revue finale
+  (`.superpowers/sdd/2026-09-06-d5-build-plan/vague-finale-report.md`, mais ce répertoire
+  n'est pas versionné — `.gitignore:56`, scratchpad de session, volatil).* Cette clause est
+  fausse sur un point, et c'était **voulu** : `COMPRESS_CSS_HASHING_METHOD = "content"`
+  (`Libreosteo/settings/base.py`) a délibérément changé les octets servis. Avant le réglage,
+  `CssAbsoluteFilter` suffixait chaque `url(...)` d'un cache-buster calculé sur la mtime du
+  fichier référencé, que `collectstatic` réécrit à chaque construction — quatre bundles CSS
+  sur six changeaient donc de contenu et de nom `output.<hash>` à chaque passe, sans rapport
+  avec l'arbre de dépendances. Le réglage hache le contenu plutôt que la date de copie : les
+  six bundles CSS servis, et leurs six noms `output.<hash>`, ont changé entre avant et après
+  D5. **La conclusion n'en est pas affectée** : ce changement rend le produit reproductible,
+  il ne modifie ni un gabarit ni un JS applicatif, et il est le seul changement d'octets
+  servis du lot — cf. § « Critère d'arrêt » ci-dessus, qui porte déjà cette même correction.
+- **Les cinq autres lignes non figées de `requirements/requirements.txt`** restent où D4 les
   a renvoyées (`KANBAN.md:307-312`) : elles n'entrent pas dans la chaîne des actifs servis.
 - **`Whoosh==2.7.4`** n'est pas touché : dette de fond, pas ménage, comme D4 l'a écrit.
 - **Le `README.rst`** ne reçoit que la procédure de double construction et l'inventaire des
