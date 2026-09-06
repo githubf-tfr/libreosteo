@@ -312,3 +312,24 @@ def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:
     assert reponse.ok, (
         f"POST /api/patients a echoue : {reponse.status} {reponse.status_text}"
     )
+
+
+def joindre_document(
+    page: Page, chemin: str, titre: str, date: str, notes: str
+) -> None:
+    """Televerse un document dans l'onglet "Compte-rendus medicaux", deja ouvert.
+
+    `filemanager.html` (directive `fileManager`, static/js/app/filemanager.js) vit hors
+    de tout `editable-form` : aucun mode edition prealable n'est requis, contrairement
+    aux autres panneaux du dossier patient. Le bouton "Cliquer pour envoyer"
+    (`button.btn.label.label-info`) disparait avec tout son formulaire une fois
+    `doc.status` passe a 2 (succes) — `$scope.files` est alors filtre par le `$watch`
+    de la directive — c'est le signal d'attente le plus sur.
+    """
+    page.set_input_files("#addDocumentMedicalReport", chemin)
+    expect(page.locator("div.form-group.document_create")).to_be_visible()
+    page.fill("input[placeholder*='Titre']", titre)
+    page.fill("input[placeholder*='Date']:visible", date)
+    page.fill("p.help-block ~ div", notes)
+    page.click("button.btn.label.label-info")
+    expect(page.locator("button.btn.label")).to_have_count(0)

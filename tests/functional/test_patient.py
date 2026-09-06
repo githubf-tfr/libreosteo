@@ -22,6 +22,7 @@ from tests.functional.helpers import (
     cloturer_consultation,
     connexion,
     creer_patient,
+    joindre_document,
     ouvrir_nouvelle_consultation,
     rechercher_patient,
     remplir_editeur_hallo,
@@ -377,7 +378,12 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
 
 
 def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
-    """Cas repris de tests/core/007_gdpr_conformity.robot."""
+    """Cas repris de tests/core/007_gdpr_conformity.robot.
+
+    R-DOC-04 (docs/recette.md:1283-1316) : sans document joint, ce test ne prouvait
+    pas la cascade sur les documents. `joindre_document` en attache un avant la
+    suppression.
+    """
     connexion(page, live_server)
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
@@ -389,6 +395,16 @@ def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
     page.goto(live_server.url)
     rechercher_patient(page, "Picard")
     expect(page.locator("h1.page-header")).to_contain_text("Picard")
+
+    page.click("#medicalreports")
+    joindre_document(
+        page,
+        CHEMIN_DOCUMENT,
+        "Radiographie lombaire",
+        "01/01/2024",
+        "Document de recette",
+    )
+    page.click("#general")
 
     page.click("button:has-text('Supprimer')")
     expect(page.locator("div.modal-content h3")).to_contain_text("Confirmer")
@@ -410,3 +426,4 @@ def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
     assert Examination.objects.count() == 0
     assert Invoice.objects.count() == 1
     assert OfficeEvent.objects.count() == 0
+    assert PatientDocument.objects.count() == 0

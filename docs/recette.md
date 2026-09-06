@@ -1212,7 +1212,8 @@ existante ne couvrait la casse.
 ### R-DOC-01 — Joindre un document au patient
 
 - **Domaine** : Documents patient
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_documents.py::test_joindre_un_document
 - **État requis** : E2. Cette fiche joint durablement un second document au patient
   Picard : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
   dépend.
@@ -1239,12 +1240,12 @@ existante ne couvrait la casse.
 
 - **Domaine** : Documents patient
 - **Couverture auto** : oui —
-  libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
-  test_le_document_est_servi_en_piece_jointe_nommee_par_son_titre (vérifie au niveau
+  tests/functional/test_documents.py::test_consulter_et_telecharger_le_document
+  (libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
+  test_le_document_est_servi_en_piece_jointe_nommee_par_son_titre vérifie au niveau
   route que la réponse porte `Content-Disposition: attachment` avec le titre du
-  document comme nom de fichier ; il n'exerce **pas** le déclenchement réel du
-  téléchargement par le navigateur, ni l'affichage de la vignette de l'étape 1, qui
-  restent manuels)
+  document comme nom de fichier ; ce test-ci déclenche le téléchargement réel dans
+  le navigateur et vérifie l'affichage de la vignette)
 - **État requis** : E2
 
 **Étapes**
@@ -1260,7 +1261,8 @@ existante ne couvrait la casse.
 ### R-DOC-03 — Supprimer un document
 
 - **Domaine** : Documents patient
-- **Couverture auto** : non
+- **Couverture auto** : oui —
+  tests/functional/test_documents.py::test_supprimer_un_document
 - **État requis** : E2. Cette fiche supprime durablement le document du patient
   Picard : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
   dépend.
@@ -1284,12 +1286,13 @@ existante ne couvrait la casse.
 
 - **Domaine** : Documents patient
 - **Couverture auto** : oui —
-  libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
-  test_supprimer_un_patient_avec_document_efface_tout (joint un document réel au
-  patient avant une suppression RGPD, puis vérifie la disparition du patient, de
-  l'objet Document et du fichier stocké ; le rendu de la fenêtre de confirmation, la
-  case à cocher qui déverrouille le bouton « Ok », et la survie de la facture à la
-  cascade — étape 4 de cette fiche — ne sont pas exercés par ce test)
+  tests/functional/test_patient.py::test_suppression_rgpd
+  (libreosteoweb/tests/test_dossier_patient.py::TestDocumentsPatient::
+  test_supprimer_un_patient_avec_document_efface_tout joint un document réel au
+  patient avant une suppression RGPD, puis vérifie au niveau ORM la disparition du
+  patient, de l'objet Document et du fichier stocké ; ce test-ci vérifie en plus le
+  rendu de la fenêtre de confirmation, la case à cocher qui déverrouille le bouton
+  « Ok », et la survie de la facture à la cascade — étape 4 de cette fiche)
 - **État requis** : E2. Fiche destructive par nature : elle supprime le patient
   Picard et l'intégralité de son dossier — reconstruire l'état E2 (chapitre 1) avant
   de jouer une autre fiche qui en dépend.
