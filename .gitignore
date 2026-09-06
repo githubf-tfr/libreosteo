@@ -5,8 +5,14 @@ db.sqlite3
 *.pyc
 
 # Assets
-libreosteoweb/static/bower_components/
-libreosteoweb/static/components/
+# Pas de barre oblique finale : `postinstall` (package.json) crée ici un LIEN SYMBOLIQUE
+# vers node_modules/@components, et git traite un lien comme un fichier ordinaire. Un motif
+# à barre finale ne s'applique qu'aux répertoires : avec elle, le lien ressortait en `??` à
+# chaque `git status` depuis le fork, et quatre lots l'ont contourné faute que la cause soit
+# écrite quelque part. Le lien est de plus créé en chemin ABSOLU, parce que
+# symlinkSync(..., 'junction') fait normaliser la cible par Node même hors Windows : il
+# n'est donc portable d'aucun arbre de travail à un autre, raison de plus pour l'ignorer.
+libreosteoweb/static/components
 /static/
 /media/
 /node_modules/
