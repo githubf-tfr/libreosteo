@@ -293,7 +293,7 @@ In order to have a compliant solution to serve libreosteo, you can use Apache HT
 are not provided at this step, but you can inspire you with this `article <https://www.thecodeship.com/deployment/deploy-django-apache-virtualenv-and-mod_wsgi/>`_ or
 this other `one <https://docs.nginx.com/nginx/admin-guide/web-server/app-gateway-uwsgi-django/>`_
 
-Docker images are provided with uwsgi as provider of the webapp. Libreosteo-sock provides an execution on uwsgi with serving on sock and allow to bind with NGinx for distributing the app.
+Docker images are provided with uwsgi as provider of the webapp. uwsgi is built from source at image build time, against the pinned Python interpreter of the image, and serves HTTP directly on port 8085.
 
 With the software, a basic solution is provided with CherryPy_ which provides the ability to have Http server and WSGI implementation.
 Use the following script to start the server already configured to start as is.

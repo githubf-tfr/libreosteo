@@ -3,7 +3,7 @@
 # Based on Alpine Image
 ############################################################
 
-FROM alpine:latest as build
+FROM python:3.14-alpine AS build
 LABEL maintainer="LibreOsteo Team <contact@libreosteo.org>"
 
 ENV VIRTUAL_ENV=/Libreosteo/venv
@@ -17,8 +17,6 @@ WORKDIR /Libreosteo
 RUN apk add --no-cache \
     tzdata \
     gettext \
-    python3-dev \
-    py3-pip \
     nodejs \
     gcc \
     libc-dev \
@@ -58,7 +56,7 @@ RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 in
 RUN rm libreosteoweb/static/components
 
 
-FROM alpine:latest as run
+FROM python:3.14-alpine AS run
 LABEL maintainer="LibreOsteo Team <contact@libreosteo.org>"
 COPY --from=build /Libreosteo ./Libreosteo
 VOLUME /Libreosteo/data
@@ -67,25 +65,33 @@ ENV VIRTUAL_ENV=/Libreosteo/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 WORKDIR /Libreosteo
 # Install dependancies
-# Les outils de compilation ne servent qu'a batir psycopg2, qui n'a pas de roue Linux sur
-# PyPI et se compile donc a chaque construction. Ils quittent la couche persistante :
-# gcc et python3-dev rejoignent le jeu virtuel .build-deps, purge juste apres, et
-# python3-dev y est enfin declare — la compilation s'appuyait jusqu'ici sur la copie
-# persistante sans le dire. libc-dev n'est pas repris : c'est le meme paquet que le
-# musl-dev deja present. linux-headers disparait purement et simplement, la compilation
-# n'en a pas besoin (verifie par construction complete). L'etage run ne garde que ce dont
-# l'execution a besoin : tzdata, gettext, py3-pip, postgresql-libs et les greffons uwsgi.
-# Le dernier apk add prend --no-cache comme les autres.
+# Les outils de compilation ne servent qu'a batir psycopg2 et uwsgi, qui se compilent
+# tous deux a chaque construction : psycopg2 n'a pas de roue Linux sur PyPI, et uwsgi
+# est desormais bati par pip plutot que pris aux paquets Alpine (lot D4). Ils quittent
+# la couche persistante : gcc, musl-dev, linux-headers et les en-tetes PostgreSQL
+# rejoignent le jeu virtuel .build-deps, purge juste apres.
+# linux-headers fait un aller-retour, et les deux sens sont voulus. D2 l'avait retire
+# parce que psycopg2 s'en passe, verifie par construction complete. D4 le remet parce
+# qu'uwsgi ne s'en passe pas : sans lui la compilation echoue sur
+# « ./uwsgi.h:238:10: fatal error: linux/limits.h: No such file or directory », et gcc
+# plus musl-dev seuls ne suffisent pas — mesure, pas suppose. Ce n'est donc pas une
+# regression de D2 : c'est le meme raisonnement, applique a une compilation de plus.
+# python3-dev n'est plus demande : l'image de base python:3.14-alpine porte deja les
+# en-tetes (/usr/local/include/python3.14/Python.h). py3-pip non plus, ni les greffons
+# uwsgi-python3 et uwsgi-http : le pip et l'interpreteur viennent de la base, et un
+# `apk add` de ces greffons ramenerait un SECOND interpreteur (python3 d'Alpine, parmi
+# dix-sept paquets), ce que l'epinglage de D4 a precisement pour objet d'empecher.
+# libc-dev n'est pas repris : c'est le meme paquet que musl-dev.
+# L'etage run ne garde donc que ce dont l'execution a besoin : tzdata, gettext et
+# postgresql-libs. Le dernier apk add prend --no-cache comme les autres.
 RUN apk add --no-cache \
     tzdata \
     gettext \
-    py3-pip \
     postgresql-libs \
-    && apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev postgresql-dev libpq-dev \
+    && apk add --no-cache --virtual .build-deps gcc musl-dev linux-headers postgresql-dev libpq-dev \
     && pip install --upgrade pip \
-    && pip install psycopg2 \
-    && apk --purge del .build-deps \
-    && apk add --no-cache uwsgi-python3 uwsgi-http
+    && pip install psycopg2 uwsgi \
+    && apk --purge del .build-deps
 
 EXPOSE 8085
 # --http-timeout 180 : l'import CSV de 100 patients observe 86-99s en interne ; le routeur http
@@ -125,4 +131,4 @@ EXPOSE 8085
 # destinataire direct des signaux au lieu du sh qui les avalait ; `--die-on-term` fait que
 # le SIGTERM ainsi recu declenche une extinction et non un rechargement, soit ensemble un
 # arret propre du serveur applicatif a chaque arret ordinaire au lieu d'un arret brutal.
-CMD set -e; python3 ./manage.py migrate --settings=Libreosteo.settings.container; python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || echo "import_zipcodes a echoue : enrichissement des codes postaux ignore, demarrage poursuivi"; export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container; exec uwsgi --plugin http,python --http :8085 --http-timeout 180 --socket-timeout 60 --die-on-term --module Libreosteo.wsgi --need-app --master --processes 1 --threads 1 --offload-threads 1 --static-map /static=/Libreosteo/static -H /Libreosteo/venv
+CMD set -e; python3 ./manage.py migrate --settings=Libreosteo.settings.container; python3 ./manage.py import_zipcodes --settings=Libreosteo.settings.container || echo "import_zipcodes a echoue : enrichissement des codes postaux ignore, demarrage poursuivi"; export DJANGO_SETTINGS_MODULE=Libreosteo.settings.container; exec uwsgi --http :8085 --http-timeout 180 --socket-timeout 60 --die-on-term --module Libreosteo.wsgi --need-app --master --processes 1 --threads 1 --offload-threads 1 --static-map /static=/Libreosteo/static -H /Libreosteo/venv
