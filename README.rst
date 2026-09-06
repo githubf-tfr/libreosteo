@@ -354,6 +354,97 @@ itself lands in ``~/.cache/ms-playwright``.) Then run the suite ::
 
     make test-functional
 
+Reproducible frontend build
+===========================
+
+The frontend dependency tree is frozen: ``package.json`` addresses every dependency by a
+40-hex Git SHA, ``yarn.lock`` is versioned, and every call to yarn passes
+``--frozen-lockfile``, which fails instead of silently resolving when the two disagree.
+The point of that freeze is checkable, and this is how you check it.
+
+Two full builds made **on two different dates** must produce the same two fingerprints.
+Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
+
+1. **Build the image from scratch, then the build stage on top of it.** The second build
+   deliberately does *not* pass ``--no-cache``: it must reuse the very layers the first one
+   produced, so that the toolchain being measured is the one that was shipped::
+
+       docker build --no-cache -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+       docker build --target build -t libreosteo/libreosteo-http:$TAG-build -f Docker/build/http-ready/Dockerfile .
+
+2. **Fingerprint (a), the installed tree.** ``node_modules`` is in **no** image: the
+   ``VOLUME /Libreosteo/node_modules`` declared near the top of the Dockerfile makes Docker
+   discard anything written under that path. The tree is therefore re-installed in a
+   throwaway container built on the shipped build stage, so that Node, npm and yarn are the
+   pinned ones::
+
+       docker run --rm \
+         -v "$PWD/package.json:/mesure/package.json:ro" \
+         -v "$PWD/yarn.lock:/mesure/yarn.lock:ro" \
+         -w /mesure libreosteo/libreosteo-http:$TAG-build sh -c \
+         'yarn install --frozen-lockfile --ignore-scripts >/dev/null 2>&1 \
+          && find node_modules -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | LC_ALL=C sort | sha256sum'
+
+   ``-type f`` skips symlinks on purpose: the ``postinstall`` link is created with an
+   absolute target, so it is not comparable across working trees. ``--ignore-scripts`` only
+   skips that same link creation, which ``-type f`` would not count anyway.
+
+3. **Fingerprint (b), what is actually served.** This one *is* read from the delivered
+   image::
+
+       docker run --rm -w /Libreosteo libreosteo/libreosteo-http:$TAG sh -c \
+         'find static -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | LC_ALL=C sort | sha256sum; \
+          ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css'
+
+   The ``output.<hash>`` file names are already content fingerprints: django-compressor
+   builds them as ``CACHE/<kind>/output.<hexdigest(content,12)>.<ext>``. The whole-``static``
+   digest doubles them because not everything sits inside a ``{% compress %}`` block —
+   ``webshim/polyfiller.js`` is loaded outside one, and fonts, images, ``font-awesome/`` and
+   the Bootstrap glyphicons are not in one either.
+
+4. **Compare.** Both fingerprints, and both ``output.<hash>`` names, must be identical
+   between the two dates. Any difference is a defect: this project does not intentionally
+   change what it serves without a code change.
+
+Vendored third-party assets
+===========================
+
+Nine families of third-party assets live under ``libreosteoweb/static/``, are versioned in
+git, are loaded by the templates, and are declared in no manifest at all. They are listed
+here because they are invisible to ``package.json`` and to ``yarn.lock``, and because they
+are the part of the frontend most likely to outlive a framework migration. Versions are read
+from the files themselves; where a file carries no version, that is said rather than guessed.
+
+===================================  ==============================================  =====================
+Family                               Location                                        Version as shipped
+===================================  ==============================================  =====================
+Bootstrap                            ``css/bootstrap*.css``, ``js/bootstrap*.js``     3.2.0 (file header)
+Font Awesome                         ``font-awesome/``                                4.5.0 (file header)
+Bootstrap 3 Glyphicons               ``fonts/glyphicons-halflings-regular.*``         ships with Bootstrap 3;
+                                                                                     no version of its own
+jquery.sparkline                     ``js/plugins/jquery.sparkline.min.js``           2.1.2 (file header)
+metisMenu                            ``js/plugins/metisMenu/``,                       1.0.3 (file header)
+                                     ``css/plugins/metisMenu/``
+SB Admin 2 (Start Bootstrap theme)   ``css/sb-admin-2.css``, ``js/sb-admin-2.js``,    not stated in the files
+                                     ``css/plugins/timeline*``
+DataTables Bootstrap theme           ``css/plugins/dataTables.bootstrap.css``,        not stated in the files
+                                     ``css/plugins/dataTables/``
+timeAgo (AngularJS directive)        ``js/plugins/timeAgo.js``                        not stated in the file
+animatescroll                        ``js/plugins/animatescroll.min.js``              **provenance not
+                                                                                     established** — the whole
+                                                                                     header is
+                                                                                     ``/* Coded by Ramswaroop */``
+===================================  ==============================================  =====================
+
+Two of these explain a purge made in the same lot: ``@components/bootstrap`` used to be
+downloaded at 3.4.1 while the served Bootstrap is the vendored 3.2.0 above, and
+``@components/font-awesome`` at 4.2.0 while the served Font Awesome is the vendored 4.5.0.
+The build had been fetching, for years, two versions of libraries whose copies it serves
+from elsewhere. They are no longer fetched.
+
+These families are **not** brought back into ``package.json``: that would do the frontend
+migration's work ahead of time and probably twice.
+
 Contributing code
 =================
 

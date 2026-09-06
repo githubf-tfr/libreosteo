@@ -704,6 +704,75 @@ paraphrasent pas.
 l'application sait la resérialiser — et le seul geste qui la rende sûre,
 `--no-role-passwords`, ne se voit qu'à l'étape 6, sur un produit qui se connecte ou non.
 
+### R-INST-07 — Construction reproductible du frontend
+
+- **Domaine** : Installation
+- **Couverture auto** : non — aucune suite pytest ne bâtit une image, ne résout un arbre
+  yarn ni ne compare deux constructions. Cette fiche est la seule preuve du comportement.
+- **État requis** : aucun. La fiche ne monte aucune instance et ne consomme aucun état
+  nommé du chapitre 1 : elle bâtit deux fois et compare deux empreintes.
+
+**Prérequis** : deux passes, **à deux dates réellement différentes** — c'est le sens même
+du critère, et une fiche jouée deux fois dans la même heure ne prouverait rien d'une
+dérive dans le temps. À défaut de pouvoir attendre, la première passe est jouée à la
+clôture du lot et la seconde à la clôture du chantier, et le `KANBAN.md` porte les deux
+dates. La procédure suivie est celle du `README.rst`, section « Reproducible frontend
+build », **sans y ajouter un geste** : les étapes ci-dessous en constatent le résultat,
+elles ne la paraphrasent pas.
+
+**Étapes**
+
+1. Première passe : suivre les étapes 1 à 3 du `README.rst`.
+   Attendu : les deux constructions aboutissent ; la commande de l'étape 2 sort en 0 —
+   `yarn install --frozen-lockfile` n'a **pas** eu à réécrire le lock ; l'empreinte (a),
+   l'empreinte (b) et les deux noms `output.<hash>` sont relevés et notés.
+2. Lecture du gel, sur l'arbre de cette même passe :
+   `grep -c '"@components/' package.json` rend **29** ;
+   `grep -n '"@components/[^"]*": "[^"]*"' package.json | grep -vE '#[0-9a-f]{40}"'` ne
+   rend **rien** — aucune valeur sans SHA 40 hexadécimal ;
+   `git ls-files yarn.lock` rend `yarn.lock` — il est versionné ;
+   `grep -c "install --frozen-lockfile" Docker/build/http-ready/Dockerfile
+   .github/workflows/main.yml` rend `1` pour chacun ;
+   `grep -n "yarnpkg.com/install.sh" Docker/ .github/` ne rend **rien** ;
+   `grep -nE '^(nodejs|npm|rcssmin|rjsmin)' requirements/requirements.txt` et le premier
+   `apk add` du `Dockerfile` montrent **quatre versions exactes**, aucune plage.
+3. Seconde passe, à une **autre date** : rejouer l'étape 1 à l'identique, sur le même
+   commit, avec `docker build --no-cache`.
+   Attendu : **les deux empreintes et les deux noms `output.<hash>` sont identiques à
+   ceux de l'étape 1, caractère pour caractère.** La moindre différence est un **KO** :
+   elle signifie qu'une valeur de la chaîne de construction n'est pas figée. Consigner la
+   sortie exacte du `diff`, ne rien ajuster.
+4. **Contre-épreuve — la fiche doit pouvoir échouer.** Dans une **copie jetable** de
+   l'arbre, hors du dépôt, remettre une seule ref en flottant :
+
+   ```sh
+   cp -a . "$SCRATCH/contre-epreuve" && cd "$SCRATCH/contre-epreuve"
+   sed -i 's|"@components/angular": "angular/bower-angular#[0-9a-f]\{40\}"|"@components/angular": "angular/bower-angular#*"|' package.json
+   grep -n '"@components/angular":' package.json
+   docker run --rm \
+     -v "$PWD/package.json:/mesure/package.json:ro" \
+     -v "$PWD/yarn.lock:/mesure/yarn.lock:ro" \
+     -w /mesure libreosteo/libreosteo-http:$TAG-build \
+     sh -c 'yarn install --frozen-lockfile --ignore-scripts'; echo "code de sortie: $?"
+   ```
+
+   Attendu : **la commande sort en code non nul**, avec un message du type « Your lockfile
+   needs to be updated, but yarn was run with --frozen-lockfile ». C'est l'attendu qui
+   porte la fiche : **le gel retiré, la construction refuse au lieu de résoudre en
+   silence.** Le même `yarn install` **sans** `--frozen-lockfile` doit, lui, réussir et
+   réécrire `yarn.lock` (sa somme SHA-256 change) : c'est exactement ce que le gel
+   interdit. Ne **jamais** rapporter cette copie jetable dans le dépôt ; la supprimer à la
+   fin de la fiche.
+
+   Ce qui n'est **pas** un attendu de cette étape : que l'empreinte (a) diverge. La ref
+   remise en `#*` peut, un jour donné, résoudre vers le même SHA qu'aujourd'hui — la
+   flottaison de ce dépôt est un risque avéré dans son **mécanisme**, pas une dérive
+   constatée sur une fenêtre courte. C'est le refus qui se constate, pas la dérive.
+
+**Constat** : le gel ne vaut que par ce qui le rend opposable. Un `yarn.lock` versionné
+mais consommé par un `yarn` nu ne serait qu'une photographie ; c'est `--frozen-lockfile`,
+et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
+
 ### Authentification
 
 ### R-AUTH-01 — Création du premier utilisateur
