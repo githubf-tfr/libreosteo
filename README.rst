@@ -393,8 +393,13 @@ Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
    image::
 
        docker run --rm -w /Libreosteo libreosteo/libreosteo-http:$TAG sh -c \
-         'find static -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | LC_ALL=C sort | sha256sum; \
+         'find static -type f -not -name manifest.json -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | LC_ALL=C sort | sha256sum; \
           ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css'
+
+   ``-not -name manifest.json`` excludes ``static/CACHE/manifest.json``: django-compressor
+   writes its keys in the completion order of a ``ThreadPoolExecutor``, which is not
+   deterministic between builds, and the file is never read back (``COMPRESS_OFFLINE`` is
+   false), so it has no effect on what is served.
 
    The ``output.<hash>`` file names are already content fingerprints: django-compressor
    builds them as ``CACHE/<kind>/output.<hexdigest(content,12)>.<ext>``. The whole-``static``
