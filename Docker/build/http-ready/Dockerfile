@@ -14,18 +14,33 @@ VOLUME /Libreosteo/node_modules
 # Install dependancies
 WORKDIR /Libreosteo
 
+# nodejs et npm sont epingles a la version exacte que fournit l'index apk de la base.
+# La base python:3.14-alpine ne fournit RIEN de Node (`which node npm yarn` ne rend aucun
+# chemin) : cet apk add est indispensable, et sans epingle il tire ce que l'index du jour
+# propose. D4 a deplace cette flottaison sans la supprimer -- elle ne depend plus
+# d'alpine:latest mais du tag mobile python:3.14-alpine, qui suivra Alpine 3.25 puis 3.26
+# avec un saut majeur de Node a chaque fois. Un lot qui declare fermer la flottaison ne peut
+# pas laisser flotter l'executeur qui construit l'arbre : yarn 1.21.1 date de decembre 2019
+# et tourne aujourd'hui sous Node 24, rien ne le garantit sous Node 26.
+# CETTE EPINGLE EST LIEE AU TAG ALPINE DE LA BASE et doit etre revisee a chaque montee de
+# python:3.x-alpine : relever la valeur par `docker run --rm python:3.x-alpine apk policy
+# nodejs npm`, puis reconstruire. Une valeur devenue absente de l'index fait echouer la
+# construction avec un message explicite, ce qui est le comportement voulu.
+# Ce n'est PAS l'incident `moment` qui justifie cette epingle : cette boucle-la est une
+# regression de yarn 1.22.x, reproduite a l'identique sous Node 22 et sous Node 24 (mesure
+# du cadrage D5). L'epingle sert la reproductibilite generale, rien de plus.
+# `nodejs` etait demande deux fois dans ce bloc : la duplication est supprimee.
 RUN apk add --no-cache \
     tzdata \
     gettext \
-    nodejs \
     gcc \
     libc-dev \
     linux-headers\
     curl\
     bash\
     git\
-    nodejs\
-    npm && npm install fs path
+    nodejs=24.18.1-r0 \
+    npm=11.12.1-r0
 # yarn n'est plus installe par `curl | bash`. Le script amont d'installation telecharge la
 # signature .asc du tarball puis l'abandonne EN SILENCE quand gpg est absent
 # (yarn_verify_integrity : « WARNING: GPG is not installed, integrity can not be verified! »),
