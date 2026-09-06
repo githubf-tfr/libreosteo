@@ -130,11 +130,18 @@ Quatre pièges rencontrés, tous contournés dans `.tools/libreosteo-devenv.sh` 
    `github:angular/bower-angular#semver:1.5.11` (vérifiée), à appliquer aux 36
    dépendances. Option écartée pour l'instant — elle change de gestionnaire sans
    corriger la cause, qui est le recours à des refs flottantes chez des tiers.
-2. **`collectstatic` échoue après une installation fraîche** : le paquet `moment`
-   (résolu en 2.30.1, la contrainte `>=2.9.0` n'étant pas figée) livre
-   `meteor/moment.js` comme lien symbolique pointant sur lui-même, d'où un
-   `OSError: [Errno 40] Too many levels of symbolic links`. Le lien est repointé vers
-   `../moment.js`. Illustration concrète du build non reproductible.
+2. **`collectstatic` échoue après une installation fraîche** : `node_modules/@components/
+   moment/meteor/moment.js` ressort en lien symbolique cyclique, d'où un
+   `OSError: [Errno 40] Too many levels of symbolic links`. Le lien était repointé vers
+   `../moment.js`. **Imputation rectifiée le 2026-09-06 par le cadrage de D5** : ce n'est
+   **pas** un défaut du tarball amont. Le tarball que le lock résout
+   (`codeload.github.com/moment/moment/tar.gz/485d9a7d…`) porte `meteor/moment.js ->
+   ../moment.js`, le lien correct. La boucle est introduite **à l'installation, par yarn
+   1.22.x** : même lock, même conteneur, `find node_modules -type l ! -exec test -e {} \;
+   -print` rend exactement un lien cassé sous 1.22.22 et **aucun** sous 1.21.1, sous
+   Node 22 comme sous Node 24. D5 a unifié yarn sur 1.21.1 partout et retiré le
+   contournement. L'incident reste un exemple de build non reproductible ; il n'était
+   simplement pas imputable à ce qu'on croyait.
 3. **Les suites Robot appellent `python ./manage.py migrate` sans chemin absolu**
    (`tests/core/001_register_user.robot`, mot-clé `Clear database`). Si `python` ne
    résout pas vers l'interpréteur du projet, la migration ne fait rien, silencieusement,
@@ -159,10 +166,13 @@ Tout est écrit dans le dépôt, seul emplacement dont la persistance est garant
 système et les locales, eux, ne persistent pas et sont réinstallés à chaque exécution du
 script.
 
-Détail cosmétique : le motif `.gitignore` `libreosteoweb/static/components/` ne couvre
-pas le lien symbolique du même nom créé par le `postinstall` de `package.json` — un
-motif à barre oblique finale ne s'applique qu'aux répertoires. `git status` affiche donc
-en permanence ce lien comme non suivi. Défaut hérité de l'amont, non corrigé.
+Détail longtemps cosmétique, **corrigé par D5 le 2026-09-06** : le motif `.gitignore`
+`libreosteoweb/static/components/` ne couvrait pas le lien symbolique du même nom créé par
+le `postinstall` de `package.json`, parce qu'un motif à barre oblique finale ne s'applique
+qu'aux répertoires et que git traite un lien comme un fichier ordinaire. `git status`
+affichait donc ce lien en permanence comme non suivi, et quatre lots l'ont contourné faute
+que la cause soit écrite quelque part. La barre finale est retirée et la raison est
+désormais en commentaire à côté du motif.
 
 ### Dette technique (constat, pas action)
 
@@ -315,6 +325,48 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   en retard sur l'usage, `**Constat**` étant dans le même cas sur cinq fiches
   (`:641`, `:703`, `:1128`, `:1454`, `:1503`).
 
+### Renvoyé par D5 (2026-09-06)
+
+- **Aucune montée de version frontend.** A6 a gelé l'arbre du 2026-08-30, **CVE connues
+  comprises** : c'est assumé et c'est l'objet de D6. Le gel des refs Angular perdra
+  d'ailleurs sa valeur avec AngularJS ; les **neuf familles vendorisées** — Bootstrap
+  3.2.0 et le thème SB Admin 2 en tête — sont le socle visuel et non le framework, et
+  sont le sous-ensemble de D5 dont la valeur ne s'évapore pas. Elles sont inventoriées
+  dans le `README.rst`, section « Vendored third-party assets ».
+- **Les cinq lignes non figées restantes de `requirements/requirements.txt`** —
+  `sqlparse`, `netifaces2`, `decorator`, `packaging`, `pytz` — restent où D4 les a
+  renvoyées. Le critère de tri de D5 était mécanique : est dans D5 ce qui entre dans la
+  chaîne de production des actifs servis. Ces cinq-là n'y sont pas. `setuptools-bower`,
+  qui figurait dans la même liste, **est traité par D5** et sort donc de ce renvoi.
+- **Deux dépôts sources renommés, tenus par une redirection HTTP 301** :
+  `dangrossman/bootstrap-daterangepicker` → `dangrossman/daterangepicker` et
+  `danialfarid/angular-file-upload-bower` → `danialfarid/ng-file-upload-bower`. Les refs
+  de `package.json` portent l'ancien nom et le SHA figé, ce qui fonctionne tant que
+  GitHub sert la redirection. **Constaté, non corrigé** : le corriger serait toucher à
+  l'arbre gelé.
+- **L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
+  Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
+  lots restants »). Ce n'est pas une dette de D5 — le gel supprime la dérive dans le
+  temps, pas cet écart — c'est une **entrée pour le cadrage de D6**, dont la suite
+  Playwright est le filet unique.
+
+Deux constats mineurs versés au passage par D5, sans rapport avec le périmètre du lot :
+
+- **`collectstatic` copie 1202 fichiers jamais servis** — documentations et exemples que
+  les paquets `@components/…` embarquent et que `collectstatic` recopie en bloc, sans
+  qu'aucun gabarit ni JS n'y fasse référence. Constaté par contre-épreuve (T4, purge des
+  sept dépendances mortes) : le hachage global de `static/` change de 1202 fichiers sans
+  qu'aucun des neuf noms `output.<hash>` ne bouge. Alourdit l'image sans utilité, hors
+  périmètre de D5.
+- **La portabilité de `node_modules/.yarn-integrity` sur une autre architecture n'est
+  pas vérifiée.** Son premier champ, `systemParams`, encode l'architecture et l'ABI de
+  Node (`linux-x64-137`, mesuré ici) ; l'empreinte (a) de `R-INST-07` ne l'exclut pas.
+  Identique caractère pour caractère entre les deux constructions du 2026-09-06 (même
+  machine), donc sans effet constaté ; un rejeu sur une autre architecture y verrait
+  probablement diverger l'empreinte (a) pour une raison étrangère à l'arbre de
+  dépendances lui-même — à vérifier alors, et à exclure de l'empreinte si la divergence
+  se confirme.
+
 ### Dette technologique — analyse automatisée du 2026-09-02, triée le 2026-09-04
 
 > Diagnostic produit par un agent dédié, lecture seule, sur l'arbre de S6 clos. Seuls les
@@ -323,12 +375,166 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 > forment le périmètre du chantier « dette technique » (§ Décisions actées), et ils restent
 > ici jusqu'à ce que le lot qui les ferme soit clos.
 
-- **Élevé — frontend en fin de vie.** AngularJS 1.5.11, jQuery 1.12.4, jQuery UI 1.10.4, CVE
-  ouvertes ; construction non reproductible (dépendances Git `#*`, `yarn.lock` ignoré,
-  `curl | bash` sans somme de contrôle — `package.json:24-59`, `.gitignore:44`,
-  `Docker/build/http-ready/Dockerfile:29`).
+- **Élevé — frontend en fin de vie.** AngularJS 1.5.11, jQuery 1.12.4, jQuery UI 1.10.4,
+  CVE ouvertes. Objet de D6. Le second volet de ce constat — construction non
+  reproductible : dépendances Git `#*`, `yarn.lock` ignoré, `curl | bash` sans somme de
+  contrôle — est **clos par D5 le 2026-09-06** : 29 refs sur SHA, lock versionné et
+  opposable par `--frozen-lockfile`, tarball yarn vérifié par SHA-256, Node, npm,
+  `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-06 — D5 Build livré** (dix tâches plus deux hors plan ; spec
+  `docs/superpowers/specs/2026-09-06-d5-build-design.md`, plan supprimé une fois achevé).
+  Treize commits `56692b4..d84fdb2` : `yarn.lock` versionné, copié dans l'image et
+  opposable par `--frozen-lockfile` aux trois appels ; yarn 1.21.1 installé par tarball
+  vérifié SHA-256 aux trois occurrences du `curl | bash` ; 29 refs frontend figées sur SHA
+  40-hex ; sept dépendances mortes et neuf scripts morts purgés, `setuptools-bower`
+  retiré ; motif `.gitignore` du lien symbolique corrigé ; `rcssmin==1.2.2` et
+  `rjsmin==1.2.5` épinglés ; `nodejs` et `npm` épinglés par `apk` ; `npm install fs path`
+  supprimé ; procédure de construction reproductible, inventaire des neuf familles
+  vendorisées et fiche `R-INST-07` écrits dans le `README.rst` et `docs/recette.md`.
+
+  **Critère d'arrêt constaté par une exécution réelle** — passe 1 du
+  2026-09-06T10:47:31+02:00, commit `d84fdb2`, images `libreosteo/libreosteo-{http,pg}
+  :d84fdb2` : empreinte (a), l'arbre installé — réinstallé `yarn install
+  --frozen-lockfile` dans un conteneur jetable bâti sur l'étage `build` livré, seule
+  mesure fidèle puisque `node_modules` n'existe que le temps du `RUN` de construction —
+  `fb6a6492af05cf93231c786cc774721774f5d8eb3ce6656e7ffac51b4bc2677a` ; empreinte (b), ce
+  qui est servi (`static/`, `manifest.json` exclu, cf. plus bas) :
+  `dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`, avec les neuf noms
+  `output.<hash>` identiques (six CSS, trois JS). Une reconstruction `--no-cache` menée le
+  même jour rend les deux mêmes empreintes et les mêmes neuf noms, caractère pour
+  caractère — mais ne vaut pas comme seconde passe : `R-INST-07` exige une date
+  **réellement différente**, et la seule disponible pendant le lot est celle de la passe 1.
+  **La passe de confirmation, à une autre date, reste à jouer** — non faite pendant ce
+  lot, faute d'une date différente disponible, et renvoyée à la clôture du chantier « dette
+  technique ». Le contrôleur juge le critère d'arrêt **prouvé pour ce que le lot
+  contrôle** : tout ce qui pouvait dériver dans le temps est désormais figé (29 refs sur
+  SHA, lock opposable par `--frozen-lockfile`, yarn par tarball à somme vérifiée, `nodejs`
+  et `npm` épinglés par `apk`, `rcssmin` et `rjsmin` épinglés), et la reconstruction
+  `--no-cache` du même jour a déjà montré l'indépendance vis-à-vis du cache.
+
+  Six lectures du gel (étape 2 de `R-INST-07`), toutes conformes : 29 dépendances toutes en
+  SHA 40-hex ; `yarn.lock` versionné et copié dans l'image ; `--frozen-lockfile` présent
+  sur les trois appels ; `nodejs=24.18.1-r0` et `npm=11.12.1-r0` épinglés ; `rcssmin==1.2.2`
+  et `rjsmin==1.2.5` ; tarball yarn 1.21.1 vérifié par SHA-256
+  (`d1d9f4a0f16f5ed484e814afeb98f39b82d4728c6c8beaafb5abc99c02db6674`).
+
+  Fiches rejouées sur une instance neuve montée par le chapitre 0, navigateur réel :
+
+  | Fiche | Verdict |
+  |---|---|
+  | R-INST-07 | OK (passe 1 et contre-épreuve OK ; passe 2 à date différente différée) |
+  | R-INST-01 | OK |
+  | R-INST-02 | OK |
+  | R-INST-03 | OK |
+  | R-TAB-01 | OK |
+  | R-TAB-02 | OK |
+  | R-PAT-01 | OK |
+  | R-CON-01 | OK |
+  | R-AGE-01 | OK |
+  | R-DOC-01 | OK |
+
+  Aucun KO. Trois cliquets constatés **inchangés** depuis `f2d65a2` : `fail_under` toujours
+  à `90`, `select = ["E4","E7","E9","F","I"]` et `ignore = []` inchangés, `mypy` toujours à
+  104 modules (`Success: no issues found in 104 source files`) — le lot ne touche aucun
+  module Python applicatif. `target-version = "py313"` n'a pas bougé non plus, et **n'est
+  pas un cliquet**. Aucun test n'a été modifié : `git diff f2d65a2 -- libreosteoweb/tests
+  tests/functional` rend une sortie vide.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **La boucle symbolique de `moment` est une régression de yarn 1.22.x, pas un défaut du
+    tarball amont** — rectification portée ci-dessus, § « Pièges rencontrés ». L'incident
+    reste entier, seule son imputation était fausse.
+  - **Les bundles CSS n'étaient pas reproductibles, et depuis le fork** — sans rapport avec
+    les dépendances : `CssAbsoluteFilter` suffixait chaque `url(...)` d'un cache-buster
+    calculé sur la **mtime** du fichier référencé, que `collectstatic` réécrit à chaque
+    passe. Corrigé par `COMPRESS_CSS_HASHING_METHOD = "content"`
+    (`Libreosteo/settings/base.py`). Quatre CSS sur six variaient d'une passe à l'autre ;
+    les trois JS, filtrés par `rJSMinFilter` seul, étaient épargnés.
+  - **`static/CACHE/manifest.json` reste non déterministe**, sans réglage pour le corriger :
+    son ordre d'écriture dépend de l'achèvement d'un `ThreadPoolExecutor`
+    (`compressor/management/commands/compress.py:275`), clés et valeurs restant identiques.
+    Il est donc exclu des deux empreintes (a) et (b), et de toute façon jamais relu
+    (`COMPRESS_OFFLINE` est faux).
+  - **L'affirmation « `VOLUME` fait que `node_modules` n'est dans aucune image » était
+    fausse.** Mesuré par extraction directe des calques (`docker save` + `tar tf`) :
+    `node_modules`, 6572 entrées, est bien présent dans le calque de l'étage `build` et
+    dans l'image finale via `COPY --from=build`. Le dépôt construit avec BuildKit
+    (`docker buildx build`, `Makefile`), qui n'applique pas la règle de purge du builder
+    historique — contre-épreuve faite sous `DOCKER_BUILDKIT=0`, où le même `Dockerfile` ne
+    conserve qu'un répertoire vide. L'avertissement « ne pas découper ce `RUN` », posé sur
+    ce motif erroné, a donc été retiré **sur mesure** : une variante avec le `RUN` coupé en
+    deux, bâtie `--no-cache` sous BuildKit, produit un `node_modules` et un `static/CACHE`
+    strictement identiques. Le `RUN` reste néanmoins **monolithique dans le dépôt, par
+    choix** — personne n'a demandé son découpage, et corriger une affirmation fausse n'est
+    pas une occasion de réorganiser le build.
+  - **`django_compressor` 4.6 a dé-épinglé `rcssmin` et `rjsmin`**, fait produit par D4 et
+    découvert au cadrage de D5 : c'est ce qui a étendu le périmètre de D5 à ces deux
+    paquets Python et fait porter le critère d'arrêt sur les artefacts servis plutôt que
+    sur `node_modules` seul.
+  - **`--frozen-lockfile` change la nature de l'échec** : une divergence entre
+    `package.json` et `yarn.lock` fait désormais échouer la construction au lieu d'être
+    résolue en silence. Conséquence directe : figer les 29 refs a obligé à réaligner les
+    clés du lock dans le même commit (`17e0013`), sous peine de rendre l'image inconstructible.
+  - **`--frozen-lockfile` sous 1.21.1 consomme sans le réécrire le lock produit par
+    1.22.22** : les deux versions sont interopérables en lecture, elles ne divergent qu'à
+    la régénération (8961 octets contre 8839, la différence étant une fusion des entrées
+    `rangy`/`rangy-official`, pas une résolution différente). Sans conséquence tant que
+    `--frozen-lockfile` est en place ; à consigner le jour où le lock sera régénéré sous
+    1.21.1.
+  - **`npm install fs path` (`Dockerfile:28`) a été retiré**, tranché par construction
+    (T7) : deux constructions complètes avec et sans la ligne rendent des empreintes (a) et
+    (b) identiques, aucun effet mesurable.
+  - **Les versions `apk` de `nodejs` et `npm` sont épinglées** à `24.18.1-r0` et
+    `11.12.1-r0` : l'épingle est liée au tag Alpine de la base `python:3.14-alpine`, donc à
+    réviser à chaque montée de `python:3.x-alpine`.
+  - **La cause du motif `.gitignore` inopérant est nommée pour la première fois** —
+    rectification portée ci-dessus, § « Reproduction de la CI en local ». Quatre lots
+    l'avaient contourné sans que la cause soit écrite.
+  - **`.tools/libreosteo-devenv.sh` portait encore `PY_VERSION="3.13"`**, résidu de D4
+    relevé par sa revue finale et laissé passer : le rejouer reconstruisait un `.venv` sur
+    un autre interpréteur que celui que la CI déclare. **Corrigé par D5** (périmètre étendu
+    par le contrôleur le 2026-09-06, hors spec), dans un fichier non versionné, sans
+    commit — trois changements : yarn à 1.21.1, `PY_VERSION` à 3.14, retrait du
+    contournement `moment`. **Cette entrée est la seule trace qui en restera.**
+  - **Deux versions vendorisées divergeaient de ce que le build téléchargeait** : Bootstrap
+    servi en 3.2.0 pendant que `@components/bootstrap` tirait 3.4.1, Font Awesome servi en
+    4.5.0 pendant que `@components/font-awesome` tirait 4.2.0. Les deux dépendances mortes
+    ont été purgées.
+  - **`animatescroll.min.js` n'a aucune provenance établie** — son en-tête entier est
+    `/* Coded by Ramswaroop */` — et l'inventaire du `README.rst` l'écrit ainsi plutôt que
+    de deviner.
+  - **Deux dépôts sources ne tiennent que par une redirection HTTP 301**
+    (`dangrossman/bootstrap-daterangepicker` → `dangrossman/daterangepicker`,
+    `danialfarid/angular-file-upload-bower` → `danialfarid/ng-file-upload-bower`), fait
+    constaté et **délibérément non corrigé** : A6 gèle l'arbre du 2026-08-30.
+  - **Aucun écart du manuel n'a été trouvé pendant la passe de recette de T9**, et la
+    seconde passe datée de `R-INST-07` n'a pas eu lieu pendant le lot — cf. « Critère
+    d'arrêt » ci-dessus.
+
+  **Ce que cela change à la priorité des lots restants** : D6 est le seul lot restant, et
+  la chaîne `D5 → D6` est donc ouverte. Fait constaté au cadrage de D5 et non su avant,
+  versé ici pour le cadrage de D6 : **le filet unique de D6 ne s'exécute pas sur le même
+  arbre selon l'endroit où il est lancé.** La suite Playwright sert ses statiques depuis
+  `<racine>/static` (`tests/functional/conftest.py:43-44`) ; en local, `make
+  test-functional` (`Makefile:41-49`) ne rejoue ni `yarn` ni `collectstatic` et exerce
+  l'arbre du jour où il a été installé, tandis que la CI (`.github/workflows/main.yml`)
+  réinstalle et recollecte à chaque exécution, et **sans `compress`**. Le gel de D5
+  supprime la dérive dans le temps mais **pas cet écart local/CI**, qui est une ambiguïté
+  d'imputation dans l'outillage de test lui-même — un test vert ici et rouge là-bas, en
+  cours de migration D6, ne dirait pas si la régression vient du code ou de l'arbre.
+
+  **Ce que cela change au chapeau** : le critère d'arrêt ne bouge pas dans son exigence,
+  A1 a seulement précisé ce qu'on mesure — deux empreintes, dont celle des artefacts
+  servis. Quatre emplacements corrigés au cadrage de la spec, dans le même mouvement
+  qu'elle : le `curl | bash` est à `Docker/build/http-ready/Dockerfile:29` et non `:31` ;
+  le bloc `dependencies` était à `package.json:21-58` et non `:24-59` ; le motif
+  `yarn.lock` était à `.gitignore:40` et non `:44` ; et « les 36 refs figées sur commit ou
+  sur tag » acceptait un gel qui ne gèle pas, un tag Git se déplaçant côté amont. Et la
+  **révision de périmètre** de la spec, avec sa date (2026-09-06) et son fait : le
+  dé-épinglage de `rcssmin`/`rjsmin` par `django_compressor` 4.6, livré par D4.
 
 - **2026-09-06 — D4 Socle livré** (onze tâches ; spec
   `docs/superpowers/specs/2026-09-05-d4-socle-design.md`, plan supprimé une fois
