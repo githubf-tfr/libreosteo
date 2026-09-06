@@ -406,6 +406,21 @@ précise ce qu'on mesure**, ce qui relève du *comment* et non du *jusqu'où*.
    et `rjsmin` portant une version exacte, et le tarball yarn vérifié par somme.
 3. **`make check` vert**, cliquets tenus, et la fiche `R-INST-07` passée.
 
+*Correction du 2026-09-06, relevée par l'enquête sur les bundles non reproductibles
+(`.superpowers/sdd/2026-09-06-d5-build-plan/enquete-bundles-non-reproductibles.md`).* Cette
+section supposait l'empreinte (b) atteignable telle quelle. **Elle ne l'était pas, et depuis
+le fork** : `CssAbsoluteFilter` suffixe chaque `url(...)` du hash de la mtime du fichier
+référencé, que `collectstatic` réécrit à chaque construction — quatre bundles CSS sur six
+changeaient de nom à chaque build, même sans rebuild Docker entre deux passes. Réglé par
+`COMPRESS_CSS_HASHING_METHOD = "content"` (`Libreosteo/settings/base.py`), qui hache le
+contenu référencé plutôt que sa date de copie ; preuvé par une construction réelle, les neuf
+noms `output.<hash>` (six CSS, trois JS) sont désormais identiques d'une passe à l'autre. La
+liste de noms de l'empreinte (b) **exclut `static/CACHE/manifest.json`** : son ordre de clés
+dépend de l'ordonnancement du `ThreadPoolExecutor` de `compress`
+(`compressor/management/commands/compress.py:275`), clés et valeurs restant identiques, et le
+fichier n'est jamais lu (`COMPRESS_OFFLINE` est faux). **Cette seconde cause ne se corrige par
+aucun réglage** — elle est documentée, pas refermée.
+
 Ce critère se prouve **à la clôture du lot**, pas à chaque incrément — le chapeau l'écrit
 explicitement, et l'exiger de chaque incrément rendrait la règle inapplicable ici, où le
 premier incrément ne peut rien geler qu'il n'ait d'abord versionné.
