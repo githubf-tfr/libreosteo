@@ -34,6 +34,33 @@ def test_connexion_invalide(page: Page, live_server: LiveServer) -> None:
     expect(page.locator(".alert-danger")).to_be_visible()
 
 
+def test_deconnexion_depuis_l_application(page: Page, live_server: LiveServer) -> None:
+    """Cas de R-AUTH-03, docs/recette.md:834-849.
+
+    L'etape 2 (retour a l'URL racine apres deconnexion) est le trou par lequel la
+    regression `LogoutView` de Django 5.2 est passee (KANBAN.md:831-845) :
+    `TestDeconnexion` (libreosteoweb/tests/test_acces.py:371) ne rejoue le controle
+    que depuis "/", jamais apres une deconnexion reelle depuis l'application.
+    """
+    connexion(page, live_server)
+    ouvrir_menu_utilisateur(page)
+    page.click("ul.dropdown-user a:has-text('Déconnexion')")
+    expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
+    expect(page.locator("input[name=username]")).to_have_attribute(
+        "placeholder", "Votre nom d'utilisateur"
+    )
+    expect(page.locator("input[name=password]")).to_have_attribute(
+        "placeholder", "Mot de passe"
+    )
+    expect(page.locator("button[type=submit]")).to_contain_text("Identification")
+    expect(page.locator(".alert-danger")).to_have_count(0)
+
+    # C'est cette seconde etape qui prouve que la session est reellement close, pas
+    # seulement que la page de deconnexion affiche le bon titre.
+    page.goto(live_server.url)
+    expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
+
+
 def test_les_statiques_de_l_application_sont_servis(
     page: Page, live_server: LiveServer
 ) -> None:

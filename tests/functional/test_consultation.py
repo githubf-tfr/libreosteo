@@ -16,6 +16,7 @@ from tests.functional.helpers import (
     libelle_date_longue,
     ouvrir_nouvelle_consultation,
     rechercher_patient,
+    remplir_editeur_hallo,
     saisir_consultation,
 )
 
@@ -399,3 +400,54 @@ def test_l_icone_distingue_la_consultation_non_facturee(
     icone = page.locator("ul.timeline li .timeline-badge i.fa")
     expect(icone).to_have_count(1)
     expect(icone).to_have_class("fa fa-ban")
+
+
+def test_edition_d_une_consultation_existante(
+    page: Page, live_server: LiveServer, consultation_facturee: Examination
+) -> None:
+    """Cas de R-CON-02, docs/recette.md:1378-1404.
+
+    Editer le motif et l'examen medical d'une consultation deja facturee, puis recharger
+    completement la page : c'est le rechargement qui prouve une persistance reelle, pas
+    seulement l'affichage optimiste qui suit l'enregistrement (meme principe que
+    `test_changement_de_date_accepte`, qui recharge via `naviguer_vers_examen`).
+    """
+    date_initiale = timezone.localtime(consultation_facturee.date).date()
+    naviguer_vers_examen(
+        page,
+        live_server,
+        consultation_facturee.patient_id,
+        consultation_facturee.id,
+        date_initiale,
+    )
+    expect(page.locator(".tab-pane.active")).to_contain_text("n° 10000")
+    expect(page.locator(".tab-pane.active")).to_contain_text("Motif de consultation")
+    expect(page.locator(".tab-pane.active")).to_contain_text("Examen normal")
+    # `#current-examination` (uib-tab, ng-show) instancie sa propre directive
+    # <examination>, sans rapport avec la consultation ouverte ici : sans le fait
+    # d'etre relie a `#examinations` (`ng-if="previousExamination.data != null"`, cf.
+    # `patient-detail.html`), une premiere version de ce test ambigue entre les deux
+    # (verifie par instrumentation directe : compte a 1 avec ce scope, a 2 sans lui).
+    page.click("button.btn-default:has-text('Éditer')")
+    expect(
+        page.locator('button.btn-default:has-text("Fin d\'édition")')
+    ).to_be_visible()
+
+    page.fill(".tab-pane.active input[placeholder='Motif']", "Motif modifie")
+    remplir_editeur_hallo(
+        page,
+        ".tab-pane.active [ng-model='model.medical_examination']",
+        "Examen modifie",
+    )
+    page.click('button.btn-default:has-text("Fin d\'édition")')
+    attendre_page_prete(page)
+    expect(page.locator(".tab-pane.active")).to_contain_text("Motif modifie")
+    expect(page.locator(".tab-pane.active")).to_contain_text("Examen modifie")
+
+    page.reload()
+    expect(page.locator(".tab-pane.active")).to_contain_text("Motif modifie")
+    expect(page.locator(".tab-pane.active")).to_contain_text("Examen modifie")
+
+    consultation_facturee.refresh_from_db()
+    assert consultation_facturee.reason == "Motif modifie"
+    assert consultation_facturee.medical_examination == "Examen modifie"

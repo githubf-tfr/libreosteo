@@ -1,9 +1,13 @@
 """Cas repris de tests/core/009_import_patient_csv.robot."""
 
+import subprocess
 from datetime import date
+from pathlib import Path
 
+import pytest
 from django.utils import timezone
 from playwright.sync_api import Page, expect
+from playwright.sync_api import TimeoutError as DelaiPlaywrightDepasse
 from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import Examination, Patient
@@ -173,6 +177,69 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     assert timezone.localtime(consultation_reperee.date).date() == (
         DATE_CONSULTATION_REPERE
     )
+
+
+def test_csv_invalide_refuse_sans_import_partiel(
+    page: Page, live_server: LiveServer, tmp_path: Path
+) -> None:
+    """Cas de R-IMP-03, docs/recette.md:1765-1793.
+
+    `patients_1.csv` (24 colonnes) tronque a 20 colonnes : structurellement invalide,
+    pas le gabarit telechargeable depuis l'application (qui n'a aucune ligne de donnees
+    et ne peut donc pas produire l'extrait a cellules vides attendu ici).
+    """
+    fichier_tronque = tmp_path / "patients_1_20col.csv"
+    with fichier_tronque.open("w") as sortie:
+        subprocess.run(
+            ["cut", "-d;", "-f1-20", FICHIER_PATIENTS],
+            check=True,
+            stdout=sortie,
+        )
+
+    connexion(page, live_server)
+    ouvrir_import(page)
+    page.set_input_files("#patient-file", str(fichier_tronque))
+    page.click("button:has-text('Analyser')")
+    attendre_page_prete(page)
+
+    expect(page.locator("#analyze-result")).to_contain_text("Résultats d'analyse")
+    expect(page.locator("#patient-file-analyze")).to_be_visible()
+    # Croix rouge, a la place de la coche verte d'un fichier valide.
+    expect(page.locator("#patient-file-analyze span.text-danger")).to_be_visible()
+    expect(page.locator("#patient-file-analyze span.text-success")).to_be_hidden()
+    # L'extrait est quand meme affiche, cellules vides pour les 4 colonnes tronquees
+    # (medical_history, family_history, trauma_history, medical_reports — les 20
+    # premieres colonnes du CSV d'origine couvrent tout le reste, cf. l'en-tete de
+    # patients_1.csv).
+    ligne = page.locator("#patient-file-analyze table tbody tr").first
+    expect(ligne).to_be_visible()
+    # `td` 0 est le numero de ligne CSV (`key`), pas un champ de `row[]` : les quatre
+    # colonnes tronquees (row[20..23]) sont donc aux positions 21 a 24.
+    for cellule in range(21, 25):
+        expect(ligne.locator("td").nth(cellule)).to_have_text("")
+    # Aucun message d'erreur textuel n'accompagne la croix : seul l'etat de l'icone
+    # distingue un fichier invalide d'un fichier valide.
+    contenu = page.locator("#patient-file-analyze").inner_text().lower()
+    assert "invalide" not in contenu
+    assert "erreur" not in contenu
+
+    bouton_importer = page.locator("button.btn-success:has-text('Importer')")
+    expect(bouton_importer).to_be_disabled()
+
+    requetes_import = []
+    page.on(
+        "request",
+        lambda requete: (
+            requetes_import.append(requete.url) if "/integrate" in requete.url else None
+        ),
+    )
+    # Le bouton desactive n'accepte pas le clic : Playwright refuse d'agir sur un
+    # element non actionnable et expire, exactement ce qu'un vrai clic souris
+    # rencontrerait.
+    with pytest.raises(DelaiPlaywrightDepasse):
+        bouton_importer.click(timeout=2_000)
+    assert requetes_import == []
+    assert Patient.objects.count() == 0
 
 
 def test_le_titre_d_erreur_des_consultations_reste_masque_sans_erreur(

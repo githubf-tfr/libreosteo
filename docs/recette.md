@@ -834,7 +834,7 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 ### R-AUTH-03 — Déconnexion
 
 - **Domaine** : Authentification
-- **Couverture auto** : non
+- **Couverture auto** : oui — tests/functional/test_authentification.py::test_deconnexion_depuis_l_application
 - **État requis** : E1
 
 **Étapes**
@@ -1378,9 +1378,10 @@ existante ne couvrait la casse.
 ### R-CON-02 — Éditer une consultation existante
 
 - **Domaine** : Consultation
-- **Couverture auto** : non (tests/functional/test_consultation.py couvre l'édition
-  de la date de consultation ; l'édition du motif et de l'examen médical n'a pas
-  d'équivalent automatisé)
+- **Couverture auto** : oui — tests/functional/test_consultation.py::test_edition_d_une_consultation_existante
+  (édite le motif et l'examen médical, recharge la page, constate la persistance ;
+  l'édition de la date de consultation, autre champ éditable du même écran, est
+  couverte à part par `test_changement_de_date_accepte`)
 - **État requis** : E2. Cette fiche modifie durablement le motif et l'examen médical
   de la première consultation (facturée) du patient Picard : à l'issue de son
   exécution, remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
@@ -1765,7 +1766,7 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 ### R-IMP-03 — Fichier CSV invalide refusé sans import partiel
 
 - **Domaine** : Import CSV
-- **Couverture auto** : non
+- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_csv_invalide_refuse_sans_import_partiel
 - **État requis** : E1
 
 **Étapes**
