@@ -263,6 +263,40 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   jouées à ce jour : une fiche couvrant un nom de naissance distinct du nom d'usage
   manque au cahier. Ne pas renuméroter les fiches existantes pour la créer.
 
+### Renvoyé par D4 (2026-09-05)
+
+- **`--processes 1 --threads 1` n'est pas levé.** Ce n'est plus un garde-fou
+  d'intégrité depuis D3 (`Docker/build/http-ready/Dockerfile`, bloc de commentaires
+  du `CMD`), c'est un **choix de capacité** — et sa levée demande une preuve de
+  charge que ni la recette ni la suite Playwright ne portent. Candidat à un lot
+  ultérieur qui apportera sa propre preuve.
+- **Ménage des dépendances mortes.** `argparse==1.2.1` (dans la stdlib depuis
+  Python 2.7), `setuptools-bower` (version unique de 2014, Bower mort),
+  `cherrypy==18.10.0` (importé par le seul mode standalone, `server.py:24` et
+  `winserver.py:37`, hors cible depuis S4), et l'usage direct de `pytz`
+  (`libreosteoweb/api/serializers/consultation.py:15,81,84`, que Django n'impose
+  plus depuis 5.0). **`Whoosh==2.7.4` mérite une mention à part** : dernière release
+  2016, projet sans mainteneur depuis dix ans, et il porte la recherche du produit —
+  c'est de la **dette de fond, pas du ménage**, et elle ne se solde pas dans un lot
+  de montée de version.
+- **Sept mentions périmées du `README.rst`**, inventoriées par D4 et laissées en
+  l'état parce que les corriger serait réécrire le chapitre « Installation » :
+  `:104-105` propose `make build` puis `make run`, cible qui lance le conteneur seul
+  avec des volumes nommés et **sans PostgreSQL** (`Makefile:22-23`), ce que le mode
+  conteneur refuse depuis D2 — la procédure ne peut plus aboutir ; `:110-118` donne
+  un bloc `.env` où manquent `LIBREOSTEO_IMAGE_TAG` (obligatoire depuis D2),
+  `LIBREOSTEO_SECRET_KEY` (obligatoire depuis S6) et `LIBREOSTEO_ALLOWED_HOSTS`,
+  `Docker/deploy/pg/.env.example` étant désormais la seule source à jour ; `:120`
+  décrit le volume `SETTINGS` sans dire que `__init__.py` **et** `local.py` y sont
+  tous deux obligatoires ; `:154` et `:220` conseillent le module de réglages
+  `standalone`, hors cible depuis S4 ; `:167-178` présente sqlite comme le moteur
+  par défaut et PostgreSQL comme une variante, l'inverse de la décision de S4 ;
+  `:204-217` documente le serveur CherryPy `./server.py`, même mode hors cible ;
+  `:10` porte un copyright arrêté en 2021. **Les deux premiers empêchent une
+  installation de réussir en suivant le texte, les cinq autres décrivent des modes
+  abandonnés** : le tri appartient au lot qui prendra le `README.rst`. (Les numéros
+  de ligne sont ceux d'avant D4 ; ils ont bougé, repérer par le texte.)
+
 ### Dette technologique — analyse automatisée du 2026-09-02, triée le 2026-09-04
 
 > Diagnostic produit par un agent dédié, lecture seule, sur l'arbre de S6 clos. Seuls les
@@ -271,15 +305,270 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 > forment le périmètre du chantier « dette technique » (§ Décisions actées), et ils restent
 > ici jusqu'à ce que le lot qui les ferme soit clos.
 
-- **Élevé — socle hors support.** Django 4.2 (fin de support étendu avril 2026), Python de
-  l'image non maîtrisé (`FROM alpine:latest` × 2, 3.14 constaté), PostgreSQL 13 (fin de vie
-  novembre 2025).
 - **Élevé — frontend en fin de vie.** AngularJS 1.5.11, jQuery 1.12.4, jQuery UI 1.10.4, CVE
   ouvertes ; construction non reproductible (dépendances Git `#*`, `yarn.lock` ignoré,
   `curl | bash` sans somme de contrôle — `package.json:24-59`, `.gitignore:44`,
   `Docker/build/http-ready/Dockerfile:29`).
 
 ## Terminé
+
+- **2026-09-06 — D4 Socle livré** (onze tâches ; spec
+  `docs/superpowers/specs/2026-09-05-d4-socle-design.md`, plan supprimé une fois
+  achevé). Trois incréments indépendants, chacun laissé déployable et recettable :
+  PostgreSQL 13 → 18 avec procédure de montée écrite et exécutée, Django 4.2.30 →
+  5.2.17 LTS, Python épinglé par `FROM python:3.14-alpine` avec `uwsgi` compilé contre
+  cet interpréteur. L'ordre a été révisé en cours de lot (PostgreSQL, puis Django,
+  puis Python — l'inverse de ce que le cadrage prévoyait) sur un fait mesuré à
+  l'exécution : Django 4.2.30 est cassé sous Python 3.14.
+
+  **Critère d'arrêt constaté par une exécution réelle** — instance neuve du
+  2026-09-06, commit `cae06d9`, images reconstruites sous le tag `cae06d9` :
+  `db` en `Up (healthy)`, `libreosteo` en `Up` ; `/Libreosteo/venv/bin/python -V` →
+  `Python 3.14.7` ; `SHOW server_version` sur `db` → `18.6` ; `ls /usr/bin/python*`
+  ne rend rien, `command -v uwsgi` désigne `/Libreosteo/venv/bin/uwsgi`, `uwsgi
+  --version` rend `2.0.31` ; le journal porte `WSGI app 0 (mountpoint='') ready` et
+  `spawned uWSGI http 1`, aucun `UNABLE to load uWSGI plugin` ; `curl` rend
+  `302 Found` vers `/install/`. Les six sorties du critère d'acceptation 3 sont donc
+  toutes vérifiées.
+
+  La procédure de montée du `README.rst` a été **exécutée** ce même jour, depuis un
+  état E2 reconstitué sur un `git worktree` au commit `068c91b` (jamais par un
+  `checkout` sur `main`), en la suivant sans y ajouter un geste : service applicatif
+  arrêté, `db` seul démarré sur l'image PostgreSQL 13 (13.23) ; `pg_dumpall
+  --no-role-passwords` vers `/var/lib/backup` (`grep -c "PASSWORD"` → `0`) ; arrêt
+  complet, ancien répertoire mis de côté (`db.pg13`, jamais supprimé) ; répertoire
+  neuf, images `cae06d9` démarrées, `db` seul, arborescence `18/` (root) puis
+  `18/docker` (uid 70, mode `0700`) ; rechargement du dump avec **exactement deux
+  `ERROR: … already exists`** (rôle puis base) et rien d'autre ; démarrage complet,
+  **aucune ligne `Applying …`**, `SHOW server_version` à `18.6` obtenu **depuis le
+  conteneur applicatif** (`manage.py shell`, jamais `exec db psql -h 127.0.0.1`) ;
+  état E2 intégralement retrouvé par l'interface (patient Picard Jean-Luc, ses deux
+  consultations, la facture `10000` à `55 €`, le document « Radiographie lombaire »).
+
+  **Passage complet du cahier — 49 fiches, 48 OK, 1 KO** :
+
+  | Fiche | Verdict |
+  |---|---|
+  | R-INST-01 | OK |
+  | R-INST-02 | OK |
+  | R-INST-03 | OK |
+  | R-INST-04 | OK |
+  | R-INST-05 | **KO** (étape 3, détail ci-dessous) |
+  | R-INST-06 | OK (7/7 étapes, montée exécutée ci-dessus) |
+  | R-AUTH-01 | OK |
+  | R-AUTH-02 | OK |
+  | R-AUTH-03 | OK |
+  | R-AUTH-04 | OK |
+  | R-AUTH-05 | OK |
+  | R-CAB-01 | OK |
+  | R-CAB-02 | OK |
+  | R-CAB-03 | OK |
+  | R-THE-01 | OK |
+  | R-THE-02 | OK |
+  | R-PAT-01 | OK |
+  | R-PAT-02 | OK |
+  | R-PAT-03 | OK |
+  | R-PAT-04 | OK |
+  | R-PAT-05 | OK |
+  | R-PAT-06 | OK |
+  | R-PAT-07 | OK |
+  | R-DOC-01 | OK |
+  | R-DOC-02 | OK |
+  | R-DOC-03 | OK |
+  | R-DOC-04 | OK |
+  | R-DOC-05 | OK |
+  | R-CON-01 | OK |
+  | R-CON-02 | OK |
+  | R-CON-03 | OK |
+  | R-FAC-01 | OK |
+  | R-FAC-02 | OK |
+  | R-FAC-03 | OK |
+  | R-FAC-04 | OK |
+  | R-FAC-05 | OK |
+  | R-MED-01 | OK |
+  | R-MED-02 | OK |
+  | R-AGE-01 | OK |
+  | R-AGE-02 | OK |
+  | R-IMP-01 | OK |
+  | R-IMP-02 | OK |
+  | R-IMP-03 | OK |
+  | R-SAU-01 | OK |
+  | R-SAU-02 | OK |
+  | R-RCH-01 | OK |
+  | R-RCH-02 | OK |
+  | R-TAB-01 | OK |
+  | R-TAB-02 | OK |
+
+  Écart constaté (une entrée, `R-INST-05`, étape 3 — déjà consigné par la tâche qui a
+  porté le critère d'arrêt de l'incrément PostgreSQL, reproduit à l'identique ici sur
+  l'instance finale) : attendu — la ligne `Applying
+  libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance...` précède le
+  `CommandError` dans le journal. Constaté aujourd'hui — la ligne `Applying …`
+  n'apparaît **pas du tout** dans la fenêtre de journal entre `Running migrations:` et
+  le `CommandError` (`docker compose logs -t`, horodatages millisecondes à l'appui) ;
+  variante plus sévère que celle notée à la clôture de l'incrément (où la ligne
+  apparaissait, mais après). Le message d'erreur lui-même, l'absence de tout nom
+  propre et l'absence de `WSGI app 0 … ready` restent conformes à l'attendu ; la garde
+  métier n'est pas en cause, seul l'entrelacement stdout/stderr du pilote de journaux
+  Docker l'est. Constaté sans corriger, conformément au chapitre 0.
+
+  Chiffres constatés ce jour, commit `cae06d9` : **273 tests unitaires** (272 au
+  départ du lot + 1, le test de non-régression de la déconnexion posé par la tâche
+  correctrice — cf. ci-dessous), couverture **91,07 %**, `mypy` **104 modules**
+  (`Success: no issues found in 104 source files`), **31/31** fonctionnels
+  (`make test-functional`, 4 min 55 s). `git diff 7ec21ae --stat -- libreosteoweb/tests
+  tests/functional` ne rend **pas** une sortie vide : il montre `test_acces.py`,
+  +42 lignes, la classe `TestDeconnexion` posée par la tâche correctrice de
+  `R-AUTH-03`. C'est le signal attendu, pas une anomalie — ce lot n'a touché aucun
+  test existant, il en a **ajouté un**, pour un comportement qui n'existait pas
+  encore à tester (cf. « Ce que le lot a appris »). Trois cliquets constatés
+  **inchangés** : `fail_under` toujours à `90` (90,79 % → 91,07 %, un dixième qui ne
+  mérite pas de le relever, même ruling qu'à la clôture de D3) ; périmètre `mypy`
+  toujours à 104 modules ; `select = ["E4","E7","E9","F","I"]` et `ignore = []`
+  inchangés. `target-version = "py314"` et `python_version = "3.14"` **ont changé**
+  dans ce même `pyproject.toml` : ce ne sont pas des cliquets, ils suivent la cible
+  épinglée par ce lot, ils ne l'assouplissent pas.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **`FROM alpine:latest` avait fait entrer Python 3.14 dans l'image sans que
+    personne le décide ni le sache**, et une CI restée en 3.13 rendait l'écart
+    invisible. Le constat d'origine du lot — « version de Python non maîtrisée » —
+    s'est vérifié **plus grave qu'annoncé** : ce n'était pas une version qui aurait pu
+    dériver, elle avait déjà dérivé, en silence, jusqu'en production.
+  - **Django 4.2.30 est cassé sous Python 3.14** (`django/template/context.py:39`,
+    l'idiome `copy(super())` dans `BaseContext.__copy__`, qui ne survit pas au
+    changement de comportement de `copy.copy()` sur un objet `super` en 3.14). C'est
+    ce fait, mesuré pendant l'exécution de la tâche qui ouvrait le lot dans l'ordre
+    initial, qui a **révisé l'ordre du lot** : Python devait venir en premier, il est
+    passé en dernier. Une enquête dédiée a instruit et fermé la question qui
+    s'ensuivait : **le produit en service était indemne**, le défaut confiné aux deux
+    seuls appelants de `BaseContext.__copy__` dans tout Django
+    (`django/test/client.py:267` et `django/test/testcases.py:128`), tous deux actifs
+    uniquement sous `setup_test_environment()` — jamais le chemin de production.
+  - **La rupture se masquait au lieu de se voir.** Sous Python 3.14 avec Django 4.2,
+    deux fichiers de test (`test_dossier_patient.py`, `test_exploitation.py`)
+    n'échouaient pas : ils interbloquaient `pytest` à vie, un `flock()` Whoosh jamais
+    relâché après l'`AttributeError`. 80 tests sur 272 n'étaient jamais exécutés, et le
+    processus s'arrêtait sans résumé — un `Killed` qui ressemblait à un manque de
+    mémoire, mais qui était le `kill -9` de l'agent après un blocage. Le risque était
+    double : la rupture cassait, et elle empêchait de compter ce qu'elle cassait.
+  - **La déconnexion était cassée par Django 5.2**, et `make test-functional`
+    passait pourtant `31/31` : la suite Playwright ne couvre pas la déconnexion.
+    Django 5.0 a retiré le support de GET pour `LogoutView` (`http_method_names =
+    ["post", "options"]`) ; le lien de déconnexion du produit (`index.html:93`,
+    `404.html:263`) est resté un `<a href>` ordinaire. C'est la **recette manuelle**
+    qui l'a trouvé (`R-AUTH-03`, `405 Method Not Allowed`), pas l'analyse statique —
+    et c'est aussi pourquoi l'affirmation de la spec « aucune suppression de Django
+    5.0/5.1/5.2 ne touche ce dépôt, vérifié item par item » s'est révélée fausse sur
+    cet item précis : l'inventaire avait manqué `LogoutView`. Corrigé par TDD (rouge
+    `405 == 405` sur le code d'avant fix, vert après), un lien plus un formulaire
+    caché soumis en POST ; le correctif a été rejoué à la recette et confirmé.
+  - **`ruff` reste volontairement sur `target-version = "py313"`.** Sous `py314`,
+    `ruff format` veut réécrire quatre fichiers pour adopter la syntaxe PEP 758
+    (`except A, B:` sans parenthèses, ambiguë avec l'ancien `except E, e:` de
+    Python 2) : `Libreosteo/zip_loader.py`, `libreosteoweb/api/file_integrator.py`
+    (4 occurrences), `libreosteoweb/api/utils.py`,
+    `libreosteoweb/api/views/administration.py`. Ce reformatage rendrait le dépôt non
+    importable sous 3.13 pour zéro gain — le lot épingle l'exécution en 3.14, il n'a
+    jamais décidé que le code cesserait de s'analyser en 3.13. Toute montée future de
+    `target-version` devra assumer ces quatre reformatages comme son propre fait, pas
+    comme un effet de bord hérité.
+  - **`uwsgi` compilé plutôt qu'installé, avec sa contrepartie mesurée.** La
+    compilation contre l'interpréteur épinglé prend **14 s** et rend un binaire de
+    **1,5 Mio**, contre 51,7 Mio de paquets Alpine si l'on avait pris la voie
+    `apk add uwsgi-python3 uwsgi-http` — voie écartée précisément parce qu'elle aurait
+    ramené un second interpréteur Python (`python3 3.14.7-r1` d'Alpine) à côté de
+    celui du venv. **`ls /usr/bin/python*` ne rendant rien est la seule preuve que
+    l'épinglage porte jusqu'au serveur d'application**, pas seulement jusqu'au venv —
+    vérifiée à nouveau ce jour. Le binaire `pip` n'embarque pas les fonctions
+    optionnelles qu'apportaient `libxml2`, `jansson` et `pcre2` dans les paquets
+    Alpine : configuration par fichier XML et routage interne PCRE (le journal de
+    démarrage le confirme désormais explicitement : `no internal routing support,
+    rebuild with pcre support`). Aucune de ces fonctions n'est utilisée aujourd'hui,
+    tout étant passé en ligne de commande du `CMD` — mais **un lot ultérieur qui
+    voudrait du routage uwsgi devra le savoir**, ce qui est écrit ici et pas
+    seulement dans un commentaire du `Dockerfile` pour que ce ne soit pas perdu si le
+    commentaire est un jour réécrit sans le motif.
+  - **`linux-headers` est revenu dans `.build-deps`, et ce n'est pas une régression
+    de D2.** D2 l'avait retiré parce que `psycopg2` seul n'en avait pas besoin,
+    vérifié par construction complète. Ce lot le remet parce qu'`uwsgi` en a besoin
+    (`./uwsgi.h:238:10: fatal error: linux/limits.h: No such file or directory`,
+    `gcc` et `musl-dev` seuls ne suffisant pas) — mesuré, pas supposé. Le commentaire
+    du `Dockerfile` porte désormais les deux faits et les deux motifs, pour qu'un
+    mainteneur qui le lit dans six mois ne lise pas un retour en arrière accidentel.
+  - **Le piège d'authentification de la montée PostgreSQL.** `pg_dumpall` nu réécrit
+    le vérificateur de mot de passe en `md5` ; PostgreSQL 18 l'accepte avec un simple
+    avertissement (la base reste intègre), mais l'applicatif ne peut alors plus
+    s'authentifier (`password_encryption = scram-sha-256` côté serveur). Et **une
+    vérification faite depuis `exec db psql -h 127.0.0.1` ment** : le `pg_hba.conf`
+    de l'image accorde `trust` au bouclage avant sa règle `scram-sha-256`, donc une
+    telle vérification réussirait alors même que le produit ne peut plus se
+    connecter. C'est le même piège, au même endroit du fichier, que le faux positif
+    `pg_isready` sans `-h` que D2 avait corrigé — il se serait rejoué à l'identique
+    si la procédure n'avait pas nommé `--no-role-passwords` et la vérification
+    depuis le conteneur applicatif comme non négociables.
+  - **`R-INST-06` a un état requis historique, donc un coût permanent, nommé ici.**
+    La fiche exige un E2 **servi par PostgreSQL 13** : tout passage complet futur du
+    cahier — D5, D6 et au-delà — devra reconstituer cet état sur des images du fork
+    bâties sur un commit antérieur à D4 (le protocole suivi ici : `git worktree add`
+    sur `068c91b`, jamais un `checkout` sur `main`). Le fait est écrit ici pour que
+    personne ne le découvre en cours de passe ; **le tri de ce coût appartient au lot
+    qui le paiera, pas à D4** — la fiche elle-même est conforme à ce que le chapeau
+    exigeait, ce n'est pas une réserve sur son verdict.
+  - **Django 4.2.30 sur PostgreSQL 18**, état transitoire de l'incrément 1 : constaté
+    et non supposé. Les 12 fiches de l'incrément PostgreSQL (dont `R-INST-06`) ont
+    toutes été rejouées OK sur cette combinaison à la clôture de l'incrément, et de
+    nouveau OK aujourd'hui sur la combinaison finale (Django 5.2, Python 3.14) — la
+    montée du moteur n'a rien dégradé au passage.
+  - **`django-haystack 3.4.0` n'a pas cassé `FoldingWhooshSearchBackend`.** `
+    build_schema` et `search`, que le dépôt sous-classe, sont restés strictement
+    identiques entre 3.3.0 et 3.4.0 (diff des deux sdists, vérifié à la source) ; la
+    seule différence apparente venait d'un décorateur déjà présent en 3.3.0. `R-RCH-01`
+    et `R-RCH-02` sont vertes, aujourd'hui comme à la clôture de l'incrément Django,
+    exercées par un navigateur réel — c'était le risque principal nommé par la spec,
+    il ne s'est pas matérialisé.
+  - **`django-stubs` n'a pas eu besoin d'être monté séparément** : `6.1.0`, déjà
+    présente dans `requ-dev.txt`, est la dernière version publiée qui déclare
+    Django 5.2. Un fait journalisé, pas une étape sautée.
+  - **Aucun écart du manuel n'a été trouvé pendant le passage complet de T11.** Les
+    deux amendements du cahier faits pendant le lot (purge E0, `R-INST-05` étape 2)
+    l'ont été par les tâches qui les ont rencontrés, avant cette passe ; celle-ci n'en
+    a rencontré aucun de plus. Une note d'outillage antérieure signalait un possible
+    écart sur le titre de la page de connexion (« H1 Veuillez vous identifier ») :
+    vérifiée ici à la source, c'est le `<h2 class="form-signin-heading">` de
+    `login.html`, jamais cité par aucune des 49 fiches (qui ne vérifient que le titre
+    d'onglet du navigateur) — ce n'est pas un écart du manuel, la note provenait d'une
+    lecture d'arbre d'accessibilité d'un script d'outillage, pas du cahier.
+
+  **Ce que cela change à la priorité des lots restants** : D4 étant clos, la chaîne
+  `D2 → D3 → D4` est achevée ; il ne reste que `D5 → D6`, et **D5 devient le prochain
+  lot**. Ce que D4 a délibérément renvoyé plus loin : rien de D5 (`package.json`,
+  `yarn.lock`, le `curl | bash` de yarn n'ont pas été touchés alors que deux tâches
+  ont ouvert le `Dockerfile`) ; aucun passage à psycopg 3 (Django 5.2 accepte
+  `psycopg2 2.8.4+`, l'image en porte `2.9.12`) ; aucune montée du frontend, aucune
+  publication d'images dans un registre, aucune reprise de parc réel ; `setup.py`
+  sans `python_requires` et `patch.py:35` (`import imp`) laissés en l'état, cibles
+  `cx_Freeze` abandonnées en S4 — les réparer entretiendrait une cible morte.
+
+  **Ce que cela change au chapeau** : rien au périmètre, rien aux dépendances, rien
+  au critère d'arrêt dans son exigence. Le chapeau
+  `docs/superpowers/specs/2026-09-04-dette-technique-design.md` a été corrigé sur
+  cinq points, au cadrage de la spec de ce lot, dans le même mouvement qu'elle ;
+  chaque correction est une précision de fait, jamais un affaiblissement, journalisée
+  ici avec le fait qui l'a provoquée. Tableau des constats, ligne « Socle /
+  `FROM alpine:latest` » : emplacements `Dockerfile:6,54` → **`:6,61`** (D1 et D2 ont
+  inséré des commentaires entre les deux `FROM`), et constat mesuré ajouté — l'image
+  livrée sert **Python 3.14.7** quand tout ce que le dépôt déclarait disait 3.13.
+  Même ligne, seconde référence : `Docker/build/sock-ready/Dockerfile:6,48` marqué
+  **closes par D2**, qui a supprimé ce fichier. Section D4, cible du moteur :
+  « PostgreSQL 13 → 17 » devenue **« 13 → 18 »**, l'image officielle 18 rangeant le
+  datadir par majeure (`PGDATA=/var/lib/postgresql/18/docker`), ce qui rend les
+  montées suivantes praticables en `pg_upgrade --link`. Section D4, couplage : « à
+  vérifier au cadrage » devenu **vérifié et inconditionnel** — Django 5.2 exige
+  PostgreSQL ≥ 14, le dépôt était en 13, et la seule version de Django qui aurait
+  tenu sur 13 (5.1) est en fin de vie depuis décembre 2025. Tableau des constats,
+  ligne « Intégrité / `ATOMIC_REQUESTS` » : `base.py:193` → **`:192`**, correction
+  d'un décalage déjà porté par la clôture de D3 mais jamais reporté au chapeau.
 
 - **2026-09-05 — D3 Intégrité des données livré** (treize tâches ; spec
   `docs/superpowers/specs/2026-09-05-d3-integrite-design.md`, plan supprimé une fois
@@ -1663,6 +1952,23 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
 
 ### Ouvert par le chantier « dette technique »
 
+- **2026-09-06 — `R-INST-05` étape 3 rend l'ordre `Applying …` / `CommandError`
+  inversé dans le journal Docker, et ce n'est pas corrigé.** Constaté deux fois sous
+  D4, avec deux manifestations différentes : à la clôture de l'incrément PostgreSQL,
+  la ligne `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance...`
+  apparaissait **après** le `CommandError` (223 ms d'écart, horodatages millisecondes
+  à l'appui) ; au passage complet de la recette, la même ligne n'apparaissait **pas du
+  tout** dans la fenêtre de journal. Dans les deux cas, le message d'erreur, l'absence
+  de tout nom de patient et l'absence de `WSGI app 0 … ready` restent conformes à
+  l'attendu : la garde métier n'est pas en cause, seul l'entrelacement stdout/stderr
+  du pilote de journalisation Docker l'est — confirmé par lecture du source Django
+  (`executor.py`, la ligne est bien écrite et vidée avant `migration.apply()`). Une
+  tentative de reproduction en mode attaché (`docker compose run`) a été instruite
+  puis **retirée** faute d'avoir été consignée au moment des faits (la reproduire
+  exigerait de recréer l'état cassé, ce qui violerait la règle « constater sans
+  corriger »). L'attendu de la fiche n'est pas assoupli sur une preuve retirée : le
+  KO reste consigné tel quel. Ce qui manque pour trancher : une reproduction
+  contrôlée en mode attaché, consignée au moment où elle se produit.
 - **2026-09-05 — aucune contrainte sur `Invoice.number`, et le garde-fou de séquence
   compare des textes.** Le champ est un `TextField` (`libreosteoweb/models.py`), et le
   garde-fou qui interdit de repositionner la séquence trop bas
