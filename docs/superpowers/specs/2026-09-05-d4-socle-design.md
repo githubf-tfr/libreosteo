@@ -123,9 +123,12 @@ Trois faits mesurés le 2026-09-05, et un corollaire instruit puis fermé. Ils l
 l'exécution de la tâche qui ouvrait le lot **dans l'ordre initial** — l'épinglage de
 Python —, donc après la rédaction de cette spec et avant que le lot soit clos. Ils sont
 écrits ici, et non dans un rapport d'incident, parce qu'ils sont durables : les deux premiers
-appartiennent au dépôt et lui survivront, le troisième est une contrainte de l'outillage. Le
-relevé complet, avec les piles d'appel, est
-`.superpowers/sdd/2026-09-05-d4-socle-plan/task-1-report.md`.
+appartiennent au dépôt et lui survivront, le troisième est une contrainte de l'outillage.
+L'essentiel — pile d'appel, mesures, verdict — est donc porté ci-dessous, dans cette spec ;
+un relevé plus détaillé a existé sous
+`.superpowers/sdd/2026-09-05-d4-socle-plan/task-1-report.md`, mais ce répertoire n'est pas
+versionné (`.gitignore:51`, scratchpad de session, volatil) : ce chemin ne désigne rien pour
+un lecteur qui n'a pas la session d'origine.
 
 **Django 4.2.30 est cassé sous Python 3.14.** `django/template/context.py:39`,
 `BaseContext.__copy__`, écrit `duplicate = copy(super())` — un idiome qui obtient une copie de
@@ -144,9 +147,11 @@ par `django.test.Client`, donc le receveur `store_rendered_templates` n'y est ja
 **Corollaire, instruit et fermé : le produit en service est indemne.** L'image de production
 sert **déjà** Python 3.14.7 avec Django 4.2.30 : la combinaison qui casse en test est en
 service aujourd'hui. La question qui s'ensuivait — le produit en fonctionnement est-il atteint,
-ou seul `django.test.Client` l'est-il ? — a été instruite par une enquête distincte,
-`.superpowers/sdd/2026-09-05-d4-socle-plan/enquete-django42-py314.md`, dont le verdict est net :
-**le défaut est confiné à l'outillage de test unitaire.** Trois établissements, par lecture de
+ou seul `django.test.Client` l'est-il ? — a été instruite par une enquête distincte, dont le
+verdict est net : **le défaut est confiné à l'outillage de test unitaire.** L'enquête complète
+a existé sous `.superpowers/sdd/2026-09-05-d4-socle-plan/enquete-django42-py314.md`, mais ce
+répertoire n'est pas versionné (`.gitignore:51`, scratchpad de session, volatil) ; les trois
+établissements qui portent ce verdict sont donc repris ici. Trois établissements, par lecture de
 la source et par mesure. `BaseContext.__copy__` n'a que **deux appelants dans tout Django** —
 `django/test/client.py:267` et `django/test/testcases.py:128` —, tous deux actifs uniquement
 sous `setup_test_environment()`, signal `template_rendered` connecté ; rien dans
@@ -419,10 +424,14 @@ instruite coûte sur des données réelles.
 
 **Preuve.**
 
-- *Test unitaire* : **aucun test nouveau**, et c'est le résultat attendu. Ce lot ne change
-  aucun comportement du produit ; les 272 tests existants passent **sans être modifiés**, et
-  toute modification qu'il faudrait leur apporter est un changement de comportement déguisé,
-  donc un signal à instruire et non un ajustement à faire.
+- *Test unitaire* : **aucun test nouveau attendu au cadrage**, ce lot ne devant changer aucun
+  comportement du produit ; les 272 tests existants passent **sans être modifiés**, et toute
+  modification qu'il faudrait leur apporter est un changement de comportement déguisé, donc un
+  signal à instruire et non un ajustement à faire. Ce postulat a été levé une fois en cours de
+  lot, pour un défaut précis trouvé par la recette et non par cette liste : la déconnexion
+  cassée par Django 5.2 (task 6bis, cf. ci-dessus), corrigée par TDD avec un test de
+  non-régression — les 272 sont passés à **273**, un ajout ciblé sur le seul comportement que
+  le lot a réellement changé, pas une réouverture générale du régime de preuve.
 - *Analyse statique* : `make check` vert, `mypy` sur les 104 modules avec les stubs montés,
   `makemigrations --check` silencieux.
 - *Fonctionnels* : `make test-functional` 31/31.
@@ -577,6 +586,14 @@ l'image (PostgreSQL 13) » est la seule mention d'une version dans tout le cahie
 18, et la remarque qu'elle porte — un `-c` multi-instructions n'affiche que le statut de la
 dernière — est revalidée sur le client 18 au moment de rejouer la fiche.
 
+**Correctif (recette).** La remarque annoncée ci-dessus était fausse, découvert en rejouant la
+fiche : `psql` affiche le statut de **chaque** instruction du `-c`, pas seulement de la
+dernière — comportement inchangé depuis PostgreSQL 13, donc pas une nouveauté du client 18 à
+« revalider ». Le livré (`docs/recette.md:582-584`) fait donc autre chose que ce paragraphe
+annonçait : il supprime la mention de version (le cahier ne nomme plus de version de moteur
+dans cette fiche) et **renverse** la remarque au lieu de la revalider — l'attendu porte
+désormais sur les trois lignes de statut, une par instruction.
+
 **Chapitre 0 et chapitre 1.** Les commandes de construction et de démarrage
 (`docs/recette.md:33-42`, `:112-124`) ne changent pas : le tag suit le commit et les deux
 `docker build` visent les mêmes `Dockerfile`. La procédure de reset de l'état E0
@@ -591,11 +608,13 @@ la clôture du lot.
 Trois niveaux, et ce lot les répartit autrement que les précédents parce que ce qu'il change
 n'est pas du code applicatif.
 
-**Ce qui se prouve en unitaire** : rien de neuf. Le lot n'ajoute aucun comportement, donc
-aucun test de comportement. Les 272 tests existants sont le filet, et leur immobilité —
-verts, non modifiés — est ce qui prouve qu'aucun comportement n'a bougé sous un interpréteur
-neuf, un moteur neuf et un cadre neuf. Un test qu'il faudrait retoucher pour repasser au vert
-est le signal principal du lot.
+**Ce qui se prouve en unitaire** : rien de neuf, au cadrage. Le lot n'ajoute pas de comportement
+délibérément, donc pas de test de comportement prévu. Les 272 tests existants sont le filet, et
+leur immobilité — verts, non modifiés — est ce qui prouve qu'aucun comportement n'a bougé sous
+un interpréteur neuf, un moteur neuf et un cadre neuf. Un test qu'il faudrait retoucher pour
+repasser au vert est le signal principal du lot. Ce postulat a été levé une fois, pour un
+comportement précis (la déconnexion, cf. § Preuve de la task 6bis ci-dessus) : le filet est
+passé à 273 tests, sans cesser de prouver l'immobilité de tout le reste.
 
 **Ce qui se prouve par l'analyse statique** : la cohérence des déclarations. `ruff` sur
 `py314` et `mypy` sur `python_version = "3.14"` avec les stubs de Django 5.2 sont les seules
@@ -807,8 +826,9 @@ dépendances entre lots et les critères d'arrêt ne sont pas touchés.
    3.14 au dernier commit du lot. Cliquets tenus dans tous les cas : `fail_under` toujours à
    90, périmètre `mypy` toujours à 104 modules au moins, `select` de `ruff` inchangé et
    `ignore` toujours vide.
-2. Les 272 tests unitaires et les 31 tests fonctionnels passent, **sans qu'aucun ait été
-   modifié**.
+2. Les tests unitaires — 272 au cadrage, **273** après le test de non-régression posé pour la
+   déconnexion (task 6bis) — et les 31 tests fonctionnels passent, **sans qu'aucun test
+   préexistant ait été modifié**.
 3. `docker compose … exec libreosteo /Libreosteo/venv/bin/python -V` rend une version `3.14.x`, et
    `SHOW server_version` sur le service `db` rend une version 18, tous deux constatés sur
    l'instance montée au chapitre 0 de `docs/recette.md`.
