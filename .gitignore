@@ -37,7 +37,6 @@ Libreosteo/settings/local.py*
 
 # Tests / tooling artefacts
 .coverage
-yarn.lock
 /test-results/
 
 # Claude Code local settings (sandbox-specific paths)

@@ -31,6 +31,7 @@ RUN curl -o - -L https://yarnpkg.com/install.sh | bash -s -- --version 1.21.1
 
 COPY ./requirements ./requirements
 COPY ./package.json .
+COPY ./yarn.lock .
 COPY ./libreosteoweb ./libreosteoweb
 COPY ./Libreosteo ./Libreosteo
 COPY ./locale ./locale
@@ -52,7 +53,17 @@ ENV PATH="$VIRTUAL_ENV/bin:/root/.yarn/bin:$PATH"
 # (elle n'est pas copiee dans l'etage "run"). Aucune valeur de clef reelle n'entre dans un
 # fichier du depot.
 ENV LIBREOSTEO_SECRET_KEY="django-insecure-developpement-et-tests-uniquement"
-RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base && python3 ./manage.py compilejsi18n && python3 ./manage.py compress --force --settings=Libreosteo.settings.base
+# NE PAS DECOUPER CE RUN. yarn, collectstatic, compilejsi18n et compress sont dans une
+# seule commande, et c'est la seule raison pour laquelle la construction aboutit :
+# VOLUME /Libreosteo/node_modules est declare plus haut dans ce fichier, et Docker jette du
+# calque committe toute ecriture faite sous un chemin declare VOLUME. L'arbre node_modules
+# n'existe donc que le temps de ce RUN, et il ne se retrouve dans aucune image.
+# Mettre l'installation yarn dans son propre calque pour la mettre en cache est la
+# tentation naturelle -- elle augmente maintenant que la ligne porte --frozen-lockfile et
+# que deux COPY la precedent -- et elle casserait la construction SANS MESSAGE CLAIR :
+# collectstatic ne trouverait plus rien sous le lien libreosteoweb/static/components.
+# C'est une limitation assumee, pas un defaut a reparer (lot D5, spec 2026-09-06).
+RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn install --frozen-lockfile && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base && python3 ./manage.py compilejsi18n && python3 ./manage.py compress --force --settings=Libreosteo.settings.base
 RUN rm libreosteoweb/static/components
 
 

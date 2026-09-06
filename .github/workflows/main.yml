@@ -46,7 +46,7 @@ jobs:
           pip install -r requirements/requirements.txt
           pip install -r requirements/requ-testing.txt
           playwright install --with-deps chromium
-          $HOME/.yarn/bin/yarn
+          $HOME/.yarn/bin/yarn install --frozen-lockfile
           python ./manage.py collectstatic --no-input
           python ./manage.py compilejsi18n
       - name: Run functional tests
