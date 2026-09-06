@@ -148,8 +148,14 @@ installé, `compressor/base.py:130-147` : `get_filepath()` construit
 empreinte de son contenu.** Un `ls static/CACHE/js/ static/CACHE/css/` après construction est
 donc déjà une signature du bundle servi, sans outillage à écrire. Il faut la doubler d'une
 empreinte de tout `static/`, parce que tout n'est pas dans un bloc `{% compress %}` :
-`index.html:167` charge `webshim/polyfiller.js` hors bloc, et ni `install.html` ni `404.html`
-n'en ont un.
+`index.html:167` charge `webshim/polyfiller.js` hors bloc, et les polices, les images,
+`font-awesome/` et les glyphicons de Bootstrap n'y sont pas non plus.
+
+*Correction du 2026-09-06, relevée par le plan.* Cette section écrivait « ni `install.html` ni
+`404.html` n'en ont un ». **C'est faux** : `install.html` porte deux blocs `{% compress %}` et
+`404.html` en porte trois, comptés dans l'arbre. **La conclusion tient sans cet argument** —
+l'empreinte de tout `static/` reste nécessaire, et pour les raisons qui subsistent ci-dessus —
+mais un argument doit dire vrai.
 
 **La base `python:3.14-alpine` ne fournit rien de Node, et ce qu'`apk` en tire flotte.**
 Mesuré par `docker run --rm python:3.14-alpine` : Alpine **3.24.1**, Python **3.14.7**,
@@ -242,21 +248,49 @@ qui retirerait un paquet en réalité utilisé se verrait immédiatement — `co
 ce que le gabarit référence, un `{% static %}` orphelin sort en erreur au rendu et la suite
 Playwright le voit.
 
-**A6 — Le `yarn.lock` versionné est celui du 2026-08-30, tel quel**, et les 36 refs de
+**A6 — Le `yarn.lock` versionné est celui du 2026-08-30, tel quel**, et les refs de
 `package.json` sont remplacées par les SHA qu'il porte déjà. Le fork n'a aucun besoin de
 fraîcheur frontend, D6 remplacera tout, et c'est l'arbre exact sur lequel D1 à D4 ont été
 recettés. *Coût si faux* : le lot gèle des versions dont certaines portent des CVE connues —
 c'est assumé, et c'est précisément l'objet de D6, pas de D5.
+
+*Précision du 2026-09-06, appelée par le plan.* **« Tel quel » désigne l'arbre résolu, pas le
+fichier octet pour octet.** Ce qu'A6 interdit est une régénération qui ferait bouger une
+version ; il n'interdit pas la réécriture de forme qu'impose sa propre conséquence. Le
+`yarn.lock` est en effet indexé par la **chaîne exacte de la ref** — sa clé pour
+`angular-animate` est aujourd'hui `"@components/angular-animate@angular/bower-angular-animate#1.5.x"`.
+Réécrire cette ref en `#ac17971…` rend la clé introuvable, et `yarn install
+--frozen-lockfile` **échoue** au lieu de résoudre. La conversion des refs impose donc de
+**réaligner les clés du lock dans le même commit** ; sans cela, l'image ne se bâtit plus.
+
+Ce réalignement est mécanique et sa neutralité se prouve : le **diff des seules lignes
+`resolved`**, insensible aux fusions de clés et aux reformatages, doit rendre **exactement
+sept suppressions et aucun ajout** — les sept familles purgées, dont l'un des deux
+exemplaires identiques de `rangy-release#4c1dda47…`. **La moindre ligne ajoutée signifierait
+qu'une dépendance transitive du registre npm a été re-résolue**, ce qu'A6 refuse et ce qui
+arrête le lot. Le réalignement se fait sous **yarn 1.21.1**, celui de l'image, jamais sous une
+autre version. Rien de ceci ne contredit l'exclusion « régénérer le `yarn.lock` **avant** de
+le committer » (§ Écartés) : le lock est committé tel quel d'abord, et la réécriture de forme
+vient après, avec sa preuve.
 
 ## Périmètre du lot
 
 Ce que D5 livre, groupé par ce qu'il rend vrai.
 
 **Le gel est écrit.** `yarn.lock` sort de `.gitignore:40` et entre dans le dépôt, dans son
-état du 2026-08-30. Les 36 valeurs de `package.json:21-58` passent de la ref flottante au SHA
+état du 2026-08-30. Les valeurs de `package.json:21-58` passent de la ref flottante au SHA
 que le lock porte déjà, forme `<owner>/<repo>#<sha40>` ou `git+https://…#<sha40>` selon la
-forme d'origine de l'entrée. Les deux entrées `rangy` et `rangy-official` disparaissent dans
-la purge (A5) et ne sont donc pas converties.
+forme d'origine de l'entrée. **Le compte est de 29 conversions, pas 36** : les sept entrées
+qu'A5 purge ne sont pas converties, puisqu'elles disparaissent.
+
+*Correction du 2026-09-06, relevée par le plan avant la première tâche.* Cette section
+écrivait que « les deux entrées `rangy` et `rangy-official` disparaissent dans la purge ».
+**C'est faux, et c'est la phrase qui est fausse, pas la liste d'A5** : celle-ci ne nomme que
+`rangy-official`, et `libreosteoweb/templates/index.html:203` charge
+`components/rangy/rangy-core.min.js`. **`@components/rangy` reste et est converti** ; seul
+`rangy-official` sort, doublon inutilisé résolvant au même SHA `4c1dda47…` chez le même dépôt
+tiers. Le comptage indépendant le confirme : 29 familles `components/…` sont référencées par
+les gabarits, et 36 − 7 = 29.
 
 **Le gel est opérant.** Quatre points sans lesquels versionner le lock ne change rien, et qui
 sont des livrables et non des remarques :
@@ -353,8 +387,19 @@ précise ce qu'on mesure**, ce qui relève du *comment* et non du *jusqu'où*.
    à l'autre. *Empreinte (b), ce qui est servi* : la même formule sur `static/`, **plus** la
    liste des noms `static/CACHE/js/output.*.js` et `static/CACHE/css/output.*.css`, qui sont
    déjà des empreintes de contenu (`compressor/base.py:130-147`). Les deux constructions
-   passent par `docker build --no-cache` et les empreintes sont extraites de l'image, pas de
-   l'hôte : c'est l'artefact livré qui est mesuré.
+   passent par `docker build --no-cache`, et **ce qui est mesuré est l'artefact livré, jamais
+   l'arbre de l'hôte**.
+
+   *Correction du 2026-09-06, relevée par le plan.* Cette clause disait « les empreintes sont
+   extraites de l'image ». **C'est vrai de (b), et impossible pour (a)** : `VOLUME
+   /Libreosteo/node_modules` (`Dockerfile:12`) fait que Docker jette du calque committé tout
+   ce qui est écrit sous ce chemin — `node_modules` n'existe dans **aucune** image, ni celle
+   de l'étage `build`, ni celle de l'étage `run`. Ce que la clause exige réellement, et qui
+   est mesurable : **(b) est lue dans l'image finale** ; **(a) est obtenue en rejouant
+   `yarn install --frozen-lockfile` dans un conteneur jetable bâti sur l'étage `build`
+   livré**, donc avec le Node, le npm et le yarn épinglés par ce lot. C'est la seule mesure
+   fidèle disponible qui ne demande pas de modifier le `Dockerfile` pour se mesurer, et elle
+   satisfait l'intention de la clause : la chaîne d'outils mesurée est celle qui est livrée.
 2. **Plus aucune ref flottante ne subsiste dans la chaîne**, ce qui se vérifie par lecture et
    se prouve par (1) : aucune valeur de `package.json` sans SHA 40-hex, `yarn.lock` versionné
    et copié dans l'image, `--frozen-lockfile` sur les trois appels, `nodejs`/`npm`, `rcssmin`
@@ -408,10 +453,14 @@ et se réordonne sur un fait, comme le chapeau l'autorise.
 2. **L'outillage est vérifié et unifié.** Les trois `curl | bash` remplacés par le tarball
    1.21.1 à somme contrôlée, `.tools/libreosteo-devenv.sh` passé de 1.22.22 à 1.21.1 et son
    contournement `moment` retiré après vérification que l'arbre sort sain.
-3. **Les refs sont figées et le mort enterré.** Les 36 valeurs converties en SHA, les sept
-   dépendances mortes purgées, les six `scripts` morts et `setuptools-bower` supprimés,
-   `.gitignore:8` et `:9` corrigés. Un seul incrément parce que la purge change le
+3. **Les refs sont figées et le mort enterré.** Les 29 valeurs survivantes converties en SHA,
+   les sept dépendances mortes purgées, les **neuf** `scripts` morts et `setuptools-bower`
+   supprimés, `.gitignore:8` et `:9` corrigés. Un seul incrément parce que la purge change le
    `package.json` que la conversion réécrit : les séparer imposerait de réécrire deux fois.
+   *(Correction du 2026-09-06 : cette ligne écrivait « les six `scripts` morts ». Le compte
+   est **neuf**, comme le disent le § Problème et le § Périmètre — le bloc `scripts` compte
+   dix entrées et `postinstall` est la seule vivante.)* Le réalignement des clés de
+   `yarn.lock` appartient à cet incrément et au même commit, cf. A6.
 4. **La chaîne Python est épinglée.** `nodejs`/`npm` par `apk`, `rcssmin` et `rjsmin` dans
    `requirements.txt`, `npm install fs path` tranché par construction. C'est l'incrément qui
    ferme l'empreinte (b), et il est en dernier parce que c'est le seul qui puisse faire bouger
