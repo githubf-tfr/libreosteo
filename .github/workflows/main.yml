@@ -53,9 +53,12 @@ jobs:
           pip install -r requirements/requirements.txt
           pip install -r requirements/requ-testing.txt
           playwright install --with-deps chromium
-          $HOME/.yarn/bin/yarn install --frozen-lockfile
-          python ./manage.py collectstatic --no-input
-          python ./manage.py compilejsi18n
+      - name: Prepare the static tree
+        # A3 : une seule definition de la preparation de l'arbre, deux appelants. La cible
+        # est Makefile:static, la meme qu'en local. PYTHON=python parce que ce job n'a pas
+        # de .venv : setup-python + pip install ont tout mis dans l'interpreteur courant.
+        # YARN se resout seul sur $HOME/.yarn/bin/yarn, pose par l'etape Install tooling.
+        run: make static PYTHON=python
       - name: Run functional tests
         run: |
           pytest tests/functional --no-cov \
