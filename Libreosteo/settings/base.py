@@ -328,6 +328,14 @@ COMPRESS_CSS_FILTERS = [
     "compressor.filters.css_default.CssAbsoluteFilter",
     "compressor.filters.cssmin.rCSSMinFilter",
 ]
+# Sans ce réglage, `CssAbsoluteFilter` suffixe chaque url(...) par le hachage de la
+# mtime du fichier référencé (défaut "mtime" de django_compressor) - or `collectstatic`
+# réécrit cette mtime à chaque construction, donc le suffixe change sans qu'un octet
+# de source ait bougé, et le bundle produit (et son nom `output.<hash>.css`) diffère
+# à chaque build. Avec "content", le suffixe est le hachage du contenu du fichier
+# référencé : il ne bouge que si le fichier bouge. C'est ce qui rend atteignable le
+# critère d'arrêt du lot D5 (deux constructions à deux dates servent le même contenu).
+COMPRESS_CSS_HASHING_METHOD = "content"
 
 DISPLAY_SERVICE_NET_HELPER = True
 
