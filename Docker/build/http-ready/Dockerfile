@@ -26,7 +26,23 @@ RUN apk add --no-cache \
     git\
     nodejs\
     npm && npm install fs path
-RUN curl -o - -L https://yarnpkg.com/install.sh | bash -s -- --version 1.21.1
+# yarn n'est plus installe par `curl | bash`. Le script amont d'installation telecharge la
+# signature .asc du tarball puis l'abandonne EN SILENCE quand gpg est absent
+# (yarn_verify_integrity : « WARNING: GPG is not installed, integrity can not be verified! »),
+# et gnupg n'est pas dans cette image. Le script lui-meme etait de plus execute sans qu'aucun
+# de ses octets ait ete verifie. Le tarball est donc telecharge directement et verifie par
+# une somme SHA-256 codee ici : la construction echoue si elle ne correspond pas.
+# Version 1.21.1, et pas 1.22.x, sur mesure du cadrage D5 : yarn 1.22.x extrait
+# node_modules/@components/moment/meteor/moment.js en lien cyclique (« -> moment.js » au lieu
+# de « -> ../moment.js »), ce qui fait echouer collectstatic sur ELOOP. Reproduit a
+# l'identique sous Node 22 et Node 24 : la cause est la version de yarn, pas le tarball
+# amont, pas Node. 1.21.1 consomme sans le reecrire le yarn.lock de ce depot.
+# Le tarball se deplie en /root/.yarn, chemin que le PATH ci-dessous porte deja.
+RUN curl -fsSL -o /tmp/yarn.tar.gz https://github.com/yarnpkg/yarn/releases/download/v1.21.1/yarn-v1.21.1.tar.gz \
+    && echo "d1d9f4a0f16f5ed484e814afeb98f39b82d4728c6c8beaafb5abc99c02db6674  /tmp/yarn.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/yarn.tar.gz -C /tmp \
+    && mv /tmp/yarn-v1.21.1 /root/.yarn \
+    && rm /tmp/yarn.tar.gz
 
 
 COPY ./requirements ./requirements
