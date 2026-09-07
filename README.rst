@@ -248,6 +248,54 @@ Throughout, ``$COMPOSE`` stands for
    Once the instance serves your data again, and only then, the directory set aside at
    step 3 may be removed.
 
+Duplicate invoice numbers on upgrade
+====================================
+
+Migration ``0060`` adds a uniqueness constraint on ``(officesettings_id,
+number)`` for invoices. Before adding it, the migration **repairs** the existing
+data rather than refusing to run: within each office, invoices sharing a number
+are ordered by ``id`` (the issue order); the oldest keeps its number, and every
+later one is given a new number, prefix preserved.
+
+New numbers are allocated above ``max(highest existing number in the office,
+999999)``, which gives two different outcomes depending on the office's
+numbering at the time of the upgrade:
+
+- **An office whose highest number is below one million** gets its repaired
+  numbers allocated in a **high band**, starting above 999999: any number this
+  produces has seven digits or more and can be told apart from a regular one at
+  a glance. The office's invoice sequence is moved past that band, so **once an
+  office has had duplicates repaired this way, its numbering stays in the high
+  band permanently.**
+- **An office whose highest number is already above one million** is not moved
+  into a reserved band: the repair simply continues past the number already in
+  use there, the same way ordinary invoicing would.
+- **An office with no duplicate invoice number is not touched at all**: no
+  number changes, no sequence is advanced, and nothing is logged for it.
+
+Every change that *is* made is logged, one line per invoice, at ``warning``
+level::
+
+    Facture #42 renumérotée : 10000 devient 1000000.
+    Reprise du parc de facturation : 1 facture(s) renumérotée(s) ...
+
+**Keep those log lines.** An invoice already handed to a patient may have been
+given a new number in the database, and this log is the only record of what
+changed. Re-running the migration on an already repaired database changes
+nothing: the repair detects duplicates in the rows themselves, not in a flag.
+
+The repair never refuses to run: an allocated number always sits above every
+number already used in that office, so it cannot collide with one. There is no
+data state in which this migration leaves you with a database that will not
+start.
+
+**Rolling back gives you back the schema, not the numbers.** ``manage.py
+migrate libreosteoweb 0059`` drops the constraint; repaired numbers and the
+advanced sequence stay exactly as they are — nothing restores the numbers that
+existed before the repair, or the sequence value from before it ran. This is
+the same asymmetry as migration ``0058``, which restores ``double precision``
+columns without restoring the decimals it rounded away.
+
 Use it in production
 ====================
 You can use the software in production by changing some settings.

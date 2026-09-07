@@ -787,6 +787,138 @@ elles ne la paraphrasent pas.
 mais consommé par un `yarn` nu ne serait qu'une photographie ; c'est `--frozen-lockfile`,
 et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 
+### R-INST-08 — Reprise d'un parc portant des numéros de facture en double
+
+- **Domaine** : Installation
+- **Couverture auto** : non — aucune suite pytest ne monte une instance, ne
+  rejoue une migration sur un parc semé ni ne lit un journal de démarrage.
+  `libreosteoweb/tests/test_reprise_factures.py` couvre la règle de
+  renumérotation ; cette fiche est la seule preuve du comportement de bout en
+  bout.
+- **État requis** : E2. La fiche insère des factures en double puis les laisse
+  renumérotées : à l'issue de son exécution, remonter l'état E2 (chapitre 1)
+  avant de jouer une autre fiche qui en dépend — en particulier avant toute
+  fiche de facturation, dont les numéros attendus partent de `10000`.
+
+**Étapes**
+
+1. Arrêter le service applicatif et ramener le schéma **avant** la migration
+   d'unicité de facturation — le parc que la fiche simule est une instance en
+   service qui n'a jamais vu D7 :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml stop libreosteo
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     run --rm --entrypoint sh libreosteo -c \
+     "python3 ./manage.py migrate libreosteoweb 0059 --settings=Libreosteo.settings.container"
+   ```
+
+   Attendu :
+   `Unapplying libreosteoweb.0060_invoice_unique_facture_numero_par_cabinet... OK`,
+   et rien d'autre à défaire si l'arbre ne porte aucune migration postérieure.
+2. Insérer par `psql` une copie de la facture de l'état E2, portant le **même
+   numéro** `10000` et le même `officesettings_id`. La copie passe par une table
+   temporaire : `SELECT *` reprend toutes les colonnes sans avoir à les nommer,
+   et `nextval` donne à la copie un identifiant neuf sans désaccorder la séquence
+   d'identité — un `INSERT ... SELECT *` direct recopierait l'identifiant et
+   serait refusé sur la clef primaire. Même geste qu'à `R-INST-05` étape 2 :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c \
+     "CREATE TEMP TABLE copie AS SELECT * FROM libreosteoweb_invoice WHERE number = '10000';
+      UPDATE copie SET id = nextval(pg_get_serial_sequence('libreosteoweb_invoice', 'id'));
+      INSERT INTO libreosteoweb_invoice SELECT * FROM copie;"
+   ```
+
+   Attendu : trois lignes de statut, une par instruction — `SELECT 1`,
+   `UPDATE 1`, puis `INSERT 0 1`. Vérifier ensuite le compte :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c \
+     "SELECT id, number, officesettings_id FROM libreosteoweb_invoice ORDER BY id;"
+   ```
+
+   Attendu : **deux lignes**, portant toutes deux le numéro `10000` et le même
+   `officesettings_id` — c'est le doublon que la contrainte interdira.
+3. Redémarrer le service applicatif, sur l'image portant `0060` :
+
+   ```sh
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
+   ```
+
+   Attendu : `ps -a` affiche le service `libreosteo` **en fonctionnement**, et
+   non `Exited` — c'est le contraire de `R-INST-05`, et c'est le cœur de cette
+   fiche. Le journal porte, dans cet ordre :
+   `Applying libreosteoweb.0060_invoice_unique_facture_numero_par_cabinet... OK` ;
+   une ligne `Facture #<identifiant> renumérotée : 10000 devient 1000000.` ;
+   la ligne récapitulative
+   `Reprise du parc de facturation : 1 facture(s) renumérotée(s) pour rendre le
+   couple (cabinet, numéro) unique. Séquence(s) de facturation avancée(s) :
+   cabinet 1 -> 1000001.` ; et `WSGI app 0 (mountpoint='') ready`.
+   **La fiche échoue si le journal ne nomme pas l'identifiant, l'ancien et le
+   nouveau numéro** : sans ces trois valeurs, l'exploitant n'a aucun moyen de
+   savoir quelle facture a changé.
+4. Vérifier que la renumérotation est bien celle qui était annoncée :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c \
+     "SELECT id, number FROM libreosteoweb_invoice ORDER BY id;"
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c \
+     "SELECT invoice_start_sequence FROM libreosteoweb_officesettings WHERE id = 1;"
+   ```
+
+   Attendu : deux lignes, la première (identifiant le plus petit) portant encore
+   `10000` — la plus ancienne garde son numéro — et la seconde `1000000`, à
+   **sept chiffres**, la bande réservée aux reprises. La séquence du cabinet rend
+   `1000001` : la numérotation continue désormais dans cette bande haute, et n'en
+   redescendra jamais.
+5. Constater que la contrainte existe :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c '\d libreosteoweb_invoice'
+   ```
+
+   Attendu : une ligne d'index
+   `"unique_facture_numero_par_cabinet" UNIQUE CONSTRAINT, btree (officesettings_id, number)`.
+6. Rejouer le démarrage une seconde fois, sans rien changer :
+
+   ```sh
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo | grep -i 'renumérot'
+   ```
+
+   Attendu : **aucune sortie** du `grep` — la reprise est idempotente : elle
+   détecte l'état sur les lignes réelles, jamais dans un drapeau. Le journal
+   complet porte `WSGI app 0 (mountpoint='') ready` et aucune ligne `Applying`.
+7. Se connecter à l'interface avec `test` / `test`, menu « Comptabilité ».
+   Attendu : deux lignes, l'une portant le n° de facture `10000` et l'autre
+   `1000000`, toutes deux à `55 €` — la facture renumérotée reste consultable et
+   réimprimable depuis cet écran, ce qui est le seul recours du praticien si le
+   patient détient l'ancien numéro.
+
+**Constat** : la migration répare et le dit, elle ne refuse pas. C'est le choix
+inverse de `R-INST-05`, et pour une raison qui tient à la donnée : un doublon de
+dossier patient est une donnée de santé dont la fusion est un acte médical ; un
+doublon de numéro de facture est une erreur de numérotation dont la réparation
+est mécanique. Le prix de ce choix est qu'une facture déjà remise à un patient
+peut changer de numéro dans la base — d'où le journal, ligne à ligne, qui est la
+seule trace de ce qui a bougé, et d'où la bande à sept chiffres, qui rend le
+numéro repris reconnaissable au premier coup d'œil. Cette bande n'est cependant
+atteinte que sur un parc dont le maximum numérique est inférieur au million :
+au-dessus, la reprise continue la numérotation existante sans y sauter (cf.
+`README.rst`, « Duplicate invoice numbers on upgrade ») ; et un parc sans
+doublon n'est pas touché du tout — aucune ligne `renumérotée` n'apparaît alors
+au journal.
+
 ### Authentification
 
 ### R-AUTH-01 — Création du premier utilisateur
@@ -958,7 +1090,10 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 1. Menu utilisateur → « Paramètres », onglet « Général », repérer le champ sous le
    libellé « Séquence de démarrage de facture ».
    Attendu : champ affiche `10000` (valeur calculée par défaut, aucune saisie n'ayant
-   encore été faite sur ce champ depuis la construction du socle E1).
+   encore été faite sur ce champ depuis la construction du socle E1). Cette valeur
+   est `invoice_min_sequence` : le maximum **numérique** des numéros de facture du
+   cabinet augmenté de un, ou `1` en l'absence de facture — jamais un maximum de
+   textes.
 2. Remplacer sa valeur par `20000`, cliquer « Mettre à jour ».
    Attendu : message affiché « Les paramètres ont été mis à jour ».
 3. Recharger la page.
@@ -983,6 +1118,48 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 3. Passer le pointeur sur le champ, sans cliquer.
    Attendu : une info-bulle apparaît, texte « La séquence de démarrage doit être
    composée uniquement de chiffres ».
+
+### R-CAB-04 — Séquence ramenée sous un numéro déjà émis
+
+- **Domaine** : Cabinet
+- **Couverture auto** : oui — tests/functional/test_facturation.py::test_numero_de_depart_anterieur_refuse
+  (refus d'une séquence inférieure au dernier numéro émis ; le cas où les deux
+  numéros ont des longueurs différentes, seul à distinguer une comparaison de
+  nombres d'une comparaison de textes, n'a pas d'équivalent automatisé au
+  navigateur — il est couvert en unitaire par
+  libreosteoweb/tests/test_facturation.py::TestMaximumDeSequenceSurLesTroisSurfaces)
+- **État requis** : E2. La fiche facture durablement des consultations pour
+  atteindre le numéro `10002` : remonter l'état E2 (chapitre 1) avant de jouer
+  une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur → « Paramètres » → « Général », remplacer la « Séquence de
+   démarrage de facture » par `9999`, cliquer « Mettre à jour ».
+   Attendu : message « Les paramètres ont été mis à jour ».
+2. Créer et clôturer une consultation facturée (mêmes gestes que R-CON-03,
+   étapes 1 à 3).
+   Attendu : le panneau affiche un encart « Facture » avec le lien `n° 9999`.
+3. Facturer trois consultations de plus, de la même façon.
+   Attendu : les numéros obtenus sont `10000`, `10001` puis `10002` — le parc
+   porte désormais `9999` **et** `10002`, ce qui est exactement le cas où un
+   maximum de textes rend `9999` là où le maximum réel est `10002`.
+4. Retourner aux Paramètres du cabinet, onglet « Général ».
+   Attendu : le champ « Séquence de démarrage de facture » affiche `10003`.
+5. Remplacer sa valeur par `10001`, cliquer « Mettre à jour ».
+   Attendu : le champ passe en bordure et texte rouges et le bouton « Mettre à
+   jour » devient inactif — la borne minimale exposée au navigateur vaut `10003`.
+6. Recharger la page.
+   Attendu : le champ affiche toujours `10003` — la valeur `10001` n'a pas été
+   enregistrée.
+
+**Constat** : sur un parc dont les numéros n'ont pas tous la même longueur, une
+comparaison de textes classe `9999` au-dessus de `10002`. Le garde-fou de
+séquence l'aurait donc laissé ramener la numérotation sous un numéro déjà émis —
+et la contrainte d'unicité posée par `0060` aurait ensuite refusé la facture
+suivante. C'est ce trou que cette fiche referme, sur les trois surfaces qui
+lisent ce maximum : la borne exposée au navigateur (étape 4), le refus serveur
+(étape 5) et la persistance (étape 6).
 
 ### Thérapeute
 
@@ -1463,6 +1640,50 @@ existante ne couvrait la casse.
    Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de paiement `Espèces`, État
    `Réglée`.
 
+### R-CON-04 — Redatation d'une consultation, tracée au tableau de bord
+
+- **Domaine** : Consultation
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_trace_redatation.py::TestTraceDeLaRedatation
+  (l'événement écrit, son type, sa référence, son auteur et sa visibilité dans le
+  journal par défaut ; le rendu de la ligne au tableau de bord et le nom du
+  patient résolu n'ont pas d'équivalent automatisé),
+  tests/functional/test_consultation.py::test_date_posterieure_a_la_facture_acceptee
+  (une consultation facturée peut être redatée au-delà de la date de sa facture)
+- **État requis** : E2. Cette fiche modifie durablement la date de la première
+  consultation (facturée) du patient Picard et ajoute une ligne au tableau de
+  bord : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
+  dépend — en particulier avant R-TAB-01 et R-TAB-02, dont les compteurs
+  dépendent des dates de séance.
+
+**Étapes**
+
+1. Rechercher `Picard`, onglet « Consultations », ouvrir la première séance
+   (facturée), cliquer « Éditer ».
+   Attendu : le bouton « Éditer » est remplacé par « Fin d'édition » ; la date de
+   séance, en haut du panneau, devient un champ de saisie.
+2. Remplacer la date par une date antérieure de sept jours, cliquer « Fin
+   d'édition ».
+   Attendu : aucun message d'erreur ne s'affiche sous le champ ; le titre du
+   panneau affiche la nouvelle date en toutes lettres.
+3. Recharger complètement la page, revenir sur cette séance.
+   Attendu : la nouvelle date est toujours affichée — preuve d'une persistance
+   réelle. Le panneau « Facture » affiche toujours `n° 10000`.
+4. Revenir sur l'URL racine de l'instance (tableau de bord).
+   Attendu : la liste d'événements porte une ligne nommant `Jean-Luc Picard`,
+   dont le texte est `Date de consultation modifiée du <ancienne date> au
+   <nouvelle date>` — les deux dates au format `JJ/MM/AAAA` — et dont l'auteur
+   affiché en bas à droite est le prénom et le nom de l'utilisateur connecté.
+5. Cliquer sur cette ligne.
+   Attendu : la navigation ouvre la fiche du patient Picard sur la consultation
+   redatée.
+
+**Constat** : une consultation déjà facturée peut être redatée, y compris
+au-delà de la date de sa facture — et la facture, elle, ne bouge pas (sa date a
+été figée à l'émission, cf. R-FAC-06). La contrepartie de cette liberté est la
+trace : c'est le journal, et lui seul, qui permet de constater après coup qu'une
+date de séance a été déplacée, par qui et de quand à quand.
+
 ### Facturation
 
 ### R-FAC-01 — Facture générée : numéro, montant, mentions
@@ -1482,11 +1703,13 @@ existante ne couvrait la casse.
    imprimante verte, icône interdiction rouge).
 2. Cliquer le bouton d'impression (icône imprimante verte).
    Attendu : un nouvel onglet s'ouvre ; titre de page au format
-   `AAAA-MM-JJ-10000-Picard_Jean-Luc` (AAAA-MM-JJ = date du jour).
+   `AAAA-MM-JJ-10000-Picard_Jean-Luc` (AAAA-MM-JJ = date de la séance ; à l'état
+   E2 elle coïncide avec la date du jour, la facture ayant été émise le jour
+   même — l'attendu constate la date de la séance, cf. R-FAC-06).
 3. Sur cette page, lire le contenu (les mentions du cabinet, de l'adresse et du
    thérapeute sont déjà couvertes par R-THE-02 et ne sont pas reprises ici).
    Attendu : le contenu affiche, entre ces mentions et le pied de page :
-   `Jean-Luc Picard` ; une ligne « À Le Vigen, le <date du jour> » ; `Facture 10000` ;
+   `Jean-Luc Picard` ; une ligne « À Le Vigen, le <date de la séance> » ; `Facture 10000` ;
    `Template with 55 EUR` ; `Règlement par chèque` ; une ligne « HONORAIRES » avec
    le montant `55,00 EUR`.
 4. Menu « Comptabilité ».
@@ -1509,11 +1732,13 @@ existante ne couvrait la casse.
    Attendu : titre de page « Comptabilité » ; un bouton de période affichant
    l'intervalle du mois en cours, du premier au dernier jour de ce mois, au format
    « <jour de semaine> <jour> <mois> <année> → <jour de semaine> <jour> <mois>
-   <année> » ; un bouton « Exporter » proposant une entrée « XLSX » ; une
-   ligne « Montant total sur la période sélectionnée: 55 » ; un tableau avec les
-   colonnes « N° de facture », « Date », « Patient », « Montant », « Moyen de
-   paiement », « État », « Par », « Actions » ; une seule ligne, celle de l'état
-   E2 : `10000`, `Jean-Luc Picard`, `55 €`, `Chèque`, `Réglée`.
+   <année> » — ce bouton filtre sur la **date de séance** des factures (cf.
+   R-FAC-06), et non sur leur date d'émission ; un bouton « Exporter » proposant
+   une entrée « XLSX » ; une ligne « Montant total sur la période sélectionnée:
+   55 » ; un tableau avec les colonnes « N° de facture », « Date », « Patient »,
+   « Montant », « Moyen de paiement », « État », « Par », « Actions » ; une seule
+   ligne, celle de l'état E2 : `10000`, `Jean-Luc Picard`, `55 €`, `Chèque`,
+   `Réglée`.
 2. Sur cette ligne, ouvrir le menu « Actions ».
    Attendu : un menu déroulant s'ouvre, avec deux entrées « Imprimer » et
    « Annuler ».
@@ -1543,7 +1768,10 @@ existante ne couvrait la casse.
 3. Menu « Comptabilité ».
    Attendu : trois lignes, triées par numéro décroissant : `10002` (Espèces,
    Réglée), `10001` (Chèque, Réglée), `10000` (Chèque, Réglée) — les deux nouveaux
-   numéros se suivent sans trou ni réutilisation.
+   numéros se suivent sans trou ni réutilisation. Ce tri s'appuie sur
+   `("-date", "-id")` (`Invoice.Meta.ordering`) : il reste déterministe même
+   quand plusieurs factures portent la même date de séance, `id` départageant
+   alors sur l'ordre d'émission.
 
 ### R-FAC-04 — Consultation clôturée sans honoraires
 
@@ -1616,6 +1844,50 @@ existante ne couvrait la casse.
 
 **Constat** : elle ne prouverait rien avant D3 ; après, elle est le seul garde-fou de
 recette contre un `decimal_places` mal posé ou une frontière JSON passée aux chaînes.
+
+### R-FAC-06 — La facture porte la date de la séance
+
+- **Domaine** : Facturation
+- **Couverture auto** : oui —
+  libreosteoweb/tests/test_facturation.py::TestDateDeLaFacture
+  (la date recopiée à l'émission, la date de l'avoir, et le fait qu'une
+  redatation ultérieure ne déplace pas la facture ; le nom d'onglet et la
+  mention « À …, le … » du gabarit imprimé n'ont pas d'équivalent automatisé)
+- **État requis** : E2. Cette fiche redate durablement une consultation et
+  facture durablement une nouvelle consultation, consommant le numéro `10001` :
+  remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Rechercher `Picard`, onglet « Consultations », ouvrir la seconde séance
+   (celle clôturée « Non facturée » à l'état E2), cliquer « Éditer », remplacer
+   la date par une date du mois précédent, cliquer « Fin d'édition ».
+   Attendu : le titre du panneau affiche la nouvelle date ; aucun message
+   d'erreur.
+2. Sur cette même consultation, cliquer le bouton « Facturer », choisir
+   « Facturée », moyen de paiement « Espèces », cliquer « Valider ».
+   Attendu : le panneau affiche un encart « Facture » avec le lien `n° 10001`.
+3. Cliquer le bouton d'impression (icône imprimante verte).
+   Attendu : un nouvel onglet s'ouvre ; le titre d'onglet est au format
+   `AAAA-MM-JJ-10001-Picard_Jean-Luc` où `AAAA-MM-JJ` est la date **de la
+   séance** (celle saisie à l'étape 1), et **non** la date du jour.
+4. Sur cette page, lire la ligne de lieu et de date.
+   Attendu : « À Le Vigen, le <date de la séance> » — la même date qu'à l'étape
+   3, écrite en toutes lettres.
+5. Menu « Comptabilité », ouvrir le sélecteur de période et le régler sur le mois
+   précédent.
+   Attendu : la facture `10001` apparaît dans cette période. Régler le sélecteur
+   sur le mois en cours : elle n'y apparaît plus.
+
+**Constat** : la facture porte la date de la séance, recopiée au moment de
+l'émission puis figée. En facturation différée les deux dates divergent, et
+c'est la date de séance qui gagne — sur le document imprimé comme dans le
+sélecteur de période de la Comptabilité. C'est un changement visible :
+une facture émise aujourd'hui pour une séance du mois dernier ne figure plus dans
+la Comptabilité du mois en cours (étape 5). C'est l'intention de l'arbitrage du
+2026-09-06, pas un défaut ; si l'exercice comptable devait suivre la date
+d'émission, cet arbitrage serait à reprendre, et il faudrait alors garder les
+deux dates.
 
 ### Médecins traitants
 
