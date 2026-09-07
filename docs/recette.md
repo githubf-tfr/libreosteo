@@ -716,8 +716,10 @@ l'application sait la resérialiser — et le seul geste qui la rende sûre,
 ### R-INST-07 — Construction reproductible du frontend
 
 - **Domaine** : Installation
-- **Couverture auto** : non — aucune suite pytest ne bâtit une image, ne résout un arbre
-  yarn ni ne compare deux constructions. Cette fiche est la seule preuve du comportement.
+- **Couverture auto** : oui — tests/functional/test_authentification.py::test_la_page_sert_les_bundles_compresses
+  (constate qu'un bundle JS compressé unique est servi sous l'image ; ne bâtit pas
+  deux fois l'image, ne résout aucun arbre yarn et ne compare aucune empreinte — le
+  reste de cette fiche reste sa seule preuve)
 - **État requis** : aucun. La fiche ne monte aucune instance et ne consomme aucun état
   nommé du chapitre 1 : elle bâtit deux fois et compare deux empreintes.
 
@@ -810,7 +812,9 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 - **Domaine** : Authentification
 - **Couverture auto** : oui — tests/functional/test_authentification.py::test_connexion_valide
   (couvre la connexion réussie et l'ouverture du menu ; le refus d'un mauvais mot de
-  passe, à l'étape 2, est vérifié par test_connexion_invalide, propre à R-AUTH-04)
+  passe, à l'étape 2, est vérifié par test_connexion_invalide, propre à R-AUTH-04),
+  ::test_les_statiques_de_l_application_sont_servis (constate que la page de connexion,
+  même écran que l'étape 1, sert bien ses statiques — jsi18n compris)
 - **État requis** : E1
 
 **Étapes**
@@ -935,7 +939,11 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 ### R-CAB-02 — Séquence de départ de facturation
 
 - **Domaine** : Cabinet
-- **Couverture auto** : oui — tests/functional/test_facturation.py::test_changement_du_numero_de_depart
+- **Couverture auto** : oui — tests/functional/test_facturation.py::test_changement_du_numero_de_depart,
+  ::test_facture_avec_la_nouvelle_sequence (la séquence posée par cette fiche est
+  celle que ce test consomme, en facturant une consultation), ::test_numero_de_depart_anterieur_refuse
+  (refuse une nouvelle séquence de départ inférieure ou égale à un numéro de facture
+  déjà émis)
 - **État requis** : E1. Cette fiche modifie durablement la séquence de départ de
   facturation : à l'issue de son exécution, remonter l'état E1 (chapitre 1) avant de
   jouer une autre fiche qui en dépend.
@@ -1161,7 +1169,10 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 ### R-PAT-06 — Avertissement d'homonyme à la création
 
 - **Domaine** : Patient
-- **Couverture auto** : oui — tests/functional/test_patient.py::test_avertissement_d_homonyme_puis_creation
+- **Couverture auto** : oui — tests/functional/test_patient.py::test_avertissement_d_homonyme_puis_creation,
+  ::test_charge_html_dans_nom_homonyme_reste_texte_litteral (même avertissement
+  d'homonyme, avec un nom chargé de HTML et d'interpolation Angular qui doit rester
+  du texte littéral)
 - **État requis** : E2. Cette fiche crée durablement un second patient « Picard
   Jean-Luc » : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
   dépend.
@@ -1354,7 +1365,10 @@ existante ne couvrait la casse.
 ### R-CON-01 — Créer une consultation
 
 - **Domaine** : Consultation
-- **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_non_facturee
+- **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_non_facturee,
+  ::test_date_affichee_suit_le_jour_local_meme_quand_lutc_differe (constate que la
+  date affichée d'une consultation créée suit le jour local, même quand il diverge
+  du jour UTC ; ne couvre pas le reste de la fiche — panneaux, boutons, texte)
 - **État requis** : E2. Cette fiche crée durablement une troisième consultation (non
   facturée) chez le patient Picard : remonter l'état E2 (chapitre 1) avant de jouer
   une autre fiche qui en dépend.
@@ -1383,9 +1397,12 @@ existante ne couvrait la casse.
 
 - **Domaine** : Consultation
 - **Couverture auto** : oui — tests/functional/test_consultation.py::test_edition_d_une_consultation_existante
-  (édite le motif et l'examen médical, recharge la page, constate la persistance ;
-  l'édition de la date de consultation, autre champ éditable du même écran, est
-  couverte à part par `test_changement_de_date_accepte`)
+  (édite le motif et l'examen médical, recharge la page, constate la persistance),
+  ::test_changement_de_date_accepte (édite la date de consultation, autre champ
+  éditable du même écran, vers le passé proche), ::test_changement_de_date_dans_le_futur_refuse
+  (une date future est refusée), ::test_date_posterieure_a_la_facture_acceptee et
+  ::test_date_anterieure_a_la_facture_acceptee (redatent une consultation déjà
+  facturée, respectivement vers l'avant et vers l'arrière)
 - **État requis** : E2. Cette fiche modifie durablement le motif et l'examen médical
   de la première consultation (facturée) du patient Picard : à l'issue de son
   exécution, remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
@@ -1415,7 +1432,10 @@ existante ne couvrait la casse.
 ### R-CON-03 — Clôturer une consultation avec facturation
 
 - **Domaine** : Consultation
-- **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_facturee
+- **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_facturee,
+  tests/functional/test_facturation.py::test_facture_impayee_puis_reglee (clôture
+  avec facturation en moyen de paiement « non réglé », puis règle la facture — la
+  clôture facturée elle-même retrouve le cas de cette fiche)
 - **État requis** : E2. Cette fiche facture durablement une nouvelle consultation,
   consommant le numéro de facture suivant (`10001` depuis un état E2 fraîchement
   reconstruit, cf. R-CAB-02) : remonter l'état E2 (chapitre 1) avant de jouer une
@@ -1472,6 +1492,10 @@ existante ne couvrait la casse.
 
 - **Domaine** : Facturation
 - **Couverture auto** : oui — tests/functional/test_facturation.py::test_liste_des_factures
+  (contenu et colonnes de la liste ; l'entrée « Annuler » du menu Actions, à l'étape
+  2, y est nommée sans en exercer la suite — ::test_annulation_et_refacturation et
+  ::test_avoir_sur_facture_deja_emise le font, deux réglages de
+  `cancel_invoice_credit_note` distincts)
 - **État requis** : E2
 
 **Étapes**
@@ -1522,7 +1546,9 @@ existante ne couvrait la casse.
 - **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_non_facturee
   (absence de toute facture en base : `Invoice.objects.count() == 0` ; l'absence de
   ligne en Comptabilité et l'encart « Non facturée » affiché sur la consultation
-  n'ont pas d'équivalent automatisé)
+  n'ont pas d'équivalent automatisé), ::test_l_icone_distingue_la_consultation_non_facturee
+  (l'icône du statut « non facturée », dans la chronologie, ne porte pas celle du
+  statut « réglée »)
 - **État requis** : E2
 
 **Étapes**
@@ -1737,7 +1763,11 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 ### R-IMP-02 — Import de consultations liées aux patients importés
 
 - **Domaine** : Import CSV
-- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_import_des_consultations
+- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_import_des_consultations,
+  ::test_le_titre_d_erreur_des_consultations_reste_masque_sans_erreur (mêmes deux
+  imports que l'étape 3 — patients déjà connus en erreur, consultations sans erreur —
+  et constate seulement que le titre « Erreurs lors de l'importation des
+  consultations » reste masqué)
 - **État requis** : E1. Cette fiche importe durablement 100 patients puis 50
   consultations depuis `tests/functional/resources/patients_1.csv` et
   `examinations_1.csv` : remonter l'état E1 (chapitre 1) avant de jouer une autre
