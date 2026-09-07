@@ -539,7 +539,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 - **2026-09-07 — D6a Filet frontend livré** (dix-neuf tâches ; spec
   `docs/superpowers/specs/2026-09-06-d6a-filet-frontend-design.md`, plan supprimé une fois
-  achevé). Vingt commits `bfbc160..a29d205` (T1 à T18) puis la série de clôture de T19 :
+  achevé). Vingt commits `efa5c65..a29d205` (T1 à T18) puis la série de clôture de T19 :
   cible `make static` unique, `test-functional` en dépend, préparation CI alignée dessus
   (T1, T3) ; la suite Playwright sert désormais les bundles compressés,
   `COMPRESS_ENABLED = True` sur l'arbre collecté (T2) ; 21 fiches de `docs/recette.md`
@@ -556,14 +556,14 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
      grep de préparation résiduelle en CI
      (`collectstatic\|compilejsi18n\|yarn install` sur `.github/workflows/main.yml`) rend
      `0`.
-  2. Le filet couvre 42 fiches sur 50 au navigateur : `grep -c '^- **Couverture auto** :
+  2. Le filet couvre 43 fiches sur 51 au navigateur : `grep -c '^- \*\*Couverture auto\*\* :
      non' docs/recette.md` rend **9** (huit fiches, plus le gabarit du chapitre 2) ;
-     `grep -c '^### R-'` rend **52** ; le comptage apparié restreint au chapitre 3 rend
-     **43** fiches nommant un `tests/functional/…::…` (les 42 fiches d'origine du lot,
-     plus `R-ERR-01`, neuve et couverte dès sa création), **0** fiche couverte par un test
-     unitaire seul, **8** à `non`, chacune avec son motif déjà écrit. Aucune fiche n'a pris
-     la porte de sortie : le compte de la spec (42/50, 8 manuelles) tient tel quel, sans
-     ajustement.
+     `grep -c '^### R-' docs/recette.md` rend **52** ; le comptage apparié restreint au
+     chapitre 3 rend **43** fiches nommant un `tests/functional/…::…` (les 42 fiches
+     d'origine du lot, plus `R-ERR-01`, neuve et couverte dès sa création), **0** fiche
+     couverte par un test unitaire seul, **8** à `non`, chacune avec son motif déjà écrit.
+     Aucune fiche n'a pris la porte de sortie : le compte de la spec (42/50, 8 manuelles)
+     tient tel quel, sans ajustement.
   3. Le mort est enterré : `typeahead.js`, `typeahead-list.html`, `inline-edit.js`,
      `inline-textarea.html` absents de l'arbre ; `libreosteoweb/static/js/app/templates/`
      n'existe plus ; `grep -rn "'ngRoute'\|angular-route" libreosteoweb/ package.json` ne
@@ -607,7 +607,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
   **Ce que cela change à la priorité des lots restants** : D6b est désormais le seul lot
   du chantier, et la question qu'il doit trancher — cible technique et stratégie de
-  bascule — se pose sur un filet qualifié (42 fiches sur 50 au navigateur).
+  bascule — se pose sur un filet qualifié (42 fiches sur 50 au navigateur). Le § « Ce que
+  D6a lègue à D6b » de la spec
+  (`docs/superpowers/specs/2026-09-06-d6a-filet-frontend-design.md:895`) en est la porte
+  d'entrée.
 
   **Ce que cela change au chapeau**, y compris ce que D6a a délibérément renvoyé plus
   loin :
@@ -618,7 +621,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   - **trois résidus légués à D6b** : le champ de recherche de `404.html:277-283`, inerte
     depuis avant tout retrait ; le demi-état de routage dont `DoctorCtrl` était le
     témoin ; et le dixième bundle français écrit à la volée au premier rendu réel
-    (arbitrage R28), que `manage.py compress` n'écrit jamais lui-même ;
+    (arbitrages R28 et R29), que `manage.py compress` n'écrit jamais lui-même ;
   - **deux constats versés au passage** : les scripts chargés depuis `oss.maxcdn.com`
     (`account/login.html:23-24`, domaine éteint, bloc conditionnel IE8, hors périmètre) et
     les **15 tests Playwright qu'aucune fiche de `docs/recette.md` ne nomme**, dont le

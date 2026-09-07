@@ -16,6 +16,8 @@ code de départ est la source, gelée au commit amont `8e9e0e77d70` (2026-08-30,
 - **`upstream` reste un pointeur de lecture.** Reprendre un correctif amont est un
   **portage manuel**, décidé au cas par cas et consigné dans `KANBAN.md` § Suivi amont.
 - Ne jamais pousser sur `upstream`.
+- **Avant toute suppression (fichier, dépendance, module), chercher le consommateur,
+  jamais le seul nom** : leçon payée deux fois (`angular-timeago`/D5, `ngRoute`/D6a).
 
 ## Déploiement
 
@@ -36,8 +38,7 @@ Un cliquet se relève dans le commit qui l'a mérité, jamais pour faire passer 
 
 ## Licence
 
-GPL-3.0 héritée (`LICENSE.md`, `COPYING`). Toute modification distribuée reste sous cette
-licence.
+GPL-3.0 héritée (`LICENSE.md`, `COPYING`).
 
 ## Documentation
 
