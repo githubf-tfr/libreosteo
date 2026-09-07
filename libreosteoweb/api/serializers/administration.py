@@ -17,7 +17,6 @@ import re
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Max
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -33,7 +32,7 @@ from libreosteoweb.models import (
 
 from ..file_integrator import Extractor
 from ..filter import get_name_filters
-from ..utils import NetworkHelper, _unicode, convert_to_long
+from ..utils import NetworkHelper, _unicode, maximum_numerique_des_numeros
 from .communs import WithPkMixin
 
 
@@ -106,11 +105,15 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
         except KeyError:
             input_invoice_prefix_seq = None
         if input_invoice_start_seq is None or len(input_invoice_start_seq) <= 0:
-            last_invoice_number = Invoice.objects.filter(
+            numeros = Invoice.objects.filter(
                 officesettings_id=self.instance.id
-            ).aggregate(Max("number"))["number__max"]
-            if last_invoice_number is not None:
-                data["invoice_start_sequence"] = _unicode(last_invoice_number)
+            ).values_list("number", flat=True)
+            maximum = maximum_numerique_des_numeros(numeros)
+            if maximum is not None:
+                # Le maximum numerique, et non le maximum lexicographique brut :
+                # ce dernier ramenait le prefixe avec lui, et `perform_update`
+                # exige ensuite une valeur `isnumeric()`.
+                data["invoice_start_sequence"] = _unicode(maximum)
             else:
                 data["invoice_start_sequence"] = _unicode(10000)
         elif not input_invoice_start_seq.isnumeric():
@@ -143,12 +146,17 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
         return addresses
 
     def get_invoice_min_sequence(self, obj):
-        result_query = Invoice.objects.filter(officesettings_id=obj.id).aggregate(
-            Max("number")
-        )["number__max"]
-        if result_query is not None and len(result_query) > 0:
-            return convert_to_long(result_query, strip_string_prefix=True) + 1
-        return 1
+        numeros = Invoice.objects.filter(officesettings_id=obj.id).values_list(
+            "number", flat=True
+        )
+        maximum = maximum_numerique_des_numeros(numeros)
+        # `1` en l'absence de facture convertible : valeur historique de cette
+        # borne, que le formulaire des reglages compare au champ saisi
+        # (officesettings.js:74). La changer elargirait ou restreindrait en
+        # silence ce que le navigateur accepte.
+        if maximum is None:
+            return 1
+        return maximum + 1
 
     def get_selected(self, obj):
         if hasattr(self.context["request"], "officesettings"):

@@ -18,6 +18,7 @@ from libreosteoweb.api.utils import (
     NetworkHelper,
     _unicode,
     convert_to_long,
+    maximum_numerique_des_numeros,
 )
 
 
@@ -68,3 +69,28 @@ class TestUnicode(TestCase):
 
     def test_unicode_rend_une_chaine_telle_quelle(self):
         self.assertEqual(_unicode("déjà du texte"), "déjà du texte")
+
+
+class TestMaximumNumeriqueDesNumeros(TestCase):
+    """Le maximum d'une sequence de facturation est un maximum de nombres, jamais
+    de textes : `Max("number")` en SQL rend "9999" sur un parc qui porte deja
+    "10002"."""
+
+    def test_compare_des_nombres_et_non_des_textes(self):
+        self.assertEqual(maximum_numerique_des_numeros(["9999", "10002"]), 10002)
+
+    def test_retire_le_prefixe_alphabetique(self):
+        self.assertEqual(maximum_numerique_des_numeros(["FA9999", "FA10002"]), 10002)
+
+    def test_ignore_un_numero_non_convertible_sans_lever(self):
+        """Un parc peut porter un numero saisi a la main, hors forme. Il ne doit
+        pas faire echouer l'enregistrement des reglages du cabinet."""
+        self.assertEqual(
+            maximum_numerique_des_numeros(["10002", "FA-12/B", "9999"]), 10002
+        )
+
+    def test_rend_none_quand_aucun_numero_ne_se_convertit(self):
+        self.assertIsNone(maximum_numerique_des_numeros(["FA-12/B"]))
+
+    def test_rend_none_sur_un_parc_vide(self):
+        self.assertIsNone(maximum_numerique_des_numeros([]))

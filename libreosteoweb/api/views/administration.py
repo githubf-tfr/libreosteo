@@ -18,7 +18,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.files.base import ContentFile
 from django.core.management import call_command
-from django.db.models import Max
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -51,7 +50,7 @@ from ..permissions import (
 )
 from ..services import sauvegarde as services_sauvegarde
 from ..statistics import Statistics
-from ..utils import LoggerWriter, convert_to_long
+from ..utils import LoggerWriter, convert_to_long, maximum_numerique_des_numeros
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -135,12 +134,11 @@ class OfficeSettingsView(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         # Check that the invoice_start_sequence is valid
-        result_query = models.Invoice.objects.filter(
+        numeros = models.Invoice.objects.filter(
             officesettings_id=serializer.instance.id
-        ).aggregate(Max("number"))["number__max"]
-        if result_query is not None:
-            max_value = convert_to_long(result_query, strip_string_prefix=True)
-        else:
+        ).values_list("number", flat=True)
+        max_value = maximum_numerique_des_numeros(numeros)
+        if max_value is None:
             max_value = 1
         try:
             asked_value = serializer.validated_data["invoice_start_sequence"]

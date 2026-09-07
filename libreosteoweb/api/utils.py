@@ -81,6 +81,43 @@ def convert_to_long(value, strip_string_prefix=False):
     return int(value_to_convert)
 
 
+def maximum_numerique_des_numeros(numeros):
+    """Le plus grand numero de facture d'un cabinet, compare comme un nombre.
+
+    Trois surfaces lisent ce maximum — le garde-fou de sequence
+    (`api/views/administration.py`), la sequence repositionnee quand le champ est
+    vide et la borne minimale exposee au navigateur
+    (`api/serializers/administration.py`) — et elles doivent dire exactement la
+    meme chose : une garde qui ne reflete pas ce que le produit accepte cesse en
+    silence de proteger quoi que ce soit.
+
+    Le calcul se fait en Python, jamais en SQL : `Max("number")` compare des
+    textes, et rend "9999" sur un parc qui porte deja "10002". Un `CAST` SQL ne
+    remplacerait pas ce calcul — `invoice_prefix_sequence` autorise trois
+    caracteres alphabetiques devant le numero (`models.py:501-503`), qu'aucun
+    cast portable ne sait ecarter. Le volume est celui des factures d'un cabinet,
+    lu une fois par enregistrement de reglages.
+
+    Un numero qui ne se convertit pas apres retrait du prefixe est ignore, il ne
+    fait pas echouer l'enregistrement des reglages : le parc peut porter un
+    numero saisi a la main, et refuser d'enregistrer les reglages a cause de lui
+    serait une panne sans issue.
+
+    Rend `None` quand aucun numero ne se convertit, parc vide compris : c'est a
+    l'appelant de dire ce que vaut l'absence de facture, et les trois appelants
+    n'y repondent pas pareil.
+    """
+    maximum = None
+    for numero in numeros:
+        try:
+            valeur = convert_to_long(numero, strip_string_prefix=True)
+        except (TypeError, ValueError):
+            continue
+        if maximum is None or valeur > maximum:
+            maximum = valeur
+    return maximum
+
+
 class LoggerWriter:
     def __init__(self, logger_func):
         self._logger = logger_func

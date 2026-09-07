@@ -24,6 +24,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import APITestCase
 
+from libreosteoweb.api import serializers as apiserializers
 from libreosteoweb.api.invoicing.generator import ExaminationInvoiceHelper, Generator
 from libreosteoweb.models import (
     ExaminationStatus,
@@ -248,6 +249,81 @@ class TestNumerotationFacture(APITestCase):
         self.assertEqual(
             OfficeSettings.objects.get(id=1).office_phone, "05 55 99 99 99"
         )
+
+
+class TestMaximumDeSequenceSurLesTroisSurfaces(APITestCase):
+    """Le parc `9999` / `10002` est celui que la comparaison lexicographique
+    laisse passer : `Max("number")` y rend "9999". Les trois surfaces qui lisent
+    ce maximum doivent dire la meme chose, sans quoi la garde cesse en silence de
+    refleter ce que le produit accepte."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            self.reglages_praticien = cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet(invoice_start_sequence="10003")
+            self.patient = cree_patient()
+        for numero in ("9999", "10002"):
+            Invoice.objects.create(
+                date=timezone.now(),
+                amount=Decimal("55.00"),
+                currency="EUR",
+                paiment_mode="cash",
+                therapeut_name="Crusher",
+                therapeut_first_name="Beverly",
+                professional_id="12345",
+                location="Le Vigen",
+                number=numero,
+                patient_family_name="Picard",
+                officesettings_id=self.cabinet.id,
+            )
+        self.client.login(username="test", password="testpw")
+
+    def test_la_borne_minimale_exposee_suit_le_maximum_numerique(self):
+        """Surface 1 : `invoice_min_sequence`, lue par le formulaire des
+        reglages du cabinet (officesettings.js:74)."""
+        reponse = self.client.get(reverse("officesettings-list"))
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        # Le serialiseur expose la cle primaire sous "id", pas "pk"
+        # (`OfficeSettingsSerializer.fields`, verifie a l'execution).
+        cabinet = [c for c in reponse.data if c["id"] == self.cabinet.id][0]
+        self.assertEqual(cabinet["invoice_min_sequence"], 10003)
+
+    def test_une_sequence_sous_un_numero_deja_emis_est_refusee(self):
+        """Surface 2 : le garde-fou serveur. 10001 est superieur au maximum
+        lexicographique (9999) mais inferieur au maximum reel (10002) : c'est
+        exactement le trou que la comparaison de textes ouvrait."""
+        reponse = self.client.patch(
+            reverse("officesettings-detail", kwargs={"pk": self.cabinet.id}),
+            data={"invoice_start_sequence": "10001"},
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_403_FORBIDDEN)
+        self.cabinet.refresh_from_db()
+        self.assertEqual(self.cabinet.invoice_start_sequence, "10003")
+
+    def test_une_sequence_au_dessus_du_maximum_reel_est_acceptee(self):
+        reponse = self.client.patch(
+            reverse("officesettings-detail", kwargs={"pk": self.cabinet.id}),
+            data={"invoice_start_sequence": "10003"},
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.cabinet.refresh_from_db()
+        self.assertEqual(self.cabinet.invoice_start_sequence, "10003")
+
+    def test_un_champ_vide_recalcule_la_sequence_sur_le_maximum_numerique(self):
+        """Surface 3 : la valeur repositionnee quand le champ est laisse vide.
+        Elle se lit sur `validated_data` du serialiseur — interface publique de
+        DRF, pas un rouage prive : le refus 403 que la vue oppose ensuite est le
+        meme avec l'ancien et le nouveau calcul, et ne discriminerait donc rien."""
+        serialiseur = apiserializers.OfficeSettingsSerializer(
+            instance=self.cabinet,
+            data={"invoice_start_sequence": ""},
+            partial=True,
+        )
+        self.assertTrue(serialiseur.is_valid(), serialiseur.errors)
+        self.assertEqual(serialiseur.validated_data["invoice_start_sequence"], "10002")
 
 
 class TestEncaissement(APITestCase):
