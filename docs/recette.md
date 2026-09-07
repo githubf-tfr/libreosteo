@@ -1128,28 +1128,36 @@ au journal.
   nombres d'une comparaison de textes, n'a pas d'équivalent automatisé au
   navigateur — il est couvert en unitaire par
   libreosteoweb/tests/test_facturation.py::TestMaximumDeSequenceSurLesTroisSurfaces)
-- **État requis** : E2. La fiche facture durablement des consultations pour
-  atteindre le numéro `10002` : remonter l'état E2 (chapitre 1) avant de jouer
-  une autre fiche qui en dépend.
+- **État requis** : E1, complété par le patient Jean-Luc Picard (mêmes gestes que
+  R-PAT-01, ou étape 1 de E2), **et non E2** : le parc `9999` / `10002` ne peut se
+  construire qu'avant la première facture, en posant `9999` sur une séquence
+  encore vierge. À l'état E2, une facture `10000` porte déjà le cabinet — la
+  borne minimale exposée au navigateur y vaut `10001`, ce que le navigateur
+  refuserait dès l'étape 2 ci-dessous. La fiche facture ensuite durablement des
+  consultations pour atteindre le numéro `10002` : remonter l'état E1, recréer le
+  patient, avant de jouer une autre fiche qui en dépend.
 
 **Étapes**
 
-1. Menu utilisateur → « Paramètres » → « Général », remplacer la « Séquence de
+1. Créer le patient Jean-Luc Picard (mêmes gestes que R-PAT-01).
+   Attendu : la fiche du nouveau patient s'ouvre.
+2. Menu utilisateur → « Paramètres » → « Général », remplacer la « Séquence de
    démarrage de facture » par `9999`, cliquer « Mettre à jour ».
-   Attendu : message « Les paramètres ont été mis à jour ».
-2. Créer et clôturer une consultation facturée (mêmes gestes que R-CON-03,
+   Attendu : message « Les paramètres ont été mis à jour » — aucune facture
+   n'existe encore, la borne minimale exposée au navigateur vaut `1`.
+3. Créer et clôturer une consultation facturée (mêmes gestes que R-CON-03,
    étapes 1 à 3).
    Attendu : le panneau affiche un encart « Facture » avec le lien `n° 9999`.
-3. Facturer trois consultations de plus, de la même façon.
+4. Facturer trois consultations de plus, de la même façon.
    Attendu : les numéros obtenus sont `10000`, `10001` puis `10002` — le parc
    porte désormais `9999` **et** `10002`, ce qui est exactement le cas où un
    maximum de textes rend `9999` là où le maximum réel est `10002`.
-4. Retourner aux Paramètres du cabinet, onglet « Général ».
+5. Retourner aux Paramètres du cabinet, onglet « Général ».
    Attendu : le champ « Séquence de démarrage de facture » affiche `10003`.
-5. Remplacer sa valeur par `10001`, cliquer « Mettre à jour ».
+6. Remplacer sa valeur par `10001`, cliquer « Mettre à jour ».
    Attendu : le champ passe en bordure et texte rouges et le bouton « Mettre à
    jour » devient inactif — la borne minimale exposée au navigateur vaut `10003`.
-6. Recharger la page.
+7. Recharger la page.
    Attendu : le champ affiche toujours `10003` — la valeur `10001` n'a pas été
    enregistrée.
 
@@ -1158,8 +1166,8 @@ comparaison de textes classe `9999` au-dessus de `10002`. Le garde-fou de
 séquence l'aurait donc laissé ramener la numérotation sous un numéro déjà émis —
 et la contrainte d'unicité posée par `0060` aurait ensuite refusé la facture
 suivante. C'est ce trou que cette fiche referme, sur les trois surfaces qui
-lisent ce maximum : la borne exposée au navigateur (étape 4), le refus serveur
-(étape 5) et la persistance (étape 6).
+lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
+(étape 6) et la persistance (étape 7).
 
 ### Thérapeute
 
