@@ -13,7 +13,7 @@
 # fusion est un acte medical, un doublon de numero de facture est une erreur de
 # numerotation dont la reparation est mecanique.
 #
-# Retour arriere : `migrate libreosteoweb 0058` retire la contrainte et ne rend
+# Retour arriere : `migrate libreosteoweb 0059` retire la contrainte et ne rend
 # NI les anciens numeros NI la sequence d'avant. Meme asymetrie assumee que
 # `0058`, qui rend `double precision` sans rendre les decimales perdues.
 #
