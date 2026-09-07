@@ -340,7 +340,7 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 ```
 ### <ID> — <Titre>
 
-- **Domaine** : <un des treize chapitres du cahier>
+- **Domaine** : <un des quatorze chapitres du cahier>
 - **Couverture auto** : non | oui — tests/functional/test_xxx.py::identifiant_du_test
 - **État requis** : E0 | E1 | E2
 
@@ -2002,3 +2002,40 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
    Attendu : après le rechargement, la tuile « Consultations » de la vue « Semaine »
    affiche toujours `2` — la consultation du jour reste comptée de façon stable, pas
    seulement au moment de sa clôture.
+
+### Pages d'erreur
+
+### R-ERR-01 — Page inexistante
+
+- **Domaine** : Pages d'erreur
+- **Couverture auto** : oui —
+  tests/functional/test_pages_erreur.py::test_la_page_404_ne_leve_aucune_erreur_de_console
+  et tests/functional/test_pages_erreur.py::test_le_lien_de_deconnexion_de_la_page_404_fonctionne
+- **État requis** : E1 — la page 404 ne dépend d'aucune donnée de cabinet ni de
+  patient.
+
+**Étapes**
+
+1. Depuis une session connectée (`test` / `test`), naviguer vers une route inexistante
+   de l'instance (par exemple `/cette-route-n-existe-pas`).
+   Attendu : code HTTP `404` ; le chrome SB Admin (bandeau, menu latéral, pied de page)
+   se rend normalement ; aucun artefact d'interpolation `{$ ... $}` visible.
+2. Ouvrir les outils de développement du navigateur (onglet Console) avant l'étape 1,
+   ou les garder ouverts depuis une navigation précédente.
+   Attendu : console vide de toute erreur de script — mesuré sur un montage conteneur
+   réel (E1), pas déduit de la lecture du gabarit. Seul un message réseau propre au
+   code HTTP `404` de la page elle-même peut apparaître (« Failed to load resource :
+   the server responded with a status of 404 ») : il est indépendant de tout script de
+   la page et n'entre pas en ligne de compte.
+3. Cliquer sur le nom d'utilisateur en haut à droite pour ouvrir le menu utilisateur.
+   Attendu : le menu ne s'ouvre pas — cette page ne charge pas jQuery, dont dépend le
+   greffon Bootstrap qui anime ce menu ; ce n'est pas une régression de cette fiche.
+4. Invoquer directement le lien « Déconnexion » du menu (par exemple, depuis la
+   console du navigateur, son gestionnaire `onclick`), sans passer par l'ouverture du
+   menu.
+   Attendu : déconnexion effective, redirection vers la page de connexion
+   (« Identifiez-vous sur LibreOsteo »).
+5. Depuis une nouvelle session connectée, revenir sur la route inexistante, saisir un
+   texte dans le champ de recherche du menu latéral et cliquer sur le bouton associé.
+   Attendu : aucune navigation, aucune requête réseau déclenchée — le champ est inerte
+   sur cette page.

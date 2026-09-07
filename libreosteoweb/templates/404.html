@@ -2,7 +2,7 @@
 {% load compress %}
 {% get_current_language as LANGUAGE_CODE %}
 <!DOCTYPE html>
-<html lang="{{ LANGUAGE_CODE }}" xmlns:ng="http://angularjs.org" ng-app="libreosteo">
+<html lang="{{ LANGUAGE_CODE }}">
 
 <head>
 
@@ -34,7 +34,7 @@
 
 <body>
 
-<div id="wrapper" ng-controller="MainController">
+<div id="wrapper">
 
 <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
 <div class="navbar-header">
@@ -274,13 +274,12 @@
     <div class="navbar-default sidebar" role="navigation">
     <div class="sidebar-nav sidebar-collapse">
         <ul class="nav" id="side-menu">
-            <li class="sidebar-search" ng-controller="SearchCtrl">
+            <li class="sidebar-search">
                 <div class="search-container">
                     <div class="input-group custom-search-form">
-                        <input type="search" class="form-control" placeholder="{% trans "Search..." %}"
-                               ng-model="query" ng-keydown="onEnterKeyDown($event)">
+                        <input type="search" class="form-control" placeholder="{% trans "Search..." %}">
                             <span class="input-group-btn">
-                                <button class="btn btn-default" type="button" ng-click="search()">
+                                <button class="btn btn-default" type="button">
                                     <i class="fa fa-search"></i>
                                 </button>
                             </span>
@@ -423,29 +422,6 @@
 <!-- /#wrapper -->
 
 <script src="{{ STATIC_URL }}components/webshim/js-webshim/minified/polyfiller.js"></script>
-{% compress js %}
-<!-- Core Scripts - Include with every page -->
-<script src="{{ STATIC_URL }}js/bootstrap.min.js"></script>
-
-<!-- Page-Level Plugin Scripts - Blank -->
-
-<!-- SB Admin Scripts - Include with every page -->
-<script src="{{ STATIC_URL }}js/sb-admin-2.js"></script>
-<!-- Metis Menu Plugin JavaScript -->
-<script src="{{ STATIC_URL }}js/plugins/metisMenu/metisMenu.min.js"></script>
-
-<!-- Angular framework -->
-
-<!-- web Application -->
-<script src="{{ STATIC_URL }}js/app/app.js"></script>
-<script src="{{ STATIC_URL }}js/app/patient.js"></script>
-<script src="{{ STATIC_URL }}js/app/doctor.js"></script>
-<script src="{{ STATIC_URL }}js/app/examination.js"></script>
-<script src="{{ STATIC_URL }}js/app/inline-edit.js"></script>
-<script src="{{ STATIC_URL }}js/app/timeline.js"></script>
-<script src="{{ STATIC_URL }}js/app/search.js"></script>
-<script src="{{ STATIC_URL }}js/app/user.js"></script>
-{% endcompress %}
 
 {% compress css %}
 <!--Specific libreosteo CSS -->
