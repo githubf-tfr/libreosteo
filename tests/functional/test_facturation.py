@@ -323,9 +323,27 @@ def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
     attendre_page_prete(page)
     facture = Invoice.objects.get()
 
-    page.click("a[href='#/invoices']")
-    attendre_page_prete(page)
-    expect(page.locator("h1")).to_contain_text("Comptabilité")
+    # Meme course que celle documentee en detail dans
+    # test_impression_de_facture_reprend_cabinet_et_therapeute (ligne ~509) :
+    # `InvoiceListCtrl` recharge $scope.invoices depuis trois sources async
+    # independantes, `ng-repeat` reconstruit alors la ligne. `attendre_page_prete`
+    # ne barre pas cette course ; attendre la reponse `therapeut_id=` (la
+    # derniere des trois, deterministement) le fait.
+    with page.expect_response(
+        lambda reponse: (
+            "/api/invoices" in reponse.url and "therapeut_id=" in reponse.url
+        )
+    ):
+        page.click("a[href='#/invoices']")
+    # locator("h1") seul resout a plusieurs elements : le <h1 class="page-header">
+    # de la fiche patient precedente reste parfois dans le DOM le temps de la
+    # transition Angular, et l'editeur hallo (consultation) y laisse un
+    # <h1 class="menu-item">h1</h1>, l'apercu de son menu de mise en forme. Le
+    # gabarit de la page Comptabilite (partials/invoice-list.html:2) est le seul
+    # a rendre un <h1> sans classe : c'est lui qui la designe, et lui seul.
+    expect(
+        page.locator("h1:not(.page-header):not(.menu-item):visible")
+    ).to_contain_text("Comptabilité")
 
     ligne = page.locator("tbody tr")
     expect(ligne).to_have_count(1)
