@@ -329,7 +329,14 @@ described above never sees rows that arrive this way.
 **Three constraints the fork added since 0.6.8, and how to check an archive against them
 first.** An archive produced by an upstream instance predates whichever of these its
 ``meta`` version predates. Each is checked below straight from the archive's
-``dump.json``, without restoring anything:
+``dump.json``, without restoring anything. ``outils/diagnostic_archive.py`` performs all
+three checks and prints a one-line verdict; it reads the archive and writes nothing, and
+it reports counts only — no name, no birth date, no consultation content, no individual
+amount, so its output can be pasted into a bug report::
+
+    python3 outils/diagnostic_archive.py <archive.zip>
+
+The three checks it runs, should you prefer to run them by hand:
 
 - ``0057``, one patient per ``(family_name, first_name, birth_date)`` — a real ``UNIQUE``
   index, ``family_name`` and ``first_name`` compared lower-cased. Group the
