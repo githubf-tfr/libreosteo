@@ -165,6 +165,48 @@ class TestFacturation(APITestCase):
         self.assertIn(b'"amount":55.55', liste.content)
 
 
+class TestRefusDuNumeroDejaEmis(APITestCase):
+    """Le numero que la sequence va attribuer est deja pris : la contrainte
+    d'unicite de 0060 refuse l'INSERT. Le praticien doit recevoir un refus
+    explicite, jamais une 500.
+
+    Deterministe, sans concurrence : la ligne conflictuelle est posee dans le
+    setUp. C'est le pendant exact du critere d'arret de D3 sur le doublon de
+    patient (`test_concurrence.py:126-154`)."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            self.reglages_praticien = cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet(invoice_start_sequence="10000")
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        Invoice.objects.create(
+            date=timezone.now(),
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number="10000",
+            patient_family_name="Picard",
+            officesettings_id=self.cabinet.id,
+        )
+        self.client.login(username="test", password="testpw")
+
+    def test_un_numero_deja_emis_rend_400_et_non_500(self):
+        reponse = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("10000", str(reponse.data))
+        self.assertEqual(Invoice.objects.filter(number="10000").count(), 1)
+
+
 class TestNumerotationFacture(APITestCase):
     """La séquence est un état persistant partagé : chaque test part d'un cabinet neuf."""
 
