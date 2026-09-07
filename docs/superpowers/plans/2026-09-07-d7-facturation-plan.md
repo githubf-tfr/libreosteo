@@ -547,14 +547,10 @@ class TestMaximumNumeriqueDesNumeros(TestCase):
     "10002"."""
 
     def test_compare_des_nombres_et_non_des_textes(self):
-        self.assertEqual(
-            maximum_numerique_des_numeros(["9999", "10002"]), 10002
-        )
+        self.assertEqual(maximum_numerique_des_numeros(["9999", "10002"]), 10002)
 
     def test_retire_le_prefixe_alphabetique(self):
-        self.assertEqual(
-            maximum_numerique_des_numeros(["FA9999", "FA10002"]), 10002
-        )
+        self.assertEqual(maximum_numerique_des_numeros(["FA9999", "FA10002"]), 10002)
 
     def test_ignore_un_numero_non_convertible_sans_lever(self):
         """Un parc peut porter un numero saisi a la main, hors forme. Il ne doit
@@ -647,9 +643,7 @@ class TestMaximumDeSequenceSurLesTroisSurfaces(APITestCase):
             partial=True,
         )
         self.assertTrue(serialiseur.is_valid(), serialiseur.errors)
-        self.assertEqual(
-            serialiseur.validated_data["invoice_start_sequence"], "10002"
-        )
+        self.assertEqual(serialiseur.validated_data["invoice_start_sequence"], "10002")
 ```
 
 Compléter les imports de `test_facturation.py` : `from libreosteoweb.api import
@@ -742,18 +736,18 @@ subsiste dans le fichier — le vérifier par `grep -n "Max(" ` avant.
 `libreosteoweb/api/serializers/administration.py`, `validate` (lignes 108-115) :
 
 ```python
-        if input_invoice_start_seq is None or len(input_invoice_start_seq) <= 0:
-            numeros = Invoice.objects.filter(
-                officesettings_id=self.instance.id
-            ).values_list("number", flat=True)
-            maximum = maximum_numerique_des_numeros(numeros)
-            if maximum is not None:
-                # Le maximum numerique, et non le maximum lexicographique brut :
-                # ce dernier ramenait le prefixe avec lui, et `perform_update`
-                # exige ensuite une valeur `isnumeric()`.
-                data["invoice_start_sequence"] = _unicode(maximum)
-            else:
-                data["invoice_start_sequence"] = _unicode(10000)
+if input_invoice_start_seq is None or len(input_invoice_start_seq) <= 0:
+    numeros = Invoice.objects.filter(officesettings_id=self.instance.id).values_list(
+        "number", flat=True
+    )
+    maximum = maximum_numerique_des_numeros(numeros)
+    if maximum is not None:
+        # Le maximum numerique, et non le maximum lexicographique brut :
+        # ce dernier ramenait le prefixe avec lui, et `perform_update`
+        # exige ensuite une valeur `isnumeric()`.
+        data["invoice_start_sequence"] = _unicode(maximum)
+    else:
+        data["invoice_start_sequence"] = _unicode(10000)
 ```
 
 `libreosteoweb/api/serializers/administration.py`, `get_invoice_min_sequence`
@@ -833,15 +827,18 @@ plus rien.
   ```python
   PLANCHER_RENUMEROTATION: int = 999999
 
+
   @dataclass(frozen=True)
   class PlanReprise:
-      renumerotations: list[tuple[int, str, str]]   # (id, ancien, nouveau)
-      sequences: dict[int, str]                     # officesettings_id -> nouvelle sequence
+      renumerotations: list[tuple[int, str, str]]  # (id, ancien, nouveau)
+      sequences: dict[int, str]  # officesettings_id -> nouvelle sequence
+
 
   def planifier(
-      factures: Iterable[tuple[int, int, str]],     # (id, officesettings_id, number)
-      sequences: Mapping[int, str | None],          # officesettings_id -> invoice_start_sequence
+      factures: Iterable[tuple[int, int, str]],  # (id, officesettings_id, number)
+      sequences: Mapping[int, str | None],  # officesettings_id -> invoice_start_sequence
   ) -> PlanReprise: ...
+
 
   def appliquer(modele_facture, modele_reglages) -> PlanReprise: ...
   ```
@@ -1125,9 +1122,7 @@ class _ModeleFactice:
 class TestAppliquerSurDesDoubles(SimpleTestCase):
     def test_les_ecritures_portent_le_numero_neuf_et_la_sequence(self):
         ecritures = []
-        factures = _ModeleFactice(
-            [(1, 1, "10000"), (2, 1, "10000")], ecritures
-        )
+        factures = _ModeleFactice([(1, 1, "10000"), (2, 1, "10000")], ecritures)
         reglages = _ModeleFactice([(1, "10001")], ecritures)
 
         plan = reprise.appliquer(factures, reglages)
@@ -1138,9 +1133,7 @@ class TestAppliquerSurDesDoubles(SimpleTestCase):
 
     def test_un_parc_sain_n_ecrit_rien(self):
         ecritures = []
-        factures = _ModeleFactice(
-            [(1, 1, "10000"), (2, 1, "10001")], ecritures
-        )
+        factures = _ModeleFactice([(1, 1, "10000"), (2, 1, "10001")], ecritures)
         reglages = _ModeleFactice([(1, "10002")], ecritures)
 
         plan = reprise.appliquer(factures, reglages)
@@ -1468,7 +1461,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(controler_les_montants, migrations.RunPython.noop),
-        ...
+        ...,
     ]
 ```
 
@@ -1639,10 +1632,12 @@ class Migration(migrations.Migration):
 **en tête** de `operations` :
 
 ```python
-        migrations.AlterModelOptions(
-            name="invoice",
-            options={"ordering": ["-date", "-id"]},
-        ),
+(
+    migrations.AlterModelOptions(
+        name="invoice",
+        options={"ordering": ["-date", "-id"]},
+    ),
+)
 ```
 
 - [ ] **Étape 5 — constater le succès**
@@ -1871,68 +1866,69 @@ logger = logging.getLogger(__name__)
 puis `ExaminationInvoiceHelper.generate_invoice` :
 
 ```python
-    def generate_invoice(self, examination, invoicingSerializerData, invoice_to_cancel):
-        invoice = Generator(
-            self.office_settings, self.therapeut_settings
-        ).generate_invoice(examination, invoicingSerializerData, self.therapeut_user)
-        try:
-            # Point de sauvegarde, indispensable sous ATOMIC_REQUESTS : rattraper
-            # une IntegrityError sans `atomic()` imbrique laisserait la
-            # transaction de requete rompue, et toute la suite de la vue
-            # echouerait en TransactionManagementError. Meme raisonnement, et
-            # meme forme, que `PatientViewSet.perform_create`
-            # (`api/views/patient.py:152-159`).
-            with transaction.atomic():
-                invoice.save()
-        except IntegrityError as erreur:
-            self._convertir_si_numero_deja_emis(invoice, erreur)
-        if invoice_to_cancel:
-            invoice_to_cancel.status = models.InvoiceStatus.CANCELED
-            invoice_to_cancel.canceled_by = invoice
-            invoice.replace = invoice_to_cancel.number
-            invoice_to_cancel.save()
+def generate_invoice(self, examination, invoicingSerializerData, invoice_to_cancel):
+    invoice = Generator(self.office_settings, self.therapeut_settings).generate_invoice(
+        examination, invoicingSerializerData, self.therapeut_user
+    )
+    try:
+        # Point de sauvegarde, indispensable sous ATOMIC_REQUESTS : rattraper
+        # une IntegrityError sans `atomic()` imbrique laisserait la
+        # transaction de requete rompue, et toute la suite de la vue
+        # echouerait en TransactionManagementError. Meme raisonnement, et
+        # meme forme, que `PatientViewSet.perform_create`
+        # (`api/views/patient.py:152-159`).
+        with transaction.atomic():
             invoice.save()
-        return invoice
+    except IntegrityError as erreur:
+        self._convertir_si_numero_deja_emis(invoice, erreur)
+    if invoice_to_cancel:
+        invoice_to_cancel.status = models.InvoiceStatus.CANCELED
+        invoice_to_cancel.canceled_by = invoice
+        invoice.replace = invoice_to_cancel.number
+        invoice_to_cancel.save()
+        invoice.save()
+    return invoice
 
-    def _convertir_si_numero_deja_emis(self, invoice, erreur):
-        """Distingue un numero deja emis d'une autre violation d'integrite.
 
-        La contrainte peut etre violee par un chemin connu : une sequence
-        repositionnee sous un numero deja emis dans un parc ou la comparaison
-        numerique n'a pas encore ete jouee, ou des factures importees au-dessus
-        de la sequence. Ce cas-la merite un refus explicite ; toute autre
-        violation repart vers la 500 qu'elle merite. Ne pas « simplifier » vers
-        un `except` large : c'est exactement le defaut que ce garde-fou corrige,
-        et c'est la lecon de `_convertir_si_doublon`
-        (`api/views/patient.py:102-138`).
-        """
-        deja_pris = models.Invoice.objects.filter(
-            officesettings_id=invoice.officesettings_id, number=invoice.number
-        ).exists()
-        # `warning` et non `exception` : un numero refuse est une issue normale,
-        # pas une panne. `exc_info` parce qu'une ValidationError DRF est une
-        # erreur GEREE — Django journalise le 4xx sans trace, et le refus ne
-        # laisserait sinon aucune trace serveur.
-        logger.warning(
-            "Refus d'intégrité à l'émission d'une facture (cabinet %s, numéro %s)",
-            invoice.officesettings_id,
-            invoice.number,
-            exc_info=True,
-        )
-        if not deja_pris:
-            raise erreur
-        raise ValidationError(
-            {
-                api_settings.NON_FIELD_ERRORS_KEY: [
-                    _(
-                        "Invoice number %(number)s is already used in this office. "
-                        "Set the invoice start sequence above the last issued "
-                        "number, then invoice again."
-                    )
-                    % {"number": invoice.number}
-                ]
-            }
-        ) from erreur
+def _convertir_si_numero_deja_emis(self, invoice, erreur):
+    """Distingue un numero deja emis d'une autre violation d'integrite.
+
+    La contrainte peut etre violee par un chemin connu : une sequence
+    repositionnee sous un numero deja emis dans un parc ou la comparaison
+    numerique n'a pas encore ete jouee, ou des factures importees au-dessus
+    de la sequence. Ce cas-la merite un refus explicite ; toute autre
+    violation repart vers la 500 qu'elle merite. Ne pas « simplifier » vers
+    un `except` large : c'est exactement le defaut que ce garde-fou corrige,
+    et c'est la lecon de `_convertir_si_doublon`
+    (`api/views/patient.py:102-138`).
+    """
+    deja_pris = models.Invoice.objects.filter(
+        officesettings_id=invoice.officesettings_id, number=invoice.number
+    ).exists()
+    # `warning` et non `exception` : un numero refuse est une issue normale,
+    # pas une panne. `exc_info` parce qu'une ValidationError DRF est une
+    # erreur GEREE — Django journalise le 4xx sans trace, et le refus ne
+    # laisserait sinon aucune trace serveur.
+    logger.warning(
+        "Refus d'intégrité à l'émission d'une facture (cabinet %s, numéro %s)",
+        invoice.officesettings_id,
+        invoice.number,
+        exc_info=True,
+    )
+    if not deja_pris:
+        raise erreur
+    raise ValidationError(
+        {
+            api_settings.NON_FIELD_ERRORS_KEY: [
+                _(
+                    "Invoice number %(number)s is already used in this office. "
+                    "Set the invoice start sequence above the last issued "
+                    "number, then invoice again."
+                )
+                % {"number": invoice.number}
+            ]
+        }
+    ) from erreur
 ```
 
 - [ ] **Étape 4 — constater le succès**
@@ -2054,9 +2050,7 @@ class TestDateDeLaFacture(APITestCase):
 
     def test_l_avoir_porte_la_date_de_la_facture_qu_il_annule(self):
         facture = self.facture()
-        reponse = self.client.post(
-            reverse("invoice-cancel", kwargs={"pk": facture.id})
-        )
+        reponse = self.client.post(reverse("invoice-cancel", kwargs={"pk": facture.id}))
         self.assertEqual(reponse.status_code, status.HTTP_202_ACCEPTED)
         avoir = Invoice.objects.get(id=reponse.data["credit_note"]["id"])
         self.assertEqual(avoir.date, facture.date)
@@ -2179,7 +2173,9 @@ et les 53 tests fonctionnels passent, `make check` vert.
 - Produit :
   ```python
   # libreosteoweb/api/events/consultation.py
-  def redatation_event_tracer(examination, user, ancienne_date, nouvelle_date) -> None: ...
+  def redatation_event_tracer(
+      examination, user, ancienne_date, nouvelle_date
+  ) -> None: ...
   ```
 
 ### Ce que la spec dit (§ C5, A6, A7, A8, F5) — recopié, **avec C5 corrigé et A5 renversé**
@@ -2241,11 +2237,11 @@ et les 53 tests fonctionnels passent, `make check` vert.
 # libreosteoweb/models.py:275-282
 ExaminationType = enum(
     "ExaminationType",
-    "EMPTY",       # 0
-    "NORMAL",      # 1
+    "EMPTY",  # 0
+    "NORMAL",  # 1
     "CONTINUING",  # 2
-    "RETURN",      # 3
-    "EMERGENCY",   # 4
+    "RETURN",  # 3
+    "EMERGENCY",  # 4
 )
 ```
 
@@ -2274,11 +2270,13 @@ Modèle à recopier (`libreosteoweb/api/events/settings.py:26-44`) :
 
 ```python
 def settings_event_tracer(officesettings, user, new_value):
-    if (...):
+    if ...:
         event = OfficeEvent()
         event.clazz = OfficeSettings.__name__
         event.type = OfficeSettings.UPDATE_INVOICE_SEQUENCE
-        event.comment = _("Invoice sequence updated from %(previous)s to %(actual)s") % {
+        event.comment = _(
+            "Invoice sequence updated from %(previous)s to %(actual)s"
+        ) % {
             "previous": _unicode(officesettings.invoice_start_sequence),
             "actual": _unicode(new_value),
         }
@@ -2358,10 +2356,12 @@ class TestTraceDeLaRedatation(APITestCase):
         )
         self.assertEqual(evenement.reference, self.consultation.id)
         self.assertEqual(evenement.user, self.user)
-        self.assertIn(timezone.localtime(self.seance).strftime("%d/%m/%Y"),
-                      evenement.comment)
-        self.assertIn(timezone.localtime(nouvelle).strftime("%d/%m/%Y"),
-                      evenement.comment)
+        self.assertIn(
+            timezone.localtime(self.seance).strftime("%d/%m/%Y"), evenement.comment
+        )
+        self.assertIn(
+            timezone.localtime(nouvelle).strftime("%d/%m/%Y"), evenement.comment
+        )
 
     def test_modifier_un_autre_champ_ne_trace_rien(self):
         reponse = self.client.patch(
