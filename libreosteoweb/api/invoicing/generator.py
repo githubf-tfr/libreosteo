@@ -25,6 +25,45 @@ from libreosteoweb.api.utils import _unicode, convert_to_long
 logger = logging.getLogger(__name__)
 
 
+def _convertir_si_numero_deja_emis(invoice, erreur, message):
+    """Distingue un numero deja emis d'une autre violation d'integrite.
+
+    Deux chemins d'ecriture tirent leur numero de la meme sequence, donc
+    s'exposent a la meme contrainte `unique_facture_numero_par_cabinet` (0060,
+    T4) : l'emission (`ExaminationInvoiceHelper.generate_invoice`, T5) et
+    l'annulation (`Generator.cancel_invoice`, T10). Une seule regle de
+    discrimination pour les deux, portee ici plutot que dupliquee sur chaque
+    appelant : la requete sur `(officesettings_id, number)` est portable entre
+    PostgreSQL et SQLite, la lire dans le message d'erreur SQL ne le serait
+    pas. Ne pas « simplifier » vers un `except` large : c'est exactement le
+    defaut que ce garde-fou corrige, et c'est la lecon de
+    `_convertir_si_doublon` (`api/views/patient.py:102-138`).
+
+    `invoice` : la facture ou l'avoir dont la sauvegarde a echoue.
+    `erreur` : l'`IntegrityError` d'origine, re-levee telle quelle si la
+    collision n'est pas celle attendue.
+    `message` : le texte destine au praticien si elle l'est, deja traduit et
+    forme par l'appelant — les deux chemins parlent de choses differentes
+    (facture, avoir) et gardent chacun le leur.
+    """
+    deja_pris = models.Invoice.objects.filter(
+        officesettings_id=invoice.officesettings_id, number=invoice.number
+    ).exists()
+    # `warning` et non `exception` : un numero refuse est une issue normale,
+    # pas une panne. `exc_info` parce qu'une ValidationError DRF est une
+    # erreur GEREE — Django journalise le 4xx sans trace, et le refus ne
+    # laisserait sinon aucune trace serveur.
+    logger.warning(
+        "Refus d'intégrité sur un numéro de facture ou d'avoir (cabinet %s, numéro %s)",
+        invoice.officesettings_id,
+        invoice.number,
+        exc_info=True,
+    )
+    if not deja_pris:
+        raise erreur
+    raise ValidationError({api_settings.NON_FIELD_ERRORS_KEY: [message]}) from erreur
+
+
 class Generator(object):
     def __init__(self, office_settings, therapeut_settings):
         self.office_settings = office_settings
@@ -162,36 +201,17 @@ class Generator(object):
             with transaction.atomic():
                 credit_note.save()
         except IntegrityError as erreur:
-            self._convertir_si_numero_deja_emis(credit_note, erreur)
+            _convertir_si_numero_deja_emis(
+                credit_note,
+                erreur,
+                _(
+                    "Credit note number %(number)s is already used in this "
+                    "office. Set the invoice start sequence above the last "
+                    "issued number, then cancel again."
+                )
+                % {"number": credit_note.number},
+            )
         return credit_note
-
-    def _convertir_si_numero_deja_emis(self, invoice, erreur):
-        """Meme discrimination que `ExaminationInvoiceHelper._convertir_si_numero_deja_emis`
-        (T5, deja revue et approuvee) : reprise ici sans etre partagee, pour ne pas
-        toucher a une classe distincte dont le code approuve ne doit pas bouger."""
-        deja_pris = models.Invoice.objects.filter(
-            officesettings_id=invoice.officesettings_id, number=invoice.number
-        ).exists()
-        logger.warning(
-            "Refus d'intégrité à l'annulation d'une facture (cabinet %s, numéro %s)",
-            invoice.officesettings_id,
-            invoice.number,
-            exc_info=True,
-        )
-        if not deja_pris:
-            raise erreur
-        raise ValidationError(
-            {
-                api_settings.NON_FIELD_ERRORS_KEY: [
-                    _(
-                        "Credit note number %(number)s is already used in this "
-                        "office. Set the invoice start sequence above the last "
-                        "issued number, then cancel again."
-                    )
-                    % {"number": invoice.number}
-                ]
-            }
-        ) from erreur
 
 
 class ExaminationInvoiceHelper(object):
@@ -254,7 +274,16 @@ class ExaminationInvoiceHelper(object):
             with transaction.atomic():
                 invoice.save()
         except IntegrityError as erreur:
-            self._convertir_si_numero_deja_emis(invoice, erreur)
+            _convertir_si_numero_deja_emis(
+                invoice,
+                erreur,
+                _(
+                    "Invoice number %(number)s is already used in this office. "
+                    "Set the invoice start sequence above the last issued "
+                    "number, then invoice again."
+                )
+                % {"number": invoice.number},
+            )
         if invoice_to_cancel:
             invoice_to_cancel.status = models.InvoiceStatus.CANCELED
             invoice_to_cancel.canceled_by = invoice
@@ -262,43 +291,3 @@ class ExaminationInvoiceHelper(object):
             invoice_to_cancel.save()
             invoice.save()
         return invoice
-
-    def _convertir_si_numero_deja_emis(self, invoice, erreur):
-        """Distingue un numero deja emis d'une autre violation d'integrite.
-
-        La contrainte peut etre violee par un chemin connu : une sequence
-        repositionnee sous un numero deja emis dans un parc ou la comparaison
-        numerique n'a pas encore ete jouee, ou des factures importees au-dessus
-        de la sequence. Ce cas-la merite un refus explicite ; toute autre
-        violation repart vers la 500 qu'elle merite. Ne pas « simplifier » vers
-        un `except` large : c'est exactement le defaut que ce garde-fou corrige,
-        et c'est la lecon de `_convertir_si_doublon`
-        (`api/views/patient.py:102-138`).
-        """
-        deja_pris = models.Invoice.objects.filter(
-            officesettings_id=invoice.officesettings_id, number=invoice.number
-        ).exists()
-        # `warning` et non `exception` : un numero refuse est une issue normale,
-        # pas une panne. `exc_info` parce qu'une ValidationError DRF est une
-        # erreur GEREE — Django journalise le 4xx sans trace, et le refus ne
-        # laisserait sinon aucune trace serveur.
-        logger.warning(
-            "Refus d'intégrité à l'émission d'une facture (cabinet %s, numéro %s)",
-            invoice.officesettings_id,
-            invoice.number,
-            exc_info=True,
-        )
-        if not deja_pris:
-            raise erreur
-        raise ValidationError(
-            {
-                api_settings.NON_FIELD_ERRORS_KEY: [
-                    _(
-                        "Invoice number %(number)s is already used in this office. "
-                        "Set the invoice start sequence above the last issued "
-                        "number, then invoice again."
-                    )
-                    % {"number": invoice.number}
-                ]
-            }
-        ) from erreur

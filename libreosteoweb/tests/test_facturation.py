@@ -556,6 +556,14 @@ class TestRefusDuNumeroDejaEmisAAnnulation(APITestCase):
         )
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("10001", str(reponse.data))
+        # `LANGUAGE_CODE = "fr"` (Libreosteo/settings/base.py:203) : le message
+        # doit sortir traduit, pas dans le msgid anglais du code.
+        self.assertIn(
+            "Le numéro d'avoir 10001 est déjà utilisé dans ce cabinet. Réglez "
+            "la séquence de départ des factures au-dessus du dernier numéro "
+            "émis, puis annulez à nouveau.",
+            str(reponse.data),
+        )
         self.assertEqual(Invoice.objects.filter(number="10001").count(), 1)
 
 
