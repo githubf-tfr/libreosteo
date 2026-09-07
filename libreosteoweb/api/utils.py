@@ -15,7 +15,7 @@
 import logging
 import re
 import socket
-from typing import Any
+from typing import Any, Iterable
 
 import netifaces
 
@@ -81,7 +81,7 @@ def convert_to_long(value, strip_string_prefix=False):
     return int(value_to_convert)
 
 
-def maximum_numerique_des_numeros(numeros):
+def maximum_numerique_des_numeros(numeros: Iterable[str]) -> int | None:
     """Le plus grand numero de facture d'un cabinet, compare comme un nombre.
 
     Trois surfaces lisent ce maximum — le garde-fou de sequence
