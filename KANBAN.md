@@ -669,9 +669,9 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     deux messages au praticien restent distincts au catalogue.
 
   **Critère d'arrêt — ce qui est constaté, et ce qui reste à constater.** Le lot n'est pas
-  clos au sens de son critère : **une seule des six clauses est pleinement constatée** (la
-  3), la sixième l'est sur un critère amendé (voir ci-dessous), et les quatre autres — 1,
-  2, 4 et 5 — attendent une instance conteneur.
+  clos au sens de son critère : **deux des six clauses sont pleinement constatées** (les
+  1 et 3), la sixième l'est sur un critère amendé (voir ci-dessous), et les trois autres —
+  2, 4 et 5 — attendent que la recette soit jouée sur instance conteneur.
   - **Constaté** — `make check` vert au commit `91375bc` : `ruff check`, `ruff format
     --check`, `mypy` (`Success: no issues found in 116 source files`), `makemigrations
     --check`, **314 tests**, couverture **91,54 %**. Les trois cliquets tiennent et l'un
@@ -685,13 +685,18 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     une renumérotée en `1000000`, séquence avancée à `1000001`, chaque renumérotation
     nommée au journal ; retour à `0058` puis rejeu de `0060` rendant exactement le même
     état, donc idempotent.
-  - **Partiellement constaté** — la suite fonctionnelle a été verte en entier
-    (`53 passed`, 517 s) au commit `9f5bf1f`, avant que T7 ne touche
-    `tests/functional/`. À `041a1ad` elle rendait
-    `52 passed, 1 failed` — un flake attribué à D6a (`e8c92b7`), non à D7, et corrigé par
-    `7c7c5e9`, qui a démontré cinq exécutions vertes consécutives du test fautif en
-    isolation. **Une exécution complète et verte à `91375bc` n'a pas été enregistrée** :
-    elle reste à jouer.
+  - **Constaté** — la suite fonctionnelle complète rend **`53 passed`, aucun échec**
+    (590,55 s) au commit `91375bc`, `make static` rejoué juste avant. Le chemin pour y
+    arriver mérite d'être consigné : verte en entier à `9f5bf1f`, elle rendait
+    `52 passed, 1 failed` à `041a1ad`, avec un test fautif **différent à chaque
+    exécution**. L'instabilité n'était pas de D7 : `tests/functional/test_facturation.py`
+    faisait `expect(page.locator("h1"))` alors que le `<h1>` de la fiche patient
+    précédente était encore dans le DOM, d'où `strict mode violation: locator("h1")
+    resolved to 2 elements` — assertion posée par D6a (`e8c92b7`), reproduite en
+    isolation stricte à raison d'un échec sur trois. `7c7c5e9` la resserre et prouve cinq
+    exécutions vertes consécutives ; une seconde course, sur l'ouverture du menu
+    déroulant, a dû être fermée dans le même mouvement pour que cette preuve soit
+    atteignable.
   - **Reste à constater** — les clauses 1, 2, 4 et 5, qui ne se prouvent que sur une
     instance montée : la contrainte visible dans le `psql` du déploiement de référence, la
     fiche **`R-INST-08`** en premier (un parc à doublons qui monte sans intervention, avec
