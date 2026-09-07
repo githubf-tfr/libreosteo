@@ -14,7 +14,7 @@ redatation d'une consultation.
 **Architecture** : sept changements applicatifs indépendants, reliés par deux
 seules dépendances causales — l'ordre des factures devient déterministe *avant*
 que la recopie de date ne rende les dates non discriminantes ; la contrainte
-d'unicité existe *avant* qu'on ne rattrape sa violation. Une migration `0059`
+d'unicité existe *avant* qu'on ne rattrape sa violation. Une migration `0060`
 reprend le parc puis pose la contrainte. Aucune ligne de JavaScript nouvelle
 n'est écrite : le seul changement client est la suppression d'une branche
 devenue fausse.
@@ -78,7 +78,7 @@ Elles s'appliquent à **toutes** les tâches, sans être répétées dans chacun
 - **`libreosteoweb/api/invoicing/generator.py:69` et `:133`** portent
   `timezone.now()`. Ne les toucher qu'en T6.
 - **Interdiction absolue de modifier une migration déjà appliquée** (`0001` à
-  `0058`). D7 n'ajoute que `0059`.
+  `0058`). D7 ajoute `0059_alter_invoice_options` (T1) et `0060` (T4), et rien d'autre.
 
 ### Commandes de référence
 
@@ -132,14 +132,14 @@ make static && .venv/bin/python -m pytest tests/functional/test_consultation.py:
 | `libreosteoweb/api/views/administration.py` | Câbler le garde-fou de séquence sur la fonction unique | T2 |
 | `libreosteoweb/api/serializers/administration.py` | Câbler les deux autres occurrences sur la fonction unique | T2 |
 | `libreosteoweb/api/invoicing/reprise.py` | **Créer** — le plan de renumérotation (pur) et son application | T3 |
-| `libreosteoweb/migrations/0059_…py` | **Créer** — reprise puis `AddConstraint` | T4 |
+| `libreosteoweb/migrations/0060_…py` | **Créer** — reprise puis `AddConstraint` | T4 |
 | `libreosteoweb/api/invoicing/generator.py` | Refus applicatif du doublon ; recopie de `Invoice.date` | T5, T6 |
 | `libreosteoweb/api/events/consultation.py` | **Créer** — le traceur de redatation | T7 |
 | `libreosteoweb/api/views/consultation.py` | Appel du traceur depuis `perform_update` | T7 |
 | `libreosteoweb/static/js/app/examination.js` | `maxExaminationDate` cesse de dériver de la facture | T7 |
 | `locale/fr/LC_MESSAGES/django.{po,mo}` | Traduction du message de redatation | T7 |
 | `docs/recette.md` | Quatre fiches neuves, cinq fiches touchées, 14 rattachements | T8, T9 |
-| `README.rst` | Ce que `0059` fait, ce que le retour arrière ne rend pas | T8 |
+| `README.rst` | Ce que `0060` fait, ce que le retour arrière ne rend pas | T8 |
 | `pyproject.toml` | Périmètre `mypy` : 111 → 113 modules, plus les tests neufs | T3, T7 |
 
 ---
@@ -401,18 +401,12 @@ Dans `pyproject.toml`, `[tool.mypy].files`, insérer
 make check
 ```
 
-Attendu : sans échec ; `makemigrations --check` **ne doit rien proposer** —
-changer `Meta.ordering` produit normalement une `AlterModelOptions`. Si
-`makemigrations --check` échoue, c'est le signe qu'une migration est due :
-**ne pas la générer ici**. Elle est due, et elle appartient à T4, qui crée
-`0059`. Dans ce cas, laisser T1 en l'état, noter le fait, et **fusionner T1 dans
-le commit de T4** est faux : au lieu de cela, ajouter dès maintenant une
-migration `0059_alter_invoice_options.py` serait un doublon avec T4. La
-résolution retenue : **si `makemigrations --check` échoue à cette étape,
-l'`AlterModelOptions` est ajoutée en tête des opérations de `0059` par T4, et T1
-se commite avec `make lint` et `make test` verts, `make migrations-check`
-volontairement rouge — le fait est écrit dans le message de commit.** T4 rétablit
-le vert. Vérifier concrètement lequel des deux cas s'applique avant de conclure.
+Attendu : sans échec. **Tranché par le contrôleur le 2026-09-07, sur le cas
+réellement observé** : changer `Meta.ordering` produit une `AlterModelOptions`,
+`makemigrations --check` l'a bien réclamée, et T1 l'a engendrée et versionnée
+sous `0059_alter_invoice_options.py`. Motif : le cliquet « `make check` vert
+avant tout commit » ne se suspend pas entre deux tâches. **T1 occupe donc
+`0059`, et la migration de T4 se numérote `0060`.**
 
 - [ ] **Étape 7 — commiter**
 
@@ -842,7 +836,7 @@ plus rien.
 
   def appliquer(modele_facture, modele_reglages) -> PlanReprise: ...
   ```
-  T4 appelle `appliquer` depuis la migration `0059`.
+  T4 appelle `appliquer` depuis la migration `0060`.
 
 ### Un cas d'échec de la spec qui n'existe plus — écart assumé
 
@@ -867,7 +861,7 @@ laisse croire qu'un cas est traité, et elle coûte des lignes non couvertes sur
 module neuf. Le motif est écrit dans le module et dans la migration.
 
 Conséquence heureuse, et alignée sur la confirmation d'A1 par le contrôleur
-(« ni le refus ni une reprise manuelle ne sont des options ») : **`0059` ne peut
+(« ni le refus ni une reprise manuelle ne sont des options ») : **`0060` ne peut
 pas échouer sur les données**. Elle répare, toujours.
 
 ### Ce que la spec dit (§ C3, A1, A2, A3) — recopié, **A2 amendé**
@@ -957,7 +951,7 @@ Créer `libreosteoweb/tests/test_reprise_factures.py` :
 `planifier` porte toute la regle et ne touche pas la base : c'est elle que ces
 cas couvrent. `appliquer` n'est qu'un lecteur-ecrivain autour d'elle, et se
 verifie sur un parc sain (le seul que la contrainte d'unicite de la migration
-0059 laisse construire) et sur des doubles de modele, motif deja pose par
+0060 laisse construire) et sur des doubles de modele, motif deja pose par
 `test_migration_montants.py` pour la garde de 0058.
 """
 
@@ -1143,7 +1137,7 @@ class TestAppliquerSurDesDoubles(SimpleTestCase):
 
 
 class TestAppliquerSurLesVraisModeles(TestCase):
-    """Le seul parc que la contrainte de 0059 laisse construire est un parc sain :
+    """Le seul parc que la contrainte de 0060 laisse construire est un parc sain :
     ces deux cas verifient que la reprise ne touche a rien et se rejoue sans effet
     de bord — c'est l'idempotence exigee par `~/claude/CLAUDE.md`."""
 
@@ -1212,9 +1206,9 @@ Créer `libreosteoweb/api/invoicing/reprise.py` :
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 """Reprise d'un parc portant des numeros de facture en double.
 
-Ce module est appele par la migration `0059`, qui lui passe les modeles
+Ce module est appele par la migration `0060`, qui lui passe les modeles
 historiques d'`apps.get_model`. **Sa semantique ne doit plus changer une fois
-0059 appliquee en production** : une migration deja jouee ailleurs ne se rejoue
+0060 appliquee en production** : une migration deja jouee ailleurs ne se rejoue
 pas, et un module dont elle depend qui change ferait diverger deux parcs montes
 a deux dates differentes. Toute evolution passe par une migration nouvelle.
 
@@ -1418,11 +1412,11 @@ la constante **et son commentaire de motif**, définis une seule fois.
 
 ---
 
-## Task 4 : migration `0059` — reprise puis contrainte d'unicité
+## Task 4 : migration `0060` — reprise puis contrainte d'unicité
 
 **Fichiers**
 - Modifier : `libreosteoweb/models.py:396-397` (`Invoice.Meta.constraints`)
-- Créer : `libreosteoweb/migrations/0059_invoice_unique_facture_numero_par_cabinet.py`
+- Créer : `libreosteoweb/migrations/0060_invoice_unique_facture_numero_par_cabinet.py`
 
 **Interfaces**
 - Consomme : `reprise.appliquer(modele_facture, modele_reglages)` de T3.
@@ -1437,11 +1431,11 @@ la constante **et son commentaire de motif**, définis une seule fois.
 > restent deux numéros distincts, ce qui est correct — le préfixe fait partie du
 > numéro imprimé sur la facture (`generator.py:97-101`).
 >
-> **La migration.** `0059`, dans l'ordre : `RunPython(reprise, noop)` puis
+> **La migration.** `0060`, dans l'ordre : `RunPython(reprise, noop)` puis
 > `AddConstraint`. La reprise journalise en `warning` le récapitulatif ligne à
 > ligne. *La spec prévoyait ici un `CommandError` sur un cas de collision : T3 a
 > établi que ce cas est inatteignable sous A2 amendé (cf. T3, § « Un cas d'échec
-> de la spec qui n'existe plus »). **`0059` ne comporte donc aucun chemin
+> de la spec qui n'existe plus »). **`0060` ne comporte donc aucun chemin
 > d'échec sur les données** — ce qui est exactement ce que la confirmation d'A1
 > par le contrôleur demande.*
 >
@@ -1567,7 +1561,7 @@ laissées) :
 - [ ] **Étape 4 — écrire la migration**
 
 Créer
-`libreosteoweb/migrations/0059_invoice_unique_facture_numero_par_cabinet.py` :
+`libreosteoweb/migrations/0060_invoice_unique_facture_numero_par_cabinet.py` :
 
 ```python
 # Migration ecrite a la main : l'`AddConstraint` que `makemigrations` produirait
@@ -1610,10 +1604,7 @@ def reprendre_les_doublons(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        (
-            "libreosteoweb",
-            "0058_alter_invoice_amount_alter_officesettings_amount_and_more",
-        ),
+        ("libreosteoweb", "0059_alter_invoice_options"),
     ]
 
     operations = [
@@ -1628,17 +1619,11 @@ class Migration(migrations.Migration):
     ]
 ```
 
-**Si T1 a laissé `makemigrations --check` rouge** (cf. T1, étape 6), ajouter
-**en tête** de `operations` :
-
-```python
-(
-    migrations.AlterModelOptions(
-        name="invoice",
-        options={"ordering": ["-date", "-id"]},
-    ),
-)
-```
+**Caduc — tranché par le contrôleur le 2026-09-07.** T1 a engendré et versionné
+`0059_alter_invoice_options`, si bien que `makemigrations --check` était vert à sa
+clôture et que cette branche n'a plus d'objet. **La migration de T4 se numérote donc
+`0060`**, et elle ne porte que l'`AddConstraint` ci-dessus. Rien à ajouter en tête de
+`operations`.
 
 - [ ] **Étape 5 — constater le succès**
 
@@ -1688,14 +1673,14 @@ for _ in range(2):
     )
 print("AVANT :", list(Invoice.objects.values_list("id", "number")))
 
-# 3. Appliquer 0059 et lire ce qu'elle a fait
-call_command("migrate", "libreosteoweb", "0059", verbosity=1)
+# 3. Appliquer 0060 et lire ce qu'elle a fait
+call_command("migrate", "libreosteoweb", "0060", verbosity=1)
 print("APRES :", list(Invoice.objects.values_list("id", "number")))
 print("SEQ   :", OfficeSettings.objects.get(id=1).invoice_start_sequence)
 
 # 4. Rejouer : la reprise ne doit plus rien trouver
 call_command("migrate", "libreosteoweb", "0058", verbosity=1)
-call_command("migrate", "libreosteoweb", "0059", verbosity=1)
+call_command("migrate", "libreosteoweb", "0060", verbosity=1)
 print("REJEU :", list(Invoice.objects.values_list("id", "number")))
 PY
 ```
@@ -1711,7 +1696,7 @@ jetable plutôt que par une exécution sur `data/db.sqlite3`.
 
 ```bash
 make check
-git add libreosteoweb/models.py libreosteoweb/migrations/0059_invoice_unique_facture_numero_par_cabinet.py \
+git add libreosteoweb/models.py libreosteoweb/migrations/0060_invoice_unique_facture_numero_par_cabinet.py \
         libreosteoweb/tests/test_reprise_factures.py
 git commit -m "feat: unicite du numero de facture par cabinet, avec reprise du parc"
 ```
@@ -1730,7 +1715,7 @@ git commit -m "feat: unicite du numero de facture par cabinet, avec reprise du p
    ```
 2. **La migration importe du code applicatif.** C'est voulu et écrit dans
    l'en-tête du fichier de migration ; c'est aussi une dette : `reprise.py` ne
-   doit plus changer de sémantique une fois `0059` appliquée en production.
+   doit plus changer de sémantique une fois `0060` appliquée en production.
 
 **Critère d'achèvement** : `make check` vert, `makemigrations --check` sans
 proposition, les 273 tests préexistants toujours verts, et la contrainte visible
@@ -1795,7 +1780,7 @@ Ajouter à `libreosteoweb/tests/test_facturation.py` :
 ```python
 class TestRefusDuNumeroDejaEmis(APITestCase):
     """Le numero que la sequence va attribuer est deja pris : la contrainte
-    d'unicite de 0059 refuse l'INSERT. Le praticien doit recevoir un refus
+    d'unicite de 0060 refuse l'INSERT. Le praticien doit recevoir un refus
     explicite, jamais une 500.
 
     Deterministe, sans concurrence : la ligne conflictuelle est posee dans le
@@ -2874,7 +2859,7 @@ T4, T5, T6 et T7.*
    semer des doublons est un artifice de recette, pas un geste d'exploitation, et
    `R-INST-05` — la fiche symétrique — porte déjà son propre ensemencement
    (`docs/recette.md:568-586`). Le README reçoit en revanche la partie durable :
-   ce que `0059` fait, et ce que le retour arrière ne rend pas.
+   ce que `0060` fait, et ce que le retour arrière ne rend pas.
 
 - [ ] **Étape 1 — écrire `R-INST-08`**
 
@@ -2913,7 +2898,7 @@ Fiche à écrire, commandes comprises :
    ```
 
    Attendu :
-   `Unapplying libreosteoweb.0059_invoice_unique_facture_numero_par_cabinet... OK`,
+   `Unapplying libreosteoweb.0060_invoice_unique_facture_numero_par_cabinet... OK`,
    et rien d'autre à défaire si l'arbre ne porte aucune migration postérieure.
 2. Insérer par `psql` une copie de la facture de l'état E2, portant le **même
    numéro** `10000` et le même `officesettings_id`. La copie passe par une table
@@ -2941,7 +2926,7 @@ Fiche à écrire, commandes comprises :
 
    Attendu : **deux lignes**, portant toutes deux le numéro `10000` et le même
    `officesettings_id` — c'est le doublon que la contrainte interdira.
-3. Redémarrer le service applicatif, sur l'image portant `0059` :
+3. Redémarrer le service applicatif, sur l'image portant `0060` :
 
    ```sh
    MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
@@ -2953,7 +2938,7 @@ Fiche à écrire, commandes comprises :
    Attendu : `ps -a` affiche le service `libreosteo` **en fonctionnement**, et
    non `Exited` — c'est le contraire de `R-INST-05`, et c'est le cœur de cette
    fiche. Le journal porte, dans cet ordre :
-   `Applying libreosteoweb.0059_invoice_unique_facture_numero_par_cabinet... OK` ;
+   `Applying libreosteoweb.0060_invoice_unique_facture_numero_par_cabinet... OK` ;
    une ligne `Facture #<identifiant> renumérotée : 10000 devient 1000000.` ;
    la ligne récapitulative
    `Reprise du parc de facturation : 1 facture(s) renumérotée(s) pour rendre le
@@ -3058,7 +3043,7 @@ T2 : le parc `9999` / `10002` en est la condition.
 **Constat** : sur un parc dont les numéros n'ont pas tous la même longueur, une
 comparaison de textes classe `9999` au-dessus de `10002`. Le garde-fou de
 séquence l'aurait donc laissé ramener la numérotation sous un numéro déjà émis —
-et la contrainte d'unicité posée par `0059` aurait ensuite refusé la facture
+et la contrainte d'unicité posée par `0060` aurait ensuite refusé la facture
 suivante. C'est ce trou que cette fiche referme, sur les trois surfaces qui
 lisent ce maximum : la borne exposée au navigateur (étape 4), le refus serveur
 (étape 5) et la persistance (étape 6).
@@ -3198,7 +3183,7 @@ version » (qui se termine ligne 250) et avant « Use it in production »
 Duplicate invoice numbers on upgrade
 ====================================
 
-Migration ``0059`` adds a uniqueness constraint on ``(officesettings_id,
+Migration ``0060`` adds a uniqueness constraint on ``(officesettings_id,
 number)`` for invoices. Before adding it, the migration **repairs** the existing
 data rather than refusing to run: within each office, invoices sharing a number
 are ordered by ``id`` (the issue order); the oldest keeps its number, and every
