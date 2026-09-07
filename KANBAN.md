@@ -607,7 +607,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
   **Ce que cela change à la priorité des lots restants** : D6b est désormais le seul lot
   du chantier, et la question qu'il doit trancher — cible technique et stratégie de
-  bascule — se pose sur un filet qualifié (42 fiches sur 50 au navigateur). Le § « Ce que
+  bascule — se pose sur un filet qualifié (43 fiches sur 51 au navigateur). Le § « Ce que
   D6a lègue à D6b » de la spec
   (`docs/superpowers/specs/2026-09-06-d6a-filet-frontend-design.md:895`) en est la porte
   d'entrée.
