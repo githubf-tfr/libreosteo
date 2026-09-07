@@ -196,6 +196,22 @@ Tenu à la main.
   est déjà en l'absence de facture. Coût si faux : la date de la séance peut passer après
   la date figée de sa facture ; c'est exactement ce que la décision du 2026-09-06 accepte,
   et la trace de T7 le rend lisible.
+- (2026-09-07) **La reprise de parc renumérote, et elle renumérote haut.** Tranché par
+  l'utilisateur : ni le refus de migration ni une reprise manuelle ne sont des options —
+  une facturation en panne au démarrage est pire qu'un numéro changé. Confirme l'arbitrage
+  A1 de la spec de D7 et **amende A2** : la facture la plus ancienne (`id` minimal) garde
+  son numéro, les suivantes prennent le successeur de
+  `max(maximum numérique du cabinet, 999999)`, donc au moins `1000000`, préfixe conservé,
+  séquence avancée d'autant. Motif : l'utilisateur veut qu'un numéro issu de la reprise
+  soit reconnaissable et hors d'atteinte de la numérotation courante ; la séquence démarre
+  à 10000 par défaut (`libreosteoweb/api/invoicing/generator.py:88`,
+  `libreosteoweb/api/serializers/administration.py:114`) et une valeur de départ plus
+  petite a pu être posée à la main dans l'écran Cabinet. Coût si faux, accepté en
+  connaissance de cause : si un doublon existe, toute la numérotation du cabinet bascule à
+  sept chiffres définitivement. Rappel de contexte : le numéro de facture n'est jamais
+  saisi facture par facture, il est engendré depuis `OfficeSettings.invoice_start_sequence`
+  (`get_invoice_number`, `generator.py:73-101`) ; seule la valeur de départ de la séquence
+  est réglable à la main.
 
 ## À faire
 
