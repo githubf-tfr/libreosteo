@@ -110,10 +110,16 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
             ).values_list("number", flat=True)
             maximum = maximum_numerique_des_numeros(numeros)
             if maximum is not None:
-                # Le maximum numerique, et non le maximum lexicographique brut :
-                # ce dernier ramenait le prefixe avec lui, et `perform_update`
-                # exige ensuite une valeur `isnumeric()`.
-                data["invoice_start_sequence"] = _unicode(maximum)
+                # Le successeur du maximum numerique, pas le maximum lui-meme :
+                # `invoice_start_sequence` est le PROCHAIN numero a emettre, pas
+                # le dernier emis (`invoicing/generator.py:84-90` le lit, l'emet,
+                # puis persiste la valeur suivante ; `invoicing/reprise.py:129-133`
+                # porte le meme invariant). Poser `maximum` echouerait toujours
+                # le garde-fou de `perform_update`, qui exige une valeur
+                # strictement superieure au maximum — les trois surfaces qui
+                # lisent ce maximum (ici, `get_invoice_min_sequence` et
+                # `perform_update`) doivent dire la meme chose.
+                data["invoice_start_sequence"] = _unicode(maximum + 1)
             else:
                 data["invoice_start_sequence"] = _unicode(10000)
         elif not input_invoice_start_seq.isnumeric():

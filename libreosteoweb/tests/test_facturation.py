@@ -362,18 +362,36 @@ class TestMaximumDeSequenceSurLesTroisSurfaces(APITestCase):
         self.cabinet.refresh_from_db()
         self.assertEqual(self.cabinet.invoice_start_sequence, "10003")
 
-    def test_un_champ_vide_recalcule_la_sequence_sur_le_maximum_numerique(self):
+    def test_un_champ_vide_recalcule_la_sequence_sur_le_successeur_du_maximum(self):
         """Surface 3 : la valeur repositionnee quand le champ est laisse vide.
         Elle se lit sur `validated_data` du serialiseur — interface publique de
-        DRF, pas un rouage prive : le refus 403 que la vue oppose ensuite est le
-        meme avec l'ancien et le nouveau calcul, et ne discriminerait donc rien."""
+        DRF, pas un rouage prive. `invoice_start_sequence` est le PROCHAIN numero
+        a emettre, pas le dernier emis (`generator.py:84-90`, `reprise.py:129-133`) :
+        la valeur reposee est donc le successeur du maximum, comme la borne
+        minimale de la surface 1 (`invoice_min_sequence`), pas le maximum lui-meme."""
         serialiseur = apiserializers.OfficeSettingsSerializer(
             instance=self.cabinet,
             data={"invoice_start_sequence": ""},
             partial=True,
         )
         self.assertTrue(serialiseur.is_valid(), serialiseur.errors)
-        self.assertEqual(serialiseur.validated_data["invoice_start_sequence"], "10002")
+        self.assertEqual(serialiseur.validated_data["invoice_start_sequence"], "10003")
+
+    def test_un_champ_vide_reussit_et_repose_la_sequence_au_successeur_du_maximum(self):
+        """Bout en bout, surfaces 2 et 3 ensemble : vider le champ sur un cabinet
+        qui porte deja des factures ne doit plus jamais heurter le garde-fou
+        serveur — c'etait le defaut corrige ici, la reinitialisation annoncee au
+        praticien (officesettings.js:70) rendait systematiquement 403."""
+        self.cabinet.invoice_start_sequence = "5"
+        self.cabinet.save(update_fields=["invoice_start_sequence"])
+        reponse = self.client.patch(
+            reverse("officesettings-detail", kwargs={"pk": self.cabinet.id}),
+            data={"invoice_start_sequence": ""},
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.cabinet.refresh_from_db()
+        self.assertEqual(self.cabinet.invoice_start_sequence, "10003")
 
 
 class TestEncaissement(APITestCase):
