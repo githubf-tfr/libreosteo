@@ -801,10 +801,11 @@ class TestDateDeLaFacture(APITestCase):
         """« Recopiee a l'emission PUIS FIGEE » : la facture est un document
         opposable, elle ne suit pas les modifications ulterieures de la seance."""
         facture = self.facture()
-        self.client.patch(
+        reponse = self.client.patch(
             reverse("examination-detail", kwargs={"pk": self.consultation.id}),
             data={"date": (self.seance - timedelta(days=5)).isoformat()},
             format="json",
         )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         facture.refresh_from_db()
         self.assertEqual(facture.date, self.seance)
