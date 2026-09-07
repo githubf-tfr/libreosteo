@@ -15,7 +15,6 @@
 import logging
 
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import ValidationError
 from rest_framework.settings import api_settings
@@ -73,7 +72,14 @@ class Generator(object):
         if self.therapeut_settings.invoice_footer is not None:
             invoice.footer = self.therapeut_settings.invoice_footer
         invoice.number = self.get_invoice_number()
-        invoice.date = timezone.now()
+        # La date de la SEANCE, recopiee a l'emission puis figee (arbitrage du
+        # 2026-09-06). L'egalite des deux dates est ce que le produit doit
+        # garantir au moment ou la facture est emise ; la figer ensuite est ce
+        # qui empeche une redatation de deplacer un document fiscal deja remis.
+        # Consequence voulue : en facturation differee, la facture porte la date
+        # de la seance, pas celle de son emission — la Comptabilite se lit donc
+        # desormais par date de seance.
+        invoice.date = examination.date
         invoice.officesettings_id = self.office_settings.id
         return invoice
 
@@ -137,7 +143,11 @@ class Generator(object):
         credit_note.patient_address_city = invoice.patient_address_city
         credit_note.content_invoice = invoice.content_invoice
         credit_note.footer = invoice.footer
-        credit_note.date = timezone.now()
+        # La date de la facture annulee, et non celle du jour : elle vaut deja la
+        # date de la seance, et la reprendre ici evite de faire remonter la
+        # consultation jusqu'a `cancel_invoice`, qui ne la recoit pas et n'a
+        # aucune raison de la recevoir.
+        credit_note.date = invoice.date
         credit_note.type = "creditnote" if credit_note.amount < 0 else "invoice"
         credit_note.number = self.get_invoice_number()
         credit_note.status = models.InvoiceStatus.INVOICED_PAID

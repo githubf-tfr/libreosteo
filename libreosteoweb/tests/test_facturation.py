@@ -676,3 +676,54 @@ class TestTemplatize(TestCase):
                 self.assertEqual(
                     templatize("<amount>", {"amount": decimal}), locale.str(flottant)
                 )
+
+
+class TestDateDeLaFacture(APITestCase):
+    """La facture porte la date de la seance, recopiee a l'emission puis figee.
+
+    En facturation differee — le cas courant : une seance du mois dernier
+    facturee aujourd'hui — les deux dates divergent, et c'est justement la que la
+    regle se voit."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            self.reglages_praticien = cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet()
+            self.patient = cree_patient()
+            self.seance = timezone.now() - timedelta(days=40)
+            self.consultation = cree_consultation(
+                self.patient, therapeut=self.user, date=self.seance
+            )
+        self.client.login(username="test", password="testpw")
+
+    def facture(self):
+        reponse = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        return Invoice.objects.get(id=reponse.data["invoiced"])
+
+    def test_la_facture_porte_la_date_de_la_seance_et_non_celle_du_jour(self):
+        self.assertEqual(self.facture().date, self.seance)
+
+    def test_l_avoir_porte_la_date_de_la_facture_qu_il_annule(self):
+        facture = self.facture()
+        reponse = self.client.post(reverse("invoice-cancel", kwargs={"pk": facture.id}))
+        self.assertEqual(reponse.status_code, status.HTTP_202_ACCEPTED)
+        avoir = Invoice.objects.get(id=reponse.data["credit_note"]["id"])
+        self.assertEqual(avoir.date, facture.date)
+
+    def test_redater_la_consultation_ne_deplace_pas_la_facture_deja_emise(self):
+        """« Recopiee a l'emission PUIS FIGEE » : la facture est un document
+        opposable, elle ne suit pas les modifications ulterieures de la seance."""
+        facture = self.facture()
+        self.client.patch(
+            reverse("examination-detail", kwargs={"pk": self.consultation.id}),
+            data={"date": (self.seance - timedelta(days=5)).isoformat()},
+            format="json",
+        )
+        facture.refresh_from_db()
+        self.assertEqual(facture.date, self.seance)
