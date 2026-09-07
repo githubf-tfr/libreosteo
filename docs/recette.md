@@ -1686,11 +1686,24 @@ existante ne couvrait la casse.
    Attendu : la navigation ouvre la fiche du patient Picard sur la consultation
    redatée.
 
-**Constat** : une consultation déjà facturée peut être redatée, y compris
-au-delà de la date de sa facture — et la facture, elle, ne bouge pas (sa date a
-été figée à l'émission, cf. R-FAC-06). La contrepartie de cette liberté est la
-trace : c'est le journal, et lui seul, qui permet de constater après coup qu'une
-date de séance a été déplacée, par qui et de quand à quand.
+**Constat** : une consultation déjà facturée peut être redatée — et la facture,
+elle, ne bouge pas (sa date a été figée à l'émission, cf. R-FAC-06). La
+contrepartie de cette liberté est la trace : c'est le journal, et lui seul, qui
+permet de constater après coup qu'une date de séance a été déplacée, par qui et
+de quand à quand.
+
+Cette fiche ne redate qu'en arrière (étape 2) — sens déjà permis avant le
+renversement de la borne du 2026-09-06. Redater au-delà de la date de la
+facture, que ce renversement autorise désormais (`examination.js:358-366`),
+n'a pas d'équivalent manuel jouable ici : la consultation facturée de l'état E2
+est datée du jour de sa construction (chapitre 1, note « Ne pas modifier la
+date d'une consultation » qui suit l'étape E2.3), déjà à la borne haute
+(`maxExaminationDate`, fin du jour courant) — aucune date postérieure n'est
+saisissable depuis cet état. Le cas
+est couvert automatiquement, sans cette contrainte de date du jour :
+tests/functional/test_consultation.py::test_date_posterieure_a_la_facture_acceptee
+(la consultation et sa facture y sont d'abord reculées de 40 jours, laissant
+la marge nécessaire pour redater vers l'avant tout en restant dans le passé).
 
 ### Facturation
 
