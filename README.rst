@@ -296,6 +296,87 @@ existed before the repair, or the sequence value from before it ran. This is
 the same asymmetry as migration ``0058``, which restores ``double precision``
 columns without restoring the decimals it rounded away.
 
+Ingesting an archive from another version
+==========================================
+
+The "download database" function of the admin panel produces a ``.zip`` archive
+(``libreosteoweb/api/services/sauvegarde.py``): a ``meta`` file holding one line, the
+producing instance's ``libreosteoweb.__version__``; ``dump.json``, a Django fixture of
+every row; and the uploaded documents. Restoring is the same panel, in reverse.
+
+**The version lock.** Before touching anything, ``restaurer()`` reads ``meta`` and
+compares it to the *running* instance's ``libreosteoweb.__version__`` by strict string
+equality — ``0.6.8`` and ``0.6.9.dev0`` do not match, even though the latter descends from
+the former. A mismatch raises ``VersionIncompatible``, which the view turns into HTTP
+``412`` before a single row is read or written. Check an archive's producing version
+without loading it, and without extracting it yourself, with ::
+
+    unzip -p <archive.zip> meta
+
+**What a successful restore does, in order.** Once the lock passes: the archive's
+``dump.json`` and documents are extracted to a temporary directory; a single database
+transaction then flushes every application table (deferring ``django_content_type`` for
+its foreign keys) and reloads ``dump.json`` with ``loaddata`` — flush and reload share one
+transaction, so a failing reload leaves the pre-existing data untouched instead of an
+empty instance. **Migrations are not part of this at all.** The container's entrypoint
+runs ``manage.py migrate`` once, at startup, before ``uwsgi`` ever accepts a connection
+(``Docker/build/http-ready/Dockerfile``, the ``CMD`` line) — so every migration up to the
+one the running image was built at, ``0060`` included, has already been applied by the
+time an operator can even reach the "load a dump" screen. ``loaddata`` inserts straight
+into that already-migrated schema; it never runs a migration, and the ``0060`` repair
+described above never sees rows that arrive this way.
+
+**Three constraints the fork added since 0.6.8, and how to check an archive against them
+first.** An archive produced by an upstream instance predates whichever of these its
+``meta`` version predates. Each is checked below straight from the archive's
+``dump.json``, without restoring anything:
+
+- ``0057``, one patient per ``(family_name, first_name, birth_date)`` — a real ``UNIQUE``
+  index, ``family_name`` and ``first_name`` compared lower-cased. Group the
+  ``libreosteoweb.patient`` objects in ``dump.json`` by that tuple, lower-casing the two
+  name fields, and look for a group bigger than one.
+- ``0058``, invoice/payment/office-settings amounts stored as ``numeric(10, 2)``. Verified
+  directly against a throwaway PostgreSQL 18 (``create table t(amount numeric(10,2))``):
+  a value with more than two decimal places is silently **rounded** on insert (``12.345``
+  becomes ``12.35``, no error at all) — round-tripping this way is not restoration
+  failure, and it never surfaces to the operator. Only an absolute value of ``10^8`` or
+  more is refused, with ``ERROR: numeric field overflow``. Check ``libreosteoweb.invoice``,
+  ``libreosteoweb.paiment`` and ``libreosteoweb.officesettings`` amounts against that one
+  bound; two decimal places is a rounding concern, not a blocking one.
+- ``0060``, one invoice number per ``(officesettings, number)`` — another real ``UNIQUE``
+  index. Group the ``libreosteoweb.invoice`` objects the same way and look for a group
+  bigger than one.
+
+**What each violation produces.** A violated ``UNIQUE`` index (``0057`` or ``0060``) makes
+``loaddata`` raise ``IntegrityError``. ``sauvegarde.py:167-183`` lists ``IntegrityError``
+explicitly among the exceptions mapped to ``ArchiveInvalide`` — ahead of the broader,
+later ``except DatabaseError`` (``sauvegarde.py:184-185``), which the view would otherwise
+answer with a ``500`` instead. The view (``LoadDump.post``) turns ``ArchiveInvalide`` into
+HTTP ``412``, "This archive file seems to be incorrect.", and the atomic transaction
+around flush-and-reload means the instance's existing data stays untouched. This is not
+hypothetical: the same path, for the ``0057`` constraint, is exercised by
+``test_archive_dont_les_objets_violent_une_contrainte_d_integrite_est_refusee`` in
+``libreosteoweb/tests/test_exploitation.py:489-514``. The ``0058`` overflow case is
+different: ``numeric field overflow`` is a ``DataError``, a ``DatabaseError`` but *not* an
+``IntegrityError`` — it falls to the later, generic branch and comes back as HTTP ``500``,
+"The database failed while loading this archive.", which misnames the actual cause (an
+out-of-range amount in the archive, not an engine failure).
+
+A duplicate invoice number specifically cannot be restored this way at all, checked or
+not: the ``0060`` repair described above only ever runs as part of ``migrate``, against
+rows already sitting in the database, and never sees rows arriving through ``loaddata`` —
+restoring straight into an already-migrated instance is only viable for an archive that
+already satisfies the three constraints above.
+
+**The procedure**, once the three checks above are clean: start a fresh instance — an
+empty PostgreSQL 18 volume and this fork's images, following "Docker for testing only or
+with PostgreSQL" above — then lift the version lock by unzipping the archive, overwriting
+the one line in ``meta`` with the fork's own ``libreosteoweb.__version__``, and re-zipping
+it; then restore that edited archive through the admin panel's "load a dump" screen, same
+as for a same-version archive. Editing ``meta`` this way is not a function the product
+offers — it is the operator asserting, on the strength of the three checks above, that
+this specific archive's content is safe against the schema it is about to be forced into.
+
 Use it in production
 ====================
 You can use the software in production by changing some settings.
