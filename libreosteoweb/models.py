@@ -246,7 +246,7 @@ class Examination(models.Model):
     def _get_invoices_list(self):
         invoices_list = []
         if self.invoices is not None and self.invoices.all().count() > 0:
-            invoices = self.invoices.all().order_by("date")
+            invoices = self.invoices.all().order_by("date", "id")
             for invoice in invoices:
                 current_invoice = invoice
                 invoices_list.append(current_invoice)
@@ -264,10 +264,16 @@ class Examination(models.Model):
     def _get_last_invoice(self):
         if self.invoices.all().count() == 0:
             return None
-        invoices = self.invoices.all().order_by("-date")
+        # ("date", "id") et non "date" seule : depuis que `Invoice.date` est la
+        # date de la seance (T6), une facture, son avoir et sa facture
+        # corrective portent la MEME date, et le SGBD n'a aucune obligation de
+        # rendre un ordre stable sur des clefs de tri egales. `id` est un
+        # auto-increment : c'est l'ordre d'emission, exactement ce que cette
+        # lecture cherche.
+        invoices = self.invoices.all().order_by("-date", "-id")
         if invoices.first().canceled_by is not None:
             return self._resolve_invoice(invoices.first())
-        return self.invoices.latest("date")
+        return self.invoices.latest("date", "id")
 
     last_invoice = property(_get_last_invoice)
 
@@ -394,7 +400,10 @@ class Invoice(models.Model):
             self.date = timezone.now()
 
     class Meta:
-        ordering = ["-date"]
+        # Meme raison que `Examination._get_last_invoice` : a date egale, `id`
+        # departage sur l'ordre d'emission. C'est ce tri qui ordonne l'ecran
+        # Comptabilite.
+        ordering = ["-date", "-id"]
 
 
 class PaimentMean(models.Model):
