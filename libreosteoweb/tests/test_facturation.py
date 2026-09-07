@@ -504,6 +504,53 @@ class TestAnnulationFacture(APITestCase):
         self.assertEqual(self.annule().status_code, status.HTTP_400_BAD_REQUEST)
 
 
+class TestRefusDuNumeroDejaEmisAAnnulation(APITestCase):
+    """Meme collision que TestRefusDuNumeroDejaEmis, mais sur le chemin de
+    l'avoir : `Generator.cancel_invoice` tire son numero de la meme sequence
+    que l'emission (`get_invoice_number`), donc de la meme contrainte
+    `unique_facture_numero_par_cabinet` (0060)."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet(cancel_invoice_credit_note=True)
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+        creation = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+        self.facture = Invoice.objects.get(id=creation.data["invoiced"])
+        # La prochaine reservation de la sequence (10001) est deja prise : c'est
+        # elle que l'avoir va tenter de reprendre.
+        Invoice.objects.create(
+            date=timezone.now(),
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number="10001",
+            patient_family_name="Picard",
+            officesettings_id=self.cabinet.id,
+        )
+
+    def test_un_numero_deja_emis_rend_400_et_non_500_a_l_annulation(self):
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": self.facture.id}),
+            data={},
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("10001", str(reponse.data))
+        self.assertEqual(Invoice.objects.filter(number="10001").count(), 1)
+
+
 def envoi_factice(request, pk=None):
     """Substitut de SEND_INVOICE_FUNC : prouve l'indirection, sans envoyer quoi que ce soit."""
     return Response({"envoyee": pk})

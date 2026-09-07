@@ -95,12 +95,14 @@ class InvoiceViewSet(XLSXFileMixin, viewsets.ReadOnlyModelViewSet):
         if self.get_object().status != models.InvoiceStatus.CANCELED:
             officesettings = request.officesettings
             if officesettings.cancel_invoice_credit_note:
+                # `Generator.cancel_invoice` sauvegarde desormais l'avoir lui-meme, et
+                # convertit en 400 la meme collision de numero qu'a l'emission (T10) :
+                # une deuxieme `save()` ici referait l'INSERT deja fait.
                 cancelation = invoicing_generator.Generator(
                     officesettings, None
                 ).cancel_invoice(self.get_object())
                 canceled = self.get_object()
                 canceled.status = models.InvoiceStatus.CANCELED
-                cancelation.save()
                 canceled.canceled_by = cancelation
                 canceled.save()
                 response = {

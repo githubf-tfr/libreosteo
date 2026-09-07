@@ -152,7 +152,46 @@ class Generator(object):
         credit_note.number = self.get_invoice_number()
         credit_note.status = models.InvoiceStatus.INVOICED_PAID
         credit_note.officesettings_id = invoice.officesettings_id
+        try:
+            # Meme vigilance qu'a l'emission (T5,
+            # `ExaminationInvoiceHelper.generate_invoice`) : `credit_note.number`
+            # sort de la meme sequence (`get_invoice_number`), sous la meme
+            # contrainte `unique_facture_numero_par_cabinet` (0060). `transaction.atomic()`
+            # imbrique pour la meme raison : capturer l'IntegrityError sans lui
+            # laisserait la transaction de requete rompue (ATOMIC_REQUESTS).
+            with transaction.atomic():
+                credit_note.save()
+        except IntegrityError as erreur:
+            self._convertir_si_numero_deja_emis(credit_note, erreur)
         return credit_note
+
+    def _convertir_si_numero_deja_emis(self, invoice, erreur):
+        """Meme discrimination que `ExaminationInvoiceHelper._convertir_si_numero_deja_emis`
+        (T5, deja revue et approuvee) : reprise ici sans etre partagee, pour ne pas
+        toucher a une classe distincte dont le code approuve ne doit pas bouger."""
+        deja_pris = models.Invoice.objects.filter(
+            officesettings_id=invoice.officesettings_id, number=invoice.number
+        ).exists()
+        logger.warning(
+            "Refus d'intégrité à l'annulation d'une facture (cabinet %s, numéro %s)",
+            invoice.officesettings_id,
+            invoice.number,
+            exc_info=True,
+        )
+        if not deja_pris:
+            raise erreur
+        raise ValidationError(
+            {
+                api_settings.NON_FIELD_ERRORS_KEY: [
+                    _(
+                        "Credit note number %(number)s is already used in this "
+                        "office. Set the invoice start sequence above the last "
+                        "issued number, then cancel again."
+                    )
+                    % {"number": invoice.number}
+                ]
+            }
+        ) from erreur
 
 
 class ExaminationInvoiceHelper(object):

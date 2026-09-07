@@ -19,6 +19,15 @@ msgid "Invoice sequence updated from %(previous)s to %(actual)s"
 msgstr "Séquence de facturation modifiée de %(previous)s à %(actual)s"
 
 #, python-format
+msgid ""
+"Credit note number %(number)s is already used in this office. Set the "
+"invoice start sequence above the last issued number, then cancel again."
+msgstr ""
+"Le numéro d'avoir %(number)s est déjà utilisé dans ce cabinet. Réglez la "
+"séquence de départ des factures au-dessus du dernier numéro émis, puis "
+"annulez à nouveau."
+
+#, python-format
 msgid "Examination date updated from %(previous)s to %(actual)s"
 msgstr "Date de consultation modifiée du %(previous)s au %(actual)s"
 
