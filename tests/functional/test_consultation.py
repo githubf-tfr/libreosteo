@@ -277,22 +277,26 @@ def test_changement_de_date_dans_le_futur_refuse(
     assert timezone.localtime(consultation.date).date() == date_initiale
 
 
-def test_date_posterieure_a_la_facture_refusee(
+def test_date_posterieure_a_la_facture_acceptee(
     page: Page, live_server: LiveServer, consultation_facturee: Examination
 ) -> None:
-    """Cas repris de tests/core/011, « Change Date On Invoiced Examination Future ».
+    """Renversement de l'arbitrage A5 (KANBAN.md, 2026-09-07).
 
-    La consultation et sa facture sont reculees de 40 jours ; la cible visee (+20, donc
-    encore 20 jours avant aujourd'hui) reste dans le passe. `maxExaminationDate()`
-    (examination.js) refuse deja toute date future *que la facture existe ou non*, avec
-    le meme message : une cible future ne prouverait donc rien de propre a la regle de
-    facture, elle serait refusee de toute facon par la regle « pas de date future ». En
-    visant une date strictement entre la facture et aujourd'hui, seule la regle de
-    facture peut motiver le refus.
+    La borne de saisie ne derive plus de la facture : une consultation facturee
+    peut etre redatee vers l'avant, y compris au-dela de la date de sa facture.
+    C'est ce que la decision du 2026-09-06 pose — une consultation facturee PEUT
+    etre redatee, la trace etant la contrepartie, pas une borne. Ce test remplace
+    `test_date_posterieure_a_la_facture_refusee`, qui prouvait l'inverse.
+
+    La consultation et sa facture sont reculees de 40 jours ; la cible visee
+    (+20, donc encore 20 jours avant aujourd'hui) est posterieure a la facture
+    tout en restant dans le passe : la borne « pas de date future », elle,
+    demeure et refuserait une cible future pour une autre raison.
     """
     deplace_dates(consultation_facturee, jours=40)
     consultation_facturee.refresh_from_db()
     date_initiale = timezone.localtime(consultation_facturee.date).date()
+    nouvelle_date = date_initiale + timedelta(days=20)
 
     naviguer_vers_examen(
         page,
@@ -302,14 +306,18 @@ def test_date_posterieure_a_la_facture_refusee(
         date_initiale,
     )
     page.click("button.btn-default:has-text('Éditer')")
-    saisir_date_examen(page, date_initiale + timedelta(days=20))
+    saisir_date_examen(page, nouvelle_date)
     page.click('button.btn-default:has-text("Fin d\'édition")')
+    attendre_page_prete(page)
 
-    expect(page.locator(".tab-pane.active div.editable-error")).to_contain_text(
-        "La date est invalide"
+    expect(page.locator(".tab-pane.active div.editable-error")).to_have_count(0)
+    # Meme ambiguite d'id que dans test_date_anterieure_a_la_facture_acceptee :
+    # `:visible` la leve (le selecteur "h4" seul resout 16 elements).
+    expect(page.locator("#examinationDate:visible")).to_have_text(
+        libelle_date_longue(nouvelle_date)
     )
     consultation_facturee.refresh_from_db()
-    assert timezone.localtime(consultation_facturee.date).date() == date_initiale
+    assert timezone.localtime(consultation_facturee.date).date() == nouvelle_date
 
 
 def test_date_anterieure_a_la_facture_acceptee(

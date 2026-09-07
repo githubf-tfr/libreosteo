@@ -225,6 +225,13 @@ class Examination(models.Model):
     EXAMINATION_INVOICED_PAID = 2
     EXAMINATION_NOT_INVOICED = 3
 
+    # 5 et non 0-4 : sur `clazz="Examination"`, les types 0 a 4 sont ceux
+    # d'`Examination.type`, recopies tels quels par `receiver_examination`
+    # (`api/receivers.py:95`) et bornes par `ExaminationType`
+    # (`models.py:275-282`, cinq noms numerotes a partir de zero par `enum()`,
+    # `api/utils.py:25-31`). 5 est donc la premiere valeur libre.
+    TYPE_UPDATE_DATE = 5
+
     # i18n
     TYPE_NORMAL_EXAMINATION_I18N = _("Normal examination")
     TYPE_CONTINUING_EXAMINATION_I18N = _("Continuing examination")

@@ -19,6 +19,10 @@ msgid "Invoice sequence updated from %(previous)s to %(actual)s"
 msgstr "Séquence de facturation modifiée de %(previous)s à %(actual)s"
 
 #, python-format
+msgid "Examination date updated from %(previous)s to %(actual)s"
+msgstr "Date de consultation modifiée du %(previous)s au %(actual)s"
+
+#, python-format
 msgid "%s has downloaded the full list of patient"
 msgstr "%s a téléchargé la liste complète des patients"
 

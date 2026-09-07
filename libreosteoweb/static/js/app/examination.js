@@ -354,11 +354,14 @@ examination.directive('examination', ['ExaminationServ', 'PatientServ', 'Therape
         false
       );
 
-      // max date for examination
+      // Borne haute de la date d'une consultation : la fin du jour courant, et
+      // rien d'autre. La branche qui bornait sur la date de la derniere facture
+      // a ete retiree le 2026-09-07 : depuis que `Invoice.date` est la date de
+      // la seance, cette borne valait la date de la consultation elle-meme, et
+      // une consultation facturee n'aurait plus pu qu'etre reculee. Or la
+      // decision du 2026-09-06 pose qu'une consultation facturee PEUT etre
+      // redatee — la trace au journal en est la contrepartie, pas une borne.
       $scope.maxExaminationDate = function () {
-        if ($scope.model && $scope.model.last_invoice) {
-          return moment($scope.model.last_invoice.date).toISOString();
-        }
         return moment().endOf("day").toISOString();
       };
 

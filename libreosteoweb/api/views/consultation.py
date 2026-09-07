@@ -26,6 +26,7 @@ from rest_framework.settings import api_settings
 
 from libreosteoweb import models
 from libreosteoweb.api import serializers as apiserializers
+from libreosteoweb.api.events.consultation import redatation_event_tracer
 from libreosteoweb.api.events.settings import full_retrieve_examination_list
 from libreosteoweb.api.invoicing import generator as invoicing_generator
 
@@ -111,9 +112,18 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
     def perform_update(self, serializer):
         if not self.request.user.is_authenticated:
             raise Http404()
+        # L'ancienne date se lit AVANT `serializer.save()`, qui applique
+        # `validated_data` sur `serializer.instance` : apres, elle est perdue.
+        ancienne_date = serializer.instance.date
         if not serializer.instance.therapeut:
             serializer.save(therapeut=self.request.user)
         serializer.save(therapeut=serializer.instance.therapeut)
+        redatation_event_tracer(
+            serializer.instance,
+            self.request.user,
+            ancienne_date,
+            serializer.instance.date,
+        )
 
     def perform_destroy(self, instance):
         if not instance.status == 0:
