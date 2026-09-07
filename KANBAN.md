@@ -154,11 +154,11 @@ Tenu à la main.
 - (2026-09-07) **Arbitrage session centrale — périmètre de D7.** Retenu : les trois
   arbitrages de facturation du 2026-09-06 avec la reprise de parc que l'unicité exige, le
   garde-fou de séquence passé en comparaison numérique (`Points en suspens` du 2026-09-05),
-  et le rattachement des 15 tests Playwright qu'aucune fiche de `docs/recette.md` ne nomme
-  (légué par D6a, et D7 tient déjà le cahier). Écartés, avec leur motif : les trois résidus
-  frontend légués par D6a restent à D6b, qui réécrit ces écrans ; Whoosh et le ménage
-  restent des candidats de lot ultérieur ; le contrôle d'accès par objet reste tranché
-  « pas pour le moment » (2026-09-06).
+  et le rattachement des ~~15~~ **14** tests Playwright qu'aucune fiche de
+  `docs/recette.md` ne nomme (légué par D6a, et D7 tient déjà le cahier). Écartés, avec
+  leur motif : les trois résidus frontend légués par D6a restent à D6b, qui réécrit ces
+  écrans ; Whoosh et le ménage restent des candidats de lot ultérieur ; le contrôle
+  d'accès par objet reste tranché « pas pour le moment » (2026-09-06).
 - (2026-09-07) **Cadrage de D7, facturation.** Spec validée :
   `docs/superpowers/specs/2026-09-07-d7-facturation-design.md`. Neuf tâches. Les huit
   arbitrages qu'elle porte sont confirmés par la session centrale, **sauf A5, renversé**
@@ -610,6 +610,202 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-07 — D7 Facturation livré** (dix tâches, plus une vague de correction finale
+  en sept points ; spec `docs/superpowers/specs/2026-09-07-d7-facturation-design.md`).
+  Vingt-neuf commits `092b72d..91375bc` : les factures d'une consultation se trient sur
+  `(date, id)` et la migration `0059` grave le nouvel ordre (`c05d982`, `47e2232`, T1) ;
+  le garde-fou de séquence compare des nombres et non des textes, sur ses trois surfaces
+  (`3fa948f`, T2) ; la reprise d'un parc à numéros dupliqués renumérote en bande haute
+  (`8a0b68c`, `96a800a`, T3) ; l'unicité `(officesettings_id, number)` est posée par la
+  migration `0060` (`006fc92`, T4) ; le refus 400 arrive à l'émission (`877839f`, T5)
+  puis sur le chemin de l'avoir (`d14d72b`, T10), les deux garde-fous étant ensuite
+  factorisés en un seul (`c894f72`) et le message de T5 traduit (`d48cd65`) ;
+  `Invoice.date` est recopiée de la séance à l'émission (`9f5bf1f`, T6) ; la redatation
+  d'une consultation est tracée au journal et la borne client déliée de la facture
+  (`041a1ad`, T7) ; douze tests fonctionnels orphelins sont rattachés au cahier et deux
+  laissés hors champ à dessein (`de1a08a`, `d60eef1`, T9) ; quatre fiches de recette
+  neuves — `R-INST-08`, `R-CAB-04`, `R-CON-04`, `R-FAC-06` — plus quatre fiches touchées
+  et la reprise de parc écrite au `README.rst` (`42dce4a`, T8). La vague finale ferme
+  sept points : cible de retour arrière de `0060` (`cc8ce42`), champ de séquence vidé
+  (`57da812`), annotation de `maximum_numerique_des_numeros` (`518da4d`), deux tests
+  rendus discriminants (`7b65d3a`, `dbad095`), `R-CAB-04` et `R-CON-04` recadrées sur ce
+  que leurs étapes prouvent (`c03267c`, `5e76a56`), spec alignée sur le renversement de
+  A5 (`91375bc`).
+
+  **Les décisions de fond, avec leur motif :**
+  - **Unicité `(officesettings_id, number)`, et reprise de parc en bande haute.**
+    L'unicité porte sur le couple et sur la valeur brute de la colonne — le multi-cabinet
+    est réel et la séquence est déjà par cabinet, `W100` et `100` restent deux numéros
+    distincts (`libreosteoweb/models.py:422-427`). La migration `0060` ne refuse pas :
+    elle renumérote, parce qu'un refus transformerait un historique en panne de
+    facturation au démarrage. La plus ancienne du doublon garde son numéro (`id`, ordre
+    d'émission) ; les suivantes prennent le successeur du maximum **numérique** du même
+    cabinet, plancher `PLANCHER_RENUMEROTATION = 999999`
+    (`libreosteoweb/api/invoicing/reprise.py:52,121`) pour que les numéros repris ne
+    puissent pas retomber dans une plage déjà servie.
+  - **`Invoice.date` est recopiée de la séance puis figée.** `invoice.date =
+    examination.date` à l'émission (`libreosteoweb/api/invoicing/generator.py:121`), et
+    l'avoir reprend la date de la facture qu'il annule, pas celle de la séance
+    (`:189`). Une redatation ultérieure ne déplace plus la facture : l'immuabilité est
+    structurelle, `InvoiceViewSet` étant un `ReadOnlyModelViewSet`
+    (`libreosteoweb/api/views/facturation.py:60`). Conséquence assumée : une facture émise
+    aujourd'hui pour une séance du mois dernier sort de la Comptabilité du mois courant.
+  - **Trace de redatation, et borne client déliée de la facture.** Le type
+    `Examination.TYPE_UPDATE_DATE = 5` (`libreosteoweb/models.py:233`) est écrit par
+    `libreosteoweb/api/events/consultation.py:54` ; le journal du tableau de bord
+    l'affiche sans une ligne de JavaScript. En contrepartie, la branche qui bornait la
+    date d'une consultation sur celle de sa dernière facture est **retirée**
+    (`libreosteoweb/static/js/app/examination.js:357-366`) : depuis que `Invoice.date`
+    vaut la date de la séance, cette borne valait la date de la consultation elle-même et
+    une consultation facturée n'aurait plus pu qu'être reculée — or la décision du
+    2026-09-06 pose qu'elle peut être redatée, la trace étant la contrepartie et non une
+    borne. C'est le renversement de l'arbitrage A5 de la spec, acté le jour même.
+  - **Refus 400 sur les deux chemins d'écriture.** Un numéro déjà émis est refusé avec un
+    message métier, jamais par une 500, à l'émission comme à l'annulation. Les deux
+    appelants partagent `_convertir_si_numero_deja_emis(invoice, erreur, message)`
+    (`libreosteoweb/api/invoicing/generator.py:28-65`), qui discrimine sur
+    `(officesettings_id, number)` et re-lève toute autre violation d'intégrité ; les deux
+    `transaction.atomic()` imbriqués restent chez les appelants (`:201`, `:274`), et les
+    deux messages au praticien restent distincts au catalogue.
+
+  **Critère d'arrêt — ce qui est constaté, et ce qui reste à constater.** Le lot n'est pas
+  clos au sens de son critère : **une seule des six clauses est pleinement constatée** (la
+  3), la sixième l'est sur un critère amendé (voir ci-dessous), et les quatre autres — 1,
+  2, 4 et 5 — attendent une instance conteneur.
+  - **Constaté** — `make check` vert au commit `91375bc` : `ruff check`, `ruff format
+    --check`, `mypy` (`Success: no issues found in 116 source files`), `makemigrations
+    --check`, **314 tests**, couverture **91,54 %**. Les trois cliquets tiennent et l'un
+    monte : `fail_under` reste à `90`, `select`/`ignore` de `ruff` inchangés, le
+    périmètre `mypy` passe de 111 à 116 fichiers (`pyproject.toml`, `[tool.mypy].files`).
+  - **Constaté** — clause 3, le refus propre : `.venv/bin/python -m pytest
+    libreosteoweb/tests/ -k "numero" -q` rend **25 passed** à `91375bc`, assertions
+    portant sur un 400 et sur le texte français du message, jamais sur un 500.
+  - **Constaté** — la migration réellement jouée `0058 → 0060` sur une base SQLite jetable
+    par le sous-agent de T4, jamais sur `data/db.sqlite3` : deux factures `10000` semées,
+    une renumérotée en `1000000`, séquence avancée à `1000001`, chaque renumérotation
+    nommée au journal ; retour à `0058` puis rejeu de `0060` rendant exactement le même
+    état, donc idempotent.
+  - **Partiellement constaté** — la suite fonctionnelle a été verte en entier
+    (`53 passed`, 517 s) au commit `9f5bf1f`, avant que T7 ne touche
+    `tests/functional/`. À `041a1ad` elle rendait
+    `52 passed, 1 failed` — un flake attribué à D6a (`e8c92b7`), non à D7, et corrigé par
+    `7c7c5e9`, qui a démontré cinq exécutions vertes consécutives du test fautif en
+    isolation. **Une exécution complète et verte à `91375bc` n'a pas été enregistrée** :
+    elle reste à jouer.
+  - **Reste à constater** — les clauses 1, 2, 4 et 5, qui ne se prouvent que sur une
+    instance montée : la contrainte visible dans le `psql` du déploiement de référence, la
+    fiche **`R-INST-08`** en premier (un parc à doublons qui monte sans intervention, avec
+    son journal de renumérotation et un second `up` qui ne renumérote plus rien),
+    `R-FAC-06` et `R-CON-04` au navigateur. **Aucune des quatre fiches neuves ni des
+    quatre fiches touchées n'a été jouée sur instance conteneur.** `R-INST-08` est celle
+    qui compte : elle est la seule à mesurer le risque central du lot, et la seule
+    répétition générale possible sur données réelles — l'archive de production appartient
+    à l'utilisateur, ni la session ni ses sous-agents n'y ont accès.
+
+  **Clause 6 amendée, et non satisfaite.** La commande d'orphelins de la spec devait rendre
+  zéro ligne ; elle en rend **deux** à `91375bc`, et c'est le résultat voulu.
+  `test_les_statiques_de_l_application_sont_servis` et
+  `test_la_page_sert_les_bundles_compresses` (`tests/functional/test_authentification.py`)
+  sont des sentinelles d'infrastructure de test : la première tombe si la bascule du
+  `conftest` saute, la seconde constate qu'un bundle compressé unique est servi sous les
+  réglages de développement. Aucune n'a d'attendu correspondant dans une fiche —
+  `R-AUTH-02` ne parle pas de `jsi18n` ni du chargement d'Angular, `R-INST-07` ne parle ni
+  de compression ni de développement mais de deux constructions comparées. Le motif de
+  chacune est écrit en toutes lettres dans son champ « Couverture auto »
+  (`docs/recette.md:719-724` pour `R-INST-07`, `:947-955` pour `R-AUTH-02`). Le critère a
+  été **amendé plutôt que satisfait** parce que le satisfaire aurait exigé un rattachement
+  faux : un test cité par une fiche fait croire à une preuve d'écran qui n'existe pas, ce
+  qui est pire que l'absence de preuve. Un orphelin visible et motivé se relit ; un faux
+  rattachement, non. Conséquence assumée et non tue : `R-INST-07` reste en couverture
+  manuelle, comme avant D7.
+
+  **Diagnostic du parc de production, 2026-09-07 — parc sain.** L'utilisateur a exécuté
+  lui-même un diagnostic en lecture seule sur son archive, par un script hors dépôt
+  n'écrivant que des agrégats : **la donnée de santé n'a transité ni par la session ni par
+  ses sous-agents**, et le contrôleur n'a jamais eu accès au fichier. Résultat : **2105
+  factures**, **un seul cabinet**, **zéro couple `(cabinet, numéro)` en double**, zéro
+  numéro non convertible et **aucun préfixe**, partie numérique contiguë de `123456789` à
+  `123458893`, `invoice_start_sequence` à `123458894`. Deux conséquences : la reprise de
+  T3/T4 **ne s'exécutera jamais sur ce parc** — `0060` pose la contrainte sur des données
+  déjà conformes ; et **`PLANCHER_RENUMEROTATION` y est inerte**, le maximum dépassant
+  largement le million, si bien que l'annonce faite à l'utilisateur le 2026-09-07 (« la
+  numérotation bascule à sept chiffres ») est **fausse pour lui** — un doublon y aurait été
+  repris à `123458894`, dans la continuité. Le plancher reste : inerte ici, filet pour un
+  parc dont le maximum est inférieur à un million.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **La recopie de date cassait l'ordre des factures d'une consultation.** Une facture,
+    son avoir et la facture corrective portent désormais la même date : les trois lectures
+    qui triaient sur `date` seule auraient rendu un numéro tiré au sort à l'écran de
+    consultation. D'où la dépendance **T1 avant T6**, découverte au cadrage : l'ordre passe
+    à `(date, id)` **avant** que la recopie n'arrive
+    (`libreosteoweb/models.py:256,280,283,413`).
+  - **Le défaut lexicographique avait trois occurrences, pas une.** Le point en suspens du
+    2026-09-05 n'en nommait qu'une, le garde-fou de `perform_update`
+    (`libreosteoweb/api/views/administration.py:135-140`). Les deux autres sont la borne
+    minimale exposée au client (`get_invoice_min_sequence`,
+    `libreosteoweb/api/serializers/administration.py:154`) et la valeur reposée quand le
+    praticien vide le champ (`:107-123`). Les trois partagent désormais
+    `maximum_numerique_des_numeros` et le même invariant.
+  - **Le chemin de l'avoir tirait son numéro de la même séquence, et la contrainte posée
+    par le lot le transformait en 500.** `Generator.cancel_invoice`
+    (`libreosteoweb/api/invoicing/generator.py:156`), appelé par `InvoiceViewSet.cancel`
+    (`libreosteoweb/api/views/facturation.py:93`), sauvegarde hors du point d'écriture que
+    T5 gardait ; avant D7 une collision y créait un doublon
+    silencieux, après D7 elle devenait une panne. **Le défaut était créé par le lot, pas
+    hérité** : d'où l'ouverture de T10 en cours de route, sur un chemin que la spec disait
+    pouvoir attendre.
+  - **Un message utilisateur peut être « conforme à la convention i18n » et rester en
+    anglais.** Le refus de T5 est resté non traduit du 2026-09-07 jusqu'à `d48cd65`, alors
+    qu'une revue avait validé la convention — sans vérifier que l'entrée existait au
+    catalogue. Leçon portée au § Pièges rencontrés.
+  - **Vider le champ de séquence rendait systématiquement 403 au lieu de réinitialiser.**
+    `OfficeSettingsSerializer.validate` reposait la séquence sur le maximum lui-même, alors
+    que `get_invoice_min_sequence` rend `maximum + 1` et que `perform_update` exige une
+    valeur strictement supérieure : dès qu'une facture convertible existait, la
+    réinitialisation annoncée au praticien (`static/js/app/officesettings.js:70`) était
+    impossible. Défaut préexistant, trouvé par la revue finale, corrigé par `57da812` —
+    `invoice_start_sequence` est le **prochain** numéro à émettre, pas le dernier émis.
+  - **Une contrainte neuve change la lecture des archives, pas seulement celle de la
+    base.** Cf. le point ouvert au § Points en suspens ci-dessous : la restauration charge
+    un `dump.json` dans une base déjà migrée, la reprise ne voit jamais ces lignes.
+
+  **Ce que cela change à la priorité des lots restants.** Le chantier « dette technique »
+  compte désormais **sept lots clos** — D1 Exposition, D2 Conteneur, D3 Intégrité, D4
+  Socle, D5 Build, D6a Filet frontend, D7 Facturation — et **un seul restant, D6b**, la
+  bascule de framework, **toujours à cadrer** : sa cible technique et sa stratégie de
+  bascule ne sont pas choisies, et se décident sur ce que D6a a mesuré (§ « Ce que D6a
+  lègue à D6b » de sa spec). D7 était le dernier lot devant D6b, place que lui donnait
+  l'arbitrage du 2026-09-07 ; cette place est consommée. Les deux autres candidats
+  identifiés le 2026-09-06, **Whoosh** et **Ménage**, **n'ont pas été traités par D7** —
+  ils étaient explicitement écartés de son périmètre — et **restent des candidats** de lot
+  ultérieur, à réévaluer après D6b.
+
+  **Ce que cela change au chapeau**, y compris ce que D7 renvoie plus loin :
+  - **trois constats différés laissés ouverts, avec leur motif** :
+    - la branche `raise erreur` de `_convertir_si_numero_deja_emis`
+      (`libreosteoweb/api/invoicing/generator.py:28-65`) n'est exercée par aucun test —
+      logique triviale, vérifiable par lecture, mais elle **compte double depuis que le
+      garde-fou est partagé** par les deux chemins d'écriture ; à couvrir le jour où une
+      seconde contrainte d'intégrité apparaîtra sur `Invoice` ;
+    - le typage `Mapping[int, str | None]` de
+      `libreosteoweb/api/invoicing/reprise.py:78` type défensivement un champ qui n'est
+      jamais `NULL` (`libreosteoweb/models.py:530`, `TextField(blank=True)`) et qu'aucun
+      test n'exerce dans ce cas ; laissé tel quel, le resserrer n'apporterait rien qu'une
+      contrainte de plus sur un code de migration ;
+    - le `logger.warning` est **devenu commun aux deux chemins** après la factorisation
+      (`libreosteoweb/api/invoicing/generator.py:56-62` : « … sur un numéro de facture ou
+      d'avoir », les mentions « à l'émission » / « à l'annulation » ayant disparu). La
+      distinction reste retrouvable par `exc_info=True`, dont le cadre d'appel diffère, et
+      par `invoice.type` (`"invoice"` contre `"creditnote"`) ; aucun test n'observe ce
+      texte, c'est du diagnostic serveur et non un comportement produit ;
+  - **le cahier de recette passe de 52 à 56 fiches** (`grep -c '^### R-' docs/recette.md`),
+    et `grep -c '^- \*\*Couverture auto\*\* : non' docs/recette.md` rend **10** contre 9
+    avant D7 — neuf fiches plus la ligne du gabarit du chapitre 2, la seule manuelle neuve
+    étant `R-INST-08`, qui ne peut se jouer que sur une instance montée ;
+  - **la passe de recette de D7 reste entièrement à jouer**, et elle est le seul endroit
+    où `R-INST-08` peut être constatée.
+
 - **2026-09-07 — D6a Filet frontend livré** (dix-neuf tâches ; spec
   `docs/superpowers/specs/2026-09-06-d6a-filet-frontend-design.md`, plan supprimé une fois
   achevé). Vingt commits `efa5c65..a29d205` (T1 à T18) puis la série de clôture de T19 :
@@ -697,8 +893,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     (arbitrages R28 et R29), que `manage.py compress` n'écrit jamais lui-même ;
   - **deux constats versés au passage** : les scripts chargés depuis `oss.maxcdn.com`
     (`account/login.html:23-24`, domaine éteint, bloc conditionnel IE8, hors périmètre) et
-    les **15 tests Playwright qu'aucune fiche de `docs/recette.md` ne nomme**, dont le
-    rattachement inverse est un travail de tenue du cahier ;
+    les **~~15~~ 14 tests Playwright qu'aucune fiche de `docs/recette.md` ne nomme**
+    (compte rectifié le 2026-09-07 : la commande de la clause 6 de la spec D7 en rendait
+    **14** sur l'arbre de `092b72d`, pas 15), dont le rattachement inverse est un travail
+    de tenue du cahier — **fait par D7** : douze rattachés, deux laissés hors champ à
+    dessein et motivés (cf. « Terminé », clause 6 amendée) ;
   - **dette de duplication laissée telle quelle, le plan ne prescrivant pas sa
     remontée** : `revenir_a_la_chronologie` (3 copies : `test_facturation.py`,
     `test_tableau_de_bord.py`, `test_patient.py`) et `definir_nom_du_therapeute`
@@ -2033,6 +2232,18 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Pièges rencontrés
 
+- **2026-09-07 (D7, T5 puis T10)** — **Un message utilisateur neuf peut être « conforme à
+  la convention i18n » et sortir en anglais.** Le refus 400 d'un numéro de facture déjà
+  émis a été livré par T5 (`877839f`) avec un `_( ... )` correctement écrit, et la revue
+  de la tâche a validé la convention — **sans vérifier que le msgid existait au
+  catalogue**. Le message est resté en anglais jusqu'à `d48cd65`, découvert par la tâche
+  jumelle T10 qui écrivait le message symétrique de l'avoir. Le test de T5 n'a rien
+  attrapé : il portait sur le code 400, pas sur le texte. **Tout message utilisateur
+  neuf se contrôle désormais sur trois plans indépendants** — msgid présent au `.po` et
+  identique caractère pour caractère à la concaténation des littéraux du code, `.mo`
+  recompilé (vérifiable par `msgunfmt`), et sortie française prouvée par un test qui
+  porte sur le texte traduit. Vérifier l'un des trois ne dit rien des deux autres.
+
 - **2026-09-01 (S4, tâche 1)** — Trois écarts trouvés en prouvant le montage
   `Docker/deploy/pg/docker-compose.yml` de bout en bout (jamais monté en sandbox
   avant cette tâche), détail complet dans
@@ -2504,6 +2715,24 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
 
 ### Ouvert par le chantier « dette technique »
 
+- **2026-09-07 — la restauration d'archive court-circuite la reprise de `0060`.**
+  `libreosteoweb/api/services/sauvegarde.py:70-166` charge le `dump.json` d'une archive
+  dans une base **déjà migrée**, contrainte `unique_facture_numero_par_cabinet` comprise,
+  puis appelle `loaddata` (`:158`). La reprise de parc de D7 ne s'exécute qu'à la
+  migration d'une base en place : elle ne voit jamais les lignes d'une archive. Une
+  archive antérieure à D7 portant des doublons de numéro devient donc **irrestaurable**,
+  sans issue automatique. Le **rapport** de cet échec est en revanche correct :
+  `sauvegarde.py:167-183` capture `IntegrityError` **avant** `DatabaseError` (`:184`) et
+  la convertit en `ArchiveInvalide`, que la vue rend en **412**
+  (`libreosteoweb/api/views/administration.py:243-250`) — « archive incorrecte », et non
+  « panne de moteur ». `libreosteoweb/tests/test_exploitation.py:489-514` le prouve déjà
+  pour la contrainte de `0057`, et D7 ne change rien à ce chemin. **Ce point n'est donc
+  pas une variante du défaut de `sauvegarde.py:158` consigné le 2026-09-05** pour
+  `decimal.InvalidOperation` : le défaut est bien rapporté comme défaut d'archive.
+  Il reste **théorique sur le parc diagnostiqué le 2026-09-07** (zéro doublon, cf.
+  « Terminé ») : consigné, aucune tâche ouverte. Ce qui manque pour trancher : décider si
+  une archive à doublons doit être reprise au chargement, à la manière de `0060`, ou
+  refusée en connaissance de cause.
 - **2026-09-06 — `R-INST-05` étape 3 rend l'ordre `Applying …` / `CommandError`
   inversé dans le journal Docker, et ce n'est pas corrigé.** Constaté deux fois sous
   D4, avec deux manifestations différentes : à la clôture de l'incrément PostgreSQL,
@@ -2536,6 +2765,17 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   l'unicité doit porter sur `(officesettings_id, number)`, avec la reprise de parc que
   cela exige (cf. « Décisions actées » et « Candidats pour D7 » § Facturation) ; la
   comparaison de ce garde-fou doit devenir numérique dans le même lot.
+  **Clos le 2026-09-07 par D7** : la contrainte `unique_facture_numero_par_cabinet` est
+  posée par la migration `0060` (`libreosteoweb/models.py:422-427`), qui renumérote
+  d'abord les parcs à doublons au lieu de refuser de monter (T3, T4) ; un second numéro
+  identique est désormais refusé en 400 avec un message métier sur les deux chemins
+  d'écriture (T5, T10) ; et les **trois** surfaces qui comparaient un maximum
+  lexicographique — le garde-fou de `perform_update`
+  (`libreosteoweb/api/views/administration.py:135-140`), la borne minimale exposée au
+  client (`libreosteoweb/api/serializers/administration.py:154`) et la valeur reposée
+  quand le praticien vide le champ (`:107-123`) — partagent maintenant
+  `maximum_numerique_des_numeros` (`libreosteoweb/api/utils.py:84`) et le même invariant
+  « prochain numéro à émettre, pas dernier émis » (T2, plus `57da812`).
 - **2026-09-05 — l'index Whoosh n'est pas transactionnel.** `RealtimeSignalProcessor`
   (`Libreosteo/settings/base.py`) écrit l'index à chaque `save()`, hors de toute
   transaction : sous `ATOMIC_REQUESTS` (D3), une requête annulée peut laisser dans
