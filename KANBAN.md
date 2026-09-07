@@ -382,11 +382,18 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 ### Renvoyé par D5 (2026-09-06)
 
-- **La passe de confirmation de `R-INST-07` reste à jouer.** La passe 1 a eu lieu le
-  2026-09-06T10:47:31+02:00 (commit `d84fdb2`), empreinte des artefacts servis
-  `dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`. Une seconde passe, à
-  une date réellement différente, reste à jouer pour confirmer la reproductibilité dans le
-  temps — cf. « Terminé » ci-dessous, § « Critère d'arrêt ».
+- **La passe de confirmation de `R-INST-07` reste à jouer, reconduite par D6a
+  (2026-09-07).** La passe 1 de D5 a eu lieu le 2026-09-06T10:47:31+02:00 (commit
+  `d84fdb2`), empreinte des artefacts servis
+  `dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`, sur neuf noms
+  `output.<hash>`. **Cette valeur devient caduque** : D6a a changé cinq des neuf bundles
+  (trois par le retrait de `ngRoute`, deux par le retrait des règles CSS orphelines) et en
+  a fait disparaître un sixième, déjà touché (le bundle JS de `404.html`, retiré en bloc —
+  cf. « Terminé » ci-dessous, § D6a). La référence porte désormais sur l'empreinte de D6a,
+  2026-09-07T02:45:20+02:00 (commit `a29d205`) :
+  `4f388c0a9c7a988e39ce4a58a98719370678e3a3daa501176c86946d2c3ed21e`, sur **huit** noms.
+  Une seconde passe, à une date réellement différente, reste à jouer pour confirmer la
+  reproductibilité dans le temps.
 - **`FROM python:3.14-alpine` reste le dernier intrant mobile de la chaîne de
   construction**, et c'est assumé, pas oublié : le couplage aux versions `apk` de
   `nodejs`/`npm` que ce même lot épingle est voulu, puisqu'il fait échouer la
@@ -529,6 +536,98 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-07 — D6a Filet frontend livré** (dix-neuf tâches ; spec
+  `docs/superpowers/specs/2026-09-06-d6a-filet-frontend-design.md`, plan supprimé une fois
+  achevé). Vingt commits `bfbc160..a29d205` (T1 à T18) puis la série de clôture de T19 :
+  cible `make static` unique, `test-functional` en dépend, préparation CI alignée dessus
+  (T1, T3) ; la suite Playwright sert désormais les bundles compressés,
+  `COMPRESS_ENABLED = True` sur l'arbre collecté (T2) ; 21 fiches de `docs/recette.md`
+  gagnent une preuve d'écran, 8 restent manuelles avec leur motif (T5-T13) ; `loTypeAhead`,
+  `ngRoute`, quatre règles CSS orphelines et `loInlineEdit` purgés (T14-T16, T18) ;
+  `404.html` ne charge plus le bundle JS qui ne s'exécutait jamais et gagne sa fiche
+  `R-ERR-01` sous un quatorzième domaine « Pages d'erreur » (T17-T18).
+
+  **Critère d'arrêt constaté par une exécution réelle** — clôture du 2026-09-07, commit
+  `a29d205`, image `libreosteo/libreosteo-http:a29d205` rebâtie pour l'occasion :
+  1. La suite exerce l'arbre livré : `rm -rf static/CACHE && make static` rend **huit**
+     noms `output.<hash>` (six CSS, deux JS), identiques à ceux de l'image du même commit
+     (`diff` vide) ; `make test-functional` rend **53 passed, 0 échec** (425,03s) ; le
+     grep de préparation résiduelle en CI
+     (`collectstatic\|compilejsi18n\|yarn install` sur `.github/workflows/main.yml`) rend
+     `0`.
+  2. Le filet couvre 42 fiches sur 50 au navigateur : `grep -c '^- **Couverture auto** :
+     non' docs/recette.md` rend **9** (huit fiches, plus le gabarit du chapitre 2) ;
+     `grep -c '^### R-'` rend **52** ; le comptage apparié restreint au chapitre 3 rend
+     **43** fiches nommant un `tests/functional/…::…` (les 42 fiches d'origine du lot,
+     plus `R-ERR-01`, neuve et couverte dès sa création), **0** fiche couverte par un test
+     unitaire seul, **8** à `non`, chacune avec son motif déjà écrit. Aucune fiche n'a pris
+     la porte de sortie : le compte de la spec (42/50, 8 manuelles) tient tel quel, sans
+     ajustement.
+  3. Le mort est enterré : `typeahead.js`, `typeahead-list.html`, `inline-edit.js`,
+     `inline-textarea.html` absents de l'arbre ; `libreosteoweb/static/js/app/templates/`
+     n'existe plus ; `grep -rn "'ngRoute'\|angular-route" libreosteoweb/ package.json` ne
+     rend rien ; `css/typeahead.css` ne porte plus qu'une règle vivante,
+     `.search-container` — le seul écart au relevé littéral de la fiche
+     (`grep -c 'typeahead-'` y rend `1`, pas `0`) est le commentaire qui explique pourquoi
+     le fichier garde son nom et qui cite, en toutes lettres, le fichier disparu
+     (`typeahead-list.html`) ; aucune règle CSS ne survit.
+  4. `404.html` ne lève plus rien :
+     `test_pages_erreur.py::test_la_page_404_ne_leve_aucune_erreur_de_console` passe (T18
+     a établi qu'il échouait avant le correctif).
+  5. `main` est livrable : `make check` vert, les trois cliquets tenus (`fail_under` 90,
+     `mypy` 111 modules, `ruff` `select`/`ignore` inchangés — aucun fichier applicatif ni
+     test neuf dans T19) ; `R-INST-07` rejouée sur ce même commit — nouvelle empreinte (b)
+     ci-dessous ; aucune image `libreosteo/*` ne subsiste après le ménage de T19.
+
+  **`R-INST-07` — nouvelle empreinte (b), 2026-09-07T02:45:20+02:00, commit `a29d205`** :
+  `4f388c0a9c7a988e39ce4a58a98719370678e3a3daa501176c86946d2c3ed21e`, avec les **huit**
+  noms `output.<hash>` relevés ci-dessus (six CSS, deux JS) — pas les neuf de D5. Cf.
+  « Renvoyé par D5 » ci-dessus pour le détail et la reconduction du renvoi ; seule
+  l'empreinte (b) a été rejouée, ni l'empreinte (a) ni la contre-épreuve du gel, que D6a ne
+  touche pas.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - Le filet navigateur réel était de **21 fiches sur 50**, et non de 31 sur 51 : l'écart
+    venait de neuf fiches déclarées couvertes par un test unitaire, qui ne prouve pas ce
+    qu'un navigateur exerce.
+  - **Ni le local ni la CI n'exerçaient l'arbre compressé** — la formulation « écart
+    local/CI » du renvoi de D5 sous-estimait le défaut : aucun des deux ne servait les
+    bundles `output.<hash>` réellement livrés par l'image.
+  - **`ngRoute` n'était pas mort** : `$routeParams` était injecté dans une directive
+    vivante (`editformmanager.js`), condition que sa purge devait lever d'abord.
+  - **Correction C1 du plan, remplacée à son tour par l'arbitrage R27.** La spec prédisait
+    2 noms sur 9 changés par le retrait de `ngRoute` ; la mesure en donne 3 (`app.js`,
+    `doctor.js`, et le bundle JS de `404.html` qui charge les deux). Puis R27 : le relevé
+    de T17 montre que `bootstrap.min.js` arrête l'exécution du bundle fusionné de
+    `404.html` dès sa ligne 5, si bien que ne retirer que les huit scripts applicatifs
+    aurait laissé « la console est vide » faux. T18 retire donc le bloc
+    `{% compress js %}` en entier : le bundle JS de `404.html` ne change plus, il
+    **disparaît** — neuf noms deviennent huit.
+
+  **Ce que cela change à la priorité des lots restants** : D6b est désormais le seul lot
+  du chantier, et la question qu'il doit trancher — cible technique et stratégie de
+  bascule — se pose sur un filet qualifié (42 fiches sur 50 au navigateur).
+
+  **Ce que cela change au chapeau**, y compris ce que D6a a délibérément renvoyé plus
+  loin :
+  - le découpage D6a/D6b lui-même reste tel quel, D6b restant à cadrer ;
+  - **le renvoi de `R-INST-07` est reconduit, pas clos** (§ « Renvoyé par D5 »
+    ci-dessus) : la seconde passe à une date réellement différente reste à jouer, sur la
+    valeur d'après D6a ;
+  - **trois résidus légués à D6b** : le champ de recherche de `404.html:277-283`, inerte
+    depuis avant tout retrait ; le demi-état de routage dont `DoctorCtrl` était le
+    témoin ; et le dixième bundle français écrit à la volée au premier rendu réel
+    (arbitrage R28), que `manage.py compress` n'écrit jamais lui-même ;
+  - **deux constats versés au passage** : les scripts chargés depuis `oss.maxcdn.com`
+    (`account/login.html:23-24`, domaine éteint, bloc conditionnel IE8, hors périmètre) et
+    les **15 tests Playwright qu'aucune fiche de `docs/recette.md` ne nomme**, dont le
+    rattachement inverse est un travail de tenue du cahier ;
+  - **dette de duplication laissée telle quelle, le plan ne prescrivant pas sa
+    remontée** : `revenir_a_la_chronologie` (3 copies : `test_facturation.py`,
+    `test_tableau_de_bord.py`, `test_patient.py`) et `definir_nom_du_therapeute`
+    (2 copies : `test_agenda.py`, `test_facturation.py`) restent locales à chaque fichier
+    de test.
 
 - **2026-09-06 — D5 Build livré** (dix tâches plus deux hors plan ; spec
   `docs/superpowers/specs/2026-09-06-d5-build-design.md`, plan supprimé une fois achevé).
