@@ -404,6 +404,20 @@ class Invoice(models.Model):
         # departage sur l'ordre d'emission. C'est ce tri qui ordonne l'ecran
         # Comptabilite.
         ordering = ["-date", "-id"]
+        # L'unicite pertinente porte sur le couple, pas sur `number` seul : le
+        # multi-cabinet est reel et actif (`middleware.py:139-177`), et la
+        # sequence est deja par cabinet (`OfficeSettings.invoice_start_sequence`).
+        # Sur la valeur BRUTE de la colonne : `W100` et `100` restent deux
+        # numeros distincts, ce qui est correct, le prefixe faisant partie du
+        # numero imprime sur la facture (`api/invoicing/generator.py:97-101`).
+        # `officesettings_id` est un IntegerField sans clef etrangere
+        # (`:384`) : la contrainte n'en a pas besoin, elle porte sur la valeur.
+        constraints = [
+            UniqueConstraint(
+                fields=["officesettings_id", "number"],
+                name="unique_facture_numero_par_cabinet",
+            )
+        ]
 
 
 class PaimentMean(models.Model):

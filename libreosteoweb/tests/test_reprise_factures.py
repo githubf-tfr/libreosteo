@@ -23,6 +23,7 @@ verifie sur un parc sain (le seul que la contrainte d'unicite de la migration
 
 from decimal import Decimal
 
+from django.db import IntegrityError
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
@@ -273,3 +274,46 @@ class TestAppliquerSurLesVraisModeles(TestCase):
         self.assertEqual(plan.renumerotations, [])
         self.cabinet.refresh_from_db()
         self.assertEqual(self.cabinet.invoice_start_sequence, "10002")
+
+
+class TestContrainteUniciteNumero(TestCase):
+    """La base doit refuser deux fois le meme numero dans un meme cabinet, et
+    laisser passer le meme numero dans deux cabinets differents."""
+
+    def setUp(self):
+        self.cabinet = regle_cabinet()
+        self.second = OfficeSettings.objects.create(
+            currency="EUR", office_identifier="67890"
+        )
+
+    def _cree(self, numero, cabinet):
+        return Invoice.objects.create(
+            date=timezone.now(),
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number=numero,
+            patient_family_name="Picard",
+            officesettings_id=cabinet,
+        )
+
+    def test_deux_fois_le_meme_numero_dans_un_cabinet_est_refuse(self):
+        self._cree("10000", self.cabinet.id)
+        with self.assertRaises(IntegrityError):
+            self._cree("10000", self.cabinet.id)
+
+    def test_le_meme_numero_dans_deux_cabinets_reste_permis(self):
+        self._cree("10000", self.cabinet.id)
+        self._cree("10000", self.second.id)
+        self.assertEqual(Invoice.objects.filter(number="10000").count(), 2)
+
+    def test_le_prefixe_distingue_deux_numeros(self):
+        """`W100` et `100` sont deux numeros differents : le prefixe fait partie
+        du numero imprime sur la facture."""
+        self._cree("100", self.cabinet.id)
+        self._cree("W100", self.cabinet.id)
+        self.assertEqual(Invoice.objects.count(), 2)
