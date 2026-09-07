@@ -791,7 +791,18 @@ class TestDateDeLaFacture(APITestCase):
         self.assertEqual(self.facture().date, self.seance)
 
     def test_l_avoir_porte_la_date_de_la_facture_qu_il_annule(self):
+        """Redate la consultation entre l'emission et l'annulation — depuis T7,
+        une consultation facturee peut l'etre — pour discriminer reellement
+        « avoir = date de la facture » de « avoir = date de la seance » : sans
+        cette redatation les deux dates coincident, et le test passerait meme
+        si l'avoir recopiait a tort la date de la seance."""
         facture = self.facture()
+        reponse = self.client.patch(
+            reverse("examination-detail", kwargs={"pk": self.consultation.id}),
+            data={"date": (self.seance - timedelta(days=5)).isoformat()},
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         reponse = self.client.post(reverse("invoice-cancel", kwargs={"pk": facture.id}))
         self.assertEqual(reponse.status_code, status.HTTP_202_ACCEPTED)
         avoir = Invoice.objects.get(id=reponse.data["credit_note"]["id"])
