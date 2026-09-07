@@ -716,10 +716,12 @@ l'application sait la resérialiser — et le seul geste qui la rende sûre,
 ### R-INST-07 — Construction reproductible du frontend
 
 - **Domaine** : Installation
-- **Couverture auto** : oui — tests/functional/test_authentification.py::test_la_page_sert_les_bundles_compresses
-  (constate qu'un bundle JS compressé unique est servi sous l'image ; ne bâtit pas
-  deux fois l'image, ne résout aucun arbre yarn et ne compare aucune empreinte — le
-  reste de cette fiche reste sa seule preuve)
+- **Couverture auto** : non — aucune suite pytest ne bâtit une image, ne résout un arbre
+  yarn ni ne compare deux constructions. Cette fiche est la seule preuve du comportement.
+  `test_authentification.py` porte un test qui constate qu'un bundle JS compressé
+  unique est servi (au lieu de vingt fichiers) sous les réglages de développement :
+  c'est un cliquet du conftest de test, pas une preuve de la reproductibilité ou du
+  gel du lockfile qu'annoncent les étapes ci-dessous — il reste donc hors de ce champ.
 - **État requis** : aucun. La fiche ne monte aucune instance et ne consomme aucun état
   nommé du chapitre 1 : elle bâtit deux fois et compare deux empreintes.
 
@@ -812,9 +814,12 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 - **Domaine** : Authentification
 - **Couverture auto** : oui — tests/functional/test_authentification.py::test_connexion_valide
   (couvre la connexion réussie et l'ouverture du menu ; le refus d'un mauvais mot de
-  passe, à l'étape 2, est vérifié par test_connexion_invalide, propre à R-AUTH-04),
-  ::test_les_statiques_de_l_application_sont_servis (constate que la page de connexion,
-  même écran que l'étape 1, sert bien ses statiques — jsi18n compris)
+  passe, à l'étape 2, est vérifié par test_connexion_invalide, propre à R-AUTH-04).
+  Le même fichier porte aussi un test qui constate que le catalogue jsi18n et le
+  chargement d'Angular sont bien servis par `live_server` : c'est une sentinelle
+  d'infrastructure de test (elle tombe la première si la bascule du `conftest`
+  saute), dont les attendus ne correspondent à aucune étape de cette fiche ni
+  d'aucune autre — elle reste à dessein hors du champ « Couverture auto ».
 - **État requis** : E1
 
 **Étapes**
