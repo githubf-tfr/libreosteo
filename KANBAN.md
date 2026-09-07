@@ -159,6 +159,43 @@ Tenu à la main.
   frontend légués par D6a restent à D6b, qui réécrit ces écrans ; Whoosh et le ménage
   restent des candidats de lot ultérieur ; le contrôle d'accès par objet reste tranché
   « pas pour le moment » (2026-09-06).
+- (2026-09-07) **Cadrage de D7, facturation.** Spec validée :
+  `docs/superpowers/specs/2026-09-07-d7-facturation-design.md`. Neuf tâches. Les huit
+  arbitrages qu'elle porte sont confirmés par la session centrale, **sauf A5, renversé**
+  (cf. ci-dessous). Quatre faits établis au cadrage et vérifiés par le contrôleur, qui
+  n'étaient pas su :
+  - **La recopie de `Invoice.date` casse l'ordre des factures d'une consultation.**
+    `_get_invoices_list` trie par `date` seule (`libreosteoweb/models.py:249`),
+    `_get_last_invoice` fait `order_by("-date")` puis `latest("date")` (`:264-270`), et
+    `Invoice.Meta.ordering = ["-date"]` (`:396-397`) : une facture, son avoir et la
+    facture corrective porteront la même date, et l'écran de consultation afficherait un
+    numéro tiré au sort. D'où la dépendance T1 avant T6 : l'ordre passe à `("date", "id")`
+    **avant** que la recopie n'arrive.
+  - **Le défaut lexicographique a trois occurrences, pas une.** Outre
+    `libreosteoweb/api/views/administration.py:140` que nommait le point en suspens du
+    2026-09-05, `libreosteoweb/api/serializers/administration.py:111` (séquence recalculée
+    quand le champ est vidé) et `:147` (`invoice_min_sequence`, borne exposée au navigateur
+    et consommée par `officesettings.js:74`).
+  - **Les tests fonctionnels non nommés par une fiche sont 14, pas 15** (sur 53). Le compte
+    de `KANBAN.md` était faux. Défaut symétrique versé au passage : `docs/recette.md:1388`
+    cite `test_changement_de_date_accepte` en couverture complémentaire de `R-CON-02` alors
+    qu'aucun champ « Couverture auto » ne le nomme.
+  - **Le journal accueille un type d'événement neuf sans une ligne de JavaScript** : le
+    rendu ne lit que `clazz` et `comment`, le `type` ne sert qu'au filtrage serveur
+    (`libreosteoweb/api/views/administration.py:126`, qui n'exclut que
+    `clazz="Patient", type=2`). Le coût frontend annoncé à l'arbitrage du 2026-09-07 sur
+    l'ordre des lots ne se matérialise pas.
+- (2026-09-07) **Arbitrage session centrale — la borne client de redatation cesse de
+  dériver de la facture.** Renverse l'arbitrage A5 de la spec de D7, qui laissait
+  `maxExaminationDate` en l'état. Motif : cette borne vaut la date de la dernière facture
+  (`libreosteoweb/static/js/app/examination.js:358-363`) ; après la recopie de
+  `Invoice.date`, elle vaut la date de la consultation elle-même, et une consultation
+  facturée ne pourrait plus qu'être **reculée**. Or la décision du 2026-09-06 pose qu'une
+  consultation facturée **peut être redatée**, la trace étant la contrepartie — pas une
+  borne. La borne redevient donc la fin du jour courant dans les deux branches, ce qu'elle
+  est déjà en l'absence de facture. Coût si faux : la date de la séance peut passer après
+  la date figée de sa facture ; c'est exactement ce que la décision du 2026-09-06 accepte,
+  et la trace de T7 le rend lisible.
 
 ## À faire
 
