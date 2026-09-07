@@ -139,6 +139,26 @@ Tenu à la main.
   immuable ensuite. Coût si faux : en facturation différée, la facture porte la date de
   la séance et non celle de son émission ; si l'exercice comptable doit suivre la date
   d'émission, l'arbitrage est à reprendre — et il faudra alors garder les deux dates.
+- (2026-09-07) **Arbitrage session centrale — D7 Facturation passe devant D6b**, sur
+  proposition de la session centrale et accord explicite de l'utilisateur. L'ordre acté le
+  2026-09-04 faisait de D6 le dernier lot ; il est renversé. Motif : les trois arbitrages du
+  2026-09-06 sur la facturation sont **actés et non implémentés** — unicité
+  `(officesettings_id, number)`, `Invoice.date` recopiée de la consultation, traçage de la
+  redatation — et ils portent sur la justesse d'un document opposable, là où D6b est une
+  réécriture d'interface sans bénéfice fonctionnel. Le filet que D6a vient de qualifier
+  (43 fiches sur 51 au navigateur) couvre précisément les domaines que D7 touche. Coût si
+  faux : les volets client de la facturation (`libreosteoweb/static/js/app/invoice.js:74-81`,
+  `libreosteoweb/templates/partials/examination.html:17`) seront refaits une seconde fois par
+  D6b — quelques dizaines de lignes, contre le risque de porter dans la nouvelle pile une
+  sémantique de facture fausse.
+- (2026-09-07) **Arbitrage session centrale — périmètre de D7.** Retenu : les trois
+  arbitrages de facturation du 2026-09-06 avec la reprise de parc que l'unicité exige, le
+  garde-fou de séquence passé en comparaison numérique (`Points en suspens` du 2026-09-05),
+  et le rattachement des 15 tests Playwright qu'aucune fiche de `docs/recette.md` ne nomme
+  (légué par D6a, et D7 tient déjà le cahier). Écartés, avec leur motif : les trois résidus
+  frontend légués par D6a restent à D6b, qui réécrit ces écrans ; Whoosh et le ménage
+  restent des candidats de lot ultérieur ; le contrôle d'accès par objet reste tranché
+  « pas pour le moment » (2026-09-06).
 
 ## À faire
 
