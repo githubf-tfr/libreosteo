@@ -148,6 +148,38 @@ class TestPlanifier(SimpleTestCase):
             reprise.planifier(apres, {1: plan.sequences[1]}).renumerotations, []
         )
 
+    def test_une_sequence_deja_haute_ne_recule_pas(self):
+        """Le maximum jamais atteint prime sur le successeur calcule : une
+        sequence deja portee au-dessus de la bande ne redescend pas, sous
+        peine de reemettre un numero deja attribue."""
+        plan = reprise.planifier(
+            [facture(1, 1, "10000"), facture(2, 1, "10000")], {1: "5000000"}
+        )
+        self.assertEqual(plan.renumerotations, [(2, "10000", "1000000")])
+        self.assertEqual(plan.sequences, {1: "5000000"})
+
+    def test_deux_groupes_de_doublons_dans_le_meme_cabinet_sont_traites_ensemble(
+        self,
+    ):
+        """Deux numeros distincts, chacun en double dans le meme cabinet, avec
+        des identifiants entrelaces : le tri global par identifiant ne
+        privilegie pas un groupe sur l'autre, chaque doublon prend le numero
+        neuf suivant dans l'ordre de ses identifiants."""
+        plan = reprise.planifier(
+            [
+                facture(1, 1, "10000"),
+                facture(2, 1, "20000"),
+                facture(3, 1, "10000"),
+                facture(4, 1, "20000"),
+            ],
+            {1: "20001"},
+        )
+        self.assertEqual(
+            plan.renumerotations,
+            [(3, "10000", "1000000"), (4, "20000", "1000001")],
+        )
+        self.assertEqual(plan.sequences, {1: "1000002"})
+
 
 class _RequeteFactice(list):
     """Le strict necessaire pour se faire passer pour le queryset que
