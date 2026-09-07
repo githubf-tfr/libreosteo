@@ -75,8 +75,8 @@ consultation facturée ne peut plus qu'être reculée ».
 
 Ce n'est pas ce que la décision du 2026-09-06 dit, mais ce n'est pas non plus une régression
 sur ce que le produit garantissait : la marge de manœuvre qui disparaît est celle qu'ouvrait
-un écart de dates que le même arbitrage supprime volontairement. Le traitement retenu est
-en A5.
+un écart de dates que le même arbitrage supprime volontairement. Le traitement retenu à ce
+stade du cadrage est en A5 — **renversé le même jour**, cf. A5.
 
 ### F3 — Le défaut lexicographique a trois occurrences, pas une
 
@@ -149,14 +149,30 @@ asymétrie que `0058`, qui rend `double precision` sans rendre les décimales pe
 créerait une colonne à porter pour toujours au bénéfice d'un retour arrière qui n'arrivera
 qu'une fois.
 
-**A5 — Le lot ne touche pas `maxExaminationDate` ni `validateExaminationDate`.** L'effet décrit
-en F2 est assumé : sur une consultation facturée, la date ne peut plus qu'être reculée.
-Motif : élargir la borne serait une décision produit — « on peut avancer la date d'une
-consultation facturée » — qu'aucun acte ne porte ; la décision du 2026-09-06 demande que la
-redatation soit *tracée*, pas qu'elle soit *élargie*. Le remède existe déjà dans le produit :
-annuler la facture rend `last_invoice` nul (`_resolve_invoice`, `libreosteoweb/models.py:241-244`)
-et la borne redevient la fin du jour courant. *Coût si faux* : un praticien qui a saisi une
-date trop ancienne doit annuler puis refacturer pour la corriger vers l'avant.
+**A5 — Le lot ne touche pas `maxExaminationDate` ni `validateExaminationDate`.**
+*(Arbitrage d'origine du cadrage, renversé le jour même — voir « Renversement » ci-dessous ;
+gardé pour la trace, il ne décrit plus ce qui est livré.)* L'effet décrit en F2 est assumé :
+sur une consultation facturée, la date ne peut plus qu'être reculée. Motif : élargir la borne
+serait une décision produit — « on peut avancer la date d'une consultation facturée » —
+qu'aucun acte ne porte ; la décision du 2026-09-06 demande que la redatation soit *tracée*,
+pas qu'elle soit *élargie*. Le remède existe déjà dans le produit : annuler la facture rend
+`last_invoice` nul (`_resolve_invoice`, `libreosteoweb/models.py:241-244`) et la borne
+redevient la fin du jour courant. *Coût si faux* : un praticien qui a saisi une date trop
+ancienne doit annuler puis refacturer pour la corriger vers l'avant.
+
+**Renversement (2026-09-07, même jour, `KANBAN.md` § Suivi du lot) — la borne cesse de
+dériver de la facture.** L'arbitrage A5 ci-dessus est renversé en session centrale, avant
+livraison : la borne redevient la fin du jour courant dans les deux branches — avec et sans
+facture — au lieu de dériver de `last_invoice`. Motif du renversement : la décision du
+2026-09-06 pose qu'une consultation facturée *peut* être redatée, la trace étant la
+contrepartie de cette liberté, pas une borne ; laisser A5 en l'état aurait justement recréé
+une borne, dans le seul sens où `Invoice.date` recopie encore `Examination.date` (F1). *Coût
+si faux*, assumé par le renversement : la date de la séance peut passer après la date figée
+de sa facture — exactement ce que la décision du 2026-09-06 accepte, et que la trace de T7
+rend lisible. Livré : `libreosteoweb/static/js/app/examination.js:358-366` retire la branche
+qui bornait sur `last_invoice` ; `maxExaminationDate()` vaut inconditionnellement la fin du
+jour courant. Le remède « annuler puis refacturer » décrit ci-dessus par A5 devient donc
+inutile pour ce cas — il reste vrai pour toute autre borne éventuelle, sans objet ici.
 
 **A6 — Le lot n'ajoute aucune validation serveur de la date de consultation.** `validate_date`
 est un passe-plat depuis que sa vérification a été mise en commentaire en amont
@@ -501,8 +517,10 @@ changement d'une ligne.
 - **Une commande `manage.py` de diagnostic** à jouer avant la montée. Écartée : elle
   n'existerait que pour annoncer une panne que la reprise supprime. Si le contrôleur veut une
   visibilité *avant* montée, c'est une tâche à ajouter, pas une hypothèse à porter.
-- **Élargir la borne de redatation d'une consultation facturée.** Écarté par A5 : décision
-  produit non actée.
+- **Élargir la borne de redatation d'une consultation facturée.** Écarté par l'arbitrage
+  d'origine de A5 (décision produit non actée), puis **renversé le jour même** : la borne
+  redevient la fin du jour courant, avec et sans facture — voir A5, section
+  « Renversement ». Ce point n'est donc plus écarté ; il est livré.
 - **Une validation serveur de la date de consultation.** Écartée par A6.
 - **Un `CAST` SQL pour le maximum de séquence.** Écarté par C2 : les préfixes alphabétiques
   le rendraient faux ou non portable.
