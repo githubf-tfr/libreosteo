@@ -610,6 +610,49 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-08 — D7 recetté sur instance conteneur, sur l'archive de production.** Pile
+  montée depuis `Docker/deploy/pg/docker-compose.yml`, images
+  `libreosteo/libreosteo-pg:d0dcfce` et `libreosteo/libreosteo-http:d0dcfce`, dossier hôte
+  `~/libreosteo-instance` hors dépôt. Archive **0.6.9 de production** restaurée par la
+  fonction du produit, selon la procédure du `README.rst`. Les 35 commits du lot sont
+  poussés (`a043320..d0dcfce`).
+
+  **Constaté — le socle.** PostgreSQL **18.6**, `data_directory` à
+  `/var/lib/postgresql/18/docker` : le montage sur `/var/lib/postgresql` et non sur
+  `.../data` fait ce qu'il devait, aucun cluster neuf initialisé à côté des anciens
+  fichiers. **68 migrations** `libreosteoweb`, la dernière étant
+  `0060_invoice_unique_facture_numero_par_cabinet`.
+
+  **Constaté — les trois contraintes du fork, en base.** `0060`
+  `unique_facture_numero_par_cabinet`, `UNIQUE (officesettings_id, number)` — c'est la
+  clause « contrainte visible dans le `psql` du déploiement de référence », satisfaite.
+  `0058` : `amount` en `numeric(10,2)` sur `invoice`, `paiment` et `officesettings`.
+  `0057` : `unique_patient_nom_prenom_naissance` présente, mais **en tant qu'index unique
+  et non contrainte de table** (cf. § Pièges).
+
+  **Constaté — le parc réel passe.** `loaddata` a chargé **44 766 objets sans un seul
+  rejet** : 994 patients, 2 527 consultations, **2 118 factures**, 6 comptes, 1 cabinet.
+  2 118 couples `(cabinet, numéro)` distincts pour 2 118 factures, donc **zéro doublon** ;
+  plage contiguë `123456789` → `123458906` ; `invoice_start_sequence` à `123458907`, soit
+  le successeur exact du maximum. Une donnée non conforme aurait fait échouer la
+  restauration (412 sur `0057`/`0060`, 500 sur un dépassement `0058`). **Django n'a pas
+  migré la donnée d'un ancien schéma** : les migrations ont tourné sur base vide au
+  démarrage du conteneur, le dump JSON est entré dans le schéma déjà à jour. Ce qui est
+  prouvé n'est donc pas une conversion de schéma, mais que **le parc de production
+  satisfait les contraintes que le fork ajoute**.
+
+  **Écart avec le diagnostic du 2026-09-07** : 2 118 factures contre 2 105, maximum
+  `123458906` contre `123458893`. L'archive restaurée est plus récente de treize factures ;
+  ce n'est pas une anomalie, et les deux constats restent cohérents entre eux.
+
+  **Non constaté, et pourquoi.** **`R-INST-08` reste injouable sur ce parc** : il est sain,
+  la reprise de T3 ne s'y déclenche jamais et `PLANCHER_RENUMEROTATION` y est inerte. Elle
+  exige une base semée à doublons — la répétition générale sur données réelles n'existe pas
+  pour cette fiche. `R-FAC-06` et `R-CON-04` demandent un opérateur au navigateur : non
+  jouées. **L'instance a été détruite à la demande de l'utilisateur en fin de session,
+  archive de production comprise** : rejouer quoi que ce soit exige un nouvel export depuis
+  la production.
+
 - **2026-09-07 — D7 Facturation livré** (dix tâches, plus une vague de correction finale
   en sept points ; spec `docs/superpowers/specs/2026-09-07-d7-facturation-design.md`).
   Vingt-neuf commits `092b72d..91375bc` : les factures d'une consultation se trient sur
@@ -706,6 +749,9 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     qui compte : elle est la seule à mesurer le risque central du lot, et la seule
     répétition générale possible sur données réelles — l'archive de production appartient
     à l'utilisateur, ni la session ni ses sous-agents n'y ont accès.
+    **Repris le 2026-09-08** — cf. l'entrée de ce jour : la contrainte est constatée en
+    base sur l'archive de production, `R-INST-08` reste injouable faute d'un parc à
+    doublons, `R-FAC-06` et `R-CON-04` restent à jouer au navigateur.
 
   **Clause 6 amendée, et non satisfaite.** La commande d'orphelins de la spec devait rendre
   zéro ligne ; elle en rend **deux** à `91375bc`, et c'est le résultat voulu.
@@ -2237,6 +2283,30 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Pièges rencontrés
 
+- **2026-09-08 (recette conteneur)** — **La restauration d'une archive est une transaction
+  unique, et son annulation laisse des artefacts qui font croire au succès.** Une première
+  ingestion, lancée le 2026-09-07 à 23:11, a été tuée par l'extinction de la machine ;
+  PostgreSQL s'est arrêté proprement et **tout a été annulé** — base à zéro ligne. Mais
+  `data/whoosh_index` et `data/media`, écrits **hors transaction**, étaient peuplés et
+  datés de l'ingestion : le dossier avait l'air d'une instance restaurée, la base était
+  vide. **L'état se constate sur la base, jamais sur les fichiers** — un `count(*)` par
+  table, pas un `ls`.
+
+- **2026-09-08 (recette conteneur)** — **Pendant la restauration, la base ne se laisse pas
+  interroger et la page rend la main avant la fin.** `restaurer()` fait un
+  `TRUNCATE ... RESTART IDENTITY` sur 27 tables et garde l'`ACCESS EXCLUSIVE` jusqu'au
+  commit : **tout `select count(*)` sur ces tables bloque**, y compris derrière un
+  `lock_timeout`, et une requête bloquée reste en file d'attente de verrou côté serveur
+  même après la mort du client — il a fallu un `pg_cancel_backend()`. Le suivi se fait par
+  `pg_stat_activity` (quelle table est en cours d'insertion, âge de `xact_start`) et
+  `pg_database_size()`, jamais par un comptage. Côté HTTP, uWSGI tourne en
+  `--processes 1 --threads 1 --http-timeout 180` : la page perd la main au bout de trois
+  minutes alors que **le worker poursuit jusqu'au commit**, et toute autre requête attend
+  le worker unique — l'instance paraît morte sans l'être. **Ne pas relancer l'ingestion
+  sur cette apparence** : un second envoi rejouerait le `TRUNCATE` par-dessus le
+  chargement en cours. Ordre de grandeur pour dimensionner l'attente : **44 766 objets en
+  21 minutes**, de 17:28:12 à 17:49:18.
+
 - **2026-09-07 (D7, T5 puis T10)** — **Un message utilisateur neuf peut être « conforme à
   la convention i18n » et sortir en anglais.** Le refus 400 d'un numéro de facture déjà
   émis a été livré par T5 (`877839f`) avec un `_( ... )` correctement écrit, et la revue
@@ -2738,6 +2808,10 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   « Terminé ») : consigné, aucune tâche ouverte. Ce qui manque pour trancher : décider si
   une archive à doublons doit être reprise au chargement, à la manière de `0060`, ou
   refusée en connaissance de cause.
+  **Confirmé empiriquement le 2026-09-08** : la restauration de l'archive de production a
+  bien chargé les 44 766 objets dans une base déjà migrée jusqu'à `0060` (cf. « Terminé »),
+  sans que la reprise de parc n'ait la moindre occasion de s'exécuter. Le point reste
+  théorique — le parc restauré est sain — et sans tâche ouverte.
 - **2026-09-06 — `R-INST-05` étape 3 rend l'ordre `Applying …` / `CommandError`
   inversé dans le journal Docker, et ce n'est pas corrigé.** Constaté deux fois sous
   D4, avec deux manifestations différentes : à la clôture de l'incrément PostgreSQL,
