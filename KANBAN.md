@@ -382,6 +382,30 @@ affichait donc ce lien en permanence comme non suivi, et quatre lots l'ont conto
 que la cause soit écrite quelque part. La barre finale est retirée et la raison est
 désormais en commentaire à côté du motif.
 
+### Défauts et écarts constatés au cadrage de D6b (2026-09-09, non corrigés)
+
+Relevés en cadrant D6b, qui interdit tout changement de comportement produit. Aucun n'est
+corrigé par ce lot ; chacun attend le chantier qui réécrit son écran.
+
+- **`libreosteoweb/templates/partials/office-settings.html:200`** — `<label
+  for"invoice_start_sequence">` : `for` sans signe égal, donc attribut inerte et libellé
+  associé à rien. Le réparer rendrait le libellé focalisant, donc changerait le comportement.
+  Pour D6d.
+- **`libreosteoweb/templates/partials/rebuild-index.html:20,24`** — `<div class)"col-md-2">` :
+  parenthèse au lieu d'un signe égal, l'attribut de classe n'est jamais posé. Pour D6d.
+- **La numérotation des `uib-tab` de `partials/patient-detail.html` saute l'index 4.** Sans
+  effet observable ; relevé pour que D6e ne le reproduise pas.
+- **Le job CI `quality` ne joue pas `make check`, il en réécrit les commandes**
+  (`.github/workflows/main.yml`, étapes `Lint`, `Model migration status`, `Unit tests and
+  coverage`). `CLAUDE.md` écrit que `make check` est « exactement le job `quality` » : c'est
+  vrai du contenu, faux du mécanisme, et rien ne tient les deux listes synchrones. Une étape
+  ajoutée au `Makefile` ne tournerait donc pas en CI — c'est pourquoi le cliquet de D6b est un
+  test `pytest` sous `tests/qualite/` et non une cible de `Makefile`.
+- **La dette des tests fonctionnels orphelins s'est rouverte.** La commande de la clause 6 de
+  la spec D7 rend aujourd'hui **2** lignes : les deux tests de bundles posés par D6a
+  (`229ffc8`) qu'aucune fiche de `docs/recette.md` ne nomme. Rien n'exécute cette commande
+  automatiquement, donc la dette se rouvre à chaque test ajouté sans fiche.
+
 ### Dette technique (constat, pas action)
 
 - Frontend AngularJS 1.5, jQuery 1.12, Bootstrap 3 : tous en fin de support, sans
