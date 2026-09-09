@@ -576,7 +576,8 @@ def attendre_reponse(
     """
     with page.expect_response(
         lambda reponse: (
-            reponse.request.method == methode and re.search(motif_url, reponse.url) is not None
+            reponse.request.method == methode
+            and re.search(motif_url, reponse.url) is not None
         )
     ) as info_reponse:
         geste()
@@ -715,12 +716,12 @@ dans l'interface des helpers — `connexion` garde sa signature.
    trois attentes de même forme, avec leur commentaire :
 
 ```python
-    expect(page.locator("#office-import-file a")).to_have_attribute(
-        "href", "#/office/import-file"
-    )          # test_sauvegarde.py:43-45 et test_import_csv.py:43-45
-    expect(page.locator("#rebuild-index a")).to_have_attribute(
-        "href", "#/office/rebuild-index"
-    )          # test_recherche.py:29-31
+expect(page.locator("#office-import-file a")).to_have_attribute(
+    "href", "#/office/import-file"
+)  # test_sauvegarde.py:43-45 et test_import_csv.py:43-45
+expect(page.locator("#rebuild-index a")).to_have_attribute(
+    "href", "#/office/rebuild-index"
+)  # test_recherche.py:29-31
 ```
 
    *(Le sélecteur exact du site à supprimer est celui du fichier ; le repère est l'appel
@@ -1496,7 +1497,9 @@ def test_facture_porte_la_date_de_la_seance(
     consultation.date -= timedelta(days=40)
     consultation.save()
     date_seance = timezone.localtime(consultation.date).date()
-    assert date_seance != date.today(), "la seance doit etre anterieure au jour de l'emission"
+    assert date_seance != date.today(), (
+        "la seance doit etre anterieure au jour de l'emission"
+    )
 
     page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
     page.reload()
@@ -1667,7 +1670,9 @@ def test_une_archive_d_une_autre_version_est_refusee(
     page: Page, live_server: LiveServer, tmp_path
 ) -> None:
     ouvrir_le_formulaire_de_restauration(page, live_server)
-    televerser_l_archive(page, archive(tmp_path, archive_fabriquee("0.0.1-inexistante")))
+    televerser_l_archive(
+        page, archive(tmp_path, archive_fabriquee("0.0.1-inexistante"))
+    )
     expect(page.get_by_role("alert")).to_contain_text("0.0.1-inexistante")
     expect(page).to_have_title("Installer LibreOsteo")
 
