@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Callable
 
@@ -232,6 +233,38 @@ def remplir_editeur_hallo(page: Page, selecteur: str, valeur: str) -> None:
     page.locator(selecteur).blur()
 
 
+def attendre_reponse(
+    page: Page,
+    geste: Callable[[], None],
+    *,
+    methode: str,
+    motif_url: str,
+) -> None:
+    """Execute `geste` et attend la reponse HTTP qu'il declenche, avant de rendre la main.
+
+    C'est la barriere qu'impose l'arbitrage A1 de la spec D6b quand l'assertion qui suit
+    porte sur la **base de donnees** : seule la reponse du serveur prouve que l'ecriture a
+    eu lieu. Une barriere d'ecran ne le prouve pas — AngularJS met le `$scope` a jour de
+    facon optimiste, avant le retour de la requete.
+
+    `motif_url` est cherche par `re.search` dans l'URL de la reponse ; `methode` est
+    comparee exactement. Pas de correlation par identifiant de requete : chaque appel
+    attend sa propre reponse avant de rendre la main, et tous les appelants l'invoquent en
+    sequence.
+    """
+    with page.expect_response(
+        lambda reponse: (
+            reponse.request.method == methode
+            and re.search(motif_url, reponse.url) is not None
+        )
+    ) as info_reponse:
+        geste()
+    reponse = info_reponse.value
+    assert reponse.ok, (
+        f"{methode} {motif_url} a echoue : {reponse.status} {reponse.status_text}"
+    )
+
+
 def attendre_enregistrement_patient(
     page: Page, patient_id: int, geste: Callable[[], None]
 ) -> None:
@@ -272,16 +305,11 @@ def attendre_enregistrement_patient(
     perimee au meme signature (methode + URL) au moment ou `expect_response` se met
     a l'ecoute.
     """
-    with page.expect_response(
-        lambda reponse: (
-            reponse.request.method == "PUT"
-            and reponse.url.endswith(f"/api/patients/{patient_id}")
-        )
-    ) as info_reponse:
-        geste()
-    reponse = info_reponse.value
-    assert reponse.ok, (
-        f"PUT /api/patients/{patient_id} a echoue : {reponse.status} {reponse.status_text}"
+    attendre_reponse(
+        page,
+        geste,
+        methode="PUT",
+        motif_url=rf"/api/patients/{patient_id}$",
     )
 
 
@@ -302,16 +330,7 @@ def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:
     lui-meme est la seule barriere vraie : elle ne peut pas etre satisfaite avant que le
     serveur n'ait ecrit la ligne, quel que soit le contenu du nom soumis (charge HTML incluse).
     """
-    with page.expect_response(
-        lambda reponse: (
-            reponse.request.method == "POST" and reponse.url.endswith("/api/patients")
-        )
-    ) as info_reponse:
-        geste()
-    reponse = info_reponse.value
-    assert reponse.ok, (
-        f"POST /api/patients a echoue : {reponse.status} {reponse.status_text}"
-    )
+    attendre_reponse(page, geste, methode="POST", motif_url=r"/api/patients$")
 
 
 def joindre_document(
