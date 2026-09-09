@@ -7,15 +7,15 @@
     </div>
     <ul class="timeline" ng-switch-when="true">
         <li ng-repeat="examination in examinations" ng-class="{'timeline-inverted': examination.order %2 == 0 }">
-            <div class="timeline-badge"
+            <div class="timeline-badge" data-testid="badge-seance-{$ examination.type $}"
                 ng-class="{'success' : examination.type == 1, 'warning' : examination.type == 2, 'danger' : examination.type >= 3 }"
                 ng-click="loadExamination(examination.id)" ui-sref="patient.examination({examinationId :  examination.id })">
-                <i class="fa"
+                <i class="fa" data-testid="icone-seance-{$ examination.status $}"
                     ng-class="{'fa-check': examination.status == 2, 'fa-ban': examination.status == 3, 'fa-money': examination.status == 1, 'fa-play': examination.status == 0}" ></i>
             </div>
             <div class="timeline-panel" ng-click="loadExamination(examination.id)" ui-sref="patient.examination({examinationId :  examination.id })">
                 <div class="timeline-heading">
-                    <h4 class="timeline-title">{% trans 'Session of ' %} {$ examination.date | date : 'longDate' $}
+                    <h4 class="timeline-title" data-testid="titre-seance">{% trans 'Session of ' %} {$ examination.date | date : 'longDate' $}
                     </h4>
                     <p class="text-muted text-right" ng-if="examination.office.id != {{ request.officesettings.id }}"> {$ examination.office_detail.office_name $}</p>
 
@@ -23,7 +23,7 @@
                         <small class="text-muted"><i class="fa fa-clock-o"></i> {$ getTime(examination.date) | timeAgo $} {% trans 'by' %} <span class="text-uppercase">{$ examination.therapeut.last_name $}</span> {$ examination.therapeut.first_name $}</small>
                     </p>
                 </div>
-                <div class="timeline-body">
+                <div class="timeline-body" data-testid="corps-seance">
                     <p>{$ examination.reason $}</p>
                 </div>
                 <div class="timeline-footer">

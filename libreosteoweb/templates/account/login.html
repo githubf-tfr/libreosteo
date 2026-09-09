@@ -44,7 +44,7 @@
         </div>
         {% endif %}
         {% if form.errors %}
-          <p class="alert alert-danger">
+          <p class="alert alert-danger" data-testid="erreur-connexion">
               <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
             {% trans "Your username and password didn't match. Please try again." %}
           </p>

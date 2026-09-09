@@ -1,14 +1,14 @@
 {% load i18n %}
-<h1 class="page-header">
+<h1 class="page-header" data-testid="titre-tableau-de-bord">
     {% trans 'Dashboard' %}
 </h1>
 
 <!-- /.row -->
             <div class="row" ng-if="statistics">
-                <div class="col-lg-3 col-md-8">
+                <div class="col-lg-3 col-md-8" data-testid="periode-active-{$ selector $}">
                     <span class="label" style='cursor:pointer' ng-class="{'label-primary' : selector == 'week', 'label-default' : selector != 'week'}" ng-click="show('week')">{% trans 'Week' %}</span>
-                    <span class="label" style='cursor:pointer' ng-class="{'label-primary' : selector == 'month', 'label-default' : selector != 'month'}" ng-click="show('month')">{% trans 'Month' %}</span>
-                    <span class="label" style='cursor:pointer' ng-class="{'label-primary' : selector == 'year', 'label-default' : selector != 'year'}" ng-click="show('year')">{% trans 'Year' %}</span>
+                    <span class="label" style='cursor:pointer' ng-class="{'label-primary' : selector == 'month', 'label-default' : selector != 'month'}" ng-click="show('month')" data-testid="filtre-mois">{% trans 'Month' %}</span>
+                    <span class="label" style='cursor:pointer' ng-class="{'label-primary' : selector == 'year', 'label-default' : selector != 'year'}" ng-click="show('year')" data-testid="filtre-annee">{% trans 'Year' %}</span>
                     <p></p>
                 </div>
             </div>
@@ -23,7 +23,7 @@
                                 </div>
                                 <div class="col-xs-9 text-right">
                                     <span class="inlinesparkline-newpatient dashboard-sparkline"></span>
-                                    <div class="huge">{$ nb_new_patient $}</div>
+                                    <div class="huge" data-testid="compteur-nouveaux-patients">{$ nb_new_patient $}</div>
                                     <div>{% trans 'New patients' %}</div>
                                 </div>
                             </div>
@@ -46,7 +46,7 @@
                                 </div>
                                 <div class="col-xs-9 text-right">
                                     <span class="inlinesparkline-nbexamination dashboard-sparkline"></span>
-                                    <div class="huge">{$ nb_examination $}</div>
+                                    <div class="huge" data-testid="compteur-consultations">{$ nb_examination $}</div>
                                     <div>{% trans 'Examinations' %}</div>
                                 </div>
                             </div>
@@ -91,7 +91,7 @@
                                 </div>
                                 <div class="col-xs-9 text-right">
                                     <span class="inlinesparkline-urgentreturn dashboard-sparkline"></span>
-                                    <div class="huge">{$ nb_urgent_return $}</div>
+                                    <div class="huge" data-testid="compteur-retours-urgents">{$ nb_urgent_return $}</div>
                                     <div>{% trans 'Urgent return' %}</div>
                                 </div>
                             </div>

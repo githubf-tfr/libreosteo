@@ -1,9 +1,9 @@
 {% load i18n %}
 <div class="modal-header">
-    <h3 class="modal-title">{% trans 'Confirm' %}</h3>
+    <h3 class="modal-title" data-testid="titre-modale">{% trans 'Confirm' %}</h3>
 </div>
 <form novalidate name="form">
-<div class="modal-body">
+<div class="modal-body" data-testid="corps-modale">
   <div bind-html-compile="message"></div>
   <!-- Donnees patient : jamais dans "message" (compile par bind-html-compile), toujours
        liees ici en texte -- ng-repeat et interpolation Angular echappent seules, sans

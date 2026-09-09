@@ -14,7 +14,7 @@
   </div>
   <div ng-if="consent_refused" class="alert alert-danger center-block" role="alert">{% trans 'You have to delete this folder' %}</div>
 </div>
-<h1 class="page-header">
+<h1 class="page-header" data-testid="titre-patient">
     <span editable-text="patient.family_name" onaftersave="savePatient()">{$ patient.family_name $}</span>
     <span ng-show="patient.original_name || form.patientForm.$visible">(<span blur="submit" e-name="original_name" e-placeholder="{{ patient.original_name }}" e-form="originalNameInput" buttons="no" editable-text="patient.original_name" onaftersave="savePatient()">{$ patient.original_name $}</span>)
     </span>
@@ -25,7 +25,7 @@
 <uib-tabset active="indexTab">
 
 <uib-tab id="general" heading="{% trans 'General infos' %}" ui-sref="patient" index="1" deselect="onTabChange($event)">
-    <div class="row">
+    <div class="row" data-testid="onglet-infos-generales">
         <form editable-form name="form.patientForm" edit-form-control edit="editPatient" save="saveEditPatient" delete="delete" trigger="triggerEditFormPatient" onaftersave="savePatient()" save-on-lost-focus="true" disable-enter >
         <div class="col-md-8">
             <div class="panel panel-info">
@@ -148,7 +148,7 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-12">
+                        <div class="col-md-12" data-testid="ligne-medecin-traitant">
                             {% trans 'Regular doctor' %} :
                             <doctor-selector doctor-holder="patient" doctor-holder-property="'doctor'"></doctor-selector>
                         </div>
@@ -318,7 +318,7 @@
 </uib-tab>
 
 <uib-tab id="examinations" heading="{% trans 'Examinations' %}" active="examinationsTab.examinationsListActive" ui-sref="patient.examinations" index="5" deselect="onTabChange($event)">
-    <examination
+    <examination data-testid="consultation-anterieure"
         model="previousExamination.data" save-model="saveExamination(previousExamination.data)"
         new-examination="false"
         close="invoiceExamination(previousExamination.data, close)" on-delete='examinationDeleted(previousExamination.data)'
@@ -333,7 +333,7 @@
 
 
 <uib-tab id="current-examination" heading="{% trans 'Current Examination' %}" ng-show="examinationsTab.newExaminationDisplay" active="examinationsTab.newExaminationActive"  index="6" deselect="onTabChange($event)">
-    <examination
+    <examination data-testid="consultation-en-cours"
         model="newExamination" save-model="saveExamination()" close="invoiceExamination(newExamination, close)"
         new-examination="true" on-delete='examinationDeleted(newExamination)'
         patient="patient" external-patient-save="savePatient()" close-handle="invoiceExamination" reload-examinations="reloadExaminations"/>

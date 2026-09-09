@@ -1,6 +1,6 @@
 {% load i18n %}
 {% load static %}
-<h1 class="page-header">
+<h1 class="page-header" data-testid="titre-import">
     {% trans 'Managing import/export' %}
 </h1>
 
@@ -46,7 +46,7 @@
             <p>After you fill them, you upload your files with the import tool above.</p>
             <br/>
             <p>In order to add examinations for patients, you have to link each one with a number. If you read the Patient templates file you will see that the first column is "Number". This number should have been the same in the examination to add this examination to the patient.</p>
-            <div class="well">Note : It have no relation with the number that you can see in the system after integration.</div>
+            <div class="well" data-testid="note-import">Note : It have no relation with the number that you can see in the system after integration.</div>
             {% endblocktrans %}
         </div>
 
@@ -99,7 +99,7 @@
 
     <div id="patient-file-analyze" ng-show="result_analyze.analyze.patient[0] == 'patient'">
 
-      <p class="bg-info">{% trans 'Patient file' %}<span ng-show="result_analyze.analyze.patient[1]" class="text-success"> <i class="fa fa-check"></i></span><span ng-show="!result_analyze.analyze.patient[1]" class="text-danger"> <i class="fa fa-close"></i></span></p>
+      <p class="bg-info">{% trans 'Patient file' %}<span ng-show="result_analyze.analyze.patient[1]" class="text-success" data-testid="analyse-patients-ok"> <i class="fa fa-check"></i></span><span ng-show="!result_analyze.analyze.patient[1]" class="text-danger" data-testid="analyse-patients-ko"> <i class="fa fa-close"></i></span></p>
 
       <div>
         <p>{% blocktrans %}Please check that the file is correctly read by the software before to integrate the content. Here is an extract of some lines of the file.{% endblocktrans %}</p>
@@ -151,7 +151,7 @@
 </div>
 
 <div id="examination-file-analyze" ng-show="result_analyze.analyze.examination[0] == 'examination'">
-    <p class="bg-info">{% trans 'Examination file' %}<span ng-show="result_analyze.analyze.examination[1]" class="text-success"> <i class="fa fa-check"></i></span><span ng-show="!result_analyze.analyze.examination[1]" class="text-danger"> <i class="fa fa-close"></i></span></p>
+    <p class="bg-info">{% trans 'Examination file' %}<span ng-show="result_analyze.analyze.examination[1]" class="text-success" data-testid="analyse-consultations-ok"> <i class="fa fa-check"></i></span><span ng-show="!result_analyze.analyze.examination[1]" class="text-danger"> <i class="fa fa-close"></i></span></p>
     <div>
         <p>{% blocktrans %}Please check that the file is correctly read by the software before to integrate the content. Here is an extract of some lines of the file.{% endblocktrans %}</p>
 
@@ -206,15 +206,15 @@
             </script>
         </div>
 <div class="panel panel-success" ng-show="import_result != null && import_error == null">
-<div class="panel-heading">{% trans 'Importing succeed' %}</div>
-    <div class="panel-body">
+<div class="panel-heading" data-testid="import-reussi-titre">{% trans 'Importing succeed' %}</div>
+    <div class="panel-body" data-testid="import-reussi-detail">
         <p>{$ import_result.patient.imported $} {% trans 'lines imported from file patient' %}</p>
     </div>
 </div>
 
 <div class="panel panel-warning" ng-show="import_result != null && import_error != null">
-<div class="panel-heading">{% trans 'Importing succeed but some errors' %}</div>
-    <div class="panel-body">
+<div class="panel-heading" data-testid="import-avec-erreurs-titre">{% trans 'Importing succeed but some errors' %}</div>
+    <div class="panel-body" data-testid="import-avec-erreurs-detail">
         <p>{$ import_result.patient.imported $} {% trans 'lines imported from file patient' %}</p>
         <p ng-show="import_error.patient.errors != null && import_error.patient.errors.length != 0" >{% trans 'Errors when integrating patients' %}</p>
         <div ng-repeat="error in import_error.patient.errors"><p>{% trans 'line : '%} {$ error[0]$}</p>

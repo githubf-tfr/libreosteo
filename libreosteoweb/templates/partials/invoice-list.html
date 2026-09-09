@@ -1,5 +1,5 @@
 {% load i18n %}
-<h1>{% trans 'Accounting' %}</h1>
+<h1 data-testid="titre-comptabilite">{% trans 'Accounting' %}</h1>
 <div class="btn-group">
     <button ng-click="openCalendar()" class="btn btn-default"><i class="fa fa-calendar"></i>
         {$ filters.dateRange.startDate.toDate() | date:'fullDate' $} → {$ filters.dateRange.endDate.toDate() | date:'fullDate' $} <span class="caret"></span>
@@ -71,15 +71,15 @@
                 <span class="label label-danger" ng-if="invoice.status === 1">{% trans 'Not paid' %}</span>
                 <span class="label label-success" ng-if="invoice.status === 2 && invoice.type ==='invoice'">{% trans 'Paid' %}</span>
                 <span class="label label-success" ng-if="invoice.status === 2 && invoice.type ==='creditnote'">{% trans 'Credit note' %}</span>
-                <span class="label label-warning" ng-if="invoice.status === 3">{% trans 'Cancelled' %}</span>
+                <span class="label label-warning" ng-if="invoice.status === 3" data-testid="statut-facture-annulee">{% trans 'Cancelled' %}</span>
             </td>
             <td>
               <span>{$ invoice.canceled_by.number $}</span>
             </td>
             <td>
                 <div class="btn-group">
-                    <button class="btn btn-default btn-xs dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Actions <span class="caret"></span></button>
-                    <ul class="dropdown-menu">
+                    <button class="btn btn-default btn-xs dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-testid="actions-facture">Actions <span class="caret"></span></button>
+                    <ul class="dropdown-menu" data-testid="menu-actions-facture">
                       <li><a href="/invoice/{$ invoice.id $}" target="_blank">{% trans 'Print' %}</a></li>
                       <li ng-if="invoice.status != 3"><a ng-click="cancelInvoice(invoice)">{% trans 'Cancel' %}</a></li>
                       <!--li ng-if="invoice.status === 1"><a ng-click="updatePaiment(invoice)">{% trans 'Regularize' %}</a></li-->
