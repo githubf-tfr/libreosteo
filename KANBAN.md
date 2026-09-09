@@ -213,6 +213,93 @@ Tenu à la main.
   (`get_invoice_number`, `generator.py:73-101`) ; seule la valeur de départ de la séquence
   est réglable à la main.
 
+- (2026-09-09) **Cadrage de D6b : cible, ampleur et découpage en six chantiers.** Trois
+  arbitrages de la session centrale, pris sur l'instruction de l'utilisateur — « être le plus
+  propre possible, sans compter le temps ni les tokens ».
+  - **Cible : Django + htmx + Alpine.js.** On retire la couche SPA au lieu de la remplacer.
+    Motif : le produit n'est pas une SPA. Il rend 19 fragments HTML côté serveur sous
+    `web-view/partials/*`, traduit 327 chaînes côté serveur, rend sa recherche en HTML
+    (`SearchViewHtml`, `libreosteoweb/api/views/administration.py:59-62`), et a dû retuner
+    l'interpolation Angular en `{$ … $}` pour cohabiter avec Django
+    (`libreosteoweb/static/js/app/app.js:51-54`). AngularJS a été posé *par-dessus* une
+    application Django ; une SPA moderne conserverait cette couche en supprimant ce que
+    Django fait déjà. 28 dépendances tombent à quelques-unes, aucun outil de build, aucun
+    arbre transitif à auditer. **Coût si faux** : si le produit doit un jour devenir riche
+    côté client — état complexe, hors-ligne — htmx est un plafond et une seconde bascule
+    serait nécessaire.
+  - **Ampleur : framework applicatif *et* socle visuel.** Bootstrap 3.2.0 → Bootstrap 5,
+    jQuery 1.12.4 entièrement éliminé, et avec lui `jquery-ui` 1.10.4, `hallo`,
+    `bootstrap-tour`, `bootstrap-daterangepicker`, `metisMenu`, `sb-admin-2`, `sparkline`,
+    `animatescroll`. État final visé : aucune bibliothèque frontend en fin de vie ou sans
+    mainteneur dans l'arbre livré. Motif : `libreosteoweb/static/js/bootstrap.js:7` lève
+    `Bootstrap's JavaScript requires jQuery`, et `index.html:170` charge jQuery **avant**
+    `:182` angular — AngularJS tourne donc sur jQuery complet et non sur jqLite. Garder
+    Bootstrap 3, c'est garder jQuery : les deux ne se séparent pas. **La refonte visuelle
+    est écartée** — ce n'est pas plus propre, c'est un changement de produit que
+    l'utilisateur n'a pas demandé. L'engagement est : mêmes écrans, mêmes menus, mêmes
+    libellés français ; l'aspect des boutons, tableaux et formulaires peut différer.
+    **Coût, assumé** : 145 des 440 sites d'adressage de la suite Playwright portent une
+    classe Bootstrap 3 ou SB Admin et sont à reprendre.
+  - **Découpage : six chantiers, `D6b → D6c → {D6d, D6e} → D6f → D6g`.** L'ex-lot D6b est
+    scindé. Motif de fond : **Bootstrap 3 et Bootstrap 5 ne cohabitent pas dans un document,
+    mais deux documents cohabitent très bien.** Trois documents chargent Bootstrap
+    indépendamment (`index.html:18`, `install.html:24`, `account/login.html:16`), alors que
+    les 19 fragments de la coquille partagent un seul document. Il n'existe donc aucune
+    migration « par écran » qui monte aussi le socle : soit on migre écran par écran en
+    gardant Bootstrap 3 et on bascule le socle une fois, à la fin, soit on fait tout d'un
+    coup. Seule la première branche se découpe en livraisons honnêtes.
+    - **D6b — filet de test indépendant du framework.** Réadressage de la suite Playwright
+      et suppression de ses barrières angulaires, plus des attributs additifs dans les
+      gabarits actuels. Le produit ne change pas.
+    - **D6c — socle de coexistence.** htmx et Alpine, `base.html` extrait d'`index.html`,
+      pont htmx (CSRF, redirection de session, `statici18n`, chaîne `compress`),
+      notifications, modale ; deux pages témoins migrées, l'installeur et la recherche.
+    - **D6d — administration.** Profil thérapeute, paramètres du cabinet, import/export,
+      restauration, réindexation, comptabilité.
+    - **D6e — dossier patient, consultation, documents.** Agenda, éditeur de texte riche,
+      mode édition.
+    - **D6f — mort de la coquille.** Tableau de bord, coquille, visite guidée ; AngularJS
+      disparaît de `package.json`.
+    - **D6g — socle visuel.** Bootstrap 3 → 5, jQuery éliminé, CSS mort supprimé,
+      `COMPRESS_OFFLINE` posé.
+
+    **Les dépendances sont causales, pas de confort.** *D6b avant tout* : sans réadressage
+    préalable, tout rouge d'un lot de migration est ambigu entre « le produit est cassé » et
+    « le sélecteur est mort avec sa classe » ; et la barrière d'attente unique de la suite,
+    adossée à `#loading-bar` inséré par `angular-loading-bar`, ne peut se *prouver*
+    remplaçable que contre l'application AngularJS actuelle. *D6c avant les trois suivants* :
+    sans le pont ni la coquille partagée, le premier écran migré invente son `base.html`, sa
+    notification et sa modale, et le deuxième en invente d'autres — une divergence qui, une
+    fois posée, ne se rattrape qu'en réécrivant les écrans déjà migrés. *D6f après D6d et
+    D6e* : l'état `dashboard` a pour URL `/` (`libreosteoweb/static/js/app/app.js:164`),
+    c'est-à-dire l'URL de la coquille elle-même ; le tableau de bord ne peut pas être migré
+    en premier sans déplacer la coquille et réécrire tous ses liens `#/…` deux fois. *D6g
+    après D6f* : `app.js:54` fixe `editableOptions.theme = 'bs3'`, `ui.bootstrap` 2.5 émet du
+    balisage Bootstrap 3, `halloeditor.js:65` appelle `$(element).hallo()` — on ne retire ni
+    jQuery ni Bootstrap 3 tant qu'AngularJS est là. *D6d et D6e sont indépendants* ; D6d
+    passe devant par priorité seulement, pour éprouver le pont sur des écrans sans enjeu
+    clinique.
+
+    **Coût si le découpage est faux** : le pari fragile est la cohabitation à deux documents
+    — expiration de session (l'intercepteur `app.js:63-77` redirige vers `/accounts/login`
+    quand une réponse XHR contient du HTML, que htmx doit reproduire par `HX-Redirect`), menu
+    partagé qui diverge, et `static/CACHE` qui grossit puisque `COMPRESS_OFFLINE` est absent.
+    Si elle ne tient pas, le repli est la bascule d'un coup sur branche : on perd le pont de
+    D6c et rien d'autre, D6b restant acquis — et D6c est précisément dimensionné pour
+    découvrir l'échec sur le plus petit périmètre existant, un document isolé de 150 lignes.
+  - **Conséquence assumée et non compensable** : les URL passent de `#/patient/3` à
+    `/patient/3`. Les signets existants cassent à la fin de D6f.
+  - **L'éditeur de texte riche n'est pas un choix de bibliothèque, c'est un composant à
+    écrire.** `hallo` est un simple répartiteur `document.execCommand` sans modèle de
+    document : le DOM *est* la valeur, donc le HTML stocké est préservé à l'octet tant qu'on
+    n'y touche pas. Tous les éditeurs maintenus (TipTap/ProseMirror, Quill 2, Trix,
+    CKEditor 5, TinyMCE) portent au contraire un modèle interne, normalisent à l'ouverture et
+    réécrivent au premier enregistrement. Or les 30 champs concernés sont des `TextField`
+    bruts, sans assainissement nulle part (`libreosteoweb/models.py:74-97`, `:180-190`,
+    `:667`). Le remplaçant est donc un composant `contenteditable` maison, propriété de D6e,
+    avec sa propre preuve : ouvrir un champ, l'enregistrer sans le modifier, vérifier que le
+    HTML en base est inchangé.
+
 ## À faire
 
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non
