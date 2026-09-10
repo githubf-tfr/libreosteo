@@ -96,11 +96,13 @@ def test_avertissement_d_homonyme_puis_creation(
     expect(modale).to_contain_text("Un patient de même nom existe déjà")
     attendre_creation_patient(page, lambda: page.click("#modal-btn-ok"))
     assert Patient.objects.filter(family_name="Picard").count() == 2
-    # La fiche patient qui vient de s'ouvrir declenche plusieurs appels $http
-    # asynchrones (examens, documents, medecin traitant...) que le clic ci-dessous
-    # n'attend pas : sans cette barriere, un clic trop tot sur "Nouveau patient" est
+    # Course connue et non refermee : la fiche patient qui vient de s'ouvrir declenche
+    # plusieurs appels $http asynchrones (examens, documents, medecin traitant...) que le
+    # clic sur "Nouveau patient" ci-dessous n'attend pas, et un clic trop tot peut etre
     # absorbe en silence par une transition ui-router encore en vol (meme famille de
-    # course que celle documentee dans `helpers.connexion`).
+    # course que celle documentee dans `helpers.connexion`, refermee la par un etat
+    # d'ecran). Aucune barriere ne la couvre ici : l'etat qui la fermerait est le meme
+    # que celui du site voisin plus bas, et reste a poser.
 
     # R-PAT-07 : meme nom a la casse differente, meme date de naissance que le patient
     # d'origine (13/07/1935) -- l'avertissement d'homonyme s'ouvre comme au-dessus, mais

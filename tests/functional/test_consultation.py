@@ -461,7 +461,16 @@ def test_edition_d_une_consultation_existante(
         ".tab-pane.active [ng-model='model.medical_examination']",
         "Examen modifie",
     )
-    page.click('button.btn-default:has-text("Fin d\'édition")')
+    # Ce test finit par deux lectures en base (`reason`, `medical_examination`) : meme
+    # barriere que dans test_changement_de_date_accepte, l'ecran ne prouve rien de
+    # l'ecriture (A1). Aggravant ici, le `page.reload()` deux instructions plus bas
+    # avorterait un PUT encore en vol.
+    attendre_reponse(
+        page,
+        lambda: page.click('button.btn-default:has-text("Fin d\'édition")'),
+        methode="PUT",
+        motif_url=r"/api/examinations/\d+$",
+    )
     expect(page.locator(".tab-pane.active")).to_contain_text("Motif modifie")
     expect(page.locator(".tab-pane.active")).to_contain_text("Examen modifie")
 
