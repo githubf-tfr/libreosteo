@@ -19,6 +19,7 @@ from tests.functional.helpers import (
     attendre_creation_patient,
     attendre_enregistrement_patient,
     attendre_page_prete,
+    attendre_sauvegarde_parasite,
     cloturer_consultation,
     connexion,
     creer_patient,
@@ -350,7 +351,12 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
 
     # Cas ambigu : la seule assertion de ce test qui echoue sans le correctif (cf.
     # docstring). Preuve du defaut A sur ce site.
-    champ.click()
+    #
+    # Ce clic n'est pas anodin : premier clic apres « Editer », il declenche a lui seul un
+    # `PUT /api/patients/:id` parasite dont la reponse, si elle revient apres la frappe,
+    # ecrase silencieusement la date saisie (mecanisme complet dans le docstring de
+    # `attendre_sauvegarde_parasite`). C'est la cause de l'alea historique de ce test.
+    attendre_sauvegarde_parasite(page, patient.id, champ.click)
     champ.press("Control+a")
     champ.press_sequentially("03/02/1935")
     champ.press("Tab")
@@ -367,7 +373,9 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     # correctif, desormais lu directement par la locale francaise du document — ne
     # prouve pas le defaut A a elle seule (cf. docstring).
     page.click("button:has-text('Éditer')")
-    champ.click()
+    # Second passage en edition : `originalNameInput` est rouvert, donc meme PUT parasite
+    # et meme barriere qu'au cas precedent.
+    attendre_sauvegarde_parasite(page, patient.id, champ.click)
     champ.press("Control+a")
     champ.press_sequentially("24/02/1935")
     champ.press("Tab")

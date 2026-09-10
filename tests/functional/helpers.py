@@ -313,6 +313,54 @@ def attendre_enregistrement_patient(
     )
 
 
+def attendre_sauvegarde_parasite(
+    page: Page, patient_id: int, geste: Callable[[], None]
+) -> None:
+    """Execute `geste` (un clic quelconque fait alors que le dossier patient est en mode
+    edition) et rend la main seulement quand le `PUT /api/patients/:id` parasite qu'il
+    declenche a ete **entierement digere par le navigateur**.
+
+    Pourquoi un clic quelconque declenche un enregistrement complet du patient :
+    `patient-detail.html` declare le champ `original_name` dans le `h1`, donc **hors** de
+    l'`editable-form`, en editable autonome porteur de `blur="submit"` et
+    `onaftersave="savePatient()"`. `patient.js` l'ouvre de lui-meme
+    (`originalNameInput.$show()`, dans le `$watch` sur `form.patientForm.$visible`) des que
+    le formulaire passe en edition. Or le gestionnaire de clic *document* de xeditable
+    (`xeditable.js`, `clickHandler`) soumet tout formulaire a `_blur === 'submit'` des qu'un
+    clic tombe hors de ses editables : **le premier clic quelconque apres « Editer » emet
+    donc un `PUT /api/patients/:id` complet**, portant les valeurs d'avant l'edition.
+
+    Pourquoi ce PUT laisse en vol est destructeur : son callback de succes
+    (`savePatient()`, patient.js) fait `$scope.patient = data`. Chaque editable ouvert pose
+    `$scope.$parent.$watch(<expression du modele>, setLocalValue)` (`xeditable.js`), et
+    `setLocalValue` reaffecte `scope.$data` depuis le modele : **tout remplacement de
+    `$scope.patient` reinitialise le `$data` des editables ouverts**. Si la reponse de ce PUT
+    parasite revient apres qu'une saisie a ete commitee dans un `$data` (un `Tab` sur la date
+    de naissance, par exemple) mais avant l'enregistrement final, la saisie est ecrasee en
+    silence par la valeur du serveur, et le PUT de « Fin d'edition » repart avec l'ancienne
+    valeur. La base n'est jamais modifiee, sans la moindre erreur visible. Reproduit et
+    journalise le 2026-09-10 (cf. `docs/superpowers/` et KANBAN.md) : c'est la cause de
+    l'alea de `test_edition_de_la_date_de_naissance`.
+
+    Pourquoi la barriere est la reponse du `GET /api/patients/:id/documents`, et pas celle
+    du PUT lui-meme : le PUT revenu ne prouve que l'arrivee des octets, pas l'execution du
+    callback qui remplace `$scope.patient`. La derniere instruction de ce callback est
+    `$scope.patient.medical_reports_doc(...)`, qui emet precisement ce GET : **sa seule
+    existence prouve que le remplacement a eu lieu**. Barriere causale, jamais temporelle —
+    et jamais une barriere d'ecran, qu'AngularJS satisferait de facon optimiste. Le statut de
+    ce GET n'est volontairement pas verifie : il n'est pas l'objet de l'attente, seulement
+    son marqueur (il repond d'ailleurs 400 dans le socle de test, faute de document).
+    """
+    with page.expect_response(
+        lambda reponse: (
+            reponse.request.method == "GET"
+            and re.search(rf"/api/patients/{patient_id}/documents$", reponse.url)
+            is not None
+        )
+    ):
+        geste()
+
+
 def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:
     """Execute `geste` (un clic qui declenche le POST /api/patients de creation) et attend
     sa reponse HTTP, avant de rendre la main.
