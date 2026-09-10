@@ -24,6 +24,8 @@ from tests.functional.helpers import (
     connexion,
     creer_patient,
     enregistrer_formulaire,
+    notifications_d_erreur,
+    notifications_de_succes,
     ouvrir_nouvelle_consultation,
     ouvrir_profil_therapeute,
     ouvrir_reglages_cabinet,
@@ -60,7 +62,7 @@ def test_changement_du_numero_de_depart(
     # contenu precedent.
     champ.fill("25000")
     expect(bouton).to_be_enabled()
-    enregistrer_formulaire(page)
+    enregistrer_formulaire(page, bouton)
 
     assert OfficeSettings.objects.get(id=1).invoice_start_sequence == "25000"
     evenement = dernier_evenement()
@@ -106,15 +108,15 @@ def test_numero_de_depart_anterieur_refuse(
     champ = page.locator("#invoice_start_sequence")
     bouton = page.get_by_role("button", name="Mettre à jour")
     # Deux sauvegardes dans le meme test : `enregistrer_formulaire` compte desormais ses
-    # propres growls avant de cliquer, une vraie barriere d'etat pour chacune — plus besoin
-    # de la reproduire ici (cf. helpers.py, ancien piege documente a cet endroit).
+    # propres notifications avant de cliquer, une vraie barriere d'etat pour chacune — plus
+    # besoin de la reproduire ici (cf. helpers.py, ancien piege documente a cet endroit).
 
     champ.fill("15000")
     expect(bouton).to_be_disabled()
     expect(champ).to_have_value("15000")
     champ.fill("25500")
     expect(bouton).to_be_enabled()
-    enregistrer_formulaire(page)
+    enregistrer_formulaire(page, bouton)
     assert "25500" in dernier_evenement().comment
 
     champ.fill("25000")
@@ -122,7 +124,7 @@ def test_numero_de_depart_anterieur_refuse(
     expect(champ).to_have_value("25000")
     champ.fill("25001")
     expect(bouton).to_be_enabled()
-    enregistrer_formulaire(page)
+    enregistrer_formulaire(page, bouton)
     assert "25001" in dernier_evenement().comment
     assert OfficeSettings.objects.get(id=1).invoice_start_sequence == "25001"
 
@@ -143,7 +145,7 @@ def test_numero_de_depart_textuel_refuse(
     champ.fill("FACT00001")
     expect(champ).to_have_value("FACT00001")
     expect(bouton).to_be_disabled()
-    expect(page.locator("div.growl-item.alert-success")).to_have_count(0)
+    expect(notifications_de_succes(page)).to_have_count(0)
 
     assert OfficeSettings.objects.get(id=1).invoice_start_sequence == ""
 
@@ -250,7 +252,7 @@ def test_avoir_sur_facture_deja_emise(
     # l'attribut DOM `value` reel est bien la chaine "false" — confirme par lecture directe
     # du template, pas seulement du brief.
     page.check("input[value=false]")
-    enregistrer_formulaire(page)
+    enregistrer_formulaire(page, page.get_by_role("button", name="Mettre à jour"))
     assert OfficeSettings.objects.get(id=1).cancel_invoice_credit_note is False
 
     page.goto(live_server.url)
@@ -454,7 +456,7 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     page.check("input[value=cash]")
     page.click("button.btn-primary:has-text('Valider')")
 
-    banniere = page.locator("div.growl-item.alert-danger")
+    banniere = notifications_d_erreur(page)
     expect(banniere).to_contain_text("amount :")
     expect(banniere).to_contain_text("chiffres après la virgule")
     expect(page.locator("#current-examination")).to_be_visible()
@@ -477,7 +479,7 @@ def definir_nom_du_therapeute(page: Page) -> None:
     ouvrir_profil_therapeute(page)
     page.fill("input[name='last_name']", "Tester")
     page.fill("input[name=first_name]", "Robot")
-    enregistrer_formulaire(page)
+    enregistrer_formulaire(page, page.get_by_test_id("enregistrer-profil"))
 
 
 def test_impression_de_facture_reprend_cabinet_et_therapeute(

@@ -30,7 +30,7 @@ def definir_nom_du_therapeute(page: Page) -> None:
     ouvrir_profil_therapeute(page)
     page.fill("input[name='last_name']", "Tester")
     page.fill("input[name=first_name]", "Robot")
-    enregistrer_formulaire(page)
+    enregistrer_formulaire(page, page.get_by_test_id("enregistrer-profil"))
 
 
 def revenir_a_la_chronologie(page: Page) -> None:

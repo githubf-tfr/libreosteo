@@ -45,7 +45,7 @@ def test_reglage_du_cabinet(page: Page, live_server: LiveServer, socle: Socle) -
     page.fill("#invoice_office_header", "Cabinet Central")
     page.fill("#invoice_content", "Facture <amount> <currency> emise")
     page.fill("#invoice_footer", "Merci de votre visite")
-    enregistrer_formulaire(page)
+    enregistrer_formulaire(page, page.get_by_role("button", name="Mettre à jour"))
 
     # L'interface ne montre pas ce qui a ete reellement enregistre : on le lit par l'ORM,
     # la ou les suites Robot passaient par /api/settings.

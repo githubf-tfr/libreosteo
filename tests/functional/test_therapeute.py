@@ -33,7 +33,7 @@ def test_reglage_du_therapeute(
     page.fill("input[name=email]", "test@robot.com")
     page.fill("#inputProfessionalId", "67654684")
     page.fill("#inputQuality", "Kinésithérapeute")
-    enregistrer_formulaire(page)
+    enregistrer_formulaire(page, page.get_by_test_id("enregistrer-profil"))
 
     utilisateur = get_user_model().objects.get(username="test")
     assert utilisateur.first_name == "Robot"

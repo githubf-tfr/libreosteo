@@ -7,7 +7,7 @@ from datetime import date
 from typing import Callable
 
 from django.utils.formats import date_format
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 
@@ -77,20 +77,51 @@ def ouvrir_profil_therapeute(page: Page) -> None:
     expect(page.locator("input[name=email]")).not_to_have_value("")
 
 
-def enregistrer_formulaire(page: Page) -> None:
-    """Clique le bouton d'enregistrement et attend son propre growl de succes.
+def notifications_de_succes(page: Page) -> Locator:
+    """Les notifications de succes affichees par l'application.
 
-    `growlProvider.onlyUniqueMessages(false)` (static/js/app/app.js) empile les growls
-    identiques au lieu de les fusionner, et leur TTL (5000 ms) depasse largement la duree
-    d'un test : un second appel dans le meme test pourrait retomber sur le growl du
-    premier, encore a l'ecran, sans avoir attendu le sien. Compter les growls *avant* le
-    clic, puis attendre `n + 1`, est une vraie barriere pour chaque appel, contrairement a
-    une simple visibilite qu'un growl anterieur satisferait deja.
+    Contrat neutre : l'implementation est derriere ce nom, et c'est l'un des deux seuls
+    endroits de la suite qui la nomme. `angular-growl` rend son gabarit en ligne dans sa
+    propre directive (`growlDirective.js`), sans aucun attribut `role` ni rôle ARIA
+    implicite — un `div` nu : le produit ne peut y poser ni identifiant ni `data-testid`,
+    et il n'existe aucun autre adressage possible tant que cette bibliotheque est la.
     """
-    growl_succes = page.locator("div.growl-item.alert-success")
-    compte_avant = growl_succes.count()
-    page.click("button.btn.btn-primary")
-    expect(growl_succes).to_have_count(compte_avant + 1)
+    return page.locator("div.growl-item.alert-success")
+
+
+def notifications_d_erreur(page: Page) -> Locator:
+    """Les notifications d'erreur affichees par l'application. Meme contrat neutre que
+    `notifications_de_succes`, meme motif."""
+    return page.locator("div.growl-item.alert-danger")
+
+
+def attendre_notification_de_succes(page: Page, geste: Callable[[], None]) -> None:
+    """Execute `geste` et attend que l'application affiche SA notification de succes.
+
+    Compter les notifications *avant* le geste, puis attendre `n + 1`, est une vraie
+    barriere pour chaque appel : l'application empile les messages identiques au lieu de
+    les fusionner, et leur duree d'affichage (5 s) depasse celle d'un test — une simple
+    verification de visibilite serait satisfaite par la notification d'un appel precedent,
+    encore a l'ecran.
+    """
+    notifications = notifications_de_succes(page)
+    compte_avant = notifications.count()
+    geste()
+    expect(notifications).to_have_count(compte_avant + 1)
+
+
+def enregistrer_formulaire(page: Page, bouton: Locator) -> None:
+    """Clique le bouton d'enregistrement et attend la confirmation de l'application.
+
+    La barriere est la notification, et non la reponse d'une requete nommee : les deux
+    ecrans concernes n'ecrivent pas en une seule requete. « Mettre a jour » (cabinet) lance
+    les reglages et un enregistrement par moyen de paiement **en parallele**, et ne
+    confirme qu'apres le dernier ; « Enregistrer » (profil) en enchaine deux, l'utilisateur
+    puis les reglages du therapeute, et ne confirme qu'apres la seconde. La notification est
+    donc le seul signal en aval de *toutes* les ecritures — ce que l'arbitrage A1 exige
+    quand l'assertion qui suit porte sur la base.
+    """
+    attendre_notification_de_succes(page, bouton.click)
 
 
 def creer_patient(

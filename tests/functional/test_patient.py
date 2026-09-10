@@ -24,6 +24,7 @@ from tests.functional.helpers import (
     creer_patient,
     joindre_document,
     libelle_date_longue,
+    notifications_d_erreur,
     ouvrir_nouvelle_consultation,
     rechercher_patient,
     remplir_editeur_hallo,
@@ -64,9 +65,7 @@ def test_creation_patient_et_refus_du_doublon(
     modale = page.locator("div.modal-body")
     expect(modale).to_be_visible()
     page.click("#modal-btn-ok")
-    expect(page.locator("div.growl-item.alert-danger")).to_contain_text(
-        "Ce patient existe déjà"
-    )
+    expect(notifications_d_erreur(page)).to_contain_text("Ce patient existe déjà")
     assert Patient.objects.filter(family_name="Picard").count() == 1
 
 
@@ -123,9 +122,7 @@ def test_avertissement_d_homonyme_puis_creation(
     expect(modale).to_be_visible()
     page.click("#modal-btn-ok")
     expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
-    expect(page.locator("div.growl-item.alert-danger")).to_contain_text(
-        "Ce patient existe déjà"
-    )
+    expect(notifications_d_erreur(page)).to_contain_text("Ce patient existe déjà")
     assert Patient.objects.filter(family_name="Picard").count() == 2
 
     # La recherche ne voit toujours que les deux homonymes deja crees : la tentative
