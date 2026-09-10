@@ -25,11 +25,11 @@ def test_reconstruction_de_l_index_depuis_le_menu(
 
     ouvrir_menu_utilisateur(page)
     page.click("#rebuild-index")
-    expect(page.locator("h1.page-header")).to_contain_text("Réindexer")
+    expect(page.get_by_test_id("titre-reindexation")).to_contain_text("Réindexer")
 
     page.click("button:has-text('réindexer')")
-    expect(page.locator("i.fa-check")).to_be_visible()
-    expect(page.locator("i.fa-exclamation")).to_have_count(0)
+    expect(page.get_by_test_id("reindexation-reussie")).to_be_visible()
+    expect(page.get_by_test_id("reindexation-echouee")).to_have_count(0)
 
     rechercher_patient(page, "Picard")
-    expect(page.locator("h1.page-header")).to_contain_text("Picard")
+    expect(page.get_by_test_id("titre-patient")).to_contain_text("Picard")

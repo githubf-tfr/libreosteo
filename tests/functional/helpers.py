@@ -47,7 +47,7 @@ def ouvrir_menu_utilisateur(page: Page) -> None:
     instrumentation directe des attributs DOM). Piloter l'etat reel du menu, plutot que de
     cliquer sans le regarder, evite cette dependance a un comportement non garanti.
     """
-    menu = page.locator("ul.dropdown-user")
+    menu = page.get_by_test_id("menu-utilisateur")
     if not menu.is_visible():
         page.click("#user-toggle")
     expect(menu).to_be_visible()
@@ -56,7 +56,9 @@ def ouvrir_menu_utilisateur(page: Page) -> None:
 def ouvrir_reglages_cabinet(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
     page.click("#office-settings")
-    expect(page.locator("h1.page-header")).to_contain_text("Paramètres du cabinet")
+    expect(page.get_by_test_id("titre-cabinet")).to_contain_text(
+        "Paramètres du cabinet"
+    )
     # Le titre de la page se pose avant la reponse du GET /api/settings : il ne prouve pas
     # que le formulaire est rempli. `office_identifier` est rempli par cette reponse : une
     # vraie barriere d'etat. Attendre une valeur non vide plutot que la valeur semee en dur
@@ -68,7 +70,7 @@ def ouvrir_reglages_cabinet(page: Page) -> None:
 def ouvrir_profil_therapeute(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
     page.click("#user-profile")
-    expect(page.locator("h1.page-header")).to_contain_text("Profil utilisateur")
+    expect(page.get_by_test_id("titre-profil")).to_contain_text("Profil utilisateur")
     # Meme risque de course qu'au-dessus (GET /myuserid, /api/users/:id,
     # /api/profiles/get_by_user) : `email` est rempli par ces reponses, contrairement a
     # `professional_id` ou `quality` que certains tests vident expres pour declencher la
@@ -133,7 +135,9 @@ def creer_patient(
     annee: str = "1935",
 ) -> None:
     page.click("a:has-text('Nouveau patient')")
-    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
+        "Nouveau patient"
+    )
     # Ces deux champs n'ont pas d'id, seulement un attribut `name` (add-patient.html).
     page.fill("input[name=family_name]", nom)
     page.fill("input[name=first_name]", prenom)
@@ -141,14 +145,14 @@ def creer_patient(
     page.fill("input.mm", mois)
     page.fill("input.yy", annee)
     page.check("#consent")
-    page.click("button.btn.btn-primary")
-    expect(page.locator("h1.page-header")).to_contain_text(nom)
+    page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
+    expect(page.get_by_test_id("titre-patient")).to_contain_text(nom)
 
 
 def rechercher_patient(page: Page, nom: str) -> None:
     page.fill("div.custom-search-form input", nom)
     page.click("div.custom-search-form span > button")
-    expect(page.locator("h3.page-header")).to_contain_text(nom)
+    expect(page.get_by_test_id("titre-recherche")).to_contain_text(nom)
     page.click("div.search-entry > h4 > a")
 
 
@@ -202,7 +206,7 @@ def cloturer_consultation(
     if moyen is not None:
         expect(page.locator("#amount")).to_have_value("55")
         page.check(f"input[value={moyen}]")
-    page.click("button.btn-primary:has-text('Valider')")
+    page.get_by_role("button", name="Valider", exact=True).click()
     expect(page.locator("#current-examination")).to_be_hidden()
 
 
@@ -404,18 +408,22 @@ def joindre_document(
 
     `filemanager.html` (directive `fileManager`, static/js/app/filemanager.js) vit hors
     de tout `editable-form` : aucun mode edition prealable n'est requis, contrairement
-    aux autres panneaux du dossier patient. Le bouton "Cliquer pour envoyer"
-    (`button.btn.label.label-info`) disparait avec tout son formulaire une fois
-    `doc.status` passe a 2 (succes) — `$scope.files` est alors filtre par le `$watch`
-    de la directive — c'est le signal d'attente le plus sur.
+    aux autres panneaux du dossier patient.
+
+    La barriere de fin est la disparition du bloc `div.document_create`, gouverne par
+    `ng-if="f.status != 2"` : il ne s'efface qu'au succes reel du televersement. Le
+    libelle du bouton ne peut pas la porter, lui : il passe par "en cours..." (statut 1)
+    avant le succes, donc une attente sur l'absence de "Cliquer pour envoyer" serait
+    satisfaite pendant l'envoi. `document_create` est une classe applicative, pas un
+    rouage de framework.
     """
     page.set_input_files("#addDocumentMedicalReport", chemin)
-    expect(page.locator("div.form-group.document_create")).to_be_visible()
+    expect(page.locator("div.document_create")).to_be_visible()
     page.fill("input[placeholder*='Titre']", titre)
     page.fill("input[placeholder*='Date']:visible", date)
     remplir_champ_de_texte_riche(page, page.get_by_test_id("notes-document"), notes)
-    page.click("button.btn.label.label-info")
-    expect(page.locator("button.btn.label")).to_have_count(0)
+    page.get_by_role("button", name="Cliquer pour envoyer", exact=True).click()
+    expect(page.locator("div.document_create")).to_have_count(0)
 
 
 def bouton_de_confirmation(page: Page) -> Locator:

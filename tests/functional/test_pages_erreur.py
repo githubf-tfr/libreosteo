@@ -58,6 +58,7 @@ def test_le_lien_de_deconnexion_de_la_page_404_fonctionne(
     page.goto(f"{live_server.url}/cette-route-n-existe-pas")
     with page.expect_navigation():
         page.eval_on_selector(
-            "ul.dropdown-user a:has-text('Déconnexion')", "el => el.onclick()"
+            '[data-testid="menu-utilisateur"] a:has-text("Déconnexion")',
+            "el => el.onclick()",
         )
     expect(page).to_have_title("Identifiez-vous sur LibreOsteo")

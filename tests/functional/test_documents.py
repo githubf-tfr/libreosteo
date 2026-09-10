@@ -88,8 +88,8 @@ def test_supprimer_un_document(page: Page, live_server: LiveServer) -> None:
 
     page.click("button.document-edit")
     page.click("button.document-edit-delete")
-    expect(page.locator("div.modal-content h3")).to_contain_text("Confirmer")
-    expect(page.locator("div.modal-content .modal-body")).to_contain_text(
+    expect(page.get_by_test_id("titre-modale")).to_contain_text("Confirmer")
+    expect(page.get_by_test_id("corps-modale")).to_contain_text(
         "Êtes-vous sûr(e) de supprimer ce document ?"
     )
     confirmer_la_modale(page)

@@ -20,7 +20,17 @@ def test_reglage_du_therapeute(
     socle.therapeute.save()
 
     connexion(page, live_server)
-    expect(page.locator("div.popover-content")).to_contain_text("identifiant")
+    # La visite guidee (`static/js/app/tour.js`) construit son popover en JavaScript,
+    # depuis un gabarit qui lui est propre : le produit ne peut y poser aucun
+    # `data-testid` (T8 n'ajoute d'attribut que dans les gabarits `.html`), et ce
+    # gabarit-la, contrairement au gabarit par defaut de `bootstrap-tour`, ne porte pas
+    # de `role="tooltip"`. Le seul ancrage qui ne soit pas un rouage de framework est
+    # donc le texte que l'utilisateur lit — celui du premier pas, « Thérapeute ».
+    expect(
+        page.get_by_text(
+            "L'identifiant professionnel est obligatoire pour les factures."
+        )
+    ).to_be_visible()
 
     ouvrir_profil_therapeute(page)
     # `last_name`, `first_name` et `email` n'ont qu'un attribut `name`, pas d'`id`

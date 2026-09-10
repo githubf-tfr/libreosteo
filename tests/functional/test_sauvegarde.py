@@ -39,7 +39,9 @@ def test_archive_obtenue_depuis_l_ecran(
 
     ouvrir_menu_utilisateur(page)
     page.click("#import-file")
-    expect(page.locator("h1.page-header")).to_contain_text("Gestion de l'import/export")
+    expect(page.get_by_test_id("titre-import")).to_contain_text(
+        "Gestion de l'import/export"
+    )
     expect(page.locator("body")).to_contain_text(
         "Cette fonction vous aide à archiver et restaurer le système entier."
     )

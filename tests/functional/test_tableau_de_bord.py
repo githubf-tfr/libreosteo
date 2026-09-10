@@ -1,7 +1,5 @@
 """Rendu Angular des tuiles du tableau de bord (R-TAB-01, R-TAB-02)."""
 
-import re
-
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -21,7 +19,7 @@ def revenir_a_la_chronologie(page: Page) -> None:
     apres une cloture, `reloadExaminations` (patient.js) affiche le detail de la
     consultation qui vient de se fermer a la place de la chronologie.
     """
-    bouton_fermer = page.locator("button.close.pull-right:visible")
+    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
     if bouton_fermer.count() > 0:
         bouton_fermer.click()
 
@@ -72,22 +70,26 @@ def test_compteurs_du_tableau_de_bord(page: Page, live_server: LiveServer) -> No
     expect(page.get_by_test_id("titre-tableau-de-bord")).to_contain_text(
         "Tableau de bord"
     )
-    expect(page.locator("span.label", has_text="Semaine")).to_have_class(
-        re.compile(r"\blabel-primary\b")
-    )
-    expect(page.locator(".panel-primary .huge")).to_have_text("1")
-    expect(page.locator(".panel-green .huge")).to_have_text("2")
-    expect(page.locator(".panel-red .huge")).to_have_text("0")
+    # La periode active n'etait exprimee que par une classe Bootstrap posee par
+    # `ng-class` ; elle passe desormais par la *valeur* du `data-testid` du conteneur
+    # (arbitrage E2). L'assertion reste falsifiable : si le mois etait actif, le
+    # conteneur porterait `periode-active-month` et celle-ci echouerait.
+    expect(page.get_by_test_id("periode-active-week")).to_be_visible()
+    expect(page.get_by_test_id("compteur-nouveaux-patients")).to_have_text("1")
+    expect(page.get_by_test_id("compteur-consultations")).to_have_text("2")
+    expect(page.get_by_test_id("compteur-retours-urgents")).to_have_text("0")
 
-    page.click("span.label:has-text('Mois')")
-    expect(page.locator(".panel-primary .huge")).to_have_text("1")
-    expect(page.locator(".panel-green .huge")).to_have_text("2")
-    expect(page.locator(".panel-red .huge")).to_have_text("0")
+    page.get_by_test_id("filtre-mois").click()
+    expect(page.get_by_test_id("periode-active-month")).to_be_visible()
+    expect(page.get_by_test_id("compteur-nouveaux-patients")).to_have_text("1")
+    expect(page.get_by_test_id("compteur-consultations")).to_have_text("2")
+    expect(page.get_by_test_id("compteur-retours-urgents")).to_have_text("0")
 
-    page.click("span.label:has-text('Année')")
-    expect(page.locator(".panel-primary .huge")).to_have_text("1")
-    expect(page.locator(".panel-green .huge")).to_have_text("2")
-    expect(page.locator(".panel-red .huge")).to_have_text("0")
+    page.get_by_test_id("filtre-annee").click()
+    expect(page.get_by_test_id("periode-active-year")).to_be_visible()
+    expect(page.get_by_test_id("compteur-nouveaux-patients")).to_have_text("1")
+    expect(page.get_by_test_id("compteur-consultations")).to_have_text("2")
+    expect(page.get_by_test_id("compteur-retours-urgents")).to_have_text("0")
 
 
 def test_statistiques_du_jour(page: Page, live_server: LiveServer) -> None:
@@ -102,7 +104,7 @@ def test_statistiques_du_jour(page: Page, live_server: LiveServer) -> None:
     construire_etat_e2(page)
 
     page.goto(f"{live_server.url}/#/")
-    expect(page.locator(".panel-green .huge")).to_have_text("2")
+    expect(page.get_by_test_id("compteur-consultations")).to_have_text("2")
 
     page.reload()
-    expect(page.locator(".panel-green .huge")).to_have_text("2")
+    expect(page.get_by_test_id("compteur-consultations")).to_have_text("2")

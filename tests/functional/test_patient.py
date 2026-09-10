@@ -52,7 +52,9 @@ def test_creation_patient_et_refus_du_doublon(
 
     # Le meme patient une seconde fois : l'application refuse et l'explique.
     page.click("a:has-text('Nouveau patient')")
-    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
+        "Nouveau patient"
+    )
     # Ces deux champs n'ont pas d'id, seulement un attribut `name` (add-patient.html).
     page.fill("input[name=family_name]", "Picard")
     page.fill("input[name=first_name]", "Jean-Luc")
@@ -60,11 +62,11 @@ def test_creation_patient_et_refus_du_doublon(
     page.fill("input.mm", "07")
     page.fill("input.yy", "1935")
     page.check("#consent")
-    page.click("button.btn.btn-primary")
+    page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
     # Le doublon est exact : l'homonyme trouvé est le patient lui-même, donc la modale
     # d'avertissement s'ouvre avant le refus 400 (tâche 9). On l'acquitte pour laisser
     # la création se poursuivre jusqu'au refus que ce test vérifie.
-    modale = page.locator("div.modal-body")
+    modale = page.get_by_test_id("corps-modale")
     expect(modale).to_be_visible()
     confirmer_la_modale(page)
     expect(notifications_d_erreur(page)).to_contain_text("Ce patient existe déjà")
@@ -83,27 +85,31 @@ def test_avertissement_d_homonyme_puis_creation(
         )
     connexion(page, live_server)
     page.click("a:has-text('Nouveau patient')")
-    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
+        "Nouveau patient"
+    )
     page.fill("input[name=family_name]", "Picard")
     page.fill("input[name=first_name]", "Jean-Luc")
     page.fill("input.dd", "01")
     page.fill("input.mm", "01")
     page.fill("input.yy", "1980")
     page.check("#consent")
-    page.click("button.btn.btn-primary")
+    page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
 
-    modale = page.locator("div.modal-body")
+    modale = page.get_by_test_id("corps-modale")
     expect(modale).to_be_visible()
     expect(modale).to_contain_text("Un patient de même nom existe déjà")
     attendre_creation_patient(page, lambda: confirmer_la_modale(page))
     assert Patient.objects.filter(family_name="Picard").count() == 2
-    # Course connue et non refermee : la fiche patient qui vient de s'ouvrir declenche
-    # plusieurs appels $http asynchrones (examens, documents, medecin traitant...) que le
-    # clic sur "Nouveau patient" ci-dessous n'attend pas, et un clic trop tot peut etre
-    # absorbe en silence par une transition ui-router encore en vol (meme famille de
-    # course que celle documentee dans `helpers.connexion`, refermee la par un etat
-    # d'ecran). Aucune barriere ne la couvre ici : l'etat qui la fermerait est le meme
-    # que celui du site voisin plus bas, et reste a poser.
+    # Barriere (course refermee ici, D6b T8) : la fiche patient qui vient de s'ouvrir
+    # declenche plusieurs appels $http asynchrones (examens, documents, medecin
+    # traitant...) que le clic sur "Nouveau patient" ci-dessous n'attend pas, et un clic
+    # emis pendant la transition ui-router encore en vol est absorbe en silence. Le titre
+    # de la vue **entrante** est l'etat qui la ferme : il n'existe pas tant que la fiche
+    # n'est pas rendue, donc l'assertion est falsifiable, et son `data-testid` ne peut pas
+    # etre confondu avec celui de la vue quittee — meme remede que les cinq barrieres de
+    # transition posees par T3, meme famille de course que celle de `helpers.connexion`.
+    expect(page.get_by_test_id("titre-patient")).to_contain_text("Picard")
 
     # R-PAT-07 : meme nom a la casse differente, meme date de naissance que le patient
     # d'origine (13/07/1935) -- l'avertissement d'homonyme s'ouvre comme au-dessus, mais
@@ -111,19 +117,23 @@ def test_avertissement_d_homonyme_puis_creation(
     # (UniqueTogetherIgnoreCaseValidator, api/serializers/patient.py) et voit un doublon
     # exact malgre `PICARD`/`JEAN-LUC`.
     page.click("a:has-text('Nouveau patient')")
-    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
+        "Nouveau patient"
+    )
     page.fill("input[name=family_name]", "PICARD")
     page.fill("input[name=first_name]", "JEAN-LUC")
     page.fill("input.dd", "13")
     page.fill("input.mm", "07")
     page.fill("input.yy", "1935")
     page.check("#consent")
-    page.click("button.btn.btn-primary")
+    page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
 
-    modale = page.locator("div.modal-body")
+    modale = page.get_by_test_id("corps-modale")
     expect(modale).to_be_visible()
     confirmer_la_modale(page)
-    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
+        "Nouveau patient"
+    )
     expect(notifications_d_erreur(page)).to_contain_text("Ce patient existe déjà")
     assert Patient.objects.filter(family_name="Picard").count() == 2
 
@@ -131,7 +141,7 @@ def test_avertissement_d_homonyme_puis_creation(
     # refusee n'a rien ajoute a l'index.
     page.fill("div.custom-search-form input", "Picard")
     page.click("div.custom-search-form span > button")
-    expect(page.locator("h3.page-header")).to_contain_text("Picard")
+    expect(page.get_by_test_id("titre-recherche")).to_contain_text("Picard")
     expect(page.locator("div.search-entry")).to_have_count(2)
 
 
@@ -158,16 +168,18 @@ def test_charge_html_dans_nom_homonyme_reste_texte_litteral(
         )
     connexion(page, live_server)
     page.click("a:has-text('Nouveau patient')")
-    expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
+    expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
+        "Nouveau patient"
+    )
     page.fill("input[name=family_name]", charge)
     page.fill("input[name=first_name]", "Jean-Luc")
     page.fill("input.dd", "01")
     page.fill("input.mm", "01")
     page.fill("input.yy", "1980")
     page.check("#consent")
-    page.click("button.btn.btn-primary")
+    page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
 
-    modale = page.locator("div.modal-body")
+    modale = page.get_by_test_id("corps-modale")
     expect(modale).to_be_visible()
     expect(modale).to_contain_text(charge)
     expect(page.locator("#xss-marker")).to_have_count(0)
@@ -187,8 +199,14 @@ def test_edition_du_dossier_patient(
     # Informations generales : les boutons disent dans quel mode on est.
     # Ces champs n'ont pas d'id : angular-xeditable pose un attribut `name` (celui de
     # `e-name`), jamais d'`id`, sur l'`<input>`/`<select>` de saisie (patient-detail.html).
-    page.click("button:has-text('Éditer')")
-    expect(page.locator('button:has-text("Fin d\'édition")')).to_be_visible()
+    # `exact=True` est impossible sur ce libelle : Playwright fait entrer le contenu des
+    # pseudo-elements dans le nom accessible, et l'icone Font Awesome qui precede le
+    # texte (`<i class="fa fa-edit">` / `<i class="fa fa-thumbs-o-up">`, index.html) y ajoute sa glyphe de la zone privee Unicode. Le nom
+    # accessible ne vaut donc jamais « Éditer », ni « Fin d'édition » tout court. La correspondance par
+    # sous-chaine reste non ambigue : aucun autre bouton ne porte ces mots (ceux qui
+    # editent un document joint portent `aria-label="Edit"`).
+    page.get_by_role("button", name="Éditer").click()
+    expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
     expect(page.locator("button:has-text('Supprimer')")).to_be_visible()
     page.fill("input[name=original_name]", "dupont")
     page.select_option("select[name=sex]", label="Masculin")
@@ -232,13 +250,15 @@ def test_edition_du_dossier_patient(
     # « Éditer » revient des le clic, bien avant que le PUT n'ait reellement abouti,
     # et une saisie faite sur un onglet suivant avant ce retour se perd en silence.
     attendre_enregistrement_patient(
-        page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
+        page,
+        patient.id,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
     )
-    expect(page.locator("button:has-text('Éditer')")).to_be_visible()
+    expect(page.get_by_role("button", name="Éditer")).to_be_visible()
 
     # Antecedents (memes champs de texte riche reperes par `name`).
     page.click("#history")
-    page.click("button:has-text('Éditer')")
+    page.get_by_role("button", name="Éditer").click()
     remplir_champ_de_texte_riche(
         page, page.locator("div[name=surgical_history]"), "Surgical history"
     )
@@ -257,17 +277,17 @@ def test_edition_du_dossier_patient(
     attendre_enregistrement_patient(
         page, patient.id, lambda: page.click("#medicalreports")
     )
-    page.click("button:has-text('Éditer')")
+    page.get_by_role("button", name="Éditer").click()
     remplir_champ_de_texte_riche(
         page, page.locator("div[name=medical_reports]"), "Medical Reports"
     )
     attendre_enregistrement_patient(
-        page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
+        page,
+        patient.id,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
     )
     page.set_input_files("#addDocumentMedicalReport", CHEMIN_DOCUMENT)
-    expect(page.locator("div.form-group.document_create")).to_contain_text(
-        "patients_1.csv"
-    )
+    expect(page.locator("div.document_create")).to_contain_text("patients_1.csv")
     page.fill("input[placeholder*='Titre']", "Licence LibreOsteo")
     # Le champ de date (filemanager.html) est remplace par le widget webshim configure
     # dans static/js/app/app.js (webshim.setOptions('forms-ext', {replaceUI: 'auto',
@@ -282,8 +302,8 @@ def test_edition_du_dossier_patient(
     remplir_champ_de_texte_riche(
         page, page.get_by_test_id("notes-document"), "Licence GNU GPLv3"
     )
-    page.click("button.btn.label.label-info")
-    expect(page.locator("button.btn.label")).to_have_count(0)
+    page.get_by_role("button", name="Cliquer pour envoyer", exact=True).click()
+    expect(page.locator("div.document_create")).to_have_count(0)
 
     patient.refresh_from_db()
     assert patient.original_name == "Dupont"
@@ -366,7 +386,7 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
 
-    page.click("button:has-text('Éditer')")
+    page.get_by_role("button", name="Éditer").click()
     # Meme widget, meme risque de propagation que `saisir_date_examen`
     # (`tests/functional/test_consultation.py`) : ce champ passe lui aussi par
     # `editable-date` (xeditable) puis webshim (`onshow="updateComponentPolyfill()"`)
@@ -386,17 +406,19 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     champ.press_sequentially("03/02/1935")
     champ.press("Tab")
     attendre_enregistrement_patient(
-        page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
+        page,
+        patient.id,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
     )
     patient.refresh_from_db()
     assert patient.birth_date == date(1935, 2, 3)
-    expect(page.locator("button:has-text('Éditer')")).to_be_visible()
+    expect(page.get_by_role("button", name="Éditer")).to_be_visible()
 
     # Quantieme > 12 : non-regression du seul cas que l'heuristique de rattrapage de
     # webshim (form-number-date-ui.js:605) corrigeait deja par accident avant le
     # correctif, desormais lu directement par la locale francaise du document — ne
     # prouve pas le defaut A a elle seule (cf. docstring).
-    page.click("button:has-text('Éditer')")
+    page.get_by_role("button", name="Éditer").click()
     # Second passage en edition : `originalNameInput` est rouvert, donc meme PUT parasite
     # et meme barriere qu'au cas precedent.
     attendre_sauvegarde_parasite(page, patient.id, champ.click)
@@ -404,7 +426,9 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     champ.press_sequentially("24/02/1935")
     champ.press("Tab")
     attendre_enregistrement_patient(
-        page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
+        page,
+        patient.id,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
     )
     patient.refresh_from_db()
     assert patient.birth_date == date(1935, 2, 24)
@@ -427,7 +451,7 @@ def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
 
     page.goto(live_server.url)
     rechercher_patient(page, "Picard")
-    expect(page.locator("h1.page-header")).to_contain_text("Picard")
+    expect(page.get_by_test_id("titre-patient")).to_contain_text("Picard")
 
     page.click("#medicalreports")
     joindre_document(
@@ -440,7 +464,7 @@ def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
     page.click("#general")
 
     page.click("button:has-text('Supprimer')")
-    expect(page.locator("div.modal-content h3")).to_contain_text("Confirmer")
+    expect(page.get_by_test_id("titre-modale")).to_contain_text("Confirmer")
     expect(bouton_de_confirmation(page)).to_be_disabled()
     page.click("#agreeGdpr")
     expect(bouton_de_confirmation(page)).to_be_enabled()
@@ -474,7 +498,7 @@ def revenir_a_la_chronologie(page: Page) -> None:
     clique que si le panneau est bien ouvert : au tout premier appel d'un test, la
     chronologie est deja affichee et ce bouton n'existe pas encore dans le DOM.
     """
-    bouton_fermer = page.locator("button.close.pull-right:visible")
+    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
     if bouton_fermer.count() > 0:
         bouton_fermer.click()
 
@@ -503,7 +527,7 @@ def test_timeline_consultations_et_documents(
     revenir_a_la_chronologie(page)
 
     page.click("#examinations")
-    titres = page.locator("h4.timeline-title")
+    titres = page.get_by_test_id("titre-seance")
     expect(titres).to_have_count(2)
     seance_du_jour = f"Séance du {libelle_date_longue(date.today())}"
     expect(titres.nth(0)).to_contain_text(seance_du_jour)
@@ -511,10 +535,10 @@ def test_timeline_consultations_et_documents(
     # Les deux entrees sont badgees en vert (type == 1, la valeur par defaut d'une
     # consultation), mais distinguees par leur icone : coche pour la facturee et reglee
     # (status == 2), interdiction pour la non facturee (status == 3).
-    expect(page.locator("div.timeline-badge.success")).to_have_count(2)
-    expect(page.locator("div.timeline-badge i.fa-check")).to_have_count(1)
-    expect(page.locator("div.timeline-badge i.fa-ban")).to_have_count(1)
-    corps = page.locator("div.timeline-body")
+    expect(page.get_by_test_id("badge-seance-1")).to_have_count(2)
+    expect(page.get_by_test_id("icone-seance-2")).to_have_count(1)
+    expect(page.get_by_test_id("icone-seance-3")).to_have_count(1)
+    corps = page.get_by_test_id("corps-seance")
     expect(corps).to_have_count(2)
     expect(corps.nth(0)).to_contain_text("Motif de consultation")
     expect(corps.nth(1)).to_contain_text("Motif de consultation")

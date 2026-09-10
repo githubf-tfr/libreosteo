@@ -8,6 +8,7 @@ from tests.functional.conftest import Socle
 from tests.functional.helpers import (
     connexion,
     enregistrer_formulaire,
+    notifications_d_erreur,
     ouvrir_reglages_cabinet,
 )
 
@@ -21,14 +22,27 @@ def test_reglage_du_cabinet(page: Page, live_server: LiveServer, socle: Socle) -
     socle.therapeute.save()
 
     connexion(page, live_server)
-    expect(page.locator(".alert-danger")).to_have_count(0)
+    # `.alert-danger` designait ici les notifications d'erreur de l'application
+    # (`angular-growl` les rend avec cette classe) : le contrat neutre de `helpers`
+    # porte la meme assertion sans nommer le rouage.
+    expect(notifications_d_erreur(page)).to_have_count(0)
     # L'etape « Therapeute » de la visite guidee est la premiere : c'est elle qui parle
     # d'identifiant (static/js/app/tour.js).
-    expect(page.locator("div.popover-content")).to_contain_text("identifiant")
+    # La visite guidee (`static/js/app/tour.js`) construit son popover en JavaScript,
+    # depuis un gabarit qui lui est propre : le produit ne peut y poser aucun
+    # `data-testid` (T8 n'ajoute d'attribut que dans les gabarits `.html`), et ce
+    # gabarit-la, contrairement au gabarit par defaut de `bootstrap-tour`, ne porte pas
+    # de `role="tooltip"`. Le seul ancrage qui ne soit pas un rouage de framework est
+    # donc le texte que l'utilisateur lit — celui du premier pas, « Thérapeute ».
+    expect(
+        page.get_by_text(
+            "L'identifiant professionnel est obligatoire pour les factures."
+        )
+    ).to_be_visible()
     # `to_be_attached()` ne prouverait rien : index.html rend ce `<ul>` inconditionnellement
     # cote serveur, avant tout JavaScript. Seule sa visibilite prouve que la visite guidee a
     # bien ouvert le menu.
-    expect(page.locator("ul.dropdown-user")).to_be_visible()
+    expect(page.get_by_test_id("menu-utilisateur")).to_be_visible()
 
     ouvrir_reglages_cabinet(page)
     # Valeurs toutes distinctes de celles semees par le socle (tests/functional/conftest.py) :

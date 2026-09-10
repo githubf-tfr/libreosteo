@@ -41,7 +41,7 @@ def revenir_a_la_chronologie(page: Page) -> None:
     (patient.js) affiche le detail de la consultation qui vient de se fermer a la place
     de la chronologie.
     """
-    bouton_fermer = page.locator("button.close.pull-right:visible")
+    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
     if bouton_fermer.count() > 0:
         bouton_fermer.click()
 
@@ -72,7 +72,7 @@ def test_evenement_genere_a_la_creation_d_un_patient(
     expect(page.get_by_test_id("titre-tableau-de-bord")).to_contain_text(
         "Tableau de bord"
     )
-    entree = page.locator(".chat-panel li.officeevent")
+    entree = page.get_by_test_id("evenement-cabinet")
     expect(entree).to_have_count(1)
     expect(entree.locator("strong")).to_have_text("La Forge Geordi")
     expect(entree).to_contain_text("Nouveau patient créé")
@@ -106,12 +106,12 @@ def test_regroupement_et_navigation_depuis_le_tableau_de_bord(
     expect(page.get_by_test_id("titre-tableau-de-bord")).to_contain_text(
         "Tableau de bord"
     )
-    panneau = page.locator(".chat-panel")
-    entete = panneau.locator("li.left.clearfix:not(.officeevent)")
+    panneau = page.get_by_test_id("panneau-evenements")
+    entete = panneau.get_by_test_id("jour-evenements")
     expect(entete).to_have_count(1)
     expect(entete).to_contain_text(date_format(date.today(), "l j F Y"))
 
-    entrees = panneau.locator("li.officeevent")
+    entrees = panneau.get_by_test_id("evenement-cabinet")
     expect(entrees).to_have_count(3)
     expect(entrees.nth(0)).to_contain_text("Nouvelle consultation")
     expect(entrees.nth(1)).to_contain_text("Nouvelle consultation")
@@ -120,11 +120,11 @@ def test_regroupement_et_navigation_depuis_le_tableau_de_bord(
         expect(entrees.nth(indice)).to_contain_text("Picard Jean-Luc")
         expect(entrees.nth(indice)).to_contain_text("Robot Tester")
 
-    page.click(".chat-panel .dropdown-toggle")
-    page.click(".chat-panel a:has-text('Tout')")
-    entrees = panneau.locator("li.officeevent")
+    page.get_by_test_id("filtre-evenements").click()
+    page.get_by_test_id("evenements-tout").click()
+    entrees = panneau.get_by_test_id("evenement-cabinet")
     expect(entrees).to_have_count(3)
-    expect(panneau.locator("li.left.clearfix:not(.officeevent)")).to_have_count(0)
+    expect(panneau.get_by_test_id("jour-evenements")).to_have_count(0)
     expect(entrees.nth(0)).to_contain_text("Nouvelle consultation")
     expect(entrees.nth(1)).to_contain_text("Nouvelle consultation")
     expect(entrees.nth(2)).to_contain_text("Nouveau patient créé")
@@ -137,17 +137,24 @@ def test_regroupement_et_navigation_depuis_le_tableau_de_bord(
     # le titre est adresse par son `data-testid`.
     expect(page.get_by_test_id("titre-patient")).to_contain_text("Picard")
     expect(page.get_by_test_id("titre-patient")).to_contain_text("Jean-Luc")
-    expect(page.locator(".tab-pane.active")).to_contain_text("Motif de consultation")
+    expect(
+        page.locator('[data-testid="consultation-anterieure"]:visible')
+    ).to_contain_text("Motif de consultation")
 
     page.goto(f"{live_server.url}/#/")
-    entree_patient = page.locator(
-        ".chat-panel li.officeevent", has_text="Nouveau patient créé"
+    entree_patient = page.get_by_test_id("evenement-cabinet").filter(
+        has_text="Nouveau patient créé"
     )
     entree_patient.first.click()
     # Meme ambiguite de `h1.page-header` que plus haut pendant la transition ui-router :
     # le titre est adresse par son `data-testid`.
     expect(page.get_by_test_id("titre-patient")).to_contain_text("Picard")
     expect(page.get_by_test_id("titre-patient")).to_contain_text("Jean-Luc")
-    # "Infos patient" (panel-heading, patient-detail.html) n'existe que dans l'onglet
-    # "Infos générales" : sa presence dans le volet actif confirme l'onglet par defaut.
-    expect(page.locator(".tab-pane.active")).to_contain_text("Infos patient")
+    # "Infos patient" n'existe que dans l'onglet "Infos générales". `to_be_visible`
+    # remplace le `.active` d'hier, et porte la meme information : `uib-tabset` laisse
+    # les volets inactifs dans le DOM et se contente de les masquer par CSS, donc leur
+    # texte s'y trouve quoi qu'il arrive — seule la visibilite prouve que c'est bien
+    # l'onglet par defaut qui est ouvert.
+    onglet_general = page.get_by_test_id("onglet-infos-generales")
+    expect(onglet_general).to_be_visible()
+    expect(onglet_general).to_contain_text("Infos patient")

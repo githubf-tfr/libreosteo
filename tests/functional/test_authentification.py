@@ -31,7 +31,7 @@ def test_connexion_invalide(page: Page, live_server: LiveServer) -> None:
     page.fill("input[name=password]", "demo")
     page.click("button[type=submit]")
     expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
-    expect(page.locator(".alert-danger")).to_be_visible()
+    expect(page.get_by_test_id("erreur-connexion")).to_be_visible()
 
 
 def test_deconnexion_depuis_l_application(page: Page, live_server: LiveServer) -> None:
@@ -44,7 +44,14 @@ def test_deconnexion_depuis_l_application(page: Page, live_server: LiveServer) -
     """
     connexion(page, live_server)
     ouvrir_menu_utilisateur(page)
-    page.click("ul.dropdown-user a:has-text('Déconnexion')")
+    # `exact=True` est impossible sur ce libelle : Playwright fait entrer le contenu des
+    # pseudo-elements dans le nom accessible, et l'icone Font Awesome qui precede le
+    # texte (`<i class="fa fa-sign-out fa-fw">`, index.html) y ajoute sa glyphe de la zone privee Unicode. Le nom
+    # accessible ne vaut donc jamais « Déconnexion » tout court. La correspondance par
+    # sous-chaine reste non ambigue : le lien est cherche dans le seul menu utilisateur.
+    page.get_by_test_id("menu-utilisateur").get_by_role(
+        "link", name="Déconnexion"
+    ).click()
     expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
     expect(page.locator("input[name=username]")).to_have_attribute(
         "placeholder", "Votre nom d'utilisateur"
@@ -53,7 +60,7 @@ def test_deconnexion_depuis_l_application(page: Page, live_server: LiveServer) -
         "placeholder", "Mot de passe"
     )
     expect(page.locator("button[type=submit]")).to_contain_text("Identification")
-    expect(page.locator(".alert-danger")).to_have_count(0)
+    expect(page.get_by_test_id("erreur-connexion")).to_have_count(0)
 
     # C'est cette seconde etape qui prouve que la session est reellement close, pas
     # seulement que la page de deconnexion affiche le bon titre.

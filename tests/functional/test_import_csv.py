@@ -37,19 +37,21 @@ FICHIER_CONSULTATIONS = "tests/functional/resources/examinations_1.csv"
 def ouvrir_import(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
     page.click("#import-file")
-    expect(page.locator("h1.page-header")).to_contain_text("Gestion de l'import/export")
+    expect(page.get_by_test_id("titre-import")).to_contain_text(
+        "Gestion de l'import/export"
+    )
     # Le socle cree un superutilisateur : `allow_data_dump` (api/displays.py) vaut donc
     # True et l'onglet "Archive and restore database" s'affiche en premier — l'onglet
     # d'import n'est jamais actif par defaut, il faut le cliquer.
     page.click('a:has-text("Importer d\'un système externe")')
     # Deviation du brief : `uib-tabset` (angular-ui-bootstrap) ne retire jamais du DOM le
     # contenu des onglets inactifs, il se contente de masquer leur conteneur par CSS —
-    # confirme par lecture directe du DOM avant tout clic sur cet onglet : `div.well`
+    # confirme par lecture directe du DOM avant tout clic sur cet onglet : `note-import`
     # y est deja present, avec son texte complet. `expect(...).to_contain_text(...)` lit
     # le texte du noeud quelle que soit sa visibilite (constate par instrumentation
     # directe) : seul `.to_be_visible()` prouve que l'onglet est reellement devenu actif.
-    expect(page.locator("div.well")).to_be_visible()
-    expect(page.locator("div.well")).to_contain_text("Note")
+    expect(page.get_by_test_id("note-import")).to_be_visible()
+    expect(page.get_by_test_id("note-import")).to_contain_text("Note")
 
 
 def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
@@ -58,8 +60,8 @@ def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.click("button:has-text('Analyser')")
 
-    expect(page.locator("#patient-file-analyze p > span.text-success")).to_be_visible()
-    # Meme deviation que `ouvrir_import` pour `div.well` : la table et son en-tete
+    expect(page.get_by_test_id("analyse-patients-ok")).to_be_visible()
+    # Meme deviation que `ouvrir_import` pour la note d'import : la table et son en-tete
     # statique (« Nom de famille ») sont deja dans le DOM avant meme l'analyse (le
     # panneau qui l'entoure n'est, lui aussi, que masque par `ng-show`) — seule sa
     # visibilite prouve que l'extrait a bien ete affiche.
@@ -68,7 +70,7 @@ def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
         "Nom de famille"
     )
 
-    page.click("button.btn-success:has-text('Importer')")
+    page.get_by_role("button", name="Importer", exact=True).click()
     # Deviation du brief : barriere par visibilite plutot que par contenu.
     # `FileImportViewSet.integrate` (libreosteoweb/api/views.py)
     # integre les 100 lignes de facon synchrone dans le corps de la requete POST — mesure
@@ -77,19 +79,17 @@ def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
     # (`HAYSTACK_SIGNAL_PROCESSOR`), soit largement au-dela du plafond par defaut de 15 s
     # pose par `expect.set_options` (conftest.py) : toute barriere laissee a ce plafond
     # expirerait avant que la reponse ne revienne. Le panneau
-    # `div.panel-success` est lui aussi seulement masque par `ng-show` avant l'import (son
+    # de succes est lui aussi seulement masque par `ng-show` avant l'import (son
     # texte statique « Importation réussie » est deja dans le DOM au chargement de la vue,
     # constate par instrumentation directe) : `to_contain_text` seul y passerait
     # immediatement, sans jamais attendre la fin reelle de l'import. `.to_be_visible()`,
     # dont le plafond est releve comme l'autorise le brief, est la vraie barriere d'etat :
     # elle ne passe qu'une fois les 100 patients ecrits en base par le serveur.
-    expect(page.locator("div.panel-success > div.panel-heading")).to_be_visible(
-        timeout=120_000
-    )
-    expect(page.locator("div.panel-success > div.panel-heading")).to_contain_text(
+    expect(page.get_by_test_id("import-reussi-titre")).to_be_visible(timeout=120_000)
+    expect(page.get_by_test_id("import-reussi-titre")).to_contain_text(
         "Importation réussie"
     )
-    expect(page.locator("div.panel-success > div.panel-body")).to_contain_text(
+    expect(page.get_by_test_id("import-reussi-detail")).to_contain_text(
         "100 lignes importées du fichier patient"
     )
     assert Patient.objects.count() == 100
@@ -109,16 +109,14 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     ouvrir_import(page)
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.click("button:has-text('Analyser')")
-    page.click("button.btn-success:has-text('Importer')")
+    page.get_by_role("button", name="Importer", exact=True).click()
     # Meme deviation que `test_import_des_patients` : import lent (100 patients, chacun
     # reindexe par Whoosh), barriere par visibilite plutot que par contenu, plafond
     # releve.
     # Preuve de presence avant la reimportation : sans elle, le message d'erreur verifie
     # plus bas ne prouverait rien (l'import aurait pu simplement n'avoir jamais eu lieu).
-    expect(page.locator("div.panel-success > div.panel-heading")).to_be_visible(
-        timeout=120_000
-    )
-    expect(page.locator("div.panel-success > div.panel-heading")).to_contain_text(
+    expect(page.get_by_test_id("import-reussi-titre")).to_be_visible(timeout=120_000)
+    expect(page.get_by_test_id("import-reussi-titre")).to_contain_text(
         "Importation réussie"
     )
     assert Patient.objects.count() == 100
@@ -127,27 +125,25 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.set_input_files("#examination-file", FICHIER_CONSULTATIONS)
     page.click("button:has-text('Analyser')")
-    expect(
-        page.locator("#examination-file-analyze p > span.text-success")
-    ).to_be_visible()
+    expect(page.get_by_test_id("analyse-consultations-ok")).to_be_visible()
     expect(page.locator("#examination-file-analyze table")).to_be_visible()
     expect(page.locator("#examination-file-analyze table")).to_contain_text("Motif")
 
-    page.click("button.btn-success:has-text('Importer')")
+    page.get_by_role("button", name="Importer", exact=True).click()
     # Meme deviation : les 100 lignes patient echouent leur validation (deja connues,
     # donc pas de sauvegarde ni de reindexation), mais les 50 consultations sont bien
-    # ecrites et reindexees — `div.panel-warning` est, comme `div.panel-success`
+    # ecrites et reindexees — le panneau orange est, comme le panneau vert
     # ci-dessus, seulement masque par `ng-show` avant l'import.
-    expect(page.locator("div.panel-warning > div.panel-heading")).to_be_visible(
+    expect(page.get_by_test_id("import-avec-erreurs-titre")).to_be_visible(
         timeout=120_000
     )
-    expect(page.locator("div.panel-warning > div.panel-heading")).to_contain_text(
+    expect(page.get_by_test_id("import-avec-erreurs-titre")).to_contain_text(
         "Importation réussie avec des erreurs"
     )
-    expect(page.locator("div.panel-warning > div.panel-body")).to_contain_text(
+    expect(page.get_by_test_id("import-avec-erreurs-detail")).to_contain_text(
         "0 lignes importées du fichier patient"
     )
-    expect(page.locator("div.panel-warning > div.panel-body")).to_contain_text(
+    expect(page.get_by_test_id("import-avec-erreurs-detail")).to_contain_text(
         "50 lignes importées du fichier consultation"
     )
     assert Patient.objects.count() == 100
@@ -194,8 +190,8 @@ def test_csv_invalide_refuse_sans_import_partiel(
     expect(page.locator("#analyze-result")).to_contain_text("Résultats d'analyse")
     expect(page.locator("#patient-file-analyze")).to_be_visible()
     # Croix rouge, a la place de la coche verte d'un fichier valide.
-    expect(page.locator("#patient-file-analyze span.text-danger")).to_be_visible()
-    expect(page.locator("#patient-file-analyze span.text-success")).to_be_hidden()
+    expect(page.get_by_test_id("analyse-patients-ko")).to_be_visible()
+    expect(page.get_by_test_id("analyse-patients-ok")).to_be_hidden()
     # L'extrait est quand meme affiche, cellules vides pour les 4 colonnes tronquees
     # (medical_history, family_history, trauma_history, medical_reports — les 20
     # premieres colonnes du CSV d'origine couvrent tout le reste, cf. l'en-tete de
@@ -212,7 +208,7 @@ def test_csv_invalide_refuse_sans_import_partiel(
     assert "invalide" not in contenu
     assert "erreur" not in contenu
 
-    bouton_importer = page.locator("button.btn-success:has-text('Importer')")
+    bouton_importer = page.get_by_role("button", name="Importer", exact=True)
     expect(bouton_importer).to_be_disabled()
 
     requetes_import = []
@@ -244,17 +240,15 @@ def test_le_titre_d_erreur_des_consultations_reste_masque_sans_erreur(
     ouvrir_import(page)
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.click("button:has-text('Analyser')")
-    page.click("button.btn-success:has-text('Importer')")
-    expect(page.locator("div.panel-success > div.panel-heading")).to_be_visible(
-        timeout=120_000
-    )
+    page.get_by_role("button", name="Importer", exact=True).click()
+    expect(page.get_by_test_id("import-reussi-titre")).to_be_visible(timeout=120_000)
 
     ouvrir_import(page)
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.set_input_files("#examination-file", FICHIER_CONSULTATIONS)
     page.click("button:has-text('Analyser')")
-    page.click("button.btn-success:has-text('Importer')")
-    corps = page.locator("div.panel-warning > div.panel-body")
+    page.get_by_role("button", name="Importer", exact=True).click()
+    corps = page.get_by_test_id("import-avec-erreurs-detail")
     expect(corps).to_be_visible(timeout=120_000)
     # Preuve de presence : sans elle, l'absence verifiee ensuite ne prouverait rien.
     expect(corps).to_contain_text("Erreurs lors de l'importation des patients")

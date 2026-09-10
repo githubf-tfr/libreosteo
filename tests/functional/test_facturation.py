@@ -176,14 +176,14 @@ def test_annulation_et_refacturation(
     confirmer_la_modale(page)
     expect(page.locator("#invoiceExaminationBtn")).to_be_visible()
     page.click("#unfold_invoices")
-    expect(page.locator("span.label-warning:has-text('Annulée')")).to_be_visible()
+    expect(page.get_by_test_id("statut-facture-annulee")).to_be_visible()
 
     # Refacturer produit un troisieme numero, la sequence ne recule jamais.
     page.click("#invoiceExaminationBtn")
     page.check("input[value=invoiced]")
     expect(page.locator("#amount")).to_have_value("55")
     page.check("input[value=check]")
-    page.click("button.btn-primary:has-text('Valider')")
+    page.get_by_role("button", name="Valider", exact=True).click()
     # Deviation du brief : sans barriere liee au retour du serveur, la requete
     # POST /api/examinations/:id/close pouvait encore etre en vol quand l'ORM lisait la
     # base juste apres, constate par lancement reel (`Invoice.DoesNotExist` intermittent).
@@ -216,7 +216,7 @@ def test_facture_impayee_puis_reglee(
     page.click("#finishPaimentBtn")
     expect(page.locator("#amount")).to_have_value("55")
     page.check("input[value=check]")
-    page.click("button.btn-primary:has-text('Valider')")
+    page.get_by_role("button", name="Valider", exact=True).click()
     expect(page.locator("#finishPaimentBtn")).to_have_count(0)
 
     page.goto(f"{live_server.url}/invoice/{facture.id}")
@@ -274,7 +274,7 @@ def test_avoir_sur_facture_deja_emise(
     page.click("#cancelInvoiceBtn")
     confirmer_la_modale(page)
     page.check("input[value=cash]")
-    page.click("button.btn-primary:has-text('Valider')")
+    page.get_by_role("button", name="Valider", exact=True).click()
     # Meme course que `test_annulation_et_refacturation` (POST /api/invoices/:id/cancel
     # pouvait encore etre en vol quand l'ORM lisait la base juste apres, constate par
     # lancement reel : `Invoice.DoesNotExist`). En facture corrective, `model.invoice_number`
@@ -304,7 +304,7 @@ def revenir_a_la_chronologie(page: Page) -> None:
     clique que si le panneau est bien ouvert : au tout premier appel d'un test, la
     chronologie est deja affichee et ce bouton n'existe pas encore dans le DOM.
     """
-    bouton_fermer = page.locator("button.close.pull-right:visible")
+    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
     if bouton_fermer.count() > 0:
         bouton_fermer.click()
 
@@ -329,16 +329,17 @@ def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
             "/api/invoices" in reponse.url and "therapeut_id=" in reponse.url
         )
     ):
-        page.click("a[href='#/invoices']")
-    # locator("h1") seul resout a plusieurs elements : le <h1 class="page-header">
-    # de la fiche patient precedente reste parfois dans le DOM le temps de la
-    # transition Angular, et l'editeur de texte riche (consultation) y laisse un
-    # <h1 class="menu-item">h1</h1>, l'apercu de son menu de mise en forme. Le
-    # gabarit de la page Comptabilite (partials/invoice-list.html:2) est le seul
-    # a rendre un <h1> sans classe : c'est lui qui la designe, et lui seul.
-    expect(
-        page.locator("h1:not(.page-header):not(.menu-item):visible")
-    ).to_contain_text("Comptabilité")
+        # `exact=True` est impossible sur ce libelle : Playwright fait entrer le contenu des
+        # pseudo-elements dans le nom accessible, et l'icone Font Awesome qui precede le
+        # texte (`<i class="fa fa-list-alt">`, index.html) y ajoute sa glyphe de la zone privee Unicode. Le nom
+        # accessible ne vaut donc jamais « Comptabilité » tout court. La correspondance par
+        # sous-chaine reste non ambigue : aucun autre lien ne porte ce mot.
+        page.get_by_role("link", name="Comptabilité").click()
+    # Le titre de la vue entrante, adresse par son `data-testid` : il ne peut pas etre
+    # confondu avec celui de la fiche patient quittee, qu'ui-router laisse dans le DOM
+    # le temps de l'animation de sortie, ni avec le <h1> d'apercu que l'editeur de
+    # texte riche laisse dans son menu de mise en forme.
+    expect(page.get_by_test_id("titre-comptabilite")).to_contain_text("Comptabilité")
 
     ligne = page.locator("tbody tr")
     expect(ligne).to_have_count(1)
@@ -351,14 +352,14 @@ def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
     # `context.expect_page` (nouvel onglet) est reserve a T13 par le plan (Porte de
     # sortie) : la navigation se prouve, comme `test_consultation_facturee` le fait
     # deja pour R-FAC-01, par la cible du lien plutot que par l'ouverture reelle.
-    menu_actions = ligne.locator("ul.dropdown-menu")
-    ligne.locator("button.dropdown-toggle").click()
+    menu_actions = ligne.get_by_test_id("menu-actions-facture")
+    ligne.get_by_test_id("actions-facture").click()
     expect(menu_actions).to_be_visible()
     expect(menu_actions).to_contain_text("Imprimer")
     expect(menu_actions).to_contain_text("Annuler")
-    expect(menu_actions.locator("a:has-text('Imprimer')")).to_have_attribute(
-        "href", f"/invoice/{facture.id}"
-    )
+    expect(
+        menu_actions.get_by_role("link", name="Imprimer", exact=True)
+    ).to_have_attribute("href", f"/invoice/{facture.id}")
 
 
 def test_numerotation_continue_sur_deux_factures(
@@ -393,7 +394,7 @@ def test_numerotation_continue_sur_deux_factures(
     )
     assert int(seconde_facture.number) == int(premiere_facture.number) + 1
 
-    page.click("a[href='#/invoices']")
+    page.get_by_role("link", name="Comptabilité").click()
     lignes = page.locator("tbody tr")
     expect(lignes).to_have_count(2)
     expect(lignes.nth(0)).to_contain_text(seconde_facture.number)
@@ -427,7 +428,7 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     expect(page.locator("#amount")).to_have_value("55")
     page.fill("#amount", "55.55")
     page.check("input[value=cash]")
-    page.click("button.btn-primary:has-text('Valider')")
+    page.get_by_role("button", name="Valider", exact=True).click()
     expect(page.locator("#current-examination")).to_be_hidden()
 
     facture_a_centimes = Invoice.objects.get(amount=Decimal("55.55"))
@@ -455,7 +456,7 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     expect(page.locator("#amount")).to_have_value("55")
     page.fill("#amount", "55.555")
     page.check("input[value=cash]")
-    page.click("button.btn-primary:has-text('Valider')")
+    page.get_by_role("button", name="Valider", exact=True).click()
 
     banniere = notifications_d_erreur(page)
     expect(banniere).to_contain_text("amount :")
@@ -525,11 +526,11 @@ def test_impression_de_facture_reprend_cabinet_et_therapeute(
             "/api/invoices" in reponse.url and "therapeut_id=" in reponse.url
         )
     ):
-        page.click("a[href='#/invoices']")
+        page.get_by_role("link", name="Comptabilité").click()
     ligne = page.locator("tbody tr")
-    ligne.locator("button.dropdown-toggle").click()
+    ligne.get_by_test_id("actions-facture").click()
     with page.context.expect_page() as info_nouvel_onglet:
-        ligne.locator("ul.dropdown-menu a:has-text('Imprimer')").click()
+        ligne.get_by_role("link", name="Imprimer", exact=True).click()
     onglet_facture = info_nouvel_onglet.value
     onglet_facture.wait_for_load_state()
 

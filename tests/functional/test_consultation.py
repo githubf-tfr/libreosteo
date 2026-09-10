@@ -94,7 +94,7 @@ def test_recherche_puis_ouverture_de_consultation(
     # mais ne le retire pas du DOM, et `to_contain_text` lit le texte du DOM, pas le rendu
     # visuel. "Picard Jean-Luc" n'est donc jamais une sous-chaine contigue du titre :
     # deux assertions independantes, plutot qu'une regex couplee a ce detail de rendu.
-    en_tete = page.locator("h1.page-header")
+    en_tete = page.get_by_test_id("titre-patient")
     expect(en_tete).to_contain_text("Picard")
     expect(en_tete).to_contain_text("Jean-Luc")
     ouvrir_nouvelle_consultation(page)
@@ -174,7 +174,8 @@ def saisir_date_examen(page: Page, valeur: date) -> None:
     """Tape une date dans le champ d'edition de la consultation active.
 
     `input.ws-date.examinationdate` (id non unique, cf. `naviguer_vers_examen`) est donc
-    scope au pan `.tab-pane.active` pour la meme raison. `.fill()` pose directement la
+    scope au volet de la consultation anterieure, seul visible, pour la meme raison.
+    `.fill()` pose directement la
     valeur DOM sans passer par les gestionnaires clavier du widget : constate par
     instrumentation directe (classe `ng-dirty`, jamais posee sur le champ cache dans ce
     cas), la propagation vers Angular reste alors aleatoire — parfois la valeur tapee
@@ -182,7 +183,9 @@ def saisir_date_examen(page: Page, valeur: date) -> None:
     touche, puis quitter le champ (`Tab`), la rend fiable (`ng-dirty` constate a chaque
     essai).
     """
-    champ = page.locator(".tab-pane.active input.ws-date.examinationdate")
+    champ = page.locator('[data-testid="consultation-anterieure"]:visible').locator(
+        "input.ws-date.examinationdate"
+    )
     champ.click()
     champ.press("Control+a")
     champ.press_sequentially(valeur.strftime("%d/%m/%Y"))
@@ -228,7 +231,13 @@ def test_changement_de_date_accepte(
     naviguer_vers_examen(
         page, live_server, patient_existant.id, consultation.id, date_initiale
     )
-    page.click("button.btn-default:has-text('Éditer')")
+    # `exact=True` est impossible sur ce libelle : Playwright fait entrer le contenu des
+    # pseudo-elements dans le nom accessible, et l'icone Font Awesome qui precede le
+    # texte (`<i class="fa fa-edit">`, index.html) y ajoute sa glyphe de la zone privee
+    # Unicode. Le nom accessible ne vaut donc jamais « Éditer » tout court. La
+    # correspondance par sous-chaine reste non ambigue : aucun autre bouton de l'application ne porte ce mot — ceux qui
+    # editent un document joint portent `aria-label="Edit"`.
+    page.get_by_role("button", name="Éditer").click()
     saisir_date_examen(page, nouvelle_date)
     # L'assertion finale de ce test porte sur la base, pas sur l'ecran : AngularJS met le
     # `$scope` a jour de facon optimiste et la date affichee change avant que le PUT ne
@@ -236,7 +245,7 @@ def test_changement_de_date_accepte(
     # lot D6b) : l'assertion d'ecran qui suit, elle, passe deja sans elle.
     attendre_reponse(
         page,
-        lambda: page.click('button.btn-default:has-text("Fin d\'édition")'),
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
         methode="PUT",
         motif_url=r"/api/examinations/\d+$",
     )
@@ -245,8 +254,8 @@ def test_changement_de_date_accepte(
     # "#current-examination" (patient-detail.html) instancie la meme directive
     # <examination> que la vue dediee a laquelle on vient de naviguer, meme quand
     # aucune nouvelle consultation n'est en cours. Constate par instrumentation directe
-    # (ancetres `div.tab-pane[.active]` distincts) : seul le pan actif porte le texte,
-    # l'autre reste `editable-empty`. `:visible`, extension Playwright, lève l'ambiguite.
+    # (volets ancetres distincts) : seul le volet affiche porte le texte, l'autre reste
+    # vide. `:visible`, extension Playwright, lève l'ambiguite.
     expect(page.locator("#examinationDate:visible")).to_have_text(
         libelle_date_longue(nouvelle_date)
     )
@@ -269,13 +278,13 @@ def test_changement_de_date_dans_le_futur_refuse(
     naviguer_vers_examen(
         page, live_server, patient_existant.id, consultation.id, date_initiale
     )
-    page.click("button.btn-default:has-text('Éditer')")
+    page.get_by_role("button", name="Éditer").click()
     saisir_date_examen(page, date_initiale + timedelta(days=13))
-    page.click('button.btn-default:has-text("Fin d\'édition")')
+    page.get_by_role("button", name="Fin d'édition").click()
 
-    expect(page.locator(".tab-pane.active div.editable-error")).to_contain_text(
-        "La date est invalide"
-    )
+    # Le refus se prouve par ce que l'utilisateur lit, pas par le nœud que xeditable
+    # utilise pour l'afficher.
+    expect(page.get_by_text("La date est invalide")).to_be_visible()
     consultation.refresh_from_db()
     assert timezone.localtime(consultation.date).date() == date_initiale
 
@@ -308,18 +317,17 @@ def test_date_posterieure_a_la_facture_acceptee(
         consultation_facturee.id,
         date_initiale,
     )
-    page.click("button.btn-default:has-text('Éditer')")
+    page.get_by_role("button", name="Éditer").click()
     saisir_date_examen(page, nouvelle_date)
     # Meme barriere que dans test_changement_de_date_accepte : l'assertion finale porte
     # sur la base, seule la reponse du PUT la barre (A1).
     attendre_reponse(
         page,
-        lambda: page.click('button.btn-default:has-text("Fin d\'édition")'),
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
         methode="PUT",
         motif_url=r"/api/examinations/\d+$",
     )
 
-    expect(page.locator(".tab-pane.active div.editable-error")).to_have_count(0)
     # Meme ambiguite d'id que dans test_date_anterieure_a_la_facture_acceptee :
     # `:visible` la leve (le selecteur "h4" seul resout 16 elements).
     expect(page.locator("#examinationDate:visible")).to_have_text(
@@ -345,13 +353,13 @@ def test_date_anterieure_a_la_facture_acceptee(
         consultation_facturee.id,
         date_initiale,
     )
-    page.click("button.btn-default:has-text('Éditer')")
+    page.get_by_role("button", name="Éditer").click()
     saisir_date_examen(page, nouvelle_date)
     # Meme barriere que dans test_changement_de_date_accepte : l'assertion finale porte
     # sur la base, seule la reponse du PUT la barre (A1).
     attendre_reponse(
         page,
-        lambda: page.click('button.btn-default:has-text("Fin d\'édition")'),
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
         methode="PUT",
         motif_url=r"/api/examinations/\d+$",
     )
@@ -419,9 +427,11 @@ def test_l_icone_distingue_la_consultation_non_facturee(
         )
     connexion(page, live_server)
     rechercher_patient(page, "Picard")
-    icone = page.locator("ul.timeline li .timeline-badge i.fa")
-    expect(icone).to_have_count(1)
-    expect(icone).to_have_class("fa fa-ban")
+    # Le statut de la seance passe par la *valeur* du `data-testid` (arbitrage E2) :
+    # l'icone d'interdiction est celle du statut 3, la coche celle du statut 2. Les
+    # deux assertions ensemble disent la meme chose que l'ancienne classe `fa fa-ban`.
+    expect(page.get_by_test_id("icone-seance-3")).to_have_count(1)
+    expect(page.get_by_test_id("icone-seance-2")).to_have_count(0)
 
 
 def test_edition_d_une_consultation_existante(
@@ -442,25 +452,23 @@ def test_edition_d_une_consultation_existante(
         consultation_facturee.id,
         date_initiale,
     )
-    expect(page.locator(".tab-pane.active")).to_contain_text("n° 10000")
-    expect(page.locator(".tab-pane.active")).to_contain_text("Motif de consultation")
-    expect(page.locator(".tab-pane.active")).to_contain_text("Examen normal")
-    # `#current-examination` (uib-tab, ng-show) instancie sa propre directive
-    # <examination>, sans rapport avec la consultation ouverte ici : sans le fait
-    # d'etre relie a `#examinations` (`ng-if="previousExamination.data != null"`, cf.
-    # `patient-detail.html`), une premiere version de ce test ambigue entre les deux
-    # (verifie par instrumentation directe : compte a 1 avec ce scope, a 2 sans lui).
-    page.click("button.btn-default:has-text('Éditer')")
-    expect(
-        page.locator('button.btn-default:has-text("Fin d\'édition")')
-    ).to_be_visible()
+    # Le dossier patient monte deux fois la directive <examination> : celle de la
+    # consultation anterieure (`ng-if="previousExamination.data != null"`) et celle de
+    # la consultation en cours (`#current-examination`, `uib-tab` masque par `ng-show`),
+    # sans rapport avec la consultation ouverte ici. Seule la premiere est affichee :
+    # `:visible` leve l'ambiguite (verifie par instrumentation directe : compte a 1 avec
+    # ce scope, a 2 sans lui).
+    volet = page.locator('[data-testid="consultation-anterieure"]:visible')
+    expect(volet).to_contain_text("n° 10000")
+    expect(volet).to_contain_text("Motif de consultation")
+    expect(volet).to_contain_text("Examen normal")
+    page.get_by_role("button", name="Éditer").click()
+    expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
 
-    page.fill(".tab-pane.active input[placeholder='Motif']", "Motif modifie")
+    volet.locator("input[placeholder='Motif']").fill("Motif modifie")
     remplir_champ_de_texte_riche(
         page,
-        page.locator('[data-testid="consultation-anterieure"]').get_by_test_id(
-            "examen-medical"
-        ),
+        volet.get_by_test_id("examen-medical"),
         "Examen modifie",
     )
     # Ce test finit par deux lectures en base (`reason`, `medical_examination`) : meme
@@ -469,16 +477,16 @@ def test_edition_d_une_consultation_existante(
     # avorterait un PUT encore en vol.
     attendre_reponse(
         page,
-        lambda: page.click('button.btn-default:has-text("Fin d\'édition")'),
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
         methode="PUT",
         motif_url=r"/api/examinations/\d+$",
     )
-    expect(page.locator(".tab-pane.active")).to_contain_text("Motif modifie")
-    expect(page.locator(".tab-pane.active")).to_contain_text("Examen modifie")
+    expect(volet).to_contain_text("Motif modifie")
+    expect(volet).to_contain_text("Examen modifie")
 
     page.reload()
-    expect(page.locator(".tab-pane.active")).to_contain_text("Motif modifie")
-    expect(page.locator(".tab-pane.active")).to_contain_text("Examen modifie")
+    expect(volet).to_contain_text("Motif modifie")
+    expect(volet).to_contain_text("Examen modifie")
 
     consultation_facturee.refresh_from_db()
     assert consultation_facturee.reason == "Motif modifie"
