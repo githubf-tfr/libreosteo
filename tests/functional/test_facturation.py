@@ -1,6 +1,5 @@
 """Cas repris de tests/core/008_invoice_functionality.robot."""
 
-import re
 from datetime import date
 from decimal import Decimal
 
@@ -55,11 +54,13 @@ def test_changement_du_numero_de_depart(
     ouvrir_reglages_cabinet(page)
 
     champ = page.locator("#invoice_start_sequence")
-    # Plus de `champ.fill(""); expect(... ng-invalid)` ici : retirer `required` du champ
-    # (correctif defaut B) rend desormais le vide legitime, pas une etape transitoire
-    # invalide — `champ.fill("25000")` remplace deja tout le contenu precedent.
+    bouton = page.get_by_role("button", name="Mettre à jour")
+    # Plus de `champ.fill(""); expect(...)` marquant le vide invalide ici : retirer
+    # `required` du champ (correctif defaut B) rend desormais le vide legitime, pas
+    # une etape transitoire invalide — `champ.fill("25000")` remplace deja tout le
+    # contenu precedent.
     champ.fill("25000")
-    expect(champ).to_have_class(re.compile(r"\bng-valid\b"))
+    expect(bouton).to_be_enabled()
     enregistrer_formulaire(page)
 
     assert OfficeSettings.objects.get(id=1).invoice_start_sequence == "25000"
@@ -105,21 +106,24 @@ def test_numero_de_depart_anterieur_refuse(
     connexion(page, live_server)
     ouvrir_reglages_cabinet(page)
     champ = page.locator("#invoice_start_sequence")
+    bouton = page.get_by_role("button", name="Mettre à jour")
     # Deux sauvegardes dans le meme test : `enregistrer_formulaire` compte desormais ses
     # propres growls avant de cliquer, une vraie barriere d'etat pour chacune — plus besoin
     # de la reproduire ici (cf. helpers.py, ancien piege documente a cet endroit).
 
     champ.fill("15000")
-    expect(champ).to_have_class(re.compile(r"\bng-invalid\b"))
+    expect(bouton).to_be_disabled()
+    expect(champ).to_have_value("15000")
     champ.fill("25500")
-    expect(champ).to_have_class(re.compile(r"\bng-valid\b"))
+    expect(bouton).to_be_enabled()
     enregistrer_formulaire(page)
     assert "25500" in dernier_evenement().comment
 
     champ.fill("25000")
-    expect(champ).to_have_class(re.compile(r"\bng-invalid\b"))
+    expect(bouton).to_be_disabled()
+    expect(champ).to_have_value("25000")
     champ.fill("25001")
-    expect(champ).to_have_class(re.compile(r"\bng-valid\b"))
+    expect(bouton).to_be_enabled()
     enregistrer_formulaire(page)
     assert "25001" in dernier_evenement().comment
     assert OfficeSettings.objects.get(id=1).invoice_start_sequence == "25001"
@@ -136,13 +140,10 @@ def test_numero_de_depart_textuel_refuse(
     connexion(page, live_server)
     ouvrir_reglages_cabinet(page)
     champ = page.locator("#invoice_start_sequence")
-    # `button.btn.btn-primary` seul est ambigu : l'onglet "Users" (`ng-if` server-rendu
-    # vrai pour un compte staff) porte un second bouton avec les memes classes, hors
-    # d'ecran mais toujours dans le DOM (mode strict de Playwright, deux correspondances).
-    bouton = page.locator('button[ng-click="updateSettings(officesettings)"]')
+    bouton = page.get_by_role("button", name="Mettre à jour")
 
     champ.fill("FACT00001")
-    expect(champ).to_have_class(re.compile(r"\bng-invalid\b"))
+    expect(champ).to_have_value("FACT00001")
     expect(bouton).to_be_disabled()
     expect(page.locator("div.growl-item.alert-success")).to_have_count(0)
 
