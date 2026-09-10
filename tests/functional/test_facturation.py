@@ -1,9 +1,10 @@
 """Cas repris de tests/core/008_invoice_functionality.robot."""
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.template.defaultfilters import date as filtre_date_django
+from django.utils import timezone
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -565,3 +566,64 @@ def test_impression_de_facture_reprend_cabinet_et_therapeute(
             f"'{element}' absent ou hors ordre (a partir de la position {position})"
         )
         position = nouvelle_position
+
+
+def test_facture_porte_la_date_de_la_seance(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Cas de R-FAC-06 : en facturation differee, le document imprime porte la date de la
+    seance, pas celle du jour — dans son nom d'onglet comme dans sa mention de lieu et de
+    date. Le test unitaire `TestDateDeLaFacture` couvre la recopie en base ; celui-ci
+    couvre ce que l'utilisateur voit, seul trou d'ecran du cahier avant ce lot.
+
+    Ecart avec le scenario du brief, constate par capture directe du DOM (fichiers
+    temporaires, non conserves) : le brief cloturait d'abord la consultation
+    « Non facturee » (mode=notinvoiced), pour rouvrir ensuite la facturation par
+    `#invoiceExaminationBtn`. Ce bouton est niche dans un panneau
+    `ng-show="model.status > 0 && model.status < 3"` (examination.html:26) ; une fois le
+    statut a `EXAMINATION_NOT_INVOICED` (3, models.py:226), la condition est fausse en
+    permanence et le panneau reste `ng-hide`. Aucun autre site de l'application n'appelle
+    `invoiceExamination()` (static/js/app/examination.js:273, seul appelant du gabarit) :
+    il n'existe, aujourd'hui, aucun chemin d'interface pour facturer une consultation deja
+    cloturee « Non facturee ». Ce que R-FAC-06 exige n'est pas ce detour precis mais
+    l'ecart qu'il visait a produire (KANBAN.md, arbitrage du 2026-09-06 : « en
+    facturation differee, la facture porte la date de la seance et non celle de son
+    emission ») : ce test l'obtient en facturant normalement (chemin deja exerce par
+    tous les autres tests du module), puis en reculant les deux dates ensemble par
+    l'ORM — meme geste, et pour le meme motif, que `deplace_dates`
+    (test_consultation.py:68-83), deja cite par le brief comme precedent : le parcours
+    sous test est la facturation differee et son impression, pas la recopie de la date
+    de seance vers la facture a l'emission (deja couverte par le test unitaire
+    `TestDateDeLaFacture`).
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="invoiced", moyen="cash")
+
+    consultation = Examination.objects.get(patient=patient)
+    facture = Invoice.objects.get()
+    decalage = timedelta(days=40)
+    consultation.date -= decalage
+    consultation.save()
+    facture.date -= decalage
+    facture.save()
+    date_seance = timezone.localtime(consultation.date).date()
+    assert date_seance != date.today(), (
+        "la seance doit etre anterieure au jour de l'emission"
+    )
+    assert timezone.localtime(facture.date).date() == date_seance
+
+    with page.context.expect_page() as info_onglet:
+        page.click("#printInvoiceBtn")
+    onglet_facture = info_onglet.value
+    onglet_facture.wait_for_load_state()
+
+    expect(onglet_facture).to_have_title(
+        f"{date_seance:%Y-%m-%d}-{facture.number}-Picard_Jean-Luc"
+    )
+    expect(onglet_facture.locator("#location-date")).to_contain_text(
+        f"À Le Vigen, le {filtre_date_django(date_seance, 'd F Y')}"
+    )
