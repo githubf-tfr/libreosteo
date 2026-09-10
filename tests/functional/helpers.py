@@ -214,6 +214,32 @@ def cloturer_consultation(
         page.check(f"input[value={moyen}]")
     page.get_by_role("button", name="Valider", exact=True).click()
     expect(page.locator("#current-examination")).to_be_hidden()
+    # Seconde barriere, indissociable de la premiere : la cloture laisse une requete en
+    # vol, et la premiere barriere est satisfaite *pendant* son vol.
+    #
+    # Le callback de succes de `$scope.close` (patient.js) appelle `reloadExaminations`,
+    # qui fait `$scope.previousExamination.data = ExaminationServ.get(...)`. Une action
+    # `$resource` rend son objet **immediatement**, vide et non nul : dans le meme digest,
+    # `#current-examination` se cache (barriere ci-dessus) *et* le volet de la consultation
+    # fermee s'ouvre a la place de la chronologie — pendant que le `GET api/examinations/:id`
+    # part. Personne n'attend sa reponse.
+    #
+    # Quand le geste suivant referme ce volet (`revenir_a_la_chronologie`, `model = null`)
+    # avant que cette reponse ne soit revenue, le callback de succes reaffecte
+    # `previousExamination.data` : **le volet se rouvre tout seul et la chronologie
+    # disparait definitivement**, avec `#new-examination-btn` qu'elle porte. Le geste suivant
+    # attend alors un bouton qui n'entrera plus jamais dans le DOM (1 echec sur 7 lancements
+    # de la suite complete sur `6761590` ; rendu deterministe en retardant ce seul GET de
+    # 1500 ms — rapport `clause3-echec-rapport.md`).
+    #
+    # La barriere est la date de seance du volet : `#examinationDate` interpole `model.date`,
+    # que l'objet `$resource` vide n'a pas et que seule la reponse renseigne. Elle est donc
+    # bien **en aval du callback**, comme l'exige l'arbitrage A1 — et non en aval des seuls
+    # octets recus, ce que le retour du GET prouverait seul. Le volet est adresse par son
+    # `data-testid` : `#examinationDate` existe aussi dans la consultation en cours.
+    expect(
+        page.locator('[data-testid="consultation-anterieure"] #examinationDate')
+    ).not_to_have_text("")
 
 
 def libelle_date_longue(jour: date) -> str:
