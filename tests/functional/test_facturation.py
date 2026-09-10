@@ -177,7 +177,20 @@ def test_annulation_et_refacturation(
     confirmer_la_modale(page)
     expect(page.locator("#invoiceExaminationBtn")).to_be_visible()
     page.click("#unfold_invoices")
-    expect(page.get_by_test_id("statut-facture-annulee")).to_be_visible()
+    # Deux `data-testid` distincts, et un scope, pour deux ambiguites distinctes.
+    # Entre vues : `invoice-list.html` (vue « Comptabilité ») porte deja
+    # `statut-facture-annulee` sur le meme construit ; `ui-router` insere la vue
+    # entrante avant de sortir la sortante et `ngAnimate` laisse la quittee dans le DOM
+    # le temps de l'animation, donc les deux vues coexistent transitoirement. Une valeur
+    # propre au volet de consultation retablit l'invariant « un testid = une vue ».
+    # Dans la vue : le dossier patient monte deux fois la directive <examination>
+    # (consultation anterieure et consultation en cours, cette derniere masquee par
+    # `ng-show`), donc le testid y existe en deux exemplaires des qu'une facture annulee
+    # figure dans les deux volets. `:visible` designe celui qu'on regarde. Une violation
+    # du mode strict n'etant jamais rejouee par Playwright, seul un locator non ambigu
+    # en toutes circonstances la ferme.
+    volet = page.locator('[data-testid="consultation-anterieure"]:visible')
+    expect(volet.get_by_test_id("statut-facture-annulee-consultation")).to_be_visible()
 
     # Refacturer produit un troisieme numero, la sequence ne recule jamais.
     page.click("#invoiceExaminationBtn")
