@@ -24,11 +24,6 @@ def test_reconstruction_de_l_index_depuis_le_menu(
     creer_patient(page)
 
     ouvrir_menu_utilisateur(page)
-    # Meme prudence que `ouvrir_reglages_cabinet` : un lien ui-sref clique avant que
-    # ui-router n'ait resolu son href est absorbe en silence (helpers.py).
-    expect(page.locator("#rebuild-index a")).to_have_attribute(
-        "href", "#/office/rebuild-index"
-    )
     page.click("#rebuild-index")
     expect(page.locator("h1.page-header")).to_contain_text("Réindexer")
 

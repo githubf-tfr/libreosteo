@@ -22,30 +22,16 @@ def connexion(
     page.fill("input[name=password]", mot_de_passe)
     page.click("button[type=submit]")
     expect(page).to_have_title("LibreOsteo")
-    # A cet instant, l'URL est encore celle du redirect Django brut (sans "#/") :
-    # `$urlRouterProvider.otherwise('/')` (static/js/app/app.js) ne l'a pas encore reecrite.
-    # Un geste qui depend de ui-router (ici, la recherche : `$location.path(...)` dans
-    # SearchCtrl.search(), static/js/app/search.js) avant cette reecriture est absorbe par
-    # la resolution initiale encore en vol, qui ecrase silencieusement le changement d'URL
-    # une fois qu'elle se termine (retour muet au tableau de bord, sans erreur visible ni
-    # requete reseau — confirme par instrumentation directe des evenements `request` de
-    # Playwright). Meme famille de course que celle documentee dans
-    # `ouvrir_reglages_cabinet` pour les liens ui-sref ; ici la barriere est l'URL
-    # elle-meme, puisque aucun lien ui-sref n'est implique.
-    expect(page).to_have_url(f"{serveur.url}/#/")
-    # Le tableau de bord declenche plusieurs appels $http asynchrones (profil, reglages,
-    # statistiques, evenements) que ce clic n'attend pas : un geste suivant qui depend de
-    # ui-router (meme course que celle documentee plus haut sur l'URL, et dans
-    # `ouvrir_reglages_cabinet` pour les liens ui-sref) peut s'executer avant que ces
-    # appels n'aient fini de resoudre l'etat initial, et se faire absorber en silence.
-    # (L'ancienne justification par un partage de connexion SQLite entre threads ne tient
-    # plus depuis la tache 3 : `LiveServer.__init__`, pytest_django/live_server_helper.py,
-    # ne peuple `connections_override` que pour une base en memoire, or la base de test est
-    # un fichier depuis cette tache — `inc_thread_sharing`/`dec_thread_sharing` ne sont
-    # plus jamais appeles, ce chemin ne peut plus se declencher.)
-    # `angular-loading-bar` intercepte tous les appels `$http` de l'application
-    # (cf. static/js/app/app.js) : attendre sa disparition ici les attend tous.
-    attendre_page_prete(page)
+    # Le tableau de bord declenche plusieurs appels asynchrones au chargement (profil,
+    # reglages, statistiques, evenements) que le clic de connexion n'attend pas : un geste
+    # suivant execute avant leur resolution est absorbe en silence par la transition
+    # initiale, sans erreur visible ni requete reseau (confirme par instrumentation directe
+    # des evenements `request` de Playwright). Le compteur de nouveaux patients est
+    # interpole depuis la reponse des statistiques : un compteur affiche et non vide est un
+    # etat, en aval de tout ce qui est asynchrone au demarrage — pas une temporisation.
+    compteur = page.get_by_test_id("compteur-nouveaux-patients")
+    expect(compteur).to_be_visible()
+    expect(compteur).not_to_have_text("")
 
 
 def attendre_page_prete(page: Page) -> None:
@@ -74,13 +60,6 @@ def ouvrir_menu_utilisateur(page: Page) -> None:
 
 def ouvrir_reglages_cabinet(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
-    # `#loading-bar` disparait des la fin des appels $http de connexion, mais ui-router n'a
-    # pas fini de resoudre son etat initial a ce moment-la : le lien ui-sref n'a pas encore
-    # son href, et un clic premature est absorbe par cette transition initiale encore en
-    # vol (retour silencieux au tableau de bord, sans aucune erreur visible).
-    expect(page.locator("#office-settings a")).to_have_attribute(
-        "href", "#/office/settings"
-    )
     page.click("#office-settings")
     expect(page.locator("h1.page-header")).to_contain_text("Paramètres du cabinet")
     # `attendre_page_prete` ne barre pas un $http en vol : angular-loading-bar n'insere
@@ -96,10 +75,6 @@ def ouvrir_reglages_cabinet(page: Page) -> None:
 
 def ouvrir_profil_therapeute(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
-    # Meme delai d'initialisation ui-router qu'au-dessus.
-    expect(page.locator("#user-profile a")).to_have_attribute(
-        "href", "#/accounts/user-profile"
-    )
     page.click("#user-profile")
     expect(page.locator("h1.page-header")).to_contain_text("Profil utilisateur")
     # Meme risque de course qu'au-dessus (GET /myuserid, /api/users/:id,

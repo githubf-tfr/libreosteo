@@ -37,12 +37,6 @@ FICHIER_CONSULTATIONS = "tests/functional/resources/examinations_1.csv"
 
 def ouvrir_import(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
-    # Meme course ui-router que `helpers.ouvrir_reglages_cabinet` et
-    # `helpers.ouvrir_profil_therapeute` : un clic sur le lien ui-sref avant que
-    # ui-router n'ait fini de resoudre son etat initial est absorbe silencieusement.
-    expect(page.locator("#import-file a")).to_have_attribute(
-        "href", "#/office/import-file"
-    )
     page.click("#import-file")
     expect(page.locator("h1.page-header")).to_contain_text("Gestion de l'import/export")
     # Le socle cree un superutilisateur : `allow_data_dump` (api/displays.py) vaut donc

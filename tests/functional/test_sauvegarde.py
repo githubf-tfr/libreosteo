@@ -38,11 +38,6 @@ def test_archive_obtenue_depuis_l_ecran(
     )
 
     ouvrir_menu_utilisateur(page)
-    # Meme prudence que `ouvrir_reglages_cabinet`/`test_recherche.py` : un lien ui-sref
-    # clique avant que ui-router n'ait resolu son href est absorbe en silence.
-    expect(page.locator("#import-file a")).to_have_attribute(
-        "href", "#/office/import-file"
-    )
     page.click("#import-file")
     expect(page.locator("h1.page-header")).to_contain_text("Gestion de l'import/export")
     expect(page.locator("body")).to_contain_text(
