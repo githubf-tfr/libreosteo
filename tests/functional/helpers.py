@@ -298,12 +298,26 @@ def attendre_enregistrement_patient(
     « antecedents » saisi apres la sauvegarde des informations generales) : la
     barriere reelle est la reponse HTTP du PUT lui-meme, jamais une temporisation.
 
-    Pas de correlation par identifiant de requete : chaque appel de cette fonction
-    attend sa propre reponse avant de rendre la main, et tous les appelants
-    l'invoquent en sequence (jamais un second appel pendant qu'un premier PUT est
-    encore en vol) — aucun scenario de ce module ne peut donc presenter une reponse
-    perimee au meme signature (methode + URL) au moment ou `expect_response` se met
-    a l'ecoute.
+    Pas de correlation par identifiant de requete : cette fonction rend la main a la
+    **premiere** reponse de signature `PUT /api/patients/:id` qui arrive apres le
+    debut de l'attente, sans verifier que c'est bien le `geste` qui l'a provoquee.
+    L'invariant tient donc tant qu'aucun PUT de meme signature n'est en vol au
+    moment ou l'attente commence, ce qui suppose deux choses de l'appelant : qu'il
+    n'enchaine pas deux appels concurrents (aucun ne le fait, ils sont tous en
+    sequence), **et qu'aucun geste anterieur non barre n'ait laisse un PUT en
+    vol**.
+
+    Cette seconde condition n'est pas gratuite, contrairement a ce qu'affirmait la
+    version precedente de ce texte : le dossier patient en mode edition emet un PUT
+    parasite au premier clic quelconque (mecanisme complet dans le docstring
+    d'`attendre_sauvegarde_parasite`), et un journal du 2026-09-10 montre cette
+    barriere satisfaite par la reponse d'un PUT emis **avant** le geste
+    (cf. rapport T1b du lot D6b). Les appelants de ce module barrent desormais ce
+    PUT parasite, donc l'invariant tient a nouveau — mais par leur discipline, pas
+    par construction. Rendre la fonction insensible aux reponses perimees (ne
+    retenir qu'une reponse dont la requete est partie apres le debut du `geste`)
+    reste possible ; ce changement touche tous les appelants et n'a pas ete fait
+    ici.
     """
     attendre_reponse(
         page,
@@ -339,8 +353,9 @@ def attendre_sauvegarde_parasite(
     de naissance, par exemple) mais avant l'enregistrement final, la saisie est ecrasee en
     silence par la valeur du serveur, et le PUT de « Fin d'edition » repart avec l'ancienne
     valeur. La base n'est jamais modifiee, sans la moindre erreur visible. Reproduit et
-    journalise le 2026-09-10 (cf. `docs/superpowers/` et KANBAN.md) : c'est la cause de
-    l'alea de `test_edition_de_la_date_de_naissance`.
+    journalise le 2026-09-10 (rapport T1b du lot D6b) : c'est la cause de l'alea de
+    `test_edition_de_la_date_de_naissance`, et de la meme course sur les `hallo-editor`
+    de `test_edition_du_dossier_patient`.
 
     Pourquoi la barriere est la reponse du `GET /api/patients/:id/documents`, et pas celle
     du PUT lui-meme : le PUT revenu ne prouve que l'arrivee des octets, pas l'execution du

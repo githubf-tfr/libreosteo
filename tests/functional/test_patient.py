@@ -202,7 +202,19 @@ def test_edition_du_dossier_patient(
     page.fill("input[name=mobile]", "07 07 07 07 07")
     page.fill("input[name=email]", "jean-luc.picard@starfleet.com")
     page.select_option("select[name=laterality]", label="Gaucher")
-    page.check("input[name=smoker]")
+    # `page.check` est le **premier vrai clic** de ce test apres « Editer » : `page.fill` et
+    # `page.select_option` focalisent et emettent `input`/`change` sans clic de souris, donc
+    # sans reveiller le gestionnaire de clic *document* de xeditable — mesure au journal,
+    # aucune requete n'est emise par les onze gestes qui precedent. Ce clic-ci, si, et il
+    # declenche le `PUT /api/patients/:id` parasite decrit dans le docstring de
+    # `attendre_sauvegarde_parasite`. Sans barriere, sa reponse tombe pendant les quatre
+    # `remplir_editeur_hallo` qui suivent : ces `div` sont lies **directement** par
+    # `ng-model="patient.job"` etc. (patient-detail.html), donc le `$scope.patient = data`
+    # du callback les efface tous. Reproduit et journalise le 2026-09-10 : `job` revenait
+    # vide en base. Meme course, meme remede que dans `test_edition_de_la_date_de_naissance`.
+    attendre_sauvegarde_parasite(
+        page, patient.id, lambda: page.check("input[name=smoker]")
+    )
     # job/hobbies/important_info/current_treatment sont des `div` `hallo-editor`
     # (contenteditable), reperes eux aussi par leur `name`, jamais par un `id`.
     # `remplir_editeur_hallo` (plutot que `page.fill()` seul) barre la course de
