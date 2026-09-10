@@ -10,7 +10,7 @@ from pytest_django.live_server_helper import LiveServer
 from libreosteoweb.models import Examination, ExaminationStatus, Invoice, Patient
 from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
-    attendre_page_prete,
+    attendre_reponse,
     cloturer_consultation,
     connexion,
     libelle_date_longue,
@@ -61,7 +61,6 @@ def consultation_facturee(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
     return Examination.objects.get(patient=patient_existant)
 
 
@@ -110,7 +109,6 @@ def test_consultation_non_facturee(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="notinvoiced", raison="Test")
-    attendre_page_prete(page)
 
     consultation = Examination.objects.get(patient=patient_existant)
     assert consultation.status == ExaminationStatus.NOT_INVOICED
@@ -128,7 +126,6 @@ def test_consultation_facturee(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
 
     facture = Invoice.objects.get()
     assert facture.number == "10000"
@@ -212,7 +209,6 @@ def test_changement_de_date_accepte(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="notinvoiced", raison="Test")
-    attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient_existant)
     # Date fixee par l'ORM (meme idiome que `deplace_dates`), plutot que derivee de
     # « maintenant » : deterministe sur toute date d'execution, pas seulement « en
@@ -234,8 +230,16 @@ def test_changement_de_date_accepte(
     )
     page.click("button.btn-default:has-text('Éditer')")
     saisir_date_examen(page, nouvelle_date)
-    page.click('button.btn-default:has-text("Fin d\'édition")')
-    attendre_page_prete(page)
+    # L'assertion finale de ce test porte sur la base, pas sur l'ecran : AngularJS met le
+    # `$scope` a jour de facon optimiste et la date affichee change avant que le PUT ne
+    # soit revenu. La seule barriere vraie est la reponse du PUT lui-meme (arbitrage A1 du
+    # lot D6b) : l'assertion d'ecran qui suit, elle, passe deja sans elle.
+    attendre_reponse(
+        page,
+        lambda: page.click('button.btn-default:has-text("Fin d\'édition")'),
+        methode="PUT",
+        motif_url=r"/api/examinations/\d+$",
+    )
 
     # `#examinationDate` (id non unique) existe deux fois dans le DOM : le panneau
     # "#current-examination" (patient-detail.html) instancie la meme directive
@@ -259,7 +263,6 @@ def test_changement_de_date_dans_le_futur_refuse(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="notinvoiced", raison="Test")
-    attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient_existant)
     date_initiale = timezone.localtime(consultation.date).date()
 
@@ -307,8 +310,14 @@ def test_date_posterieure_a_la_facture_acceptee(
     )
     page.click("button.btn-default:has-text('Éditer')")
     saisir_date_examen(page, nouvelle_date)
-    page.click('button.btn-default:has-text("Fin d\'édition")')
-    attendre_page_prete(page)
+    # Meme barriere que dans test_changement_de_date_accepte : l'assertion finale porte
+    # sur la base, seule la reponse du PUT la barre (A1).
+    attendre_reponse(
+        page,
+        lambda: page.click('button.btn-default:has-text("Fin d\'édition")'),
+        methode="PUT",
+        motif_url=r"/api/examinations/\d+$",
+    )
 
     expect(page.locator(".tab-pane.active div.editable-error")).to_have_count(0)
     # Meme ambiguite d'id que dans test_date_anterieure_a_la_facture_acceptee :
@@ -338,8 +347,14 @@ def test_date_anterieure_a_la_facture_acceptee(
     )
     page.click("button.btn-default:has-text('Éditer')")
     saisir_date_examen(page, nouvelle_date)
-    page.click('button.btn-default:has-text("Fin d\'édition")')
-    attendre_page_prete(page)
+    # Meme barriere que dans test_changement_de_date_accepte : l'assertion finale porte
+    # sur la base, seule la reponse du PUT la barre (A1).
+    attendre_reponse(
+        page,
+        lambda: page.click('button.btn-default:has-text("Fin d\'édition")'),
+        methode="PUT",
+        motif_url=r"/api/examinations/\d+$",
+    )
 
     # Meme ambiguite d'id que dans test_changement_de_date_accepte : `:visible` la leve.
     expect(page.locator("#examinationDate:visible")).to_have_text(
@@ -375,7 +390,6 @@ def test_date_affichee_suit_le_jour_local_meme_quand_lutc_differe(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="notinvoiced", raison="Test")
-    attendre_page_prete(page)
 
     consultation = Examination.objects.get(patient=patient_existant)
     instant_utc = datetime(2026, 8, 31, 23, 30, tzinfo=UTC)
@@ -448,7 +462,6 @@ def test_edition_d_une_consultation_existante(
         "Examen modifie",
     )
     page.click('button.btn-default:has-text("Fin d\'édition")')
-    attendre_page_prete(page)
     expect(page.locator(".tab-pane.active")).to_contain_text("Motif modifie")
     expect(page.locator(".tab-pane.active")).to_contain_text("Examen modifie")
 

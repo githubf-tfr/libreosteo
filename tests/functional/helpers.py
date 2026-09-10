@@ -34,11 +34,6 @@ def connexion(
     expect(compteur).not_to_have_text("")
 
 
-def attendre_page_prete(page: Page) -> None:
-    """Equivalent du mot-cle Robot `Wait That Page Is Ready`."""
-    expect(page.locator("#loading-bar")).to_have_count(0)
-
-
 def ouvrir_menu_utilisateur(page: Page) -> None:
     """Ouvre le menu utilisateur, sans jamais cliquer en aveugle.
 
@@ -62,14 +57,11 @@ def ouvrir_reglages_cabinet(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
     page.click("#office-settings")
     expect(page.locator("h1.page-header")).to_contain_text("Paramètres du cabinet")
-    # `attendre_page_prete` ne barre pas un $http en vol : angular-loading-bar n'insere
-    # #loading-bar qu'apres son `latencyThreshold` de 100 ms (loading-bar.min.js), donc un
-    # GET /api/settings qui repond plus vite ne l'affiche jamais et l'attente rend la main
-    # avant que la reponse n'ait rempli le formulaire. `office_identifier` est rempli par
-    # cette reponse : une vraie barriere d'etat. Attendre une valeur non vide plutot que la
-    # valeur semee en dur par le socle — un test qui la reecrit (test_cabinet.py) puis
-    # rappellerait cette fonction ne resterait pas bloque jusqu'au plafond d'`expect`.
-    attendre_page_prete(page)
+    # Le titre de la page se pose avant la reponse du GET /api/settings : il ne prouve pas
+    # que le formulaire est rempli. `office_identifier` est rempli par cette reponse : une
+    # vraie barriere d'etat. Attendre une valeur non vide plutot que la valeur semee en dur
+    # par le socle — un test qui la reecrit (test_cabinet.py) puis rappellerait cette
+    # fonction ne resterait pas bloque jusqu'au plafond d'`expect`.
     expect(page.locator("input[name=office_identifier]")).not_to_have_value("")
 
 
@@ -82,7 +74,6 @@ def ouvrir_profil_therapeute(page: Page) -> None:
     # `professional_id` ou `quality` que certains tests vident expres pour declencher la
     # visite guidee. Meme choix de barriere qu'au-dessus : une valeur non vide plutot que
     # celle semee en dur par le socle.
-    attendre_page_prete(page)
     expect(page.locator("input[name=email]")).not_to_have_value("")
 
 
@@ -121,7 +112,6 @@ def creer_patient(
     page.check("#consent")
     page.click("button.btn.btn-primary")
     expect(page.locator("h1.page-header")).to_contain_text(nom)
-    attendre_page_prete(page)
 
 
 def rechercher_patient(page: Page, nom: str) -> None:
@@ -129,7 +119,6 @@ def rechercher_patient(page: Page, nom: str) -> None:
     page.click("div.custom-search-form span > button")
     expect(page.locator("h3.page-header")).to_contain_text(nom)
     page.click("div.search-entry > h4 > a")
-    attendre_page_prete(page)
 
 
 def ouvrir_nouvelle_consultation(page: Page) -> None:
@@ -162,9 +151,10 @@ def cloturer_consultation(
     visible, sous `ng-show="examinationsTab.newExaminationDisplay"`. Le callback de succes
     de `$scope.close` (patient.js) masque ce panneau des le retour du POST de fermeture —
     identique que la fermeture soit facturee ou non, les deux modes traversent le meme
-    `$scope.close`. Attendre sa disparition est donc une vraie barriere de fin, la ou
-    `attendre_page_prete` seul (#loading-bar) ne l'est pas : documente deux fois dans ce
-    depot, notamment par l'`Invoice.DoesNotExist` intermittent que ce depot a rencontre
+    `$scope.close`. Attendre sa disparition est donc une vraie barriere de fin, la ou une
+    attente qui n'est liee ni au retour de ce POST ni a son callback n'en est pas une :
+    documente deux fois dans ce depot, notamment par l'`Invoice.DoesNotExist` intermittent
+    que ce depot a rencontre
     (cf. KANBAN.md, section « Pieges rencontres », entree tache 9, generalise en revue
     finale).
     """
@@ -265,10 +255,9 @@ def attendre_enregistrement_patient(
     `save-on-lost-focus` au changement d'onglet), ces saisies sont perdues en
     silence : elles ont bien ete ecrites sur l'objet JS, mais sur une reference
     que `$scope.patient` a entre-temps abandonnee. Attendre que le `Éditer`
-    reapparaisse (`attendre_page_prete` inclus) ne barre donc pas cette course, le
-    bouton n'etant pas lie a la fin reelle de la sauvegarde — meme defaut de
-    principe que celui deja documente pour `#loading-bar`
-    (`ouvrir_reglages_cabinet`, KANBAN.md tache 9). Reproduit ici (~1 echec sur 6
+    reapparaisse ne barre donc pas cette course, le bouton n'etant pas lie a la
+    fin reelle de la sauvegarde — meme defaut de principe que toute barriere
+    d'ecran posee devant une assertion en base (KANBAN.md tache 9). Reproduit ici (~1 echec sur 6
     lancements de `test_edition_du_dossier_patient`, toujours sur le premier champ
     « antecedents » saisi apres la sauvegarde des informations generales) : la
     barriere reelle est la reponse HTTP du PUT lui-meme, jamais une temporisation.
@@ -358,12 +347,12 @@ def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:
     `AddPatientCtrl.initPatient` (`static/js/app/patient.js`) n'appelle `PatientServ.add`
     (action $resource `POST`, route enregistree avec `trailing_slash=False` : l'URL finale
     est `api/patients`, sans slash) qu'apres acquittement de la modale d'homonyme
-    (`modalInstance.result.then(enregistrer)`). `attendre_page_prete` (juste apres le clic
-    sur `#modal-btn-ok`) n'attend que la disparition de `#loading-bar`, qu'angular-loading-bar
-    n'insere qu'au-dela de son `latencyThreshold` de 100 ms (loading-bar.min.js) : sous
-    `ATOMIC_REQUESTS` (un commit par requete au lieu d'un commit par instruction), ce POST
-    de creation repond parfois sous ce seuil, la barre ne s'affiche jamais et l'attente rend
-    la main avant que la creation ne soit ecrite en base — reproduit ~1 echec sur 2 lancements
+    (`modalInstance.result.then(enregistrer)`). Une barriere posee juste apres le clic sur
+    `#modal-btn-ok` mais qui n'observe pas ce POST rend la main avant que la creation ne
+    soit ecrite en base : sous `ATOMIC_REQUESTS` (un commit par requete au lieu d'un commit
+    par instruction), ce POST repond parfois en quelques dizaines de millisecondes, sans
+    laisser le moindre etat intermediaire observable a l'ecran — reproduit ~1 echec sur 2
+    lancements
     isoles de `test_avertissement_d_homonyme_puis_creation`. Attendre la reponse HTTP du POST
     lui-meme est la seule barriere vraie : elle ne peut pas etre satisfaite avant que le
     serveur n'ait ecrit la ligne, quel que soit le contenu du nom soumis (charge HTML incluse).

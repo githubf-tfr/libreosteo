@@ -6,7 +6,6 @@ from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from tests.functional.helpers import (
-    attendre_page_prete,
     cloturer_consultation,
     connexion,
     creer_patient,
@@ -40,13 +39,11 @@ def construire_etat_e2(page: Page) -> None:
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
 
     revenir_a_la_chronologie(page)
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="notinvoiced", raison="Suivi")
-    attendre_page_prete(page)
 
 
 def test_compteurs_du_tableau_de_bord(page: Page, live_server: LiveServer) -> None:
@@ -66,9 +63,15 @@ def test_compteurs_du_tableau_de_bord(page: Page, live_server: LiveServer) -> No
     # sur l'URL racine » ; ici, une navigation ui-router vers "/" suffit et evite un
     # rechargement complet non demande par le test.
     page.goto(f"{live_server.url}/#/")
-    attendre_page_prete(page)
 
-    expect(page.locator("h1.page-header")).to_contain_text("Tableau de bord")
+    # `h1.page-header` designe aussi le titre de la vue quittee, qu'ui-router laisse dans
+    # le DOM le temps de l'animation de sortie : l'ambiguite leve une « strict mode
+    # violation » que Playwright ne rejoue pas (detail dans test_agenda.py). Le titre
+    # entrant, adresse par son `data-testid`, est la barriere d'ecran que l'assertion
+    # demande (A1).
+    expect(page.get_by_test_id("titre-tableau-de-bord")).to_contain_text(
+        "Tableau de bord"
+    )
     expect(page.locator("span.label", has_text="Semaine")).to_have_class(
         re.compile(r"\blabel-primary\b")
     )
@@ -99,9 +102,7 @@ def test_statistiques_du_jour(page: Page, live_server: LiveServer) -> None:
     construire_etat_e2(page)
 
     page.goto(f"{live_server.url}/#/")
-    attendre_page_prete(page)
     expect(page.locator(".panel-green .huge")).to_have_text("2")
 
     page.reload()
-    attendre_page_prete(page)
     expect(page.locator(".panel-green .huge")).to_have_text("2")

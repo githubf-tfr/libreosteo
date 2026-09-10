@@ -12,7 +12,6 @@ from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import Examination, Patient
 from tests.functional.helpers import (
-    attendre_page_prete,
     connexion,
     ouvrir_menu_utilisateur,
 )
@@ -58,7 +57,6 @@ def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
     ouvrir_import(page)
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.click("button:has-text('Analyser')")
-    attendre_page_prete(page)
 
     expect(page.locator("#patient-file-analyze p > span.text-success")).to_be_visible()
     # Meme deviation que `ouvrir_import` pour `div.well` : la table et son en-tete
@@ -71,14 +69,14 @@ def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
     )
 
     page.click("button.btn-success:has-text('Importer')")
-    # Deviation du brief : pas d'`attendre_page_prete` ici, et barriere par visibilite
-    # plutot que par contenu. `FileImportViewSet.integrate` (libreosteoweb/api/views.py)
+    # Deviation du brief : barriere par visibilite plutot que par contenu.
+    # `FileImportViewSet.integrate` (libreosteoweb/api/views.py)
     # integre les 100 lignes de facon synchrone dans le corps de la requete POST — mesure
     # directe (client API, hors Playwright, meme fichier reel) : ~57 s, chaque
     # `Patient.save()` declenchant une reindexation Whoosh en temps reel
-    # (`HAYSTACK_SIGNAL_PROCESSOR`). `#loading-bar` reste affiche tout ce temps, largement
-    # au-dela du plafond par defaut de 15 s pose par `expect.set_options` (conftest.py) :
-    # `attendre_page_prete` y expirerait avant que la reponse ne revienne. Le panneau
+    # (`HAYSTACK_SIGNAL_PROCESSOR`), soit largement au-dela du plafond par defaut de 15 s
+    # pose par `expect.set_options` (conftest.py) : toute barriere laissee a ce plafond
+    # expirerait avant que la reponse ne revienne. Le panneau
     # `div.panel-success` est lui aussi seulement masque par `ng-show` avant l'import (son
     # texte statique « Importation réussie » est deja dans le DOM au chargement de la vue,
     # constate par instrumentation directe) : `to_contain_text` seul y passerait
@@ -111,7 +109,6 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     ouvrir_import(page)
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.click("button:has-text('Analyser')")
-    attendre_page_prete(page)
     page.click("button.btn-success:has-text('Importer')")
     # Meme deviation que `test_import_des_patients` : import lent (100 patients, chacun
     # reindexe par Whoosh), barriere par visibilite plutot que par contenu, plafond
@@ -130,7 +127,6 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.set_input_files("#examination-file", FICHIER_CONSULTATIONS)
     page.click("button:has-text('Analyser')")
-    attendre_page_prete(page)
     expect(
         page.locator("#examination-file-analyze p > span.text-success")
     ).to_be_visible()
@@ -194,7 +190,6 @@ def test_csv_invalide_refuse_sans_import_partiel(
     ouvrir_import(page)
     page.set_input_files("#patient-file", str(fichier_tronque))
     page.click("button:has-text('Analyser')")
-    attendre_page_prete(page)
 
     expect(page.locator("#analyze-result")).to_contain_text("Résultats d'analyse")
     expect(page.locator("#patient-file-analyze")).to_be_visible()
@@ -249,7 +244,6 @@ def test_le_titre_d_erreur_des_consultations_reste_masque_sans_erreur(
     ouvrir_import(page)
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.click("button:has-text('Analyser')")
-    attendre_page_prete(page)
     page.click("button.btn-success:has-text('Importer')")
     expect(page.locator("div.panel-success > div.panel-heading")).to_be_visible(
         timeout=120_000
@@ -259,7 +253,6 @@ def test_le_titre_d_erreur_des_consultations_reste_masque_sans_erreur(
     page.set_input_files("#patient-file", FICHIER_PATIENTS)
     page.set_input_files("#examination-file", FICHIER_CONSULTATIONS)
     page.click("button:has-text('Analyser')")
-    attendre_page_prete(page)
     page.click("button.btn-success:has-text('Importer')")
     corps = page.locator("div.panel-warning > div.panel-body")
     expect(corps).to_be_visible(timeout=120_000)

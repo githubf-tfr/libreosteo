@@ -6,7 +6,6 @@ from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from tests.functional.helpers import (
-    attendre_page_prete,
     connexion,
     creer_patient,
     joindre_document,
@@ -97,7 +96,6 @@ def test_supprimer_un_document(page: Page, live_server: LiveServer) -> None:
     expect(page.locator("li.documenttile")).to_have_count(0)
 
     page.reload()
-    attendre_page_prete(page)
     page.click("#medicalreports")
     # Toujours absent apres un rechargement complet (F5) : la suppression est bien
     # ecrite en base, pas seulement retiree de $scope.

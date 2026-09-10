@@ -18,7 +18,6 @@ from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
     attendre_creation_patient,
     attendre_enregistrement_patient,
-    attendre_page_prete,
     attendre_sauvegarde_parasite,
     cloturer_consultation,
     connexion,
@@ -102,7 +101,6 @@ def test_avertissement_d_homonyme_puis_creation(
     # n'attend pas : sans cette barriere, un clic trop tot sur "Nouveau patient" est
     # absorbe en silence par une transition ui-router encore en vol (meme famille de
     # course que celle documentee dans `helpers.connexion`).
-    attendre_page_prete(page)
 
     # R-PAT-07 : meme nom a la casse differente, meme date de naissance que le patient
     # d'origine (13/07/1935) -- l'avertissement d'homonyme s'ouvre comme au-dessus, mais
@@ -184,7 +182,6 @@ def test_edition_du_dossier_patient(
     patient = Patient.objects.get(family_name="Picard")
 
     page.goto(f"{live_server.url}/#/patient/{patient.id}")
-    attendre_page_prete(page)
 
     # Informations generales : les boutons disent dans quel mode on est.
     # Ces champs n'ont pas d'id : angular-xeditable pose un attribut `name` (celui de
@@ -230,7 +227,6 @@ def test_edition_du_dossier_patient(
     attendre_enregistrement_patient(
         page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
     )
-    attendre_page_prete(page)
     expect(page.locator("button:has-text('Éditer')")).to_be_visible()
 
     # Antecedents (memes div `hallo-editor` reperees par `name`).
@@ -377,7 +373,6 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     )
     patient.refresh_from_db()
     assert patient.birth_date == date(1935, 2, 3)
-    attendre_page_prete(page)
     expect(page.locator("button:has-text('Éditer')")).to_be_visible()
 
     # Quantieme > 12 : non-regression du seul cas que l'heuristique de rattrapage de
@@ -483,13 +478,11 @@ def test_timeline_consultations_et_documents(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
 
     revenir_a_la_chronologie(page)
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="notinvoiced", raison="Suivi")
-    attendre_page_prete(page)
     revenir_a_la_chronologie(page)
 
     page.click("#examinations")

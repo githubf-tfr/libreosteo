@@ -20,7 +20,6 @@ from libreosteoweb.models import (
 from tests.functional.conftest import Socle
 from tests.functional.fabrique import cree_facture
 from tests.functional.helpers import (
-    attendre_page_prete,
     cloturer_consultation,
     connexion,
     creer_patient,
@@ -81,7 +80,6 @@ def test_facture_avec_la_nouvelle_sequence(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
 
     facture = Invoice.objects.get()
     assert facture.number == "25000"
@@ -168,7 +166,6 @@ def test_annulation_et_refacturation(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient)
 
     page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
@@ -184,15 +181,13 @@ def test_annulation_et_refacturation(
     expect(page.locator("#amount")).to_have_value("55")
     page.check("input[value=check]")
     page.click("button.btn-primary:has-text('Valider')")
-    # Deviation du brief : `attendre_page_prete` seul court la course documentee dans
-    # `helpers.ouvrir_reglages_cabinet` (angular-loading-bar n'apparait qu'apres son
-    # `latencyThreshold` de 100 ms) — la requete POST /api/examinations/:id/close pouvait
-    # encore etre en vol quand l'ORM lisait la base juste apres, constate par lancement
-    # reel (`Invoice.DoesNotExist` intermittent). La disparition de ce bouton est une
+    # Deviation du brief : sans barriere liee au retour du serveur, la requete
+    # POST /api/examinations/:id/close pouvait encore etre en vol quand l'ORM lisait la
+    # base juste apres, constate par lancement reel (`Invoice.DoesNotExist` intermittent).
+    # La disparition de ce bouton est une
     # vraie barriere d'etat : elle ne se pose qu'apres le GET de rafraichissement declenche
     # par le callback de succes de la fermeture (`$scope.close`, `patient.js`).
     expect(page.locator("#invoiceExaminationBtn")).to_have_count(0)
-    attendre_page_prete(page)
 
     numeros = sorted(Invoice.objects.values_list("number", flat=True))
     assert numeros == ["25000", "25001", "25002"]
@@ -208,7 +203,6 @@ def test_facture_impayee_puis_reglee(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="notpaid")
-    attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient)
     facture = Invoice.objects.get()
 
@@ -265,7 +259,6 @@ def test_avoir_sur_facture_deja_emise(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
     consultation = Examination.objects.get(patient=patient)
     facture_initiale = Invoice.objects.get()
 
@@ -287,7 +280,6 @@ def test_avoir_sur_facture_deja_emise(
     expect(page.locator("#cancelInvoiceBtn + span a")).not_to_contain_text(
         facture_initiale.number
     )
-    attendre_page_prete(page)
 
     remplacante = Invoice.objects.exclude(id=facture_initiale.id).get()
     page.goto(f"{live_server.url}/invoice/{remplacante.id}")
@@ -321,14 +313,13 @@ def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
     facture = Invoice.objects.get()
 
     # Meme course que celle documentee en detail dans
     # test_impression_de_facture_reprend_cabinet_et_therapeute (ligne ~509) :
     # `InvoiceListCtrl` recharge $scope.invoices depuis trois sources async
-    # independantes, `ng-repeat` reconstruit alors la ligne. `attendre_page_prete`
-    # ne barre pas cette course ; attendre la reponse `therapeut_id=` (la
+    # independantes, `ng-repeat` reconstruit alors la ligne. Aucune barriere d'ecran
+    # ne barre cette course ; attendre la reponse `therapeut_id=` (la
     # derniere des trois, deterministement) le fait.
     with page.expect_response(
         lambda reponse: (
@@ -382,7 +373,6 @@ def test_numerotation_continue_sur_deux_factures(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
     premiere_facture = Invoice.objects.get()
     # `reloadExaminations` (patient.js) affiche deja le detail de la consultation
     # qui vient de se fermer : pas de navigation supplementaire pour lire son numero.
@@ -394,7 +384,6 @@ def test_numerotation_continue_sur_deux_factures(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="cash")
-    attendre_page_prete(page)
     seconde_facture = Invoice.objects.exclude(id=premiere_facture.id).get()
     expect(page.locator("#page-wrapper")).to_contain_text(
         f"n° {seconde_facture.number}"
@@ -402,7 +391,6 @@ def test_numerotation_continue_sur_deux_factures(
     assert int(seconde_facture.number) == int(premiere_facture.number) + 1
 
     page.click("a[href='#/invoices']")
-    attendre_page_prete(page)
     lignes = page.locator("tbody tr")
     expect(lignes).to_have_count(2)
     expect(lignes.nth(0)).to_contain_text(seconde_facture.number)
@@ -424,7 +412,6 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
 
     # (a) deuxieme consultation, montant a centimes (55.55, especes) :
     # `cloturer_consultation` ne permet pas un montant personnalise, on reprend
@@ -439,7 +426,6 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     page.check("input[value=cash]")
     page.click("button.btn-primary:has-text('Valider')")
     expect(page.locator("#current-examination")).to_be_hidden()
-    attendre_page_prete(page)
 
     facture_a_centimes = Invoice.objects.get(amount=Decimal("55.55"))
     # Meme idiome que `test_consultation_facturee` pour R-FAC-01 : page.goto direct
@@ -450,7 +436,6 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     expect(page.locator("#main")).to_contain_text("55,55 EUR")
 
     page.goto(f"{live_server.url}/#/invoices")
-    attendre_page_prete(page)
     lignes = page.locator("tbody tr")
     expect(lignes).to_have_count(2)
     expect(lignes.filter(has_text=facture_a_centimes.number)).to_contain_text("55.55 €")
@@ -459,7 +444,6 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     # (b) troisieme consultation, montant a trois decimales : refuse.
     numeros_avant = set(Invoice.objects.values_list("number", flat=True))
     page.goto(f"{live_server.url}/#/patient/{patient.id}")
-    attendre_page_prete(page)
     revenir_a_la_chronologie(page)
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
@@ -513,7 +497,6 @@ def test_impression_de_facture_reprend_cabinet_et_therapeute(
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
-    attendre_page_prete(page)
     facture = Invoice.objects.get()
     assert facture.number == "10000"
 
@@ -522,8 +505,8 @@ def test_impression_de_facture_reprend_cabinet_et_therapeute(
     # `OfficeSettingsServ.get` et `MyUserIdServ.then` — chacune remplacant
     # `$scope.invoices` par un tableau neuf : `ng-repeat` recree alors la ligne
     # entiere (nouveaux objets, donc nouveau `$$hashKey`), fermant tout menu
-    # ouvert sur l'ancienne ligne. Ni `attendre_page_prete` (meme course que dans
-    # `ouvrir_reglages_cabinet`, sous le seuil de 100 ms d'angular-loading-bar) ni
+    # ouvert sur l'ancienne ligne. Ni une barriere d'ecran, que le premier des
+    # trois rechargements satisfait deja, ni
     # `page.wait_for_load_state("networkidle")` (rend la main entre deux de ces
     # trois requetes, avant que la derniere ne soit meme partie : constate par
     # instrumentation directe des evenements reseau) ne barrent cette course.

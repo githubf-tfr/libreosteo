@@ -4,7 +4,6 @@ from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from tests.functional.helpers import (
-    attendre_page_prete,
     connexion,
     creer_patient,
     rechercher_patient,
@@ -52,7 +51,6 @@ def test_creation_d_un_medecin_traitant(page: Page, live_server: LiveServer) -> 
     )
 
     page.click('button:has-text("Fin d\'édition")')
-    attendre_page_prete(page)
     expect(ligne_medecin).to_contain_text("Médecin traitant : Lefevre - Limoges")
 
 
@@ -77,5 +75,4 @@ def test_rattachement_d_un_medecin_a_un_patient(
     )
 
     page.click('button:has-text("Fin d\'édition")')
-    attendre_page_prete(page)
     expect(ligne_medecin).to_contain_text("Médecin traitant : Girard - Limoges")
