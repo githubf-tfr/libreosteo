@@ -399,8 +399,11 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 - **Domaine** : Installation
 - **Couverture auto** : oui — tests/functional/test_installation.py::test_premiere_installation
   (couvre le titre de la page d'installation et la création de l'administrateur ; le
-  texte d'accueil et les libellés exacts des deux boutons ne sont pas vérifiés
-  automatiquement)
+  texte d'accueil n'est pas vérifié automatiquement) ; sur le même titre de page et le
+  bouton « Restaurer la base de données », que `test_premiere_installation` ne touche
+  jamais, ::test_le_formulaire_de_restauration_s_affiche,
+  ::test_une_archive_illisible_est_refusee, ::test_une_archive_d_une_autre_version_est_refusee
+  et ::test_la_restauration_reussie_recharge_la_base (les quatre tests de T10)
 - **État requis** : E0
 
 **Étapes**
@@ -718,10 +721,15 @@ l'application sait la resérialiser — et le seul geste qui la rende sûre,
 - **Domaine** : Installation
 - **Couverture auto** : non — aucune suite pytest ne bâtit une image, ne résout un arbre
   yarn ni ne compare deux constructions. Cette fiche est la seule preuve du comportement.
-  `test_authentification.py` porte un test qui constate qu'un bundle JS compressé
-  unique est servi (au lieu de vingt fichiers) sous les réglages de développement :
-  c'est un cliquet du conftest de test, pas une preuve de la reproductibilité ou du
-  gel du lockfile qu'annoncent les étapes ci-dessous — il reste donc hors de ce champ.
+  `tests/functional/test_authentification.py` porte deux tests qui touchent l'arbre
+  statique servi, sans preuve de la reproductibilité ou du gel du lockfile
+  qu'annoncent les étapes ci-dessous :
+  test_les_statiques_de_l_application_sont_servis (sentinelle d'infrastructure de
+  test, constate que le catalogue jsi18n est bien servi) et
+  test_la_page_sert_les_bundles_compresses (cliquet, constate qu'un bundle JS
+  compressé unique est servi, au lieu de vingt fichiers, sous les réglages de
+  développement). Ils prouvent que la suite exerce l'arbre compressé, pas la
+  reproductibilité de la construction, et restent donc hors du champ de cette fiche.
 - **État requis** : aucun. La fiche ne monte aucune instance et ne consomme aucun état
   nommé du chapitre 1 : elle bâtit deux fois et compare deux empreintes.
 
@@ -926,7 +934,11 @@ au journal.
 - **Domaine** : Authentification
 - **Couverture auto** : oui — tests/functional/test_installation.py::test_premiere_installation
   (couvre la création de l'administrateur et le retour à la page de connexion ; le
-  contenu exact du formulaire d'enregistrement n'est pas vérifié automatiquement)
+  contenu exact du formulaire d'enregistrement n'est pas vérifié automatiquement). Les
+  quatre tests de T10 (`test_le_formulaire_de_restauration_s_affiche` et les trois
+  autres) partent de la même page d'installation mais n'exercent jamais le bouton
+  « Enregistrer l'administrateur » ni son formulaire : ils ne couvrent aucune étape
+  propre à cette fiche et ne sont donc pas cités ici.
 - **État requis** : E0
 
 **Étapes**
@@ -1872,40 +1884,64 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 - **Couverture auto** : oui —
   libreosteoweb/tests/test_facturation.py::TestDateDeLaFacture
   (la date recopiée à l'émission, la date de l'avoir, et le fait qu'une
-  redatation ultérieure ne déplace pas la facture ; le nom d'onglet et la
-  mention « À …, le … » du gabarit imprimé n'ont pas d'équivalent automatisé)
-- **État requis** : E2. Cette fiche redate durablement une consultation et
-  facture durablement une nouvelle consultation, consommant le numéro `10001` :
-  remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
+  redatation ultérieure ne déplace pas la facture) et
+  tests/functional/test_facturation.py::test_facture_imprimee_porte_sa_date_stockee_pas_celle_du_jour
+  (le nom d'onglet et la mention « À …, le … » du gabarit imprimé portent la
+  date stockée de la facture, jamais celle du jour d'ouverture de l'onglet).
+  Non couvert : le sélecteur de période de la Comptabilité (étape 5).
+- **État requis** : E2. Cette fiche facture durablement une nouvelle
+  consultation, consommant le numéro `10001`, puis redate durablement cette
+  consultation et sa facture : remonter l'état E2 (chapitre 1) avant de jouer
+  une autre fiche qui en dépend.
 
 **Étapes**
 
-1. Rechercher `Picard`, onglet « Consultations », ouvrir la seconde séance
-   (celle clôturée « Non facturée » à l'état E2), cliquer « Éditer », remplacer
-   la date par une date du mois précédent, cliquer « Fin d'édition ».
-   Attendu : le titre du panneau affiche la nouvelle date ; aucun message
-   d'erreur.
-2. Sur cette même consultation, cliquer le bouton « Facturer », choisir
-   « Facturée », moyen de paiement « Espèces », cliquer « Valider ».
+1. Depuis l'état E2, créer et clôturer une nouvelle consultation facturée
+   (mêmes gestes que R-CON-03), moyen de paiement « Espèces ».
    Attendu : le panneau affiche un encart « Facture » avec le lien `n° 10001`.
-3. Cliquer le bouton d'impression (icône imprimante verte).
+2. Reculer d'au moins un mois la date de cette consultation et celle de sa
+   facture, par une intervention hors interface — aucun écran ne permet de
+   redater une facture déjà émise, immuable une fois émise (arbitrage du
+   2026-09-06) :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     exec db psql -U libreosteo -d libreosteo -c \
+     "UPDATE libreosteoweb_invoice SET date = date - interval '35 days'
+        WHERE number = '10001';
+      UPDATE libreosteoweb_examination SET date = date - interval '35 days'
+        WHERE id = (SELECT MAX(e.id) FROM libreosteoweb_examination e
+                    JOIN libreosteoweb_patient p ON p.id = e.patient_id
+                    WHERE p.family_name = 'Picard');"
+   ```
+
+   Attendu : deux lignes `UPDATE 1`.
+3. Recharger la fiche patient, rouvrir cette troisième séance, cliquer le
+   bouton d'impression (icône imprimante verte).
    Attendu : un nouvel onglet s'ouvre ; le titre d'onglet est au format
-   `AAAA-MM-JJ-10001-Picard_Jean-Luc` où `AAAA-MM-JJ` est la date **de la
-   séance** (celle saisie à l'étape 1), et **non** la date du jour.
+   `AAAA-MM-JJ-10001-Picard_Jean-Luc` où `AAAA-MM-JJ` est la date reculée à
+   l'étape 2, et **non** la date du jour.
 4. Sur cette page, lire la ligne de lieu et de date.
-   Attendu : « À Le Vigen, le <date de la séance> » — la même date qu'à l'étape
-   3, écrite en toutes lettres.
-5. Menu « Comptabilité », ouvrir le sélecteur de période et le régler sur le mois
-   précédent.
-   Attendu : la facture `10001` apparaît dans cette période. Régler le sélecteur
-   sur le mois en cours : elle n'y apparaît plus.
+   Attendu : « À Le Vigen, le <date reculée> » — la même date qu'à l'étape 3,
+   écrite en toutes lettres.
+5. Menu « Comptabilité », ouvrir le sélecteur de période et le régler sur le
+   mois de la date reculée.
+   Attendu : la facture `10001` apparaît dans cette période. Régler le
+   sélecteur sur le mois en cours : elle n'y apparaît plus.
 
 **Constat** : la facture porte la date de la séance, recopiée au moment de
-l'émission puis figée. En facturation différée les deux dates divergent, et
-c'est la date de séance qui gagne — sur le document imprimé comme dans le
-sélecteur de période de la Comptabilité. C'est un changement visible :
-une facture émise aujourd'hui pour une séance du mois dernier ne figure plus dans
-la Comptabilité du mois en cours (étape 5). C'est l'intention de l'arbitrage du
+l'émission puis figée — y compris après une redatation ultérieure des deux
+dates ensemble. Cette fiche simule par une intervention hors interface
+(étape 2) ce que produirait une facturation différée : aucun écran ne permet
+aujourd'hui de facturer une consultation déjà close « Non facturée »
+(le bouton « Facturer », `examination.html:39`, ne s'affiche que pour
+`model.status` strictement compris entre `0` et `3`, jamais pour
+`EXAMINATION_NOT_INVOICED = 3`) — c'est la fiche, et non le produit, qui
+tenait pour jouable un parcours qui ne l'est pas. Une fois les deux dates
+reculées, c'est la date de séance qui gagne — sur le document imprimé comme
+dans le sélecteur de période de la Comptabilité. C'est un changement visible :
+une facture dont la date remonte au mois précédent ne figure plus dans la
+Comptabilité du mois en cours (étape 5). C'est l'intention de l'arbitrage du
 2026-09-06, pas un défaut ; si l'exercice comptable devait suivre la date
 d'émission, cet arbitrage serait à reprendre, et il faudrait alors garder les
 deux dates.
@@ -2161,19 +2197,18 @@ deux dates.
 ### R-SAU-02 — Restauration de la sauvegarde sur une instance vierge
 
 - **Domaine** : Sauvegarde/restauration
-- **Couverture auto** : non — la restauration se fait sur une instance vierge, et la
-  suite fabrique une base par test : elle ne peut pas fabriquer honnêtement une instance
-  vierge à restaurer sans réécrire son socle (`tests/functional/conftest.py`, fixtures
-  `socle` et `environnement_isole`). Les tests unitaires existants restent, sans valoir
-  couverture d'écran :
-  libreosteoweb/tests/test_exploitation.py::TestRestauration::test_archive_de_la_version_courante_est_rechargee
-  (teste le rechargement de l'archive au niveau API ; ni le parcours écran — page
-  d'installation puis formulaire de restauration —, ni la fidélité réelle des
-  données restaurées, ne sont automatisés : l'archive rechargée par ce test porte un
-  dump vide) et
-  libreosteoweb/tests/test_exploitation.py::TestRestauration::test_une_archive_illisible_ne_vide_pas_la_base
-  (l'atomicité de la restauration — une archive illisible est refusée sans vider la
-  base — ; le parcours écran de l'essai d'archive tronquée, lui, n'est pas automatisé)
+- **Couverture auto** : oui —
+  tests/functional/test_installation.py::test_le_formulaire_de_restauration_s_affiche,
+  ::test_une_archive_illisible_est_refusee,
+  ::test_une_archive_d_une_autre_version_est_refusee,
+  ::test_la_restauration_reussie_recharge_la_base
+  (le formulaire de restauration s'affiche sans alerte au repos ; une archive
+  illisible et une archive d'une autre version sont refusées, chacune avec une
+  alerte nommant le motif, sans laisser l'instance inutilisable ; une restauration
+  réussie recharge bien les données — un patient supprimé avant l'archivage
+  revient, un patient créé après disparaît. Non couvert : la fidélité des
+  documents joints restaurés, et le parcours de purge jusqu'à l'état E0 qui
+  précède la restauration dans cette fiche)
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
   instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,
@@ -2284,7 +2319,11 @@ deux dates.
   test_les_donnees_du_jour_sont_comptees compte, au niveau API, les nouveaux
   patients et les consultations sur une construction équivalente ; ce test-ci lit
   les trois compteurs — dont « Retour » — dans les tuiles rendues, sur les trois
-  vues Semaine/Mois/Année)
+  vues Semaine/Mois/Année, et vérifie en outre que le filtre actif bascule
+  réellement après chaque clic — `periode-active-month` puis `periode-active-year`
+  visibles, `periode-active-week` ne l'étant plus —, faute de quoi les trois
+  compteurs valant `1`/`2`/`0` sur les trois périodes du jeu de test ne
+  prouveraient aucun effet observable du clic)
 - **État requis** : E2. Les valeurs exactes ci-dessous supposent que l'état E2 a été
   construit dans la semaine, le mois et l'année du passage — ces fenêtres démarrent au
   lundi local, au 1er du mois et au 1er janvier (`libreosteoweb/api/statistics.py:147-190`) ;
