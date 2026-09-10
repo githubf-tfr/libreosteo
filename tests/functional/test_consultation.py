@@ -16,7 +16,7 @@ from tests.functional.helpers import (
     libelle_date_longue,
     ouvrir_nouvelle_consultation,
     rechercher_patient,
-    remplir_editeur_hallo,
+    remplir_champ_de_texte_riche,
     saisir_consultation,
 )
 
@@ -456,9 +456,11 @@ def test_edition_d_une_consultation_existante(
     ).to_be_visible()
 
     page.fill(".tab-pane.active input[placeholder='Motif']", "Motif modifie")
-    remplir_editeur_hallo(
+    remplir_champ_de_texte_riche(
         page,
-        ".tab-pane.active [ng-model='model.medical_examination']",
+        page.locator('[data-testid="consultation-anterieure"]').get_by_test_id(
+            "examen-medical"
+        ),
         "Examen modifie",
     )
     # Ce test finit par deux lectures en base (`reason`, `medical_examination`) : meme

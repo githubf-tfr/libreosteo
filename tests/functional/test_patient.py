@@ -19,7 +19,9 @@ from tests.functional.helpers import (
     attendre_creation_patient,
     attendre_enregistrement_patient,
     attendre_sauvegarde_parasite,
+    bouton_de_confirmation,
     cloturer_consultation,
+    confirmer_la_modale,
     connexion,
     creer_patient,
     joindre_document,
@@ -27,7 +29,7 @@ from tests.functional.helpers import (
     notifications_d_erreur,
     ouvrir_nouvelle_consultation,
     rechercher_patient,
-    remplir_editeur_hallo,
+    remplir_champ_de_texte_riche,
     saisir_consultation,
 )
 
@@ -64,7 +66,7 @@ def test_creation_patient_et_refus_du_doublon(
     # la création se poursuivre jusqu'au refus que ce test vérifie.
     modale = page.locator("div.modal-body")
     expect(modale).to_be_visible()
-    page.click("#modal-btn-ok")
+    confirmer_la_modale(page)
     expect(notifications_d_erreur(page)).to_contain_text("Ce patient existe déjà")
     assert Patient.objects.filter(family_name="Picard").count() == 1
 
@@ -93,7 +95,7 @@ def test_avertissement_d_homonyme_puis_creation(
     modale = page.locator("div.modal-body")
     expect(modale).to_be_visible()
     expect(modale).to_contain_text("Un patient de même nom existe déjà")
-    attendre_creation_patient(page, lambda: page.click("#modal-btn-ok"))
+    attendre_creation_patient(page, lambda: confirmer_la_modale(page))
     assert Patient.objects.filter(family_name="Picard").count() == 2
     # Course connue et non refermee : la fiche patient qui vient de s'ouvrir declenche
     # plusieurs appels $http asynchrones (examens, documents, medecin traitant...) que le
@@ -120,7 +122,7 @@ def test_avertissement_d_homonyme_puis_creation(
 
     modale = page.locator("div.modal-body")
     expect(modale).to_be_visible()
-    page.click("#modal-btn-ok")
+    confirmer_la_modale(page)
     expect(page.locator("h1.page-header")).to_contain_text("Nouveau patient")
     expect(notifications_d_erreur(page)).to_contain_text("Ce patient existe déjà")
     assert Patient.objects.filter(family_name="Picard").count() == 2
@@ -169,7 +171,7 @@ def test_charge_html_dans_nom_homonyme_reste_texte_litteral(
     expect(modale).to_be_visible()
     expect(modale).to_contain_text(charge)
     expect(page.locator("#xss-marker")).to_have_count(0)
-    attendre_creation_patient(page, lambda: page.click("#modal-btn-ok"))
+    attendre_creation_patient(page, lambda: confirmer_la_modale(page))
     assert Patient.objects.filter(family_name=charge).count() == 2
 
 
@@ -204,21 +206,27 @@ def test_edition_du_dossier_patient(
     # aucune requete n'est emise par les onze gestes qui precedent. Ce clic-ci, si, et il
     # declenche le `PUT /api/patients/:id` parasite decrit dans le docstring de
     # `attendre_sauvegarde_parasite`. Sans barriere, sa reponse tombe pendant les quatre
-    # `remplir_editeur_hallo` qui suivent : ces `div` sont lies **directement** par
+    # `remplir_champ_de_texte_riche` qui suivent : ces `div` sont lies **directement** par
     # `ng-model="patient.job"` etc. (patient-detail.html), donc le `$scope.patient = data`
     # du callback les efface tous. Reproduit et journalise le 2026-09-10 : `job` revenait
     # vide en base. Meme course, meme remede que dans `test_edition_de_la_date_de_naissance`.
     attendre_sauvegarde_parasite(
         page, patient.id, lambda: page.check("input[name=smoker]")
     )
-    # job/hobbies/important_info/current_treatment sont des `div` `hallo-editor`
+    # job/hobbies/important_info/current_treatment sont des champs de texte riche
     # (contenteditable), reperes eux aussi par leur `name`, jamais par un `id`.
-    # `remplir_editeur_hallo` (plutot que `page.fill()` seul) barre la course de
+    # `remplir_champ_de_texte_riche` (plutot que `page.fill()` seul) barre la course de
     # commit documentee dans son docstring (helpers.py) et KANBAN.md.
-    remplir_editeur_hallo(page, "div[name=job]", "Navigateur")
-    remplir_editeur_hallo(page, "div[name=hobbies]", "Ski, Roller, Musique")
-    remplir_editeur_hallo(page, "div[name=important_info]", "WARNING")
-    remplir_editeur_hallo(page, "div[name=current_treatment]", "Traitement H2O")
+    remplir_champ_de_texte_riche(page, page.locator("div[name=job]"), "Navigateur")
+    remplir_champ_de_texte_riche(
+        page, page.locator("div[name=hobbies]"), "Ski, Roller, Musique"
+    )
+    remplir_champ_de_texte_riche(
+        page, page.locator("div[name=important_info]"), "WARNING"
+    )
+    remplir_champ_de_texte_riche(
+        page, page.locator("div[name=current_treatment]"), "Traitement H2O"
+    )
     # `attendre_enregistrement_patient` (plutot que le clic seul) barre la course de
     # sauvegarde documentee dans son docstring (helpers.py) et KANBAN.md : le bouton
     # « Éditer » revient des le clic, bien avant que le PUT n'ait reellement abouti,
@@ -228,13 +236,21 @@ def test_edition_du_dossier_patient(
     )
     expect(page.locator("button:has-text('Éditer')")).to_be_visible()
 
-    # Antecedents (memes div `hallo-editor` reperees par `name`).
+    # Antecedents (memes champs de texte riche reperes par `name`).
     page.click("#history")
     page.click("button:has-text('Éditer')")
-    remplir_editeur_hallo(page, "div[name=surgical_history]", "Surgical history")
-    remplir_editeur_hallo(page, "div[name=medical_history]", "Medical History")
-    remplir_editeur_hallo(page, "div[name=family_history]", "Family History")
-    remplir_editeur_hallo(page, "div[name=trauma_history]", "Trauma history")
+    remplir_champ_de_texte_riche(
+        page, page.locator("div[name=surgical_history]"), "Surgical history"
+    )
+    remplir_champ_de_texte_riche(
+        page, page.locator("div[name=medical_history]"), "Medical History"
+    )
+    remplir_champ_de_texte_riche(
+        page, page.locator("div[name=family_history]"), "Family History"
+    )
+    remplir_champ_de_texte_riche(
+        page, page.locator("div[name=trauma_history]"), "Trauma history"
+    )
 
     # Comptes rendus et piece jointe. Le changement d'onglet declenche la sauvegarde
     # implicite des antecedents (save-on-lost-focus) : meme course que ci-dessus.
@@ -242,7 +258,9 @@ def test_edition_du_dossier_patient(
         page, patient.id, lambda: page.click("#medicalreports")
     )
     page.click("button:has-text('Éditer')")
-    remplir_editeur_hallo(page, "div[name=medical_reports]", "Medical Reports")
+    remplir_champ_de_texte_riche(
+        page, page.locator("div[name=medical_reports]"), "Medical Reports"
+    )
     attendre_enregistrement_patient(
         page, patient.id, lambda: page.click('button:has-text("Fin d\'édition")')
     )
@@ -257,13 +275,13 @@ def test_edition_du_dossier_patient(
     # <html lang>) : ordre francais JJ/MM/AAAA. "10/01/2012" donne le 10 janvier 2012
     # (assertion plus bas), pas le 1er octobre.
     page.fill("input[placeholder*='Date']:visible", "10/01/2012")
-    # Div `hallo-editor` sans attribut `name` (filemanager.html) : seul champ de ce
-    # type non couvert par `remplir_editeur_hallo`. Sans danger ici — l'action
-    # suivante est un vrai clic (page.click plus bas), qui declenche un blur natif
-    # avant que hallo.js ne committe vers le ngModel, contrairement a un enchainement
-    # de deux page.fill() sur des hallo-editor consecutifs (cf. docstring de
-    # remplir_editeur_hallo).
-    page.fill("p.help-block ~ div", "Licence GNU GPLv3")
+    # Champ de texte riche sans attribut `name` (filemanager.html), repere par son
+    # `data-testid="notes-document"` : desormais couvert par
+    # `remplir_champ_de_texte_riche`, au meme titre que les champs poses par attribut
+    # `name` plus haut.
+    remplir_champ_de_texte_riche(
+        page, page.get_by_test_id("notes-document"), "Licence GNU GPLv3"
+    )
     page.click("button.btn.label.label-info")
     expect(page.locator("button.btn.label")).to_have_count(0)
 
@@ -423,10 +441,10 @@ def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
 
     page.click("button:has-text('Supprimer')")
     expect(page.locator("div.modal-content h3")).to_contain_text("Confirmer")
-    expect(page.locator("#modal-btn-ok")).to_be_disabled()
+    expect(bouton_de_confirmation(page)).to_be_disabled()
     page.click("#agreeGdpr")
-    expect(page.locator("#modal-btn-ok")).to_be_enabled()
-    page.click("#modal-btn-ok")
+    expect(bouton_de_confirmation(page)).to_be_enabled()
+    confirmer_la_modale(page)
     expect(page).to_have_url(f"{live_server.url}/#/")
 
     # Ce que l'interface ne montre pas : la purge est complete cote base. Le cas Robot

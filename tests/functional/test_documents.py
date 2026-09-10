@@ -6,6 +6,7 @@ from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from tests.functional.helpers import (
+    confirmer_la_modale,
     connexion,
     creer_patient,
     joindre_document,
@@ -91,7 +92,7 @@ def test_supprimer_un_document(page: Page, live_server: LiveServer) -> None:
     expect(page.locator("div.modal-content .modal-body")).to_contain_text(
         "Êtes-vous sûr(e) de supprimer ce document ?"
     )
-    page.click("#modal-btn-ok")
+    confirmer_la_modale(page)
     # Disparait sans rechargement (mise a jour du $scope par le callback de succes).
     expect(page.locator("li.documenttile")).to_have_count(0)
 

@@ -164,7 +164,13 @@ def saisir_consultation(
     examen: str = "Examen normal",
 ) -> None:
     page.fill("input[placeholder*='Motif']", motif)
-    page.fill("div.inPlaceholderMode:has-text('Examen')", examen)
+    remplir_champ_de_texte_riche(
+        page,
+        page.locator('[data-testid="consultation-en-cours"]').get_by_test_id(
+            "examen-medical"
+        ),
+        examen,
+    )
 
 
 def cloturer_consultation(
@@ -205,28 +211,28 @@ def libelle_date_longue(jour: date) -> str:
     return date_format(jour, "j F Y")
 
 
-def remplir_editeur_hallo(page: Page, selecteur: str, valeur: str) -> None:
-    """Remplit un `div` `hallo-editor` (contenteditable) et force sa validation.
+def remplir_champ_de_texte_riche(page: Page, champ: Locator, valeur: str) -> None:
+    """Remplit un champ de texte riche et force sa validation.
 
-    `hallo.js` (`node_modules/@components/hallo/dist/hallo.js`) ne committe le
-    contenu vers le `ngModel` Angular que sur l'evenement natif `blur` de l'element
-    (`_deactivated`, lie par `this.element.on("blur", ...)`), relaye en
-    `hallodeactivated` : c'est le seul declencheur ecoute par `read()`
-    (`halloeditor.js`). Or `page.fill()` sur un `[contenteditable]` focalise le
-    nouvel element via `selectText()` -> `element.focus()` (coreBundle.js de
-    Playwright), sans passer par `focusNode()` — le chemin qui, lui, blur
-    explicitement l'element actif precedent quand la cible est elle-meme
-    contenteditable. Entre deux appels `page.fill()` consecutifs sur deux
-    `hallo-editor`, le blur du premier n'est donc pas garanti par la simple
-    focalisation du second : course intermittente (non reproduite a la demande,
-    cf. KANBAN.md section « Pieges rencontres »), qui perd silencieusement la
-    saisie du champ quitte en premier. Cette fonction ajoute un `blur()` explicite
-    juste apres le `fill()` : une vraie barriere d'etat (l'evenement natif `blur`
-    est toujours synchrone, jamais une attente temporisee), qui garantit que
-    `read()` s'est execute avant de rendre la main.
+    Le champ ne recopie son contenu vers le modele de l'application que sur l'evenement
+    natif `blur` de l'element : c'est le seul declencheur ecoute. Or `page.fill()` sur un
+    `[contenteditable]` focalise le nouvel element sans passer par le chemin qui, lui,
+    blur explicitement l'element actif precedent quand la cible est elle-meme
+    contenteditable. Entre deux `page.fill()` consecutifs sur deux champs de ce type, le
+    blur du premier n'est donc pas garanti par la simple focalisation du second : course
+    intermittente (non reproduite a la demande, cf. KANBAN.md section « Pieges
+    rencontres »), qui perd silencieusement la saisie du champ quitte en premier. Le
+    `blur()` explicite ci-dessous est une vraie barriere d'etat — l'evenement natif `blur`
+    est toujours synchrone, jamais une temporisation.
+
+    Le champ est passe en `Locator` et non en nom : ceux du dossier patient portent un
+    attribut `name` stable (que l'arbitrage A8 interdit de doubler d'un `data-testid`),
+    ceux de la consultation et du gestionnaire de documents n'en ont pas et portent un
+    `data-testid`. Un parametre unique couvre les deux sans inventer de troisieme
+    convention.
     """
-    page.fill(selecteur, valeur)
-    page.locator(selecteur).blur()
+    champ.fill(valeur)
+    champ.blur()
 
 
 def attendre_reponse(
@@ -349,8 +355,8 @@ def attendre_sauvegarde_parasite(
     silence par la valeur du serveur, et le PUT de « Fin d'edition » repart avec l'ancienne
     valeur. La base n'est jamais modifiee, sans la moindre erreur visible. Reproduit et
     journalise le 2026-09-10 (rapport T1b du lot D6b) : c'est la cause de l'alea de
-    `test_edition_de_la_date_de_naissance`, et de la meme course sur les `hallo-editor`
-    de `test_edition_du_dossier_patient`.
+    `test_edition_de_la_date_de_naissance`, et de la meme course sur les champs de texte
+    riche de `test_edition_du_dossier_patient`.
 
     Pourquoi la barriere est la reponse du `GET /api/patients/:id/documents`, et pas celle
     du PUT lui-meme : le PUT revenu ne prouve que l'arrivee des octets, pas l'execution du
@@ -378,12 +384,12 @@ def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:
     `AddPatientCtrl.initPatient` (`static/js/app/patient.js`) n'appelle `PatientServ.add`
     (action $resource `POST`, route enregistree avec `trailing_slash=False` : l'URL finale
     est `api/patients`, sans slash) qu'apres acquittement de la modale d'homonyme
-    (`modalInstance.result.then(enregistrer)`). Une barriere posee juste apres le clic sur
-    `#modal-btn-ok` mais qui n'observe pas ce POST rend la main avant que la creation ne
-    soit ecrite en base : sous `ATOMIC_REQUESTS` (un commit par requete au lieu d'un commit
-    par instruction), ce POST repond parfois en quelques dizaines de millisecondes, sans
-    laisser le moindre etat intermediaire observable a l'ecran — reproduit ~1 echec sur 2
-    lancements
+    (`modalInstance.result.then(enregistrer)`). Une barriere posee juste apres le clic de
+    confirmation de la modale (`confirmer_la_modale`) mais qui n'observe pas ce POST rend
+    la main avant que la creation ne soit ecrite en base : sous `ATOMIC_REQUESTS` (un
+    commit par requete au lieu d'un commit par instruction), ce POST repond parfois en
+    quelques dizaines de millisecondes, sans laisser le moindre etat intermediaire
+    observable a l'ecran — reproduit ~1 echec sur 2 lancements
     isoles de `test_avertissement_d_homonyme_puis_creation`. Attendre la reponse HTTP du POST
     lui-meme est la seule barriere vraie : elle ne peut pas etre satisfaite avant que le
     serveur n'ait ecrit la ligne, quel que soit le contenu du nom soumis (charge HTML incluse).
@@ -407,6 +413,16 @@ def joindre_document(
     expect(page.locator("div.form-group.document_create")).to_be_visible()
     page.fill("input[placeholder*='Titre']", titre)
     page.fill("input[placeholder*='Date']:visible", date)
-    page.fill("p.help-block ~ div", notes)
+    remplir_champ_de_texte_riche(page, page.get_by_test_id("notes-document"), notes)
     page.click("button.btn.label.label-info")
     expect(page.locator("button.btn.label")).to_have_count(0)
+
+
+def bouton_de_confirmation(page: Page) -> Locator:
+    """Le bouton qui confirme la modale ouverte."""
+    return page.locator("#modal-btn-ok")
+
+
+def confirmer_la_modale(page: Page) -> None:
+    """Confirme la modale ouverte (homonyme, suppression, avertissement)."""
+    bouton_de_confirmation(page).click()

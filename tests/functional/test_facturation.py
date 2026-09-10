@@ -21,6 +21,7 @@ from tests.functional.conftest import Socle
 from tests.functional.fabrique import cree_facture
 from tests.functional.helpers import (
     cloturer_consultation,
+    confirmer_la_modale,
     connexion,
     creer_patient,
     enregistrer_formulaire,
@@ -172,7 +173,7 @@ def test_annulation_et_refacturation(
 
     page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
     page.click("#cancelInvoiceBtn")
-    page.click("#modal-btn-ok")
+    confirmer_la_modale(page)
     expect(page.locator("#invoiceExaminationBtn")).to_be_visible()
     page.click("#unfold_invoices")
     expect(page.locator("span.label-warning:has-text('Annulée')")).to_be_visible()
@@ -271,7 +272,7 @@ def test_avoir_sur_facture_deja_emise(
         facture_initiale.number
     )
     page.click("#cancelInvoiceBtn")
-    page.click("#modal-btn-ok")
+    confirmer_la_modale(page)
     page.check("input[value=cash]")
     page.click("button.btn-primary:has-text('Valider')")
     # Meme course que `test_annulation_et_refacturation` (POST /api/invoices/:id/cancel
@@ -331,7 +332,7 @@ def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
         page.click("a[href='#/invoices']")
     # locator("h1") seul resout a plusieurs elements : le <h1 class="page-header">
     # de la fiche patient precedente reste parfois dans le DOM le temps de la
-    # transition Angular, et l'editeur hallo (consultation) y laisse un
+    # transition Angular, et l'editeur de texte riche (consultation) y laisse un
     # <h1 class="menu-item">h1</h1>, l'apercu de son menu de mise en forme. Le
     # gabarit de la page Comptabilite (partials/invoice-list.html:2) est le seul
     # a rendre un <h1> sans classe : c'est lui qui la designe, et lui seul.
