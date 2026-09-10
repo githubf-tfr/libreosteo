@@ -581,13 +581,15 @@ def test_impression_de_facture_reprend_cabinet_et_therapeute(
         position = nouvelle_position
 
 
-def test_facture_porte_la_date_de_la_seance(
+def test_facture_imprimee_porte_sa_date_stockee_pas_celle_du_jour(
     page: Page, live_server: LiveServer, socle: Socle
 ) -> None:
-    """Cas de R-FAC-06 : en facturation differee, le document imprime porte la date de la
-    seance, pas celle du jour — dans son nom d'onglet comme dans sa mention de lieu et de
-    date. Le test unitaire `TestDateDeLaFacture` couvre la recopie en base ; celui-ci
-    couvre ce que l'utilisateur voit, seul trou d'ecran du cahier avant ce lot.
+    """Cas de R-FAC-06 : le document imprime lit la date stockee de la facture
+    (`Invoice.date`), et ne la confond jamais avec la date du jour d'ouverture de
+    l'onglet — dans son nom d'onglet comme dans sa mention de lieu et de date. Le test
+    unitaire `TestDateDeLaFacture` couvre la recopie de cette date en base, a l'emission ;
+    celui-ci couvre ce que l'utilisateur voit a l'impression, seul trou d'ecran du cahier
+    avant ce lot.
 
     Ecart avec le scenario du brief, constate par capture directe du DOM (fichiers
     temporaires, non conserves) : le brief cloturait d'abord la consultation
@@ -598,16 +600,13 @@ def test_facture_porte_la_date_de_la_seance(
     permanence et le panneau reste `ng-hide`. Aucun autre site de l'application n'appelle
     `invoiceExamination()` (static/js/app/examination.js:273, seul appelant du gabarit) :
     il n'existe, aujourd'hui, aucun chemin d'interface pour facturer une consultation deja
-    cloturee « Non facturee ». Ce que R-FAC-06 exige n'est pas ce detour precis mais
-    l'ecart qu'il visait a produire (KANBAN.md, arbitrage du 2026-09-06 : « en
-    facturation differee, la facture porte la date de la seance et non celle de son
-    emission ») : ce test l'obtient en facturant normalement (chemin deja exerce par
-    tous les autres tests du module), puis en reculant les deux dates ensemble par
-    l'ORM — meme geste, et pour le meme motif, que `deplace_dates`
-    (test_consultation.py:68-83), deja cite par le brief comme precedent : le parcours
-    sous test est la facturation differee et son impression, pas la recopie de la date
-    de seance vers la facture a l'emission (deja couverte par le test unitaire
-    `TestDateDeLaFacture`).
+    cloturee « Non facturee ». Ce test ne cherche donc pas a rejouer ce detour precis (il
+    n'exerce aucune facturation differee au sens propre : la facturation ci-dessous est
+    immediate) ; il facture normalement (chemin deja exerce par tous les autres tests du
+    module), puis recule les deux dates ensemble par l'ORM — meme geste, et pour le meme
+    motif, que `deplace_dates` (test_consultation.py:68-83), deja cite par le brief comme
+    precedent — pour obtenir une facture dont la date stockee differe de celle du jour, et
+    verifier que c'est bien elle, et non `date.today()`, que l'impression affiche.
     """
     connexion(page, live_server)
     creer_patient(page)
@@ -616,6 +615,10 @@ def test_facture_porte_la_date_de_la_seance(
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="cash")
 
+    # Recul conjoint des deux dates (ORM) : arrangement, pas assertion sur le
+    # comportement de l'application. La date de la consultation n'a plus d'incidence sur
+    # ce qui suit (deja copiee dans `facture.date` par le POST de cloture ci-dessus) ; on
+    # la recule quand meme pour que la donnee reste coherente en base.
     consultation = Examination.objects.get(patient=patient)
     facture = Invoice.objects.get()
     decalage = timedelta(days=40)
@@ -623,11 +626,15 @@ def test_facture_porte_la_date_de_la_seance(
     consultation.save()
     facture.date -= decalage
     facture.save()
-    date_seance = timezone.localtime(consultation.date).date()
-    assert date_seance != date.today(), (
-        "la seance doit etre anterieure au jour de l'emission"
+    date_facture = timezone.localtime(facture.date).date()
+    assert date_facture != date.today(), (
+        "la facture doit etre datee d'un jour distinct d'aujourd'hui pour que ce qui suit "
+        "discrimine sa date stockee de la date du jour"
     )
-    assert timezone.localtime(facture.date).date() == date_seance
+    # Verification de l'ecriture ORM qui precede (le recul a bien porte sur les deux
+    # lignes) : ne prouve rien du comportement de l'application, seulement que
+    # l'arrangement ci-dessus est bien celui voulu avant de passer a l'ecran.
+    assert timezone.localtime(consultation.date).date() == date_facture
 
     with page.context.expect_page() as info_onglet:
         page.click("#printInvoiceBtn")
@@ -635,8 +642,8 @@ def test_facture_porte_la_date_de_la_seance(
     onglet_facture.wait_for_load_state()
 
     expect(onglet_facture).to_have_title(
-        f"{date_seance:%Y-%m-%d}-{facture.number}-Picard_Jean-Luc"
+        f"{date_facture:%Y-%m-%d}-{facture.number}-Picard_Jean-Luc"
     )
     expect(onglet_facture.locator("#location-date")).to_contain_text(
-        f"À Le Vigen, le {filtre_date_django(date_seance, 'd F Y')}"
+        f"À Le Vigen, le {filtre_date_django(date_facture, 'd F Y')}"
     )
