@@ -363,9 +363,11 @@ def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
     expect(ligne).to_contain_text("Chèque")
     expect(ligne).to_contain_text("Réglée")
 
-    # `context.expect_page` (nouvel onglet) est reserve a T13 par le plan (Porte de
-    # sortie) : la navigation se prouve, comme `test_consultation_facturee` le fait
-    # deja pour R-FAC-01, par la cible du lien plutot que par l'ouverture reelle.
+    # La navigation se prouve ici, comme `test_consultation_facturee` le fait
+    # deja pour R-FAC-01, par la cible du lien plutot que par l'ouverture reelle
+    # d'un nouvel onglet : `context.expect_page` n'a rien d'interdit dans ce
+    # fichier (il est employe plus bas), ce test choisit juste l'idiome le plus
+    # simple pour ce qu'il verifie.
     menu_actions = ligne.get_by_test_id("menu-actions-facture")
     ligne.get_by_test_id("actions-facture").click()
     expect(menu_actions).to_be_visible()
@@ -448,7 +450,8 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     facture_a_centimes = Invoice.objects.get(amount=Decimal("55.55"))
     # Meme idiome que `test_consultation_facturee` pour R-FAC-01 : page.goto direct
     # vers la facture imprimee, pas de clic sur le bouton d'impression (nouvel
-    # onglet, primitive reservee a T13 par le plan).
+    # onglet via `context.expect_page`, employe ailleurs dans ce fichier quand
+    # l'ouverture reelle de l'onglet importe).
     page.goto(f"{live_server.url}/invoice/{facture_a_centimes.id}")
     expect(page.locator("#main")).to_contain_text("Template with 55.55 EUR")
     expect(page.locator("#main")).to_contain_text("55,55 EUR")
@@ -503,11 +506,10 @@ def test_impression_de_facture_reprend_cabinet_et_therapeute(
 ) -> None:
     """Cas de R-THE-02, docs/recette.md:997-1021.
 
-    Nouvel onglet ouvert par le clic « Imprimer » (`context.expect_page`, primitive
-    reservee a T13 par le plan, porte de sortie), contenu lu dans l'ordre par
-    recherche successive des quinze elements dans le HTML brut de l'onglet — pas
-    dans le texte rendu, dont le decoupage en cellules de tableau ne garantit aucun
-    espace fiable entre "HONORAIRES" et le montant.
+    Nouvel onglet ouvert par le clic « Imprimer » (`context.expect_page`), contenu
+    lu dans l'ordre par recherche successive des quinze elements dans le HTML brut
+    de l'onglet — pas dans le texte rendu, dont le decoupage en cellules de tableau
+    ne garantit aucun espace fiable entre "HONORAIRES" et le montant.
     """
     connexion(page, live_server)
     definir_nom_du_therapeute(page)

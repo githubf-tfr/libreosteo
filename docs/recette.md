@@ -2205,10 +2205,10 @@ deux dates.
   (le formulaire de restauration s'affiche sans alerte au repos ; une archive
   illisible et une archive d'une autre version sont refusées, chacune avec une
   alerte nommant le motif, sans laisser l'instance inutilisable ; une restauration
-  réussie recharge bien les données — un patient supprimé avant l'archivage
-  revient, un patient créé après disparaît. Non couvert : la fidélité des
-  documents joints restaurés, et le parcours de purge jusqu'à l'état E0 qui
-  précède la restauration dans cette fiche)
+  réussie recharge bien les données — un patient créé avant l'archivage puis
+  supprimé revient, un patient créé après l'archivage disparaît. Non couvert :
+  la fidélité des documents joints restaurés, et le parcours de purge jusqu'à
+  l'état E0 qui précède la restauration dans cette fiche)
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
   instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,

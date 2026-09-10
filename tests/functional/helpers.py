@@ -27,8 +27,14 @@ def connexion(
     # suivant execute avant leur resolution est absorbe en silence par la transition
     # initiale, sans erreur visible ni requete reseau (confirme par instrumentation directe
     # des evenements `request` de Playwright). Le compteur de nouveaux patients est
-    # interpole depuis la reponse des statistiques : un compteur affiche et non vide est un
-    # etat, en aval de tout ce qui est asynchrone au demarrage — pas une temporisation.
+    # interpole depuis la reponse des statistiques : un compteur affiche et non vide prouve
+    # que l'appel statistiques a resolu — pas une temporisation. Il ne prouve rien de plus :
+    # dans dashboard.js (TherapeutSettingsServ.get_by_user().then(...)), l'appel statistiques
+    # (DashboardServ.get) et l'appel evenements (OfficeEventServ) sont deux branches soeurs
+    # du meme .then(), sans ordre garanti entre elles ; cette barriere n'attend donc pas les
+    # evenements. Elle suppose aussi TherapeutSettings.stats_enabled = True (vrai par defaut,
+    # models.py) : un socle de test qui le desactiverait ferait echouer `connexion()`, donc
+    # toute la suite, bruyamment mais sans indice dans ce commentaire — a defaut d'y penser.
     compteur = page.get_by_test_id("compteur-nouveaux-patients")
     expect(compteur).to_be_visible()
     expect(compteur).not_to_have_text("")
