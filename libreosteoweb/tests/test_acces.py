@@ -406,3 +406,78 @@ class TestDeconnexion(APITestCase):
         verification = self.client.get("/")
         self.assertEqual(verification.status_code, 302)
         self.assertTrue(verification.url.startswith(reverse("login")))
+
+
+class TestPontHtmx(APITestCase):
+    """Une requete htmx redirigee recoit 204 + HX-Redirect, jamais une 302 (D6c, A5).
+
+    htmx ne voit jamais la 302 : `XMLHttpRequest` la suit, et htmx insererait le document
+    de connexion dans la cible. La seule contre-mesure est a l'emission, et il y a **cinq**
+    sites de redirection sur **trois** middlewares (F8) : les traiter un par un ferait
+    diverger le pont des D6d.
+    """
+
+    ENTETE = {"HX-Request": "true"}
+
+    def test_base_vide_la_requete_htmx_est_renvoyee_vers_l_installeur(self):
+        reponse = self.client.get("/", headers=self.ENTETE)
+        self.assertEqual(reponse.status_code, 204)
+        self.assertEqual(reponse["HX-Redirect"], reverse("install"))
+
+    def test_base_vide_la_requete_ordinaire_garde_sa_302(self):
+        reponse = self.client.get("/")
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("install"))
+        self.assertNotIn("HX-Redirect", reponse)
+
+    def test_non_authentifie_la_requete_htmx_porte_next(self):
+        with sans_receivers():
+            cree_praticien()
+        reponse = self.client.get("/", headers=self.ENTETE)
+        self.assertEqual(reponse.status_code, 204)
+        self.assertEqual(reponse["HX-Redirect"], reverse("login") + "?next=/")
+
+    def test_non_authentifie_la_requete_ordinaire_garde_sa_302(self):
+        with sans_receivers():
+            cree_praticien()
+        reponse = self.client.get("/")
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(reponse.url, reverse("login") + "?next=/")
+
+    @override_settings(
+        LIBREOSTEO_AUTHENTICATOR=[
+            "libreosteoweb.tests.test_acces.AuthentificateurQuiEchoue"
+        ]
+    )
+    def test_echec_de_l_authentificateur_en_htmx(self):
+        with sans_receivers():
+            cree_praticien()
+        reponse = self.client.get("/", headers=self.ENTETE)
+        self.assertEqual(reponse.status_code, 204)
+        self.assertEqual(reponse["HX-Redirect"], reverse("login"))
+
+    def test_cabinets_multiples_sans_choix_en_htmx(self):
+        """Quatrieme site : OfficeSettingsMiddleware (middleware.py:174)."""
+        with sans_receivers():
+            praticien = cree_praticien()
+            regle_cabinet()
+            OfficeSettings.objects.create(office_name="Second cabinet")
+        self.client.force_authenticate(user=praticien)
+        self.client.force_login(praticien)
+        reponse = self.client.get("/api/patients", headers=self.ENTETE)
+        self.assertEqual(reponse.status_code, 204)
+        self.assertEqual(reponse["HX-Redirect"], reverse("officesettings-set"))
+
+    def test_session_prise_par_une_autre_connexion_en_htmx(self):
+        """Cinquieme site : OneSessionPerUserMiddleware (middleware.py:200). C'est le cas
+        de session perdue qui ne vient pas d'une expiration — il frappe un utilisateur en
+        train de travailler, et une page htmx qui ne le traiterait pas afficherait le
+        formulaire de connexion dans un panneau au milieu d'un ecran."""
+        with sans_receivers():
+            praticien = cree_praticien()
+            regle_cabinet()
+        self.client.force_login(praticien)
+        LoggedInUser.objects.filter(user=praticien).delete()
+        reponse = self.client.get("/", headers=self.ENTETE)
+        self.assertEqual(reponse.status_code, 204)
+        self.assertEqual(reponse["HX-Redirect"], reverse("login"))

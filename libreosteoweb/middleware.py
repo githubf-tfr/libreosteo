@@ -18,7 +18,7 @@ from re import compile
 from django.conf import settings
 from django.contrib.auth import get_user_model, logout
 from django.contrib.sessions.models import Session
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.module_loading import import_string
@@ -52,6 +52,29 @@ def get_exempts():
     if hasattr(settings, "LOGIN_EXEMPT_URLS"):
         exempts += [compile(expr) for expr in settings.LOGIN_EXEMPT_URLS]
     return exempts
+
+
+def rediriger(request, url):
+    """Construit toute redirection emise par les middlewares de ce module.
+
+    htmx ne voit jamais une 302 : `XMLHttpRequest` la suit de facon transparente, et htmx
+    insere alors le document de connexion dans la cible — un formulaire de connexion au
+    milieu d'un ecran. La seule contre-mesure est a l'emission (D6c, A5).
+
+    La condition porte sur la **presence** de l'en-tete et non sur sa valeur : htmx 2 pose
+    toujours `HX-Request: true`, et le cout d'accepter une autre valeur est nul.
+
+    Cette fonction est appelee par les **cinq** sites de redirection des trois middlewares
+    (F8) : `LoginRequiredMiddleware` (installeur, echec d'authentificateur, non
+    authentifie), `OfficeSettingsMiddleware` (cabinet non choisi) et
+    `OneSessionPerUserMiddleware` (session prise par une autre connexion). Un site oublie
+    est un panneau de page migree qui affiche un formulaire de connexion.
+    """
+    if "HX-Request" in request.headers:
+        reponse = HttpResponse(status=204)
+        reponse["HX-Redirect"] = url
+        return reponse
+    return HttpResponseRedirect(url)
 
 
 def get_authenticator():
@@ -101,7 +124,7 @@ class LoginRequiredMiddleware(MiddlewareMixin):
             logger.info("No user found")
             if not match_install.match(request.path.lstrip("/")):
                 logger.info("redirect to install page")
-                return HttpResponseRedirect(initialize_admin_url())
+                return rediriger(request, initialize_admin_url())
             else:
                 logger.info("no redirect required")
                 return
@@ -115,7 +138,7 @@ class LoginRequiredMiddleware(MiddlewareMixin):
                     "Request on %s %s, but authentication failed on authenticator"
                     % (request.method, request.path)
                 )
-                return HttpResponseRedirect(get_login_url())
+                return rediriger(request, get_login_url())
 
         if not request.user.is_authenticated:
             logger.info("user not authenticated")
@@ -129,7 +152,7 @@ class LoginRequiredMiddleware(MiddlewareMixin):
                     "query path %s, authentication required. redirect to authentication form %s "
                     % (path, get_login_url())
                 )
-                return HttpResponseRedirect(get_login_url() + "?next=" + request.path)
+                return rediriger(request, get_login_url() + "?next=" + request.path)
         logger.info(
             "user [%s] authenticated for %s %s"
             % (request.user, request.method, request.path)
@@ -171,7 +194,7 @@ class OfficeSettingsMiddleware(MiddlewareMixin):
                 # Redirect to the Office Settings form if not already
                 # redirected
                 if request.path != reverse("officesettings-set"):
-                    return HttpResponseRedirect(reverse("officesettings-set"))
+                    return rediriger(request, reverse("officesettings-set"))
         else:
             current_officesettings = OfficeSettings.objects.first()
         request.officesettings = current_officesettings
@@ -197,7 +220,7 @@ class OneSessionPerUserMiddleware:
         if request.user.is_authenticated:
             if not hasattr(request.user, "logged_in_user"):
                 logout(request)
-                return HttpResponseRedirect(get_login_url())
+                return rediriger(request, get_login_url())
             stored_session_key = request.user.logged_in_user.session_key
 
             # if there is a stored_session_key  in our database and it is
