@@ -537,6 +537,8 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 ### Défauts produit constatés en recette (à traiter, pas encore planifiés)
 
+- ~~**2026-09-09 — perte silencieuse de donnée médicale dans le dossier patient.** Un clic ou un `Tab` pendant l'édition soumettait l'éditable autonome `original_name` et le callback `$scope.patient = data` effaçait en bloc antécédents, traitement en cours et motifs.~~ — **corrigé le 2026-09-11 par le lot D8**, cliquet de gabarit posé. À retenir de ce défaut, indépendamment de son remède : **il a vécu en production, et c'est un filet de test qui l'a trouvé, pas une revue de code.** Il a été découvert en retirant une barrière d'attente écrite pour le contourner sans l'avoir nommé — donc par le geste même que D6b faisait. C'est l'argument le plus réutilisable du chantier D6 : le filet ne sert pas qu'à protéger la bascule, il révèle ce que le produit cache. **La passe de recette `R-PAT-08` reste due.**
+
 - **2026-09-04 — le panneau « Démarrer une consultation » ne revient pas sans
   rechargement.** Constaté à la passe de recette de D1, en montant l'état E2 : après avoir
   clôturé une consultation, le panneau permettant d'en démarrer une nouvelle ne se
@@ -680,6 +682,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   dépendances lui-même — à vérifier alors, et à exclure de l'empreinte si la divergence
   se confirme.
 
+### Renvoyé par D8 (2026-09-11)
+
+- **Le maillon 4 de la chaîne de perte reste en place** — `$scope.patient = data` (`libreosteoweb/static/js/app/patient.js:292`) remplace l'objet patient entier au retour d'un enregistrement, et efface du même geste les champs liés par `ng-model` que la réponse ne porte pas. D8 a coupé ses **déclencheurs**, pas le maillon : l'arbitrage A2 de la spec interdit de toucher à `savePatient()`, dont dépendent trois formulaires. Il tombera avec la réécriture de l'écran par **D6e** — consigné ici pour qu'il n'y soit pas redécouvert comme une surprise, et non comme une action à mener avant.
+- **`examination.html` partage ce maillon sans avoir de déclencheur aujourd'hui.** Aucun éditable autonome n'y porte `blur="submit"`, donc rien ne le soumet au flou ; le cliquet `tests/qualite/test_contrat_gabarits.py` le garde ainsi. **À revérifier si D6e y introduit un éditable autonome**, en particulier hors d'un `editable-form` nommé.
+
 ### Constats de facturation (2026-09-06)
 
 > Constat en lecture seule, préalable aux décisions du même jour (cf. « Décisions
@@ -765,6 +772,138 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-11 — D8 Perte de saisie en édition du dossier patient fermée** (cinq tâches ; spec
+  `docs/superpowers/specs/2026-09-10-d8-perte-de-saisie-design.md`, plan supprimé une fois
+  achevé). **Onze commits `6d467f0..e76f325`**, plus les deux commits de clôture. Le plan
+  annonçait « cinq commits » : les revues en ont produit onze, trois rondes de correction sur
+  T2 et une sur T3. Deux commits étrangers au lot s'intercalent dans la plage (`61bb565`, plan
+  de D6c ; `14902ec`, cadrage de D6d) — ils ne sont pas de D8. Un clic ou un `Tab` pendant
+  l'édition du dossier patient n'écrase plus les antécédents, le traitement en cours ni les
+  motifs, et un cliquet interdit au déclencheur de revenir.
+
+  **Critère d'arrêt constaté par exécution réelle**, les cinq clauses :
+  1. **Le test de preuve compte un seul enregistrement**, celui de « Fin d'édition ». Rouge
+     d'avant journalisé sur les **deux** voies, chacune sur un patient distinct : `2 PUT
+     /api/patients/<id>` observés, `assert 2 == 1`, pour le clic
+     (`test_aucun_enregistrement_pendant_l_edition`) comme pour le `Tab`
+     (`test_aucun_enregistrement_sur_tabulation_en_edition`). Vert après correctif,
+     `test_edition_du_dossier_patient` intact.
+  2. **Aucun contournement ne subsiste** : `grep -rn attendre_sauvegarde_parasite tests/`,
+     `grep -rn 'blur="submit"' libreosteoweb/templates/` et `grep -rn originalNameInput
+     libreosteoweb/` rendent **zéro ligne chacun**. `blur="submit"` a disparu du dépôt entier,
+     pas seulement du site fautif.
+  3. **Le cliquet refuse le retour du défaut**, armé des deux côtés : témoin réintroduit →
+     `1 failed` sous `pytest` nu et `1 failed, 315 passed` sous `make check`, le message nommant
+     fichier, ligne et motif (« soumission-au-flou ») ; `316 passed` après retrait du témoin.
+  4. **Vingt lancements consécutifs verts** de la suite fonctionnelle sur `e76f325`, arbre
+     propre et aucun commit pendant la campagne : **`65 passed` les vingt fois**, zéro `failed`,
+     zéro `error`, du 2026-09-11 10:16:39 au 19:30:04 (+02:00). 8 042 s de `pytest` cumulés,
+     soit 2 h 14 de test effectif ; la campagne s'étale sur neuf heures parce qu'un crash de la
+     machine a coupé la série entre le 7e et le 8e lancement, qui a été rejoué.
+  5. **`make check` vert** : `316 passed`, couverture **91,54 %**, quatre cliquets tenus.
+     **La passe de recette `R-PAT-08` reste due** : elle n'a pas été jouée à la main sur un
+     déploiement de référence, et rien ici ne la présume jouée.
+
+  **Les chiffres du lot** : suite fonctionnelle de **58 à 65 tests** (deux tests de preuve du
+  parasite, quatre gardes du titre, un de non-régression sur le cycle complet) ; suite
+  `make check` de **315 à 316** ; périmètre `mypy` de **118 à 119** entrées ; un **second
+  cliquet de gabarit** (`tests/qualite/test_contrat_gabarits.py`) à côté du cliquet
+  d'adressage. Cliquets tenus : `fail_under = 90` inchangé, `ruff` `ignore = []` inchangé,
+  **zéro `noqa` neuf, zéro `# type: ignore` neuf, zéro `skip`**. Le produit change de **treize
+  lignes sur deux fichiers** (`partials/patient-detail.html`, `static/js/app/patient.js`).
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **Le rattachement du champ au formulaire nommé n'a pas pris, et la parade de l'annexe A a
+    dû être appliquée.** C'est l'enseignement principal. Retirer `blur="submit"` et pointer
+    `e-form="form.patientForm"` coupe bien la voie du clic, mais fait **disparaître
+    `input[name=original_name]` du mode édition** : l'édition du nom de naissance est cassée, et
+    la voie du `Tab` n'est même plus mesurable. Cause établie au code, et ce n'est pas celle
+    qu'on attendait : à la liaison du `<h1>`, `$parse("form.patientForm")(scope)` rend
+    `undefined` — `patient.js:211` ne pose que `$scope.form = {}` — et la branche de repli ne
+    trouve pas le `<form>` de la ligne 29, `uib-tabset` l'ayant déjà transclus. `hasForm` reste
+    faux, xeditable prend la branche « éditable autonome » et **écrase `form.patientForm` sur le
+    scope** (`xeditable.js:1425-1434`). **`$rootScope.$$editableBuffer` n'entre jamais en jeu :
+    ce n'est pas le drain qui manque, c'est l'inscription.** D'où la parade : le champ de saisie
+    **descend du `<h1>` dans le formulaire du panneau « Infos patient »**, première ligne
+    d'identité, au-dessus de la date de naissance ; le titre n'en garde que l'affichage en
+    lecture. Coût assumé et porté à la recette : **le champ change de place en mode édition**,
+    donc l'écran change — D8 n'est pas un lot de bascule, mais préserver la position d'un champ
+    au prix d'une perte de donnée médicale aurait été l'inverse d'un arbitrage.
+  - **La spec se trompait sur l'étendue du défaut, et la revue l'a rattrapé.** Son fait F4
+    affirme « l'onglet Infos générales, et lui seul » : faux. Le `<h1>` est ligne 17, le
+    `<uib-tabset>` ligne 25 — les noms du titre sont cliquables depuis **tous** les onglets,
+    alors qu'`edit-disabled="form.patientForm.$visible"` n'est vrai que sur un seul. Trois
+    formulaires portent `onaftersave="savePatient()"`. **Quatre chemins**, pas un : Infos
+    générales, Antécédents, Comptes rendus, Consultation — chacun fermé et prouvé par un rouge
+    constaté avant.
+  - **Le remède est un registre, pas une énumération.** L'attribut `edit-disabled` des noms du
+    titre interroge `editFormManager.action_available('save')`, donc le singleton
+    `loEditFormManager` où tout formulaire
+    portant `edit-form-control` s'inscrit. Trois gains sur l'union à trois formulaires : les
+    quatre chemins fermés d'un coup, `examination.js` hors périmètre, et **l'expression ne se
+    périme pas** — un formulaire ajouté demain sera couvert sans qu'on y pense. Y compris
+    `form.partialPatientForm`, du scope isolé, qu'aucune énumération ne pouvait atteindre.
+  - **Le geste `Tab` n'était pas connu du premier inventaire du défaut**, et aucune barrière ne
+    le couvrait : `xeditable.js:670-682` soumet sur `keyCode === 9` dès que l'éditeur porte
+    `blur === 'submit'`. **Le premier inventaire d'un défaut n'épuise pas ses déclencheurs** —
+    c'est pourquoi la preuve a été écrite geste par geste, un test par voie.
+  - **Le fait F2, asymétrie structurelle de xeditable** : les défauts de la bibliothèque sont
+    `blurForm: 'ignore'` et `blurElem: 'cancel'`. Dans ce produit, **un formulaire nommé n'est
+    jamais soumis par un clic** (les trois `editable-form` du dossier ne portent aucun attribut
+    `blur`, donc `_blur === 'ignore'`), **un éditable autonome l'est toujours d'une façon ou
+    d'une autre**. C'est ce qui explique qu'un seul champ sur tout un écran ait été dangereux :
+    le défaut ne venait pas d'un comportement par défaut, mais d'un `blur="submit"` **écrit à la
+    main** sur un éditable qui n'aurait pas dû être autonome. **À relire ainsi en D6e.**
+  - **La règle de suppression du fork, appliquée une troisième fois.** Les **cinq** consommateurs
+    d'`attendre_sauvegarde_parasite` ont été cherchés avant retrait, pas seulement son nom : une
+    définition, un import, trois appels — plus deux mentions en commentaire et une dans un
+    docstring, que la spec ne dénombrait pas.
+  - **Une perte de procédé à ne pas reproduire.** `attendre_sauvegarde_parasite` attendait le
+    `GET …/documents` pour prouver que le **callback** avait tourné, pas seulement que les octets
+    du `PUT` étaient arrivés. Ses trois appels devaient partir ; le procédé, lui, aurait dû
+    survivre. À reprendre si une course du même type se présente.
+  - **Un flottement démasqué, pas introduit.** `test_edition_du_dossier_patient` a échoué 2 fois
+    sur 5 après le retrait de la barrière. Cause établie **par mesure** et non par déduction :
+    `page.click("#history")` diffuse `uiTabChange`, `handleUnsavedForm` trouve `.ng-dirty` vrai
+    — les `div hallo-editor` restent dans le DOM après fermeture du formulaire, contrairement aux
+    `input` xeditable que `$hide` retire —, `saveOnLostFocus` déclenche `$save`, et `$save`
+    appelle `$onaftersave()` **sans garde sur `$visible`** : un `PUT` non attendu part au moment
+    critique. `#medicalreports` était barré, `#history` ne l'était pas, pour un mécanisme
+    identique ; barrière posée à l'identique, flottement résorbé (5/5).
+  - **Les numéros de ligne de la spec avaient déjà bougé** : `$show()` en `patient.js:565` et non
+    « autour de 560 » ; le site fautif en `patient-detail.html:39` et non `:19` une fois la
+    parade appliquée. Sans conséquence — les procédures ciblaient des motifs de texte, pas des
+    numéros. **Un numéro de ligne cité dans une spec est une indication, jamais une adresse.**
+  - **Un cliquet ne vaut que ce qu'il couvre, et le dire honnêtement en fait partie.** Le cliquet
+    de gabarit couvre **six axes**, chacun prouvé par un témoin rouge : valeur non quotée, espace
+    interne aux guillemets, attribut réparti sur deux lignes (lecture pleine-chaîne, `splitlines()`
+    abandonné), casse du nom d'attribut, et les préfixes `data-`/`x-` — trouvaille non demandée,
+    établie en lisant `PREFIX_REGEXP = /^((?:x|data)[:\-_])/i` (`angular.js:10333`) :
+    `data-blur="submit"` remplit `attrs.blur` à l'identique. 19 sondes sur 19 correctes, dont six
+    formes inoffensives qui doivent passer. Hypothèses **falsifiées et écartées avec motif** :
+    `blur="SUBMIT"` non couvert parce que la comparaison de xeditable est un `===` sensible à la
+    casse — le couvrir produirait un faux positif. **Deux limites restent nommées en tête de
+    fichier** : `ng-attr-blur` et le HTML embarqué dans une chaîne JavaScript (`template: '…'`),
+    forme exacte qu'avait le défaut avant sa suppression en D6a.
+
+  **Ce que cela change à la priorité des lots restants : D6c redevient le suivant.** D8 était
+  l'insertion, elle est faite ; l'ordre `D6c → D6d → D6e → D6f → D6g` reprend tel quel.
+
+  **Ce que cela change au chapeau** : D8 ne figurait pas au cadrage du 2026-09-04. Il s'est
+  inséré entre D6b et D6c sur un défaut que **le filet de test a trouvé**, et il s'est refermé
+  en un jour. Un chantier de bascule produit des défauts à traiter hors bascule ; le découpage
+  doit pouvoir en absorber.
+
+  **Ce que le lot renvoie plus loin :**
+  - **Le maillon 4 reste, avec sa fragilité** — `$scope.patient = data` (`patient.js:292`)
+    remplace l'objet entier au retour d'un enregistrement et efface en bloc les champs liés par
+    `ng-model` qui ne sont pas dans la réponse. D8 a coupé ses **déclencheurs**, pas le maillon :
+    c'est l'arbitrage A2 de la spec, qui interdit de toucher à `savePatient()`. Il tombera avec
+    la réécriture de l'écran par **D6e**, et il est consigné ici pour ne pas y être redécouvert
+    comme une surprise.
+  - **`examination.html` partage ce maillon sans avoir de déclencheur aujourd'hui** : à
+    revérifier si D6e y introduit un éditable autonome.
+
 - **2026-09-10 — D6b Filet indépendant du framework livré** (treize tâches, plus une vague de
   correction finale et un correctif de clause ; spec
   `docs/superpowers/specs/2026-09-09-d6b-filet-independant-design.md`, plan supprimé une fois
@@ -825,7 +964,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     (`patient.js:292`) efface alors en bloc les `div hallo-editor` liés par `ng-model`
     (`:159-198`) : antécédents, traitement en cours, motifs. Mesuré : `job=''` en base après un
     clic sur une case à cocher. `family_name` et `first_name` (`:18`, `:21`) offrent un second
-    chemin. **Objet du lot D8.**
+    chemin. **Corrigé par D8** (2026-09-11) — et cet inventaire était **incomplet** : le chemin ne passait pas par le seul onglet « Infos générales », les quatre onglets du dossier étaient atteignables depuis le même titre.
   - **Le volet de consultation se rouvre tout seul.** Le callback de clôture appelle
     `reloadExaminations`, qui affecte `previousExamination.data` avec l'objet `$resource` rendu
     *immédiatement*, avant le retour de la réponse. Refermer le volet dans cette fenêtre le fait
