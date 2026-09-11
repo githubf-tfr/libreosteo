@@ -5,14 +5,18 @@
 {# (static/js/app/utils.js:68-88). #}
 {# L'adressage de test passe par `data-severite`, jamais par la classe Bootstrap : le #}
 {# cliquet d'adressage interdit `.alert*` dans toute la suite, et il ne s'allege jamais. #}
-<div class="lo-notification alert {{ classe }}"
-     role="alert"
-     data-severite="{{ severite }}"
-     data-testid="notification"
-     x-data="{ visible: true }"
-     x-show="visible"
-     x-init="setTimeout(() => visible = false, 5000)">
-  <button type="button" class="close" aria-label="{% trans 'Close' %}"
-          data-testid="fermer-notification" @click="visible = false">&times;</button>
-  <div class="lo-notification-corps">{{ message }}</div>
+{# `x-if` (et non `x-show`) : la fermeture et l'expiration doivent retirer la notification #}
+{# du DOM, pas seulement l'occulter derriere `display:none` — un test qui compte les #}
+{# elements par `data-testid` (falsifiabilite, T6) ne verrait jamais la disparition sinon. #}
+<div x-data="{ visible: true }" x-init="setTimeout(() => visible = false, 5000)">
+  <template x-if="visible">
+    <div class="lo-notification alert {{ classe }}"
+         role="alert"
+         data-severite="{{ severite }}"
+         data-testid="notification">
+      <button type="button" class="close" aria-label="{% trans 'Close' %}"
+              data-testid="fermer-notification" @click="visible = false">&times;</button>
+      <div class="lo-notification-corps">{{ message }}</div>
+    </div>
+  </template>
 </div>

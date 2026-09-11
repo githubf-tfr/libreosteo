@@ -9,7 +9,13 @@
 <div x-data="{ ouverte: true }"
      x-init="$watch('ouverte', v => document.body.classList.toggle('modal-open', v)); document.body.classList.add('modal-open')"
      @keydown.escape.window="ouverte = false">
-  <div class="modal" style="display: block" x-show="ouverte"
+  {# `x-show` seul ne suffit pas sur cet element : a la premiere ouverture, `ouverte` vaut #}
+  {# deja `true` des l'init, et Alpine *retire* alors la propriete `display` de l'attribut #}
+  {# `style` plutot que d'y ecrire une valeur (mesure dans `cdn.min.js` : #}
+  {# `style.removeProperty("display")`), ce qui decouvre le `.modal{display:none}` de #}
+  {# Bootstrap au lieu de l'occulter. La liaison `:style` pose une valeur explicite a #}
+  {# chaque etat, sans jamais dependre de ce raccourci (mesure T6, D6c). #}
+  <div class="modal" :style="ouverte ? 'display: block' : 'display: none'"
        role="dialog" aria-modal="true" aria-labelledby="titre-modale"
        data-testid="modale">
     <div class="modal-dialog" role="document">
