@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import re
+from contextlib import contextmanager
 from datetime import date
-from typing import Callable
+from typing import Callable, Iterator
 
 from django.utils.formats import date_format
-from playwright.sync_api import Locator, Page, expect
+from playwright.sync_api import Locator, Page, Request, expect
 from pytest_django.live_server_helper import LiveServer
 
 
@@ -344,17 +345,15 @@ def attendre_enregistrement_patient(
     sequence), **et qu'aucun geste anterieur non barre n'ait laisse un PUT en
     vol**.
 
-    Cette seconde condition n'est pas gratuite, contrairement a ce qu'affirmait la
-    version precedente de ce texte : le dossier patient en mode edition emet un PUT
-    parasite au premier clic quelconque (mecanisme complet dans le docstring
-    d'`attendre_sauvegarde_parasite`), et un journal du 2026-09-10 montre cette
-    barriere satisfaite par la reponse d'un PUT emis **avant** le geste
-    (cf. rapport T1b du lot D6b). Les appelants de ce module barrent desormais ce
-    PUT parasite, donc l'invariant tient a nouveau — mais par leur discipline, pas
-    par construction. Rendre la fonction insensible aux reponses perimees (ne
-    retenir qu'une reponse dont la requete est partie apres le debut du `geste`)
-    reste possible ; ce changement touche tous les appelants et n'a pas ete fait
-    ici.
+    Cette seconde condition est gratuite depuis le lot D8 : le dossier patient n'emet plus
+    aucun `PUT /api/patients/:id` entre l'entree et la sortie du mode edition, et
+    `test_aucun_enregistrement_pendant_l_edition` /
+    `test_aucun_enregistrement_sur_tabulation_en_edition` le tiennent. Elle reste une
+    condition, pas une garantie de construction : un appelant qui laisserait un PUT en vol
+    la reviolerait. Rendre la fonction insensible aux reponses perimees (ne retenir qu'une
+    reponse dont la requete est partie apres le debut du `geste`) reste possible et
+    toucherait ses douze appelants ; `attendre_enregistrement_declenche` le fait, pour les
+    seuls tests qui en ont besoin.
     """
     attendre_reponse(
         page,
@@ -364,53 +363,73 @@ def attendre_enregistrement_patient(
     )
 
 
-def attendre_sauvegarde_parasite(
+@contextmanager
+def enregistrements_patient_observes(
+    page: Page, patient_id: int
+) -> Iterator[list[str]]:
+    """Collecte les `PUT /api/patients/:id` emis pendant le bloc, sans rien attendre.
+
+    Compter les emissions, et non asserter une valeur en base : l'ecrasement d'une
+    saisie par la reponse d'un enregistrement parasite depend d'un ordre d'arrivee (le
+    PUT parasite repondait en 64 ms, mesure du 2026-09-10), donc une assertion de valeur
+    serait **intermittente** avant correctif — un test qui ne prouve rien de facon
+    opposable. L'emission, elle, est deterministe : elle a lieu a chaque fois, au premier
+    geste.
+
+    Le compteur est lu **apres** la reponse du PUT de « Fin d'edition », jamais avant :
+    c'est la seule barriere causale disponible, et elle garantit que toute requete
+    anterieure a deja ete dispatchee par Playwright (l'ordre des evenements du protocole
+    est celui du reseau). L'attendu est donc **exactement un** PUT — celui de la fin
+    d'edition — et non zero ; « zero enregistrement pendant l'edition » se lit `len(...)
+    - 1 == 0` dans le message d'assertion.
+    """
+    emis: list[str] = []
+    motif = re.compile(rf"/api/patients/{patient_id}$")
+
+    def _capter(requete: Request) -> None:
+        if requete.method == "PUT" and motif.search(requete.url) is not None:
+            emis.append(requete.url)
+
+    page.on("request", _capter)
+    try:
+        yield emis
+    finally:
+        page.remove_listener("request", _capter)
+
+
+def attendre_enregistrement_declenche(
     page: Page, patient_id: int, geste: Callable[[], None]
 ) -> None:
-    """Execute `geste` (un clic quelconque fait alors que le dossier patient est en mode
-    edition) et rend la main seulement quand le `PUT /api/patients/:id` parasite qu'il
-    declenche a ete **entierement digere par le navigateur**.
+    """Execute `geste` et rend la main a la reponse du `PUT /api/patients/:id` que **ce
+    geste** a emis.
 
-    Pourquoi un clic quelconque declenche un enregistrement complet du patient :
-    `patient-detail.html` declare le champ `original_name` dans le `h1`, donc **hors** de
-    l'`editable-form`, en editable autonome porteur de `blur="submit"` et
-    `onaftersave="savePatient()"`. `patient.js` l'ouvre de lui-meme
-    (`originalNameInput.$show()`, dans le `$watch` sur `form.patientForm.$visible`) des que
-    le formulaire passe en edition. Or le gestionnaire de clic *document* de xeditable
-    (`xeditable.js`, `clickHandler`) soumet tout formulaire a `_blur === 'submit'` des qu'un
-    clic tombe hors de ses editables : **le premier clic quelconque apres « Editer » emet
-    donc un `PUT /api/patients/:id` complet**, portant les valeurs d'avant l'edition.
+    Difference avec `attendre_enregistrement_patient`, et seule raison d'etre : cette
+    derniere rend la main a la **premiere reponse** de cette signature qui arrive, fut-ce
+    celle d'un PUT parti **avant** le geste (son docstring le dit). Dans un test qui doit
+    etre constate **rouge sur l'arbre d'avant correctif**, ou un PUT parasite est
+    precisement en vol, cette barriere serait satisfaite par le parasite : le compteur
+    vaudrait un, et le test passerait au vert sans rien prouver. Ici la requete est
+    capturee a l'emission (`expect_request` ne voit que ce qui part apres l'entree dans
+    le bloc), puis on attend **sa** reponse.
 
-    Pourquoi ce PUT laisse en vol est destructeur : son callback de succes
-    (`savePatient()`, patient.js) fait `$scope.patient = data`. Chaque editable ouvert pose
-    `$scope.$parent.$watch(<expression du modele>, setLocalValue)` (`xeditable.js`), et
-    `setLocalValue` reaffecte `scope.$data` depuis le modele : **tout remplacement de
-    `$scope.patient` reinitialise le `$data` des editables ouverts**. Si la reponse de ce PUT
-    parasite revient apres qu'une saisie a ete commitee dans un `$data` (un `Tab` sur la date
-    de naissance, par exemple) mais avant l'enregistrement final, la saisie est ecrasee en
-    silence par la valeur du serveur, et le PUT de « Fin d'edition » repart avec l'ancienne
-    valeur. La base n'est jamais modifiee, sans la moindre erreur visible. Reproduit et
-    journalise le 2026-09-10 (rapport T1b du lot D6b) : c'est la cause de l'alea de
-    `test_edition_de_la_date_de_naissance`, et de la meme course sur les champs de texte
-    riche de `test_edition_du_dossier_patient`.
-
-    Pourquoi la barriere est la reponse du `GET /api/patients/:id/documents`, et pas celle
-    du PUT lui-meme : le PUT revenu ne prouve que l'arrivee des octets, pas l'execution du
-    callback qui remplace `$scope.patient`. La derniere instruction de ce callback est
-    `$scope.patient.medical_reports_doc(...)`, qui emet precisement ce GET : **sa seule
-    existence prouve que le remplacement a eu lieu**. Barriere causale, jamais temporelle —
-    et jamais une barriere d'ecran, qu'AngularJS satisferait de facon optimiste. Le statut de
-    ce GET n'est volontairement pas verifie : il n'est pas l'objet de l'attente, seulement
-    son marqueur (il repond d'ailleurs 400 dans le socle de test, faute de document).
+    `attendre_enregistrement_patient` n'est volontairement pas corrigee : le changement
+    toucherait ses douze appelants et sort du perimetre de ce lot.
     """
-    with page.expect_response(
-        lambda reponse: (
-            reponse.request.method == "GET"
-            and re.search(rf"/api/patients/{patient_id}/documents$", reponse.url)
-            is not None
+    motif = re.compile(rf"/api/patients/{patient_id}$")
+    with page.expect_request(
+        lambda requete: (
+            requete.method == "PUT" and motif.search(requete.url) is not None
         )
-    ):
+    ) as info_requete:
         geste()
+    reponse = info_requete.value.response()
+    assert reponse is not None, (
+        f"PUT /api/patients/{patient_id} n'a recu aucune reponse"
+    )
+    assert reponse.ok, (
+        f"PUT /api/patients/{patient_id} a echoue : "
+        f"{reponse.status} {reponse.status_text}"
+    )
 
 
 def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:

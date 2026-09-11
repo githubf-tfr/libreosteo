@@ -16,8 +16,7 @@
 </div>
 <h1 class="page-header" data-testid="titre-patient">
     <span editable-text="patient.family_name" onaftersave="savePatient()">{$ patient.family_name $}</span>
-    <span ng-show="patient.original_name || form.patientForm.$visible">(<span blur="submit" e-name="original_name" e-placeholder="{{ patient.original_name }}" e-form="originalNameInput" buttons="no" editable-text="patient.original_name" onaftersave="savePatient()">{$ patient.original_name $}</span>)
-    </span>
+    <span ng-show="patient.original_name">({$ patient.original_name $})</span>
     <span editable-text="patient.first_name" onaftersave="savePatient()">{$ patient.first_name $}</span>
     <small ng-if="age || patient.job"><span ng-if="patient.job">{$ patient.job | filterJob $}, </span>{$ age | format_age $}</small>
 </h1>
@@ -34,6 +33,12 @@
                     <span class="pull-right" ng-if="patient.consent_check">{% trans 'Consent given on '%}{$ patient.consent | date:"dd/MM/yyyy" $}</span>
                 </div>
                 <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ patient.original_name }} :
+                            <span e-name="original_name" e-placeholder="{{ patient.original_name }}" editable-text="patient.original_name">{$ patient.original_name || "{% trans 'not documented' %}" $}</span>
+                        </div>
+                    </div>
                     <div class="row">
                         <div class="col-md-7">
                             {{ patient.birth_date }} :

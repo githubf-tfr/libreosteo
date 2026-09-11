@@ -17,13 +17,14 @@ from libreosteoweb.models import (
 from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
     attendre_creation_patient,
+    attendre_enregistrement_declenche,
     attendre_enregistrement_patient,
-    attendre_sauvegarde_parasite,
     bouton_de_confirmation,
     cloturer_consultation,
     confirmer_la_modale,
     connexion,
     creer_patient,
+    enregistrements_patient_observes,
     joindre_document,
     libelle_date_longue,
     notifications_d_erreur,
@@ -218,19 +219,13 @@ def test_edition_du_dossier_patient(
     page.fill("input[name=mobile]", "07 07 07 07 07")
     page.fill("input[name=email]", "jean-luc.picard@starfleet.com")
     page.select_option("select[name=laterality]", label="Gaucher")
-    # `page.check` est le **premier vrai clic** de ce test apres « Editer » : `page.fill` et
-    # `page.select_option` focalisent et emettent `input`/`change` sans clic de souris, donc
-    # sans reveiller le gestionnaire de clic *document* de xeditable — mesure au journal,
-    # aucune requete n'est emise par les onze gestes qui precedent. Ce clic-ci, si, et il
-    # declenche le `PUT /api/patients/:id` parasite decrit dans le docstring de
-    # `attendre_sauvegarde_parasite`. Sans barriere, sa reponse tombe pendant les quatre
-    # `remplir_champ_de_texte_riche` qui suivent : ces `div` sont lies **directement** par
-    # `ng-model="patient.job"` etc. (patient-detail.html), donc le `$scope.patient = data`
-    # du callback les efface tous. Reproduit et journalise le 2026-09-10 : `job` revenait
-    # vide en base. Meme course, meme remede que dans `test_edition_de_la_date_de_naissance`.
-    attendre_sauvegarde_parasite(
-        page, patient.id, lambda: page.check("input[name=smoker]")
-    )
+    # Premier vrai clic du parcours apres « Éditer » : `page.fill` et
+    # `page.select_option` focalisent sans clic de souris. Ce clic-ci reveillait le
+    # gestionnaire de clic *document* de xeditable et emettait un enregistrement complet
+    # du patient, dont la reponse effacait les quatre champs de texte riche saisis
+    # ensuite (`$scope.patient = data`). Le lot D8 a coupe ce chemin ; aucune barriere
+    # n'est plus necessaire, et `test_aucun_enregistrement_pendant_l_edition` le prouve.
+    page.check("input[name=smoker]")
     # job/hobbies/important_info/current_treatment sont des champs de texte riche
     # (contenteditable), reperes eux aussi par leur `name`, jamais par un `id`.
     # `remplir_champ_de_texte_riche` (plutot que `page.fill()` seul) barre la course de
@@ -358,6 +353,89 @@ def test_edition_du_dossier_patient(
     assert "Licence LibreOsteo.csv" in reponse.headers["content-disposition"]
 
 
+def test_aucun_enregistrement_pendant_l_edition(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Un clic anodin fait pendant l'edition du dossier n'emet aucun enregistrement.
+
+    Preuve du defaut D8, voie du **clic**. `page.check` sur la case « Fumeur » est le
+    premier vrai clic du parcours d'edition : `page.fill` et `page.select_option`
+    focalisent et emettent `input`/`change` sans clic de souris, donc sans reveiller le
+    gestionnaire de clic *document* de xeditable. Ce clic-ci, si.
+
+    L'assertion porte sur le **nombre d'enregistrements emis**, jamais sur une valeur en
+    base : cf. le docstring d'`enregistrements_patient_observes`.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+
+    page.get_by_role("button", name="Éditer").click()
+    with enregistrements_patient_observes(page, patient.id) as enregistrements:
+        page.check("input[name=smoker]")
+        attendre_enregistrement_declenche(
+            page,
+            patient.id,
+            lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        )
+    assert len(enregistrements) == 1, (
+        f"{len(enregistrements) - 1} enregistrement(s) parasite(s) emis pendant "
+        f"l'edition : {len(enregistrements)} PUT /api/patients/{patient.id} observes, "
+        "un seul attendu (celui de « Fin d'édition »)"
+    )
+
+
+def test_aucun_enregistrement_sur_tabulation_en_edition(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Une tabulation depuis le nom de naissance n'emet aucun enregistrement.
+
+    Preuve du defaut D8, voie du **Tab**, qui n'etait pas connue de l'inventaire
+    d'origine : `xeditable.js` soumet le formulaire implicite d'un editable autonome des
+    `e.keyCode === 9 && self.editorEl.attr('blur') === 'submit'` (`autosubmit`), et
+    `original_name` etait un tel editable autonome, porteur de `blur="submit"` et ouvert
+    d'office a l'entree en edition. Aucun clic n'etait necessaire.
+
+    Ce que ce test tient depuis D8, et par quel mecanisme : l'attribut `blur` n'est pose
+    sur l'editeur **que** si l'editable est autonome (`if (self.single) { ...
+    editorEl.attr('blur', ...) }`, xeditable.js). Le champ ayant rejoint
+    `form.patientForm`, `self.single` est faux, l'editeur n'a plus d'attribut `blur`, et
+    la condition d'`autosubmit` ne peut plus etre vraie. La cause est donc structurelle,
+    **pas** une affaire de focus.
+
+    Le focus est justement pose explicitement (`press` focalise l'element avant d'envoyer
+    la touche) plutot que presume : c'est ce qui rend le test opposable des deux cotes.
+    Sans cela, un vert pourrait venir de ce que le champ n'a plus le focus initial — un
+    fait d'ecran, qui a effectivement change avec D8 — au lieu de venir de la disparition
+    de l'attribut `blur`, seul fait de code que ce test entend prouver.
+
+    Le champ a change de place au meme commit (du `<h1>` au panneau « Infos patient ») :
+    il reste adresse par son attribut `name`, donc ce test est, au caractere pres, celui
+    qui a ete constate rouge avant correctif.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+
+    page.get_by_role("button", name="Éditer").click()
+    with enregistrements_patient_observes(page, patient.id) as enregistrements:
+        page.locator("input[name=original_name]").press("Tab")
+        # `fill` ne clique pas : la seule cause d'enregistrement candidate reste le Tab.
+        page.fill("input[name=city]", "La Barre")
+        attendre_enregistrement_declenche(
+            page,
+            patient.id,
+            lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        )
+    assert len(enregistrements) == 1, (
+        f"{len(enregistrements) - 1} enregistrement(s) parasite(s) emis pendant "
+        f"l'edition : {len(enregistrements)} PUT /api/patients/{patient.id} observes, "
+        "un seul attendu (celui de « Fin d'édition »)"
+    )
+    patient.refresh_from_db()
+    assert patient.address_city == "La Barre"
+
+
 def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) -> None:
     """Ferme le site laisse sans couverture par le defaut A (design, T4).
 
@@ -397,11 +475,9 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     # Cas ambigu : la seule assertion de ce test qui echoue sans le correctif (cf.
     # docstring). Preuve du defaut A sur ce site.
     #
-    # Ce clic n'est pas anodin : premier clic apres « Editer », il declenche a lui seul un
-    # `PUT /api/patients/:id` parasite dont la reponse, si elle revient apres la frappe,
-    # ecrase silencieusement la date saisie (mecanisme complet dans le docstring de
-    # `attendre_sauvegarde_parasite`). C'est la cause de l'alea historique de ce test.
-    attendre_sauvegarde_parasite(page, patient.id, champ.click)
+    # Ce clic emettait un enregistrement parasite avant D8, dont la reponse ecrasait la
+    # date saisie ensuite : c'etait la cause de l'alea historique de ce test.
+    champ.click()
     champ.press("Control+a")
     champ.press_sequentially("03/02/1935")
     champ.press("Tab")
@@ -419,9 +495,8 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     # correctif, desormais lu directement par la locale francaise du document — ne
     # prouve pas le defaut A a elle seule (cf. docstring).
     page.get_by_role("button", name="Éditer").click()
-    # Second passage en edition : `originalNameInput` est rouvert, donc meme PUT parasite
-    # et meme barriere qu'au cas precedent.
-    attendre_sauvegarde_parasite(page, patient.id, champ.click)
+    # Meme geste, meme cause disparue qu'au cas precedent.
+    champ.click()
     champ.press("Control+a")
     champ.press_sequentially("24/02/1935")
     champ.press("Tab")
