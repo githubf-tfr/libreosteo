@@ -833,9 +833,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     adverse de 1 500 ms. **Appartient à D6e.**
 
   **Ce que le lot renvoie plus loin :**
-  - **Dix-neuf sites adressent des classes générées par `webshim`** — `input.dd`, `input.mm`,
-    `input.yy` (17 sites, dont `helpers.creer_patient`, traversé par 34 tests) et
-    `input.ws-date.*` (2 sites). `ws-` est le préfixe de ce greffon jQuery, qui meurt avec la
+  - **Dix-sept sites adressent des classes générées par `webshim`** — `input.dd`, `input.mm`,
+    `input.yy` (15 sites, dont `helpers.creer_patient`, appelé depuis 24 sites) et
+    `input.ws-date.*` (2 sites). *Compte rectifié le 2026-09-11 : le relevé d'origine comptait
+    dix-neuf **lignes**, plusieurs en portant deux ; ce sont dix-sept **sites d'appel**.* `ws-` est le préfixe de ce greffon jQuery, qui meurt avec la
     constellation. **Aucun motif de la liste close ne les couvre** et le cadrage les avait
     classés « classe applicative ». Le produit ne peut y poser aucun ancrage, les sous-champs
     étant générés en JS : le remède est un **quatrième contrat neutre**, « saisir une date par ses
