@@ -15,9 +15,9 @@
   <div ng-if="consent_refused" class="alert alert-danger center-block" role="alert">{% trans 'You have to delete this folder' %}</div>
 </div>
 <h1 class="page-header" data-testid="titre-patient">
-    <span data-testid="nom-de-famille" edit-disabled="form.patientForm.$visible || form.historyForm.$visible || form.medicalForm.$visible" editable-text="patient.family_name" onaftersave="savePatient()">{$ patient.family_name $}</span>
+    <span data-testid="nom-de-famille" edit-disabled="editFormManager.action_available('save')" editable-text="patient.family_name" onaftersave="savePatient()">{$ patient.family_name $}</span>
     <span ng-show="patient.original_name">({$ patient.original_name $})</span>
-    <span data-testid="prenom" edit-disabled="form.patientForm.$visible || form.historyForm.$visible || form.medicalForm.$visible" editable-text="patient.first_name" onaftersave="savePatient()">{$ patient.first_name $}</span>
+    <span data-testid="prenom" edit-disabled="editFormManager.action_available('save')" editable-text="patient.first_name" onaftersave="savePatient()">{$ patient.first_name $}</span>
     <small ng-if="age || patient.job"><span ng-if="patient.job">{$ patient.job | filterJob $}, </span>{$ age | format_age $}</small>
 </h1>
 

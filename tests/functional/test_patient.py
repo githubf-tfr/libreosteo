@@ -548,6 +548,37 @@ def test_le_nom_ne_s_ouvre_pas_pendant_l_edition_des_antecedents(
     expect(titre.locator("input")).to_have_count(0)
 
 
+def test_le_nom_ne_s_ouvre_pas_pendant_l_edition_d_une_consultation(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Meme defaut, depuis l'onglet Consultation — le chemin le plus difficile.
+
+    `form.partialPatientForm` (examination.html:240) vit sur le scope **isole** de la
+    directive `<examination>` (`scope: {...}` sans binding `form`, examination.js:106) :
+    une expression posee dans `patient-detail.html` ne peut pas le nommer directement,
+    contrairement a `form.historyForm` ou `form.medicalForm`. `ouvrir_nouvelle_
+    consultation` met ce formulaire (et `examinationForm`) en edition automatiquement
+    (`$scope.$on('uiTabChange', ...)` appelle `$scope.edit()` quand `newExamination` est
+    vrai, examination.js). Le titre doit y rester ferme au meme titre que sur les autres
+    onglets.
+
+    Preuve du chemin que l'union `form.patientForm.$visible || form.historyForm.$visible
+    || form.medicalForm.$visible` ne pouvait pas fermer : seul le registre
+    `loEditFormManager`, deja aliment par les `edit-form-control` d'`examination.html`
+    (`editFormManager.action_available('save')`), voit ce formulaire sans avoir a le
+    nommer.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+
+    titre = page.get_by_test_id("titre-patient")
+    expect(titre.locator("input")).to_have_count(0)
+
+    titre.get_by_test_id("nom-de-famille").click()
+    expect(titre.locator("input")).to_have_count(0)
+
+
 def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) -> None:
     """Ferme le site laisse sans couverture par le defaut A (design, T4).
 
