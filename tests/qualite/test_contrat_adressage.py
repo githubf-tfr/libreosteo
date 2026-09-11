@@ -76,6 +76,10 @@ MOTIFS_INTERDITS: dict[str, str] = {
 # que `angular-growl` rend son gabarit en ligne dans sa propre directive, sans aucun `role`
 # ni identifiant — le produit ne peut y poser aucun ancrage. Cette liste ne s'allonge que
 # dans un commit dedie.
+# Le balayage est recursif depuis D6c : `tests/functional/banc/` est le premier
+# sous-repertoire de la suite, et un cliquet qui ne le verrait pas serait un trou. La
+# condition d'exemption porte sur `chemin.name == "helpers.py"` : aucun module de
+# sous-repertoire ne doit porter ce nom.
 CONTRATS_NEUTRES = frozenset(
     [
         "notifications_de_succes",
@@ -141,7 +145,7 @@ def sites_fautifs(chemin: Path) -> list[tuple[int, str, str]]:
 
 def test_la_suite_fonctionnelle_n_adresse_aucun_rouage_de_framework() -> None:
     lignes: list[str] = []
-    for chemin in sorted(SUITE.glob("*.py")):
+    for chemin in sorted(SUITE.rglob("*.py")):
         for numero, selecteur, motif in sites_fautifs(chemin):
             lignes.append(
                 f"{chemin.relative_to(RACINE)}:{numero} : {selecteur!r} porte le motif interdit « {motif} »"
