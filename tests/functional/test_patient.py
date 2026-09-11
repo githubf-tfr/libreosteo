@@ -815,7 +815,17 @@ def test_timeline_consultations_et_documents(
         "01/01/2024",
         "Document de recette",
     )
-    expect(page.locator(".document_title")).to_have_text("Radiographie lombaire")
-    expect(page.locator(".doc_date")).to_have_text("01-01-2024")
-    expect(page.locator(".document_notes")).to_have_text("Notes")
-    expect(page.locator(".document_partialnote")).to_contain_text("Document de recette")
+    # Les quatre assertions sont ancrees a la tuile, comme dans `test_documents.py` :
+    # prises seules, ces classes sont libres, et `to_have_text(chaine)` les traite en
+    # mode strict — or Playwright ne **retente pas** une violation de mode strict, si
+    # bien qu'une duplication meme transitoire y devient un rouge immediat. Ce n'est
+    # pas une barriere d'attente et cela ne masque rien : le doublon qui rougissait ce
+    # test est supprime a la source (`savePatient`, `static/js/app/patient.js`) ; seul
+    # le motif fragile part.
+    tuile = page.locator("li.documenttile")
+    expect(tuile.locator(".document_title")).to_have_text("Radiographie lombaire")
+    expect(tuile.locator(".doc_date")).to_have_text("01-01-2024")
+    expect(tuile.locator(".document_notes")).to_have_text("Notes")
+    expect(tuile.locator(".document_partialnote")).to_contain_text(
+        "Document de recette"
+    )

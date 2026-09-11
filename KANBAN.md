@@ -684,8 +684,26 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ### Renvoyé par D8 (2026-09-11)
 
-- **Le maillon 4 de la chaîne de perte reste en place** — `$scope.patient = data` (`libreosteoweb/static/js/app/patient.js:292`) remplace l'objet patient entier au retour d'un enregistrement, et efface du même geste les champs liés par `ng-model` que la réponse ne porte pas. D8 a coupé ses **déclencheurs**, pas le maillon : l'arbitrage A2 de la spec interdit de toucher à `savePatient()`, dont dépendent trois formulaires. Il tombera avec la réécriture de l'écran par **D6e** — consigné ici pour qu'il n'y soit pas redécouvert comme une surprise, et non comme une action à mener avant.
+- **Le maillon 4 de la chaîne de perte reste en place** — `$scope.patient = data` (`libreosteoweb/static/js/app/patient.js:292`) remplace l'objet patient entier au retour d'un enregistrement, et efface du même geste les champs liés par `ng-model` que la réponse ne porte pas. D8 a coupé ses **déclencheurs**, pas le maillon : l'arbitrage A2 de la spec interdit de toucher à `savePatient()`, dont dépendent trois formulaires. Il tombera avec la réécriture de l'écran par **D6e** — consigné ici pour qu'il n'y soit pas redécouvert comme une surprise, et non comme une action à mener avant. **Complété le 2026-09-11** : ce même maillon effaçait aussi `medicalReportsDoc`, propriété purement cliente que la réponse du `PUT` ne porte pas, d'où un dédoublement transitoire de la tuile de document (~750 ms, animation de sortie ngAnimate superposée à l'entrée de la tuile rechargée). Le correctif `74a8942` **reporte la liste sur l'objet neuf** : la course est rendue inoffensive, elle n'est pas supprimée, et le maillon reste. Le déclencheur qui la rend possible est lui aussi toujours là — le `PUT` parasite émis par `form.medicalForm` (`save-on-lost-focus="true"`, `partials/patient-detail.html:270`), défaut de fond instruit par D8 et non corrigé : D8 a coupé les déclencheurs des **éditables autonomes**, pas l'enregistrement au flou d'un `editable-form` entier.
 - **`examination.html` partage ce maillon sans avoir de déclencheur aujourd'hui.** Aucun éditable autonome n'y porte `blur="submit"`, donc rien ne le soumet au flou ; le cliquet `tests/qualite/test_contrat_gabarits.py` le garde ainsi. **À revérifier si D6e y introduit un éditable autonome**, en particulier hors d'un `editable-form` nommé.
+
+### Renvoyé par le correctif du dédoublement de tuile (2026-09-11)
+
+> Correctif `74a8942`, hors lot : instruit à la demande de la session centrale sur un rouge
+> intermittent de `test_timeline_consultations_et_documents`. Rapport d'instruction et rapport
+> de rattachement sous `.superpowers/sdd/2026-09-10-d6c-socle-coexistence-plan/`.
+
+- **Le chemin d'erreur de `savePatient()` porte le même défaut, en pire**
+  (`libreosteoweb/static/js/app/patient.js:303-318`, numérotation d'après `74a8942`). Là
+  où le chemin nominal remplaçait
+  l'objet patient par la réponse du `PUT`, le rappel d'échec fait
+  `$scope.patient = PatientServ.get(…)` : une ressource **vide** est installée le temps
+  d'un aller-retour, donc c'est tout l'écran qui se vide, pas seulement la liste des
+  documents. **Non corrigé**, et délibérément : le remède du chemin nominal (reporter la
+  liste déjà affichée sur l'objet neuf) ne s'y transpose pas, ce chemin n'est jamais
+  emprunté quand l'enregistrement aboutit, et il sortait du mécanisme établi par
+  l'instruction. Écrit ici pour qu'il ne soit pas redécouvert comme une surprise. Tombe
+  avec la réécriture de l'écran par **D6e**, comme le maillon 4 ci-dessus.
 
 ### Constats de facturation (2026-09-06)
 

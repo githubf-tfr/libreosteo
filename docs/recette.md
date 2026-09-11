@@ -1552,10 +1552,14 @@ celles qui n'ont jamais eu ce champ renseigné.
 
 - **Domaine** : Documents patient
 - **Couverture auto** : oui —
-  tests/functional/test_documents.py::test_joindre_un_document
+  tests/functional/test_documents.py::test_joindre_un_document,
+  ::test_enregistrer_le_patient_ne_dedouble_pas_la_tuile (étape 4 : la liste des
+  documents survit à l'enregistrement du dossier. Le test compte les vignettes par un
+  observateur de mutations, donc il voit aussi le dédoublement qui ne dure qu'un rendu,
+  là où l'œil du recetteur n'attrape qu'un clignotement)
 - **État requis** : E2. Cette fiche joint durablement un second document au patient
-  Picard : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
-  dépend.
+  Picard et renseigne durablement ses comptes rendus médicaux (étape 4) : remonter
+  l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
 
 **Étapes**
 
@@ -1574,6 +1578,16 @@ celles qui n'ont jamais eu ce champ renseigné.
    une nouvelle vignette « Compte-rendu radio » apparaît dans la liste, avant
    « Radiographie lombaire » (classement par date décroissante) ; deux vignettes au
    total.
+4. Toujours sur l'onglet « Compte-rendus médicaux », cliquer « Éditer », saisir
+   `Compte-rendu de recette` dans la zone « Notes » du panneau (celle qui surmonte
+   « Ajouter des documents », à ne pas confondre avec les notes d'une vignette), puis
+   cliquer « Fin d'édition ».
+   Attendu : les **deux** vignettes restent affichées, dans le même ordre et en même
+   nombre ; aucune ne disparaît, aucune ne se dédouble. **Ce qui ne doit pas se
+   produire** : la liste qui clignote, ou deux vignettes portant le même titre côte à
+   côte pendant une fraction de seconde, avant retour à deux. Regarder la liste
+   pendant le clic, pas seulement après : le défaut corrigé ne durait qu'environ trois
+   quarts de seconde.
 
 ### R-DOC-02 — Consulter et télécharger le document joint
 
