@@ -1265,7 +1265,10 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
 ### R-PAT-02 — Éditer une fiche patient
 
 - **Domaine** : Patient
-- **Couverture auto** : oui — tests/functional/test_patient.py::test_edition_du_dossier_patient
+- **Couverture auto** : oui —
+  tests/functional/test_patient.py::test_edition_du_dossier_patient,
+  ::test_aucun_enregistrement_pendant_l_edition (aucun enregistrement parasite n'est émis
+  pendant le parcours d'édition décrit ici)
 - **État requis** : E2. Cette fiche modifie durablement le sexe et l'adresse du
   patient Picard : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui
   en dépend.
@@ -1274,8 +1277,10 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
 
 1. Rechercher `Picard` (champ de recherche en haut), ouvrir sa fiche, onglet « Infos
    générales ».
-   Attendu : le panneau « Infos patient » affiche « Date de naissance : 13/07/1935 »
-   et « Sexe : non renseigné ».
+   Attendu : le panneau « Infos patient » affiche, dans l'ordre, « Nom de naissance :
+   non renseigné » (ligne ajoutée par D8 : elle s'affiche sur toute fiche, y compris
+   quand le nom de naissance n'a jamais été saisi), puis « Date de naissance :
+   13/07/1935 » et « Sexe : non renseigné ».
 2. Cliquer « Éditer ».
    Attendu : les boutons « Fin d'édition » et « Supprimer » deviennent visibles.
 3. Choisir « Masculin » dans le menu déroulant Sexe, saisir `4 rue de l'Angle` dans le
@@ -1344,7 +1349,10 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
 ### R-PAT-05 — Saisie et relecture de la date de naissance
 
 - **Domaine** : Patient
-- **Couverture auto** : oui — tests/functional/test_patient.py::test_edition_de_la_date_de_naissance
+- **Couverture auto** : oui —
+  tests/functional/test_patient.py::test_edition_de_la_date_de_naissance,
+  ::test_aucun_enregistrement_pendant_l_edition (le défaut D8 était la cause de l'aléa
+  historique de ce test : la réponse d'un enregistrement parasite écrasait la date saisie)
 - **État requis** : E1. Cette fiche crée un patient supplémentaire dans la seule
   finalité de disposer d'une fiche éditable, et le laisse en base à l'issue de son
   exécution — remonter l'état E1 (chapitre 1) avant de jouer une autre fiche qui en
@@ -1421,6 +1429,64 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
 **Constat** : le validateur applicatif dit, casse comprise, ce que la base garantit — le
 refus de la base elle-même est prouvé par le test cité en « Couverture auto ». Aucune fiche
 existante ne couvrait la casse.
+
+### R-PAT-08 — Aucune perte de saisie en mode édition
+
+- **Domaine** : Patient
+- **Couverture auto** : oui —
+  tests/functional/test_patient.py::test_aucun_enregistrement_pendant_l_edition,
+  ::test_aucun_enregistrement_sur_tabulation_en_edition,
+  ::test_le_nom_ne_s_ouvre_pas_pendant_l_edition_du_dossier,
+  ::test_le_nom_de_famille_reste_modifiable_hors_edition
+- **État requis** : E2. Cette fiche modifie durablement la profession, les loisirs, le nom
+  de naissance et — le temps de deux étapes — le nom de famille du patient Picard :
+  remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Infos générales », cliquer « Éditer ».
+   Attendu : les boutons « Fin d'édition » et « Supprimer » deviennent visibles ; le
+   titre ne gagne aucun champ de saisie — le nom de naissance ne s'y saisit plus,
+   seulement en lecture entre parenthèses et seulement s'il est renseigné (absent ici) ;
+   le panneau « Infos patient » affiche en première ligne « Nom de naissance : non
+   renseigné ».
+2. Cocher la case « Fumeur » — **c'est le geste qui déclenchait le défaut** : avant
+   correctif, ce seul clic enregistrait le patient entier.
+   Attendu : la case se coche, rien d'autre ne bouge à l'écran.
+3. Saisir `Navigateur` dans « Profession », `Ski, Roller, Musique` dans « Loisirs ».
+   Attendu : les deux textes s'affichent dans leurs cadres.
+4. Cliquer « Fin d'édition », puis **recharger complètement la page**.
+   Attendu : « Profession » affiche `Navigateur` et « Loisirs » affiche
+   `Ski, Roller, Musique`. **Avant correctif, « Profession » revenait vide** — la donnée
+   était perdue sans le moindre message.
+5. Cliquer « Éditer », puis dans le panneau « Infos patient » (première ligne), saisir
+   `Dupont` dans le champ « Nom de naissance » (`name="original_name"`), cliquer « Fin
+   d'édition », recharger complètement la page.
+   Attendu : le panneau affiche « Nom de naissance : Dupont » et le titre affiche
+   `Picard (Dupont) Jean-Luc`. C'est la fonctionnalité que le correctif devait préserver :
+   le nom de naissance reste saisissable en mode édition et il est enregistré par
+   « Fin d'édition » — désormais depuis le panneau, plus depuis le titre.
+6. Toujours en mode édition (cliquer « Éditer » si nécessaire), cliquer sur le nom de
+   famille `Picard` dans le titre.
+   Attendu : **aucun champ de saisie ne s'ouvre**. Le curseur peut prendre la forme d'une
+   main sans que rien ne s'ouvre : c'est attendu. Cliquer « Fin d'édition ».
+7. Hors mode édition, cliquer sur le nom de famille `Picard` dans le titre, le remplacer
+   par `Kirk`, valider par le bouton ✓.
+   Attendu : le titre affiche `Kirk (Dupont) Jean-Luc`. Recharger : toujours `Kirk`.
+8. Répéter l'étape 7 pour remettre `Picard`.
+   Attendu : le titre affiche de nouveau `Picard (Dupont) Jean-Luc`. L'état E2 est
+   restauré quant au nom.
+
+**Constat** : les étapes 6 et 7 se lisent ensemble. Le nom se corrige hors mode édition,
+comme avant ; il ne se corrige plus **pendant** l'édition du dossier, parce que ce geste
+faisait repartir un enregistrement complet du patient qui écrasait les saisies du
+formulaire ouvert. Le garde ferme le titre sur les quatre onglets du dossier (Infos
+générales, Antécédents, Comptes rendus médicaux, Consultations), pas seulement celui
+exercé ici — la couverture automatique des trois autres onglets n'a pas d'équivalent
+manuel dans ce cahier. Effet de bord relevé en revue, hors du défaut initial : le nom de
+naissance vide n'est plus invisible — la ligne « Nom de naissance : non renseigné » du
+panneau (étape 1) s'affiche désormais en lecture sur toute fiche patient, y compris
+celles qui n'ont jamais eu ce champ renseigné.
 
 ### Documents patient
 
