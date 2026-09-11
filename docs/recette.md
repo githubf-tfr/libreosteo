@@ -1054,6 +1054,43 @@ au journal.
 6. S'identifier avec `test` / `nouveaumdp`.
    Attendu : titre de page « LibreOsteo » ; connexion acceptée.
 
+### R-AUTH-06 — Session expirée pendant une navigation
+
+- **Domaine** : Authentification
+- **Couverture auto** : oui —
+  tests/functional/test_recherche.py::test_la_session_expiree_renvoie_a_la_connexion
+  (la session est invalidée côté navigateur, puis une pagination de recherche est
+  demandée ; le navigateur atterrit sur la page de connexion et la zone de résultats
+  a disparu. Non couvert : le retour effectif sur la page quittée après
+  réidentification, et le cas où la session est prise par une seconde connexion du
+  même compte)
+- **État requis** : E2
+
+**Étapes**
+
+1. Depuis une session connectée (`test` / `test`), saisir `Picard` dans le champ de
+   recherche, valider.
+   Attendu : titre « Recherche de "Picard" » affiché, sur l'URL `/search?q=Picard`.
+2. Supprimer le cookie de session du navigateur (outils de développement → Application →
+   Cookies → supprimer `sessionid`), sans recharger la page.
+   Attendu : la page affichée ne change pas.
+3. Déclencher une requête htmx depuis cette page. Si l'instance porte plus de dix
+   patients répondant au terme cherché, cliquer le lien de pagination « Suivant » ;
+   sinon — et c'est le cas de l'état E2, qui ne porte qu'un patient — la seule requête
+   htmx de cet écran est la pagination, qui n'a pas de lien affiché : la déclencher
+   depuis la console du navigateur par
+   `htmx.ajax('GET', '/search?q=Picard&page=1', '#resultats-recherche')`.
+   Attendu : le navigateur **quitte la page** et affiche « Identifiez-vous sur
+   LibreOsteo », sur l'URL `/accounts/login/?next=/search` — le `next` porte le chemin
+   quitté, sans les paramètres de la requête. **Ce qui ne doit pas se produire** : un
+   formulaire de connexion inséré dans la zone de résultats au milieu de l'écran de
+   recherche, la page restant par ailleurs affichée.
+4. S'identifier avec `test` / `test`.
+   Attendu : connexion acceptée ; l'écran de recherche `/search` s'affiche **sans
+   résultat ni titre de recherche**, le terme cherché n'ayant pas été reporté dans
+   `next`. Ce n'est pas un défaut de cette fiche : le retour sur la page exactement
+   quittée n'est pas une propriété du pont de session.
+
 ### Cabinet
 
 ### R-CAB-01 — Paramètres du cabinet
@@ -1439,7 +1476,11 @@ existante ne couvrait la casse.
   ::test_le_nom_ne_s_ouvre_pas_pendant_l_edition_du_dossier,
   ::test_le_nom_de_famille_reste_modifiable_hors_edition,
   ::test_le_nom_ne_s_ouvre_pas_pendant_l_edition_des_antecedents,
-  ::test_le_nom_ne_s_ouvre_pas_pendant_l_edition_d_une_consultation
+  ::test_le_nom_ne_s_ouvre_pas_pendant_l_edition_d_une_consultation,
+  ::test_le_nom_de_famille_redevient_modifiable_apres_un_cycle_d_edition
+  (ce dernier couvre les étapes 6 et 7 prises **ensemble** : le garde se relève après un
+  cycle complet d'édition, et non seulement sur une fiche jamais entrée en édition, ce
+  que `::test_le_nom_de_famille_reste_modifiable_hors_edition` seul ne prouvait pas)
 - **État requis** : E2. Cette fiche modifie durablement la profession, les loisirs, le nom
   de naissance et — le temps de deux étapes — le nom de famille du patient Picard :
   remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
@@ -2321,7 +2362,10 @@ deux dates.
    (`head -c $(( $(stat -c%s FICHIER) / 2 )) FICHIER > FICHIER-tronque.db`), choisir
    `FICHIER-tronque.db` dans le champ de fichier, cliquer « Restaurer ».
    Attendu : le panneau affiche « Ce fichier d'archive semble être incorrect. Impossible
-   de le charger. ». Puis revenir sur `/` : la redirection vers `/install/` fonctionne
+   de le charger. » — même message qu'avant D6c, au mot près ; seul le procédé a changé,
+   c'est désormais un fragment inséré dans le panneau (porteur de `role="alert"`) et non
+   plus un rendu d'Angular, et la page ne se recharge pas. Puis revenir sur `/` : la
+   redirection vers `/install/` fonctionne
    toujours et la page « Installer LibreOsteo » s'affiche avec ses deux boutons —
    l'échec n'a pas laissé l'instance dans un état inutilisable.
 5. Cliquer de nouveau « Restaurer la base de données », choisir le fichier téléchargé
@@ -2344,10 +2388,15 @@ deux dates.
 
 - **Domaine** : Recherche, index, tableau de bord
 - **Couverture auto** : oui —
-  tests/functional/test_consultation.py::test_recherche_puis_ouverture_de_consultation
-  (via l'utilitaire `rechercher_patient`, `tests/functional/helpers.py` ; couvre la
-  recherche par nom de famille et l'ouverture du résultat, mais pas la recherche par
-  seul prénom ni le cas sans résultat)
+  tests/functional/test_consultation.py::test_recherche_puis_ouverture_de_consultation,
+  tests/functional/test_recherche.py::test_un_terme_absent_n_affiche_aucun_resultat,
+  tests/functional/test_recherche.py::test_la_pagination_change_de_page
+  (le premier couvre, via l'utilitaire `rechercher_patient`,
+  `tests/functional/helpers.py`, la recherche par nom de famille et l'ouverture du
+  résultat ; le deuxième couvre l'étape 4, terme absent — titre rendu, aucun résultat,
+  message « Aucun résultat trouvé. » ; le troisième couvre la pagination, seule partie
+  non-serveur de cet écran, sur douze patients semés. Non couvert : la recherche par
+  seul prénom, étape 2)
 - **État requis** : E2
 
 **Étapes**
@@ -2361,7 +2410,11 @@ deux dates.
    `Picard Jean-Luc` est retrouvé (l'index couvre aussi bien le nom que le prénom).
 3. Cliquer sur le résultat `Picard Jean-Luc`.
    Attendu : la fiche du patient s'affiche, onglet « Infos générales » actif, date de
-   naissance `13/07/1935`.
+   naissance `13/07/1935`. **Le navigateur charge un document entier** — l'écran de
+   recherche est servi par le serveur depuis D6c, la fiche patient est encore rendue par
+   la coquille : le passage de l'un à l'autre recharge la page au lieu de changer d'état
+   dans la même. Une barre de chargement, un bref écran blanc ou un clignotement du
+   bandeau sont **attendus** et ne constituent pas un défaut.
 4. Revenir sur le champ de recherche, saisir un terme absent de la base, ex.
    `Zzznotfound`, valider.
    Attendu : titre « Recherche de "Zzznotfound" » affiché ; texte « Aucun résultat
@@ -2391,7 +2444,9 @@ deux dates.
 3. Dans le champ de recherche, saisir `Picard`, valider.
    Attendu : titre « Recherche de "Picard" » affiché ; le résultat `Picard Jean-Luc`
    est toujours présent — la reconstruction n'a pas fait disparaître le patient de
-   l'index, la recherche reste probante.
+   l'index, la recherche reste probante. Depuis D6c, cette étape quitte la coquille
+   pour le document `/search` rendu par le serveur : le navigateur charge une page
+   entière au lieu de changer d'état. Le geste, le titre et le résultat sont les mêmes.
 
 ### R-TAB-01 — Compteurs du tableau de bord
 
@@ -2489,3 +2544,20 @@ deux dates.
    texte dans le champ de recherche du menu latéral et cliquer sur le bouton associé.
    Attendu : aucune navigation, aucune requête réseau déclenchée — le champ est inerte
    sur cette page.
+
+## Chapitre 4 — Tests sans geste de recette
+
+Tous les tests fonctionnels de ce dépôt sont rattachés à une fiche, sauf ceux listés ici.
+Cette liste n'est pas une dispense : c'est l'inventaire des tests qui n'éprouvent **pas**
+un geste du produit, et qui ne peuvent donc pas en décrire un.
+
+- `tests/functional/test_socle_composants.py::test_les_notifications_s_affichent_s_effacent_et_se_ferment`
+- `tests/functional/test_socle_composants.py::test_la_modale_s_ouvre_se_ferme_et_pose_l_occultation`
+
+  Les deux exercent la notification et la modale du socle (D6c) sur un banc d'essai monté
+  par un URLconf de test (`tests/functional/banc/`), qui n'ajoute rien au produit. Aucun
+  écran livré ne les emploie encore : le premier qui le fera est un écran de D6d ou de
+  D6e, et c'est à ce moment-là qu'un geste de recette existera pour eux. Sans ce banc, les
+  deux composants entreraient dans ces lots **non prouvés dans un navigateur** — et ils y
+  seraient entrés cassés : les deux gabarits livrés par T5 ne fonctionnaient pas, le banc
+  l'a établi et le correctif `dfb2473` l'a fermé.

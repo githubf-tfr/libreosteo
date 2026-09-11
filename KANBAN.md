@@ -772,6 +772,241 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-11 — D6c Socle de coexistence htmx/Alpine livré, deux écrans migrés** (onze
+  tâches ; spec `docs/superpowers/specs/2026-09-10-d6c-socle-coexistence-design.md`, plan
+  supprimé une fois achevé). **Douze commits `41da178..caa7688`** pour les dix tâches
+  d'implémentation, plus le commit de clôture. Le plan annonçait un commit par tâche :
+  **deux correctifs ont été isolés en commit séparé**, et c'est la bonne forme —
+  `dfb2473` (les composants du socle livrés par T5 ne marchaient pas, cf. plus bas) et
+  `1a272dc` (le réexport de `views/__init__.py` nommait encore `SearchViewHtml`, sans quoi
+  l'URLconf aurait levé un `AttributeError` au chargement). Chacun motivé à son message et
+  rapporté ; le grief serait de corriger sans le dire. L'installeur et la recherche ne
+  portent plus une ligne d'AngularJS, et la coquille n'a pas bougé.
+
+  **Critère d'arrêt constaté par exécution réelle**, clause par clause :
+  1. **Les deux pages témoins ne portent plus une ligne d'Angular.** `install.html`,
+     `partials/restore.html`, `partials/register.html`, `partials/search-result.html` et
+     `search.html` : la commande de motifs ne rend **qu'une ligne**, et c'est un
+     **commentaire de gabarit** (`install.html:42`, « Le volet qui portait `ui-view` »)
+     qui documente ce qui a été retiré. `libreosteoweb/static/js/installer/` n'existe
+     plus — 150 lignes supprimées, les trois fichiers. La recherche d'`SearchCtrl`,
+     `display_search_result` et `SearchViewHtml` ne rend elle aussi qu'une ligne, le
+     **docstring** de la vue neuve qui explique le garde-fou levé (cf. plus bas) ; elle
+     rendait onze lignes de code avant le lot. **Exception délibérée** :
+     `partials/menu.html` conserve ses **quatre** `ui-sref`, additifs et doublés d'un
+     `href` réel, qui vivent jusqu'à D6f.
+  2. **htmx et Alpine sont dans l'arbre servi, par la voie des autres dépendances**, et
+     **aucune ligne de chaîne de construction n'a changé** :
+     `git diff --name-only afeb02f..HEAD -- Docker/ .github/ Makefile` ne rend **rien**,
+     vérifié à T8 puis à la clôture sur les douze commits.
+     `static/components/htmx/dist/htmx.min.js` (51 238 o) et
+     `static/components/alpinejs/dist/cdn.min.js` (55 744 o) existent après
+     `rm -rf static/CACHE && make static`.
+  3. **Le pont de session est prouvé, pas seulement écrit** —
+     `test_la_session_expiree_renvoie_a_la_connexion`, et c'est la clause qui comptait
+     pour le pari du chantier. Elle a failli ne rien prouver : cf. « Ce que le lot a
+     appris ».
+  4. **Les composants du socle sont exercés dans un navigateur**, sur le banc d'essai de
+     T6 — `2 passed` sur `tests/functional/test_socle_composants.py`. A10 n'a pas eu à
+     jouer sa porte de sortie.
+  5. **Les vingt lancements consécutifs de la suite complète restent DUS.** Cette clause
+     revient nommément à la session centrale, comme pour D8 ; rien ici ne la présume
+     tenue. Le compte à retrouver aux vingt lignes est **`70 passed`**.
+  6. **Le cliquet de compression est armé des deux côtés** (T10) : un `{% if %}`
+     réintroduit à la main dans `search.html` le fait rougir en nommant fichier et ligne,
+     sous `pytest` nu **comme** sous `make check` ; vert après retrait. Une seule
+     exception nommée, `index.html`, **et un second test exige que cette exception
+     disparaisse** le jour où D6g referme le piège : le cliquet ne peut pas se fossiliser.
+  7. **Zéro test fonctionnel orphelin** : la commande de rattachement ne rend aucune
+     ligne. Six orphelins ont été fermés à la clôture, dont **un legs de D8** —
+     `test_le_nom_de_famille_redevient_modifiable_apres_un_cycle_d_edition`, ajouté par
+     la troisième ronde de revue de D8 T2 et jamais nommé par la fiche `R-PAT-08` écrite
+     à T4.
+  8. **`make check` vert** : **`337 passed`**, couverture **91,82 %**, périmètre `mypy`
+     **127** entrées, cinq cliquets tenus. `fail_under = 90` inchangé, `ruff`
+     `ignore = []` inchangé, **zéro `noqa` neuf, zéro `# type: ignore` neuf, zéro
+     `skip`**.
+
+  **Les chiffres du lot** : suite fonctionnelle de **65 à 70 tests** (deux du banc
+  d'essai, trois de l'écran de recherche) ; suite `make check` de **316 à 337** ;
+  périmètre `mypy` de **119 à 127** entrées ; un **cinquième cliquet**
+  (`tests/qualite/test_contrat_compression.py`). 41 fichiers, +1 296/−471.
+
+  **Ce que la cohabitation a réellement coûté, mesuré et non estimé.** L'arbre servi a
+  **rétréci**, alors que le pari acté comptait ce coût comme un risque :
+
+  | `rm -rf static/CACHE && make static` | avant (`afeb02f`) | après (`caa7688`) |
+  |---|---|---|
+  | bundles + manifeste | 8 + 1 | **9 + 1** |
+  | dont CSS / JS | 6 / 2 | **8 / 1** |
+  | blocs compressés / gabarits | 9 / 9 | **10 / 12** |
+  | poids total des bundles | 3 152 332 o | **2 430 109 o** |
+
+  Le second document a bien ajouté un bundle CSS, mais le **bundle JS de l'installeur
+  disparaît entièrement** (`output.e542b9c89e6b.js`, 730 388 o) : `install.html` chargeait
+  toute la constellation AngularJS pour 150 lignes de script. Net : **−722 223 octets**,
+  −22,9 %, htmx et Alpine compris — ces deux-là pèsent 106 982 o, servis **hors bundle**
+  (`base.html:49-50`, chargés en direct et non compressés).
+
+  **Le sort du banc d'essai (A10) : praticable, et il a payé dès sa première utilisation.**
+  C'est le fait marquant du lot. **Les deux composants livrés par T5 ne fonctionnaient pas
+  dans un navigateur réel**, et c'est en écrivant leur preuve d'écran qu'on l'a découvert
+  — c'est-à-dire par la raison d'être même de cette tâche.
+  - `notification.html` employait `x-show`, qui occulte par `display:none` **sans retirer
+    du DOM** : un test qui compte par `data-testid`, seule adresse que le cliquet
+    autorise, n'aurait jamais vu ni la fermeture ni l'expiration. Corrigé par
+    `<template x-if>`.
+  - `modale.html` : à la première ouverture, l'état vaut déjà `true` à l'init, et Alpine
+    **retire** alors la propriété `display` (`style.removeProperty("display")`, mesuré
+    dans `cdn.min.js`) au lieu d'y écrire une valeur — ce qui **découvre** le
+    `.modal{display:none}` de Bootstrap au lieu de l'occulter. Corrigé par une liaison
+    `:style` explicite à chaque état.
+
+  **Conséquence directe pour D6d et D6e : le contrat de ces composants est celui d'après
+  `dfb2473`, jamais celui de T5.** Un composant Alpine dont l'état initial vaut déjà
+  `true` ne peut pas s'en remettre à `x-show` — vrai de tout composant futur, pas
+  seulement de ces deux-là. S'y ajoute la clause posée à T5 et prouvée à T6 dans les deux
+  sens : **`{{ message }}` reste échappé**, la charge de `mark_safe` restant à l'appelant
+  qui compose réellement du HTML. Sans elle, D6d livrerait du balisage affiché en clair.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **Deux preuves se sont révélées vides avant d'être corrigées, et la falsification
+    systématique les a trouvées toutes les deux.** C'est la leçon de méthode la plus
+    réutilisable du lot. (1) L'instrument de rendu de T2 comparait **deux fichiers vides**
+    : `client.get("/")` répondait 302 parce qu'`OneSessionPerUserMiddleware` déconnecte la
+    session — le récepteur `on_user_logged_in` (`api/receivers.py:109`) n'est importé
+    qu'au chargement de l'URLconf, postérieur au `login()`. La preuve d'inertie de la
+    coquille serait passée pour verte en ne comparant rien ; un `assert status_code == 200`
+    l'interdit désormais. (2) Le test du pont de session de T9 **restait vert alors que
+    `rediriger` était démonté** : `hx-push-url="true"` pousse `xhr.responseURL` dans
+    l'historique même quand htmx n'a fait qu'un échange de contenu après une 302 suivie en
+    silence par `XMLHttpRequest`, si bien que l'URL finale est la même avec et sans le
+    pont. Renforcé par l'absence de `#resultats-recherche`, identifiant qui n'existe que
+    dans `search.html` : une page de connexion **insérée** dans l'écran de recherche est
+    alors distinguable d'un document qui l'a remplacé. **Une assertion d'URL ne prouve
+    jamais un changement de document quand htmx est en jeu.**
+  - **Le pari du découpage est mesuré et tenu** : `5 passed` sur
+    `tests/functional/test_installation.py` avec un `git diff` **vide** sur ce fichier,
+    0 ligne entre `76a40af` et `a909dda`. Le filet de D6b a tenu **sans être retouché** —
+    c'est exactement ce pour quoi il existait, et c'est la première fois qu'on peut le
+    dire d'une migration d'écran.
+  - **La recherche n'a plus d'état, et un garde-fou d'exploitation perd sa raison d'être.**
+    `Libreosteo/urls.py:99` montait `views.SearchViewHtml()`, une **instance partagée**, et
+    `SearchView.__call__` y stockait `request`, `form`, `query` et `results` : deux requêtes
+    concurrentes se marchaient dessus, et seul `--processes 1 --threads 1`
+    (`Docker/build/http-ready/Dockerfile:184`) l'empêchait. La vue neuve est une fonction
+    sans état. **Le fait est écrit, rien n'est levé** : la clause 2 interdisait à D6c de
+    toucher `Docker/`, et lever ce réglage est une décision de D6d ou plus tard. Il est
+    consigné ici **parce que le dépôt en porte d'autres du même genre et qu'ils ne sont
+    documentés nulle part comme tels** — un réglage d'exploitation qui compense un défaut
+    de code est invisible dès que le défaut disparaît.
+  - **Le lot ferme aussi un défaut de justesse que personne n'avait relevé.** Deux index
+    de recherche sont déclarés (`search_indexes.py:20,53`) et l'ancienne vue ne filtrait
+    pas sur le modèle : un `Document` qui remontait s'affichait **avec un nom vide et un
+    lien vers un mauvais patient**. La vue neuve pose `.models(models.Patient)`, prouvé par
+    `test_seuls_les_patients_remontent`.
+  - **Ce que la migration de la recherche a fait aux courses de la suite : une fermée, une
+    ouverte.** Fermée — la résolution initiale d'`ui-router` absorbait `SearchCtrl.search()`,
+    course décrite par le commentaire de dix lignes qu'`helpers.py` portait jusqu'à D6b : le
+    formulaire du menu est désormais un `method="get" action="{% url 'search' %}"` natif,
+    sans `ng-controller`, sans `ng-model`, sans `ng-click`, et il n'y a plus de résolution à
+    absorber. Ouverte — **le clic sur un résultat recharge la coquille** et rejoue donc toute
+    la résolution initiale d'AngularJS ; un geste joué pendant cette fenêtre est **absorbé en
+    silence**, sans erreur ni requête réseau. Barrière retenue, posée dans
+    `rechercher_patient` (A15, seul point de `helpers.py` que le lot avait le droit de
+    toucher) : `expect(page.get_by_test_id("titre-patient")).not_to_have_text("")`. Elle est
+    **en aval du réseau** — `titre-patient` interpole `$scope.patient`, que seule la réponse
+    du `GET /api/patients/:id` renseigne — et non une barrière d'écran qu'AngularJS
+    satisferait de façon optimiste. Mesure : les onze sites d'appel sont passés sans
+    intermittence sur deux lancements complets. **C'est la mesure d'avant de D6d et D6e, qui
+    traverseront ce même chemin à chaque écran migré : tant que la coquille survit, chaque
+    écran migré rouvre cette course à sa frontière.**
+  - **Le fait de méthode, à écrire une fois pour toutes.** Un lancement de la suite
+    fonctionnelle complète prend **300 à 345 s** et tient dans **un** appel d'outil ; ce qui
+    est hors de portée d'une tâche, ce n'est pas la durée, c'est la **boucle** — un
+    sous-agent plafonne à 600 s par appel et ne reçoit aucune notification d'arrière-plan.
+    Une preuve par répétition s'écrit donc en **N appels séparés**, et **un seul agent à la
+    fois** traverse la suite : deux exécutions simultanées se contaminent, mesuré le
+    2026-09-10. Cela vaut pour tous les lots, pas seulement D6c.
+  - **Un fichier en CRLF se restaure, il ne se répare pas après coup.** `middleware.py` est
+    en CRLF de bout en bout (246 lignes, zéro LF nu). Un `sed` a mangé les `\r` à T4 et fait
+    échouer `ruff format --check` ; à T9, les mutations de falsifiabilité ont été restaurées
+    depuis une copie prise avant édition. Toute tâche qui touche ce fichier par un outil
+    shell doit restituer les `\r`.
+
+  **Les trois défauts non corrigés, avec leur lot destinataire :**
+  - `account/login.html:14-27` — bloc `{% compress css %}` ouvert `:14`, `</head>` `:26`,
+    `{% endcompress %}` `:27` : le bloc est donc **fermé après `</head>`**, et
+    `django-compressor` écarte du rendu tout ce qui n'est pas `<link>`/`<style>`, **la
+    balise `</head>` comprise**. → **D6g** (socle visuel).
+  - `app.js:63-79` — motif mort `"<!doctype html><html"` et parenthèse mal placée, **tous
+    deux inoffensifs** : le garde extérieur `typeof response.data === 'string'`
+    (`app.js:66` après ce lot ; la spec écrivait `:67`, le fichier a perdu 22 lignes depuis) suffit, et `indexOf` existe toujours sur une chaîne. « Réparer » la casse
+    du motif réveillerait un chemin que rien n'exerce. → **D6f, qui le supprimera en
+    connaissance de cause** plutôt qu'un lecteur ne le corrige à moitié.
+  - `index.html` — `{% if %}` dans un bloc `compress`, pour le
+    `{% if LANGUAGE_CODE == 'fr' %}` de `moment/locale/fr.js`. Le refermer imposerait de
+    sortir la locale du bundle, donc de changer la chaîne de chargement de la coquille, à la
+    veille du lot qui réécrit ce `<head>`. **Encadré par le cliquet de T10 et par un second
+    test qui exige que l'exception disparaisse** : c'est la différence entre léguer et
+    abandonner. → **D6g**.
+
+  **Ce que cela change à la priorité des lots restants : D6d et D6e deviennent éligibles,
+  D6d passant devant par priorité seulement.** Le socle, le pont de session et les deux
+  composants existent et sont prouvés ; il n'y a plus de dépendance technique entre les
+  deux. D6d passe d'abord parce qu'il éprouve le pont sur des **écrans sans enjeu
+  clinique**, avant que D6e ne le fasse sur le dossier patient et la consultation.
+
+  **Ce que cela change au chapeau.** C'est le premier lot du chantier où **le produit
+  change sur un écran** : les gestes, libellés et écrans restent identiques, mais le
+  passage de la recherche à la fiche patient **recharge un document** au lieu de changer
+  d'état. Aucune fiche n'est renumérotée, cinq sont retouchées et une seule est neuve
+  (`R-AUTH-06`, session expirée — A5 change un comportement **observable** que personne ne
+  décrivait). La conséquence à porter jusqu'à D6f : **tant que la coquille survit, chaque
+  écran migré ajoute une frontière où le navigateur recharge**, et chaque frontière est une
+  course à barrer dans le filet.
+
+  **Ce que le lot renvoie plus loin :**
+  - **Deux chaînes neuves du lot n'existent pas au catalogue français** — balayage des
+    33 chaînes `{% trans %}` / `_()` ajoutées par les douze commits, contre
+    `locale/fr/LC_MESSAGES/django.po` **et** son `.mo` compilé : 30 sont présentes et
+    traduites, **`"No archive file was sent."`** (T7, `api/views/administration.py:271`) et
+    **`"OK"`** (T5, `partials/modale.html:35`, libellé par défaut du bouton de confirmation)
+    ne le sont pas. Un opérateur francophone lira ces deux-là en anglais. Un
+    `makemessages` les extrairait toutes deux — y compris le `_("OK")` écrit dans un filtre
+    de gabarit, que `templatize()` capture par `constant_re` — il n'a simplement pas été
+    rejoué. **Pour le lot qui touchera la traduction, ou D6g avec le socle visuel.**
+    *Constat antérieur relevé au passage, hors D6c* :
+    `"The database failed while loading this archive. Restore a backup."` est déjà sous
+    `_()` avant ce lot (`afeb02f:administration.py:257`) et déjà absente du catalogue.
+    *Rectification de chemin* : le catalogue est à **`locale/fr/LC_MESSAGES/`**, à la
+    racine du dépôt, et non sous `libreosteoweb/` comme le rapport de T7 l'écrivait.
+  - **`404.html:257` porte une copie figée du menu**, avec la même ancre
+    `data-testid="menu-utilisateur"`, qui ne passera **jamais** par `partials/menu.html` :
+    elle ne recevra ni les `href` réels ni le pilote Alpine posés à T2. `404.html` était
+    hors périmètre de D6c et l'est resté ; `R-ERR-01` décrit d'ailleurs ce menu comme
+    **inerte** et c'est aujourd'hui exact. **À trancher par la tâche qui la rencontrera** —
+    la faire hériter du socle est un travail de socle visuel, donc D6g.
+  - **Un orphelin de D8 fermé, et le procédé qui l'a laissé passer.** La fiche `R-PAT-08`
+    nommait six tests ; un septième,
+    `test_le_nom_de_famille_redevient_modifiable_apres_un_cycle_d_edition`, est né d'une
+    **ronde de revue postérieure** (`0ae8da2`) et n'a jamais été ajouté à la fiche. La
+    clause « zéro orphelin » ne se vérifie qu'à la clôture du lot suivant : **un test ajouté
+    en revue après l'écriture de la fiche échappe à la vérification de son propre lot.**
+  - **La passe de recette de D6c est DUE**, et avec elle celle de `R-PAT-08` léguée par D8,
+    toujours non jouée. À rejouer pour D6c : `R-RCH-01`, `R-RCH-02`, `R-INST-01`,
+    `R-SAU-02`, `R-AUTH-01`, plus `R-AUTH-02` et `R-AUTH-03` qui traversent le menu
+    extrait, et la fiche neuve `R-AUTH-06`. Déploiement de référence
+    `Docker/deploy/pg/docker-compose.yml` ; sqlite et le mode standalone ne sont pas
+    recettés. **Un geste de recette qui changerait serait le signe que la migration a
+    débordé.**
+  - **Les deux renvois de D6b sont soldés en place** dans l'entrée du 2026-09-10 :
+    `statut-facture-annulee` renommé `statut-facture-annulee-comptabilite` (T10, vérifié au
+    consommateur) ; les **dix-sept sites `webshim`** ne sont **pas** pris en charge par D6c
+    et **partent à D6e**, avec la mesure qui le justifie — ils vivent dans
+    `helpers.creer_patient` (3), `test_patient.py` (13) et `test_consultation.py` (1),
+    c'est-à-dire les trois écrans de D6e.
+
 - **2026-09-11 — D8 Perte de saisie en édition du dossier patient fermée** (cinq tâches ; spec
   `docs/superpowers/specs/2026-09-10-d8-perte-de-saisie-design.md`, plan supprimé une fois
   achevé). **Onze commits `6d467f0..e76f325`**, plus les deux commits de clôture. Le plan
@@ -979,13 +1214,22 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     constellation. **Aucun motif de la liste close ne les couvre** et le cadrage les avait
     classés « classe applicative ». Le produit ne peut y poser aucun ancrage, les sous-champs
     étant générés en JS : le remède est un **quatrième contrat neutre**, « saisir une date par ses
-    trois cases ». C'est le trou de fond du lot. **Pour D6c ou D6d.**
+    trois cases ». C'est le trou de fond du lot. ~~**Pour D6c ou D6d.**~~ **Renvoyé à D6e le
+    2026-09-11 par D6c**, avec la mesure qui le justifie : les dix-sept sites sont dans
+    `helpers.creer_patient` (3), `test_patient.py` (13) et `test_consultation.py` (1) — soit
+    « Nouveau patient », dossier patient et consultation, c'est-à-dire **les trois écrans de
+    D6e**. Le contrat neutre s'écrit avec la migration de l'écran, pas avant : aucun motif de
+    la liste close ne les couvre, donc le cliquet d'adressage ne rougit pas, et l'arbitrage
+    A15 de D6c interdisait à ce lot de toucher `helpers.py` sur un second point.
   - **Quinze sites dépendent du routage par hash** : douze `page.goto(…/#/…)` et trois
     `to_have_url`. Le motif `#/` figure dans la liste close mais `goto` et `to_have_url` ne sont
     pas des méthodes de sélection : **il est inerte**. **Pour D6f.**
   - **`statut-facture-annulee` est devenu orphelin** dans `invoice-list.html:74`, et la
     nomenclature est inversée : la valeur générique désigne la Comptabilité, la valeur qualifiée
-    la consultation. À renommer en D6c.
+    la consultation. ~~À renommer en D6c.~~ **Fait le 2026-09-11 (D6c, T10)** :
+    `statut-facture-annulee-comptabilite` dans `invoice-list.html:74`, `…-consultation`
+    intact dans `examination.html:61`. Vérifié au consommateur et non au nom — aucun test ne
+    référençait l'ancienne valeur nue.
   - **Trois défauts de gabarit** relevés et non corrigés : `office-settings.html:200` porte
     `<label for"…">` sans signe égal ; `rebuild-index.html:20,24` porte `<div class)"col-md-2">` ;
     `examination.html:14` porte `… class="col-md-7" disable-enter">`, guillemet parasite qui rend
