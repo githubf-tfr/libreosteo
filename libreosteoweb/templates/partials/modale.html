@@ -1,0 +1,35 @@
+{% load i18n %}
+{# Modale Bootstrap 3 **sans jQuery**. Le CSS seul ne suffit pas a afficher une modale : #}
+{# `.modal` est `display:none` et c'est le JS de Bootstrap qui pose `display:block`, la #}
+{# classe `in`, et cree l'element `.modal-backdrop` separe. Or ce JS exige jQuery #}
+{# (`static/js/bootstrap.js:7` leve « Bootstrap's JavaScript requires jQuery »), que les #}
+{# pages htmx ne chargent pas. Alpine pose donc lui-meme l'affichage, l'occultation et la #}
+{# classe `modal-open` du <body>, en reutilisant les classes de mise en forme de #}
+{# Bootstrap 3 : meme apparence, aucune ligne de jQuery (reconnaissance, § F.3). #}
+<div x-data="{ ouverte: true }"
+     x-init="$watch('ouverte', v => document.body.classList.toggle('modal-open', v)); document.body.classList.add('modal-open')"
+     @keydown.escape.window="ouverte = false">
+  <div class="modal" style="display: block" x-show="ouverte"
+       role="dialog" aria-modal="true" aria-labelledby="titre-modale"
+       data-testid="modale">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" aria-label="{% trans 'Close' %}"
+                  data-testid="fermer-modale" @click="ouverte = false">&times;</button>
+          <h4 class="modal-title" id="titre-modale" data-testid="titre-modale">{{ titre }}</h4>
+        </div>
+        <div class="modal-body" data-testid="corps-modale">
+          {% if gabarit_corps %}{% include gabarit_corps %}{% else %}{{ corps }}{% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-testid="annuler-modale"
+                  @click="ouverte = false">{{ libelle_annuler|default:_("Cancel") }}</button>
+          <button type="button" class="btn btn-primary" id="modal-btn-ok"
+                  data-testid="confirmer-modale">{{ libelle_confirmer|default:_("OK") }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop in" x-show="ouverte" data-testid="occultation-modale"></div>
+</div>

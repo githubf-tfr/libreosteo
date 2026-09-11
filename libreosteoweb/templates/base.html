@@ -22,6 +22,14 @@
     <link href="{% static "font-awesome/css/font-awesome.min.css" %}" rel="stylesheet">
     {% endcompress %}
     {% block css_page %}{% endblock %}
+
+    {# A11 : zone de notification fixe haut-droite, largeur 250px, empilement. Legs du #}
+    {# CSS d'angular-growl (position:fixed; top:10px; right:10px; width:250px), que seule #}
+    {# la coquille chargeait. Aucun fichier CSS ne s'ajoute (perimetre exclu). #}
+    <style>
+      .lo-notifications { position: fixed; top: 10px; right: 10px; width: 250px; z-index: 1050; }
+      .lo-notification { margin-bottom: 10px; }
+    </style>
 </head>
 
 {# Le jeton passe par l'en-tete une fois pour toutes : {% csrf_token %} suffit a un #}

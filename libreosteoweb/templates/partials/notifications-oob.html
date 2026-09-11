@@ -1,0 +1,8 @@
+{# Enveloppe hors-bande : htmx applique ce fragment a #notifications quelle que soit la #}
+{# cible principale de la reponse. C'est ce qui permet a une notification de naitre de #}
+{# n'importe quelle reponse du serveur, sans qu'aucune page n'ait a la prevoir (A11). #}
+<div id="notifications" hx-swap-oob="beforeend">
+  {% for notification in notifications %}
+    {% include "partials/notification.html" with severite=notification.severite classe=notification.classe message=notification.message %}
+  {% endfor %}
+</div>
