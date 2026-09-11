@@ -89,13 +89,13 @@
       </li>
       <!-- /.dropdown -->
     </ul>
-    <form class="navbar-form navbar-right" ng-controller="SearchCtrl">
+    <form class="navbar-form navbar-right" method="get" action="{% url 'search' %}">
       <div class="search-container">
         <div class="input-group custom-search-form">
-          <input type="search" class="form-control" placeholder="{% trans "Search..." %}"
-                 ng-model="query" ng-keydown="onEnterKeyDown($event)">
+          <input type="search" class="form-control" name="q" value="{{ query|default:'' }}"
+                 placeholder="{% trans "Search..." %}">
             <span class="input-group-btn">
-              <button class="btn btn-default" type="button" ng-click="search()">
+              <button class="btn btn-default" type="submit">
                 <i class="fa fa-search"></i>
               </button>
             </span>

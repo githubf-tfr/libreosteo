@@ -159,10 +159,6 @@ def display_examination(request):
     )
 
 
-def display_search_result(request):
-    return render(request, "partials/search-result.html", {})
-
-
 def display_userprofile(request):
     displayUser = UserDisplay()
     displayTherapeutSettings = TherapeutSettingsDisplay()

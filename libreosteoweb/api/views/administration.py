@@ -18,6 +18,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.files.base import ContentFile
 from django.core.management import call_command
+from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -26,8 +27,7 @@ from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.cache import never_cache
-from haystack.query import SearchQuerySet
-from haystack.views import SearchView
+from haystack.query import EmptySearchQuerySet, SearchQuerySet
 from rest_framework import pagination, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ParseError, PermissionDenied
@@ -57,10 +57,48 @@ from ..utils import LoggerWriter, convert_to_long, maximum_numerique_des_numeros
 logger = logging.getLogger(__name__)
 
 
-class SearchViewHtml(SearchView):
-    template = "partials/search-result.html"
-    results_per_page = 10
-    results = SearchQuerySet()
+RESULTATS_DE_RECHERCHE_PAR_PAGE = 10
+
+
+def recherche(request):
+    """La recherche, un document et une URL (D6c, C4, A6, A7, A8).
+
+    Une seule URL, deux gabarits, choisis sur `HX-Request` : le document complet pour une
+    navigation ordinaire, le fragment pour la pagination htmx. Le document **inclut** le
+    fragment : une seule source de verite pour le rendu des resultats.
+
+    Cette vue n'a **aucun etat** : `Libreosteo/urls.py` montait auparavant une *instance*
+    de `SearchViewHtml`, et `SearchView.__call__` stockait `request`, `form`, `query` et
+    `results` dessus — deux requetes concurrentes se marchaient dessus, et seul
+    `--processes 1 --threads 1` (Docker/build/http-ready/Dockerfile:184) l'empechait. Ce
+    garde-fou d'exploitation est leve ici, et le fait est ecrit au KANBAN.
+
+    Le filtre `.models(models.Patient)` n'est pas cosmetique : deux index sont declares
+    (search_indexes.py:20,53) et un `Document` qui remonterait s'afficherait avec un nom
+    vide et un lien vers un **mauvais patient**.
+    """
+    requete = request.GET.get("q", "")
+    if requete:
+        resultats = (
+            SearchQuerySet().models(models.Patient).auto_query(requete).load_all()
+        )
+    else:
+        resultats = EmptySearchQuerySet()
+    paginateur = Paginator(resultats, RESULTATS_DE_RECHERCHE_PAR_PAGE)
+    # `get_page` plutot que `page` : une page hors bornes rend la premiere ou la derniere
+    # au lieu de lever une 404, qui laisserait la zone de resultats inchangee sans rien
+    # dire a l'utilisateur.
+    page = paginateur.get_page(request.GET.get("page"))
+    gabarit = (
+        "partials/search-result.html"
+        if "HX-Request" in request.headers
+        else "search.html"
+    )
+    return render(
+        request,
+        gabarit,
+        {"query": requete, "page": page, "paginator": paginateur},
+    )
 
 
 class UserViewSet(viewsets.ModelViewSet):

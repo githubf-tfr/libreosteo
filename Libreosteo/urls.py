@@ -79,6 +79,7 @@ urlpatterns = [
         name="patient_document_view",
     ),
     re_path(r"^myuserid", TemplateView.as_view(template_name="account/myuserid.html")),
+    re_path(r"^search$", views.recherche, name="search"),
     re_path(r"", include("libreosteoweb.urls")),
     re_path(r"^internal/dump.json", views.DbDump.as_view(), name="db_dump"),
     re_path(r"^internal/restore", views.LoadDump.as_view(), name="load_dump"),
@@ -95,9 +96,6 @@ urlpatterns = [
         displays.display_examination_timeline,
     ),
     re_path(r"^web-view/partials/examination", displays.display_examination),
-    re_path(
-        r"^web-view/partials/search-result", views.SearchViewHtml(), name="search_view"
-    ),
     re_path(r"^web-view/partials/user-profile", displays.display_userprofile),
     re_path(r"^web-view/partials/dashboard", displays.display_dashboard),
     re_path(r"^web-view/partials/officeevent", displays.display_officeevent),

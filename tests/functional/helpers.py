@@ -161,6 +161,22 @@ def rechercher_patient(page: Page, nom: str) -> None:
     page.click("div.custom-search-form span > button")
     expect(page.get_by_test_id("titre-recherche")).to_contain_text(nom)
     page.click("div.search-entry > h4 > a")
+    # Depuis D6c, ce geste traverse **deux** chargements de document : la soumission du
+    # formulaire GET mene a /search?q=…, puis le clic sur un resultat recharge la coquille
+    # et rejoue donc toute la resolution initiale d'AngularJS. Avant, le clic ne changeait
+    # que d'etat ui-router, sans quitter le document deja resolu.
+    #
+    # Sans barriere ici, les gestes des 11 sites d'appel (test_consultation.py ×8,
+    # test_medecins.py, test_recherche.py, test_patient.py) partiraient pendant cette
+    # resolution : un geste joue avant qu'elle n'ait fini est **absorbe en silence**, sans
+    # erreur ni requete reseau — meme mecanisme, et meme remede, que dans `connexion()`.
+    #
+    # `titre-patient` (partials/patient-detail.html:17) interpole `$scope.patient`, que
+    # seule la reponse du `GET /api/patients/:id` renseigne : la barriere est donc **en
+    # aval du reseau**, comme l'exige l'arbitrage A1 de D6b, et non une barriere d'ecran
+    # qu'AngularJS satisferait de facon optimiste. Attendre un titre non vide plutot que le
+    # nom cherche : l'appelant assert deja sur le nom quand c'est ce qu'il observe.
+    expect(page.get_by_test_id("titre-patient")).not_to_have_text("")
 
 
 def ouvrir_nouvelle_consultation(page: Page) -> None:

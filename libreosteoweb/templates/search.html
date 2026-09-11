@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+{% load compress %}
+
+{# Le titre de document ne change pas : l'engagement du chantier est « memes ecrans, memes #}
+{# menus, memes libelles ». Un titre neuf serait un changement de produit. #}
+
+{% block css_page %}
+{% compress css %}
+{# La meme mise en page qu'aujourd'hui : `#page-wrapper` de sb-admin-2 pose le decalage #}
+{# sous le bandeau fixe, `libreosteo.css` porte `.search-entry` et `.extract`. Aucun #}
+{# fichier CSS n'est ajoute au depot : ce sont ceux que la coquille charge deja. #}
+<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
+<link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
+{% endcompress %}
+{% endblock %}
+
+{% block contenu %}
+<div id="page-wrapper">
+  <div class="row">
+    {# Cible de la pagination htmx. Le fragment est **inclus** ici et rendu seul sous #}
+    {# HX-Request : une seule source de verite pour le rendu des resultats (A7). #}
+    <div class="col-lg-12" id="resultats-recherche">
+      {% include "partials/search-result.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

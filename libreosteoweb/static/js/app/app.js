@@ -27,7 +27,6 @@ var libreosteoApp = angular.module('libreosteo', [
     'yaru22.angular-timeago',
     'ngAnimate',
     'duScroll',
-    'loSearch',
     'loUser',
     'angular-growl',
     'angular-loading-bar',
@@ -108,27 +107,6 @@ libreosteoApp.config(['$stateProvider', '$urlRouterProvider',
                 url : '/addPatient',
                 templateUrl : 'web-view/partials/add-patient',
                 controller : 'AddPatientCtrl'
-            }).
-            state('search',
-            {
-                url : '/search/:query',
-                templateUrl : function(params) {
-                    var url = 'web-view/partials/search-result?q='+params.query;
-                    return url ;
-                },
-                controller : 'SearchResultCtrl'
-            }).
-            state('searchPaginated',
-            {
-                url : '/search/:query/:page',
-                templateUrl : function(params) {
-                    var page = '';
-                    if(params.page)
-                    {  page="&page="+params.page  }
-                    var url = 'web-view/partials/search-result?q='+params.query+page;
-                    return  url ;
-                },
-                controller : 'SearchResultCtrl'
             }).
             state('user-profile',
             {
