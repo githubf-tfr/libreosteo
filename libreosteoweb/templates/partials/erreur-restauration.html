@@ -1,0 +1,7 @@
+{# Le fragment que `LoadDump` rend en cas de refus. C'est **la reponse** qui porte le #}
+{# `role="alert"`, pas la zone cible : htmx echange du HTML, pas une chaine a interpoler, #}
+{# et `test_le_formulaire_de_restauration_s_affiche` exige zero `role="alert"` a #}
+{# l'ouverture (F7, A9). #}
+<div class="alert alert-danger" role="alert">
+    <p>{{ message }}</p>
+</div>

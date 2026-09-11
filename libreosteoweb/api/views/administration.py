@@ -19,6 +19,7 @@ from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.http import HttpResponse
+from django.shortcuts import render
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.text import format_lazy
@@ -226,14 +227,18 @@ class LoadDump(View):
             # (disque plein, requête tronquée), cas que la version d'origine traitait déjà
             # comme une archive illisible, en 412.
             if "file" not in request.FILES.keys():
-                return HttpResponse()
+                # 400 et non plus 200 a corps vide : ce 200 n'existait que pour permettre
+                # au defaut `restore.js:42` (une affectation prise pour une comparaison) de
+                # rediriger quand meme. Le script est supprime par ce lot (D6c, A9).
+                return self._refus(request, _("No archive file was sent."), status=400)
             logger.info("Load a dump from a sent file.")
             services_sauvegarde.restaurer(
                 ContentFile(request.FILES["file"].read()), libreosteoweb.__version__
             )
         except services_sauvegarde.VersionIncompatible as erreur:
-            return HttpResponse(
-                content=format_lazy(
+            return self._refus(
+                request,
+                format_lazy(
                     "This file is an archive of the version {otherversion}, the current version is {currentversion}. Install the version {otherversion} and load it.",
                     otherversion=erreur.version_archive,
                     currentversion=libreosteoweb.__version__,
@@ -242,20 +247,37 @@ class LoadDump(View):
             )
         except (services_sauvegarde.ArchiveInvalide, OSError):
             logger.exception("Import failed")
-            return HttpResponse(
-                content=_(
-                    "This archive file seems to be incorrect. Impossible to load it."
-                ),
+            return self._refus(
+                request,
+                _("This archive file seems to be incorrect. Impossible to load it."),
                 status=412,
             )
         except services_sauvegarde.BaseIndisponible:
             # La base a échoué en cours de rechargement : ce n'est pas l'archive qui est en
             # cause, et le dire évite d'envoyer l'opérateur chercher au mauvais endroit.
             logger.exception("Database failure while reloading the dump")
-            return HttpResponse(
-                content=_(
-                    "The database failed while loading this archive. Restore a backup."
-                ),
+            return self._refus(
+                request,
+                _("The database failed while loading this archive. Restore a backup."),
                 status=500,
             )
-        return HttpResponse(content="reloaded")
+        # htmx ne suit pas une 302 lui-meme : c'est `XMLHttpRequest` qui la suivrait, et le
+        # document cible atterrirait dans le volet. HX-Redirect provoque un vrai
+        # `window.location`, ce que faisait `$window.location.assign("/")` (restore.js:47).
+        reponse = HttpResponse(status=204)
+        reponse["HX-Redirect"] = "/"
+        return reponse
+
+    @staticmethod
+    def _refus(request, message, status):
+        """Un refus est un fragment HTML porteur de `role="alert"`, pas une chaine nue.
+
+        Les trois messages restent **a l'octet** ceux d'aujourd'hui : le filet de D6b
+        assert sur « archive » et sur la version portee par l'archive.
+        """
+        return render(
+            request,
+            "partials/erreur-restauration.html",
+            {"message": message},
+            status=status,
+        )

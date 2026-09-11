@@ -7,18 +7,34 @@
                  </div>
                 <div>
                     <div class="">
-                        <div ng-if="error" class="alert alert-danger" role="alert">
-                            <p>{$ error $}</p>
-                        </div>
-                        <form role="form" name="forms.form_dump" novalidate>
+                        {# Conteneur **neutre et vide** : c'est la reponse qui porte le #}
+                        {# role="alert" (F7, A9). `test_le_formulaire_de_restauration_ #}
+                        {# s_affiche` exige `get_by_role("alert")` a zero a l'ouverture. #}
+                        <div id="erreur-restauration"></div>
+                        <form role="form"
+                              hx-post="{% url 'load_dump' %}"
+                              hx-encoding="multipart/form-data"
+                              hx-target="#erreur-restauration"
+                              hx-indicator="#restauration-en-cours">
                           {% csrf_token %}
                             <div class="form-group">
                                 <label for="archive-file">{% trans 'Archive file to restore' %}</label>
-                                <input type="file" id="archive-file" ngf-select="" ng-model="files.archiveFile" name="archiveFile" ngf-accept="'.db'" required="">
+                                {# `name="file"` et non `archiveFile` : c'est le nom que #}
+                                {# `LoadDump.post` lit (`request.FILES["file"]`), et il #}
+                                {# n'etait produit que par la reecriture cote client #}
+                                {# `Upload.upload({data: {file: …}})` (restore.js:35), que #}
+                                {# ce lot supprime. Un POST natif envoie le `name` de #}
+                                {# l'attribut : garder `archiveFile` ferait repondre 400 a #}
+                                {# toute restauration. Le filet ancre sur `#archive-file`, #}
+                                {# pas sur ce `name` (E4, F6). #}
+                                <input type="file" id="archive-file" name="file" accept=".db" required>
                             </div>
-                            <button class="btn btn-default" ng-click="restore()" type="submit">{% trans 'Restore' %}</button>
+                            <button class="btn btn-default" type="submit">{% trans 'Restore' %}</button>
 
-                            <p class="bg-success" ng-if="in_progress"><i class="fa fa-cog fa-spin fa-lg fa-fw"></i>{% trans 'Loading in progress'%}</p>
+                            {# Le temoin d'attente devient l'indicateur htmx. Il n'y a plus #}
+                            {# de pourcentage d'avancement calcule puis jete #}
+                            {# (restore.js:53, variable locale non utilisee). #}
+                            <p class="bg-success htmx-indicator" id="restauration-en-cours"><i class="fa fa-cog fa-spin fa-lg fa-fw"></i>{% trans 'Loading in progress'%}</p>
                         </form>
                     </div>
                 </div>

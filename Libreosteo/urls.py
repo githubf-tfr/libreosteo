@@ -109,7 +109,11 @@ urlpatterns = [
     re_path(r"^web-view/partials/import-file$", displays.display_import_files),
     re_path(r"^web-view/partials/rebuild-index$", displays.display_rebuild_index),
     re_path(r"^web-view/partials/filemanager$", displays.display_file_manager),
-    re_path(r"^web-view/partials/restore$", displays.display_restore),
+    re_path(
+        r"^web-view/partials/restore$",
+        displays.display_restore,
+        name="partials-restore",
+    ),
     re_path(
         r"^web-view/partials/register$",
         displays.display_register,
