@@ -1437,7 +1437,9 @@ existante ne couvrait la casse.
   tests/functional/test_patient.py::test_aucun_enregistrement_pendant_l_edition,
   ::test_aucun_enregistrement_sur_tabulation_en_edition,
   ::test_le_nom_ne_s_ouvre_pas_pendant_l_edition_du_dossier,
-  ::test_le_nom_de_famille_reste_modifiable_hors_edition
+  ::test_le_nom_de_famille_reste_modifiable_hors_edition,
+  ::test_le_nom_ne_s_ouvre_pas_pendant_l_edition_des_antecedents,
+  ::test_le_nom_ne_s_ouvre_pas_pendant_l_edition_d_une_consultation
 - **État requis** : E2. Cette fiche modifie durablement la profession, les loisirs, le nom
   de naissance et — le temps de deux étapes — le nom de famille du patient Picard :
   remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
@@ -1482,8 +1484,10 @@ comme avant ; il ne se corrige plus **pendant** l'édition du dossier, parce que
 faisait repartir un enregistrement complet du patient qui écrasait les saisies du
 formulaire ouvert. Le garde ferme le titre sur les quatre onglets du dossier (Infos
 générales, Antécédents, Comptes rendus médicaux, Consultations), pas seulement celui
-exercé ici — la couverture automatique des trois autres onglets n'a pas d'équivalent
-manuel dans ce cahier. Effet de bord relevé en revue, hors du défaut initial : le nom de
+exercé ici — les onglets Antécédents et Consultation en sont la preuve nommée en
+« Couverture auto » ; l'onglet Comptes rendus médicaux, couvert par le même mécanisme
+générique, n'a d'équivalent ni manuel ni automatisé nommé dans ce cahier. Effet de bord
+relevé en revue, hors du défaut initial : le nom de
 naissance vide n'est plus invisible — la ligne « Nom de naissance : non renseigné » du
 panneau (étape 1) s'affiche désormais en lecture sur toute fiche patient, y compris
 celles qui n'ont jamais eu ce champ renseigné.
