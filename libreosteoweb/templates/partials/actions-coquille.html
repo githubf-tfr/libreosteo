@@ -1,0 +1,15 @@
+{% load i18n %}
+        <ul class="nav navbar-top-links navbar-right">
+          <li>
+            <button ng-show="editFormManager.action_available('edit')" type="button" class="btn btn-default btn-xs navbar-btn" ng-click="editFormManager.call_action('edit')">
+              <i class="fa fa-edit"></i> {% trans 'Edit' %}
+            </button>
+            <!-- buttons to submit / cancel form -->
+            <span ng-show="editFormManager.action_available('save')">
+              <button type="button" class="btn btn-default btn-xs navbar-btn" ng-click="editFormManager.call_action('save')">
+                <i class="fa fa-thumbs-o-up"></i> {% trans 'End of editing' %}
+              </button>
+            </span>
+            <button ng-show="editFormManager.action_available('delete')" type="button" class="btn btn-danger btn-xs navbar-btn" ng-click="editFormManager.call_action('delete')"><i class="fa fa-trash"></i> {% trans 'Delete' %}</button>
+          </li>
+        </ul>

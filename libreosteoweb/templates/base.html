@@ -1,0 +1,48 @@
+{% load i18n %}
+{% load static %}
+{% load compress %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" href="{% static "images/favicon.png" %}">
+    {# htmx 2 n'echange rien sur 4xx/5xx par defaut : le corps n'atteindrait jamais la #}
+    {# cible et l'utilisateur ne verrait rien. La zone d'erreur de la restauration est un #}
+    {# conteneur neutre et vide, et c'est la reponse qui porte son role="alert" (A9, F7). #}
+    {# 204 reste sans echange : c'est le code du pont de session (A5). #}
+    <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23].*","swap":true},{"code":"[45].*","swap":true,"error":true}]}'>
+
+    <title>{% block titre %}LibreOsteo{% endblock %}</title>
+
+    {% compress css %}
+    <link href="{% static "css/bootstrap.min.css" %}" rel="stylesheet">
+    <link href="{% static "font-awesome/css/font-awesome.min.css" %}" rel="stylesheet">
+    {% endcompress %}
+    {% block css_page %}{% endblock %}
+</head>
+
+{# Le jeton passe par l'en-tete une fois pour toutes : {% csrf_token %} suffit a un #}
+{# formulaire poste par htmx, pas a un hx-post pose sur un bouton ou un lien (A17). #}
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+  {% block menu %}{% if request.user.is_authenticated %}{% include "partials/menu.html" %}{% endif %}{% endblock %}
+
+  {# Les deux regions existent avant qu'un message ou une modale ne naisse : une #}
+  {# notification peut venir de n'importe quelle reponse htmx, et une region declaree #}
+  {# page par page est une region qu'une page oubliera (A11). T5 les remplit. #}
+  <div id="notifications" class="lo-notifications"></div>
+  <div id="modale"></div>
+
+  {% block contenu %}{% endblock %}
+
+  <script src="{% static "components/htmx/dist/htmx.min.js" %}"></script>
+  <script defer src="{% static "components/alpinejs/dist/cdn.min.js" %}"></script>
+  {% block js_page %}{% endblock %}
+  {# Vide par defaut : les 45 chaines du catalogue sont toutes dans l'application #}
+  {# principale, aucune page migree par D6c n'en utilise une seule (A16). #}
+  {% block catalogue_js %}{% endblock %}
+</body>
+</html>
