@@ -300,6 +300,50 @@ Tenu à la main.
     avec sa propre preuve : ouvrir un champ, l'enregistrer sans le modifier, vérifier que le
     HTML en base est inchangé.
 
+- (2026-09-10) **Arbitrages pris pendant l'exécution de D6b**, tous consignés avec leur motif
+  et leur coût si faux. Ils amendent le découpage acté la veille.
+  - **Un lot D8 est inséré entre D6b et D6c** pour fermer un chemin de **perte silencieuse de
+    donnée médicale** (cf. § « Défauts produit » ci-dessous). Motif : un défaut de perte de
+    données ne se planifie pas derrière une réécriture d'interface. Spec :
+    `docs/superpowers/specs/2026-09-10-d8-perte-de-saisie-design.md`.
+  - **jQuery et sa constellation sortent à D6f, pas à D6g.** Vérifié : `components/jquery` n'est
+    chargé qu'en deux points, `install.html:64` (que D6c emporte) et `index.html:170` (que D6f
+    emporte). Le *JavaScript* de Bootstrap 3 meurt avec, puisqu'il l'exige (`bootstrap.js:7`).
+    **D6g se réduit au socle visuel** — feuille de style et classes de balisage. 27 des 28
+    paquets sortent de `package.json` à la clôture de D6f.
+  - **D6d et D6e ne s'exécutent plus en parallèle : D6d d'abord, puis D6e.** Motif : ils partagent
+    six helpers de `tests/functional/helpers.py` et un test qui traverse les deux lots,
+    `test_montant_a_centimes`. Deux chantiers concurrents sur les mêmes fichiers produisent des
+    conflits non imputables.
+  - **L'agenda passe de D6e à D6f** : `<officeevent>` n'est instancié que depuis
+    `partials/dashboard.html:110`, écran de D6f, et il est l'unique consommateur de
+    `ng-infinite-scroll`. **L'écran « Nouveau patient » entre dans D6e** — aucun chantier ne le
+    revendiquait. **« Restauration » sort de D6d** : la seule surface est `partials/restore.html`,
+    que D6c migre déjà.
+  - **Aucune assertion `to_have_class` ni `to_have_css` n'entre dans le filet.** Les ajouter le
+    ré-accrocherait au socle qu'on remplace et déferait D6b. Le filet prouve ce qu'on s'est engagé
+    à préserver — écrans, menus, libellés — et rien de ce qu'on a libéré, l'aspect. **En
+    contrepartie, D6g porte une recette visuelle** à attendus nommés et captures : clause
+    d'entrée, pas option. Le cahier n'en contient aujourd'hui pas une ligne (zéro occurrence de
+    « aspect », « mise en page », « couleur », « alignement », « responsive », « largeur »).
+  - **La visite guidée est conservée et réécrite**, pas supprimée. Elle ne peut pas rester en
+    l'état, plus aucun document ne chargera jQuery dont `bootstrap-tour` dépend. La retirer serait
+    un changement de produit non demandé.
+  - **Le corpus de preuve du texte riche de D6e sera conservateur** — préservation octet pour
+    octet quel que soit le contenu — et un outil de diagnostic en lecture seule sera versé au
+    produit. Motif : la production de l'utilisateur ne tourne pas sur le déploiement de référence,
+    aucune requête ne peut y être jouée. Une question à laquelle il ne peut pas répondre n'est pas
+    une question, c'est un blocage.
+- (2026-09-10) **Le multi-cabinet est codé mais inatteignable, et cela nuance la décision du
+  2026-09-06.** Vérifié : aucun code de production n'écrit `session["officesettings"]`.
+  `OfficeSettingsMiddleware.process_request` le lit (`libreosteoweb/middleware.py:166-168`), ne le
+  trouve jamais, et redirige vers `officesettings-set` — qui est `path(r"/", display_index)`
+  (`libreosteoweb/urls.py:22`), une page qui ne le pose pas davantage. **Dès qu'un second
+  `OfficeSettings` existe, l'application boucle en redirection.** La contrainte d'unicité
+  `(officesettings_id, number)` reste bonne et sans effet à un seul cabinet ; c'est son motif —
+  « le multi-cabinet est réel et actif » — qui était surévalué. À trancher hors D6d : réparer, ou
+  retirer.
+
 ## À faire
 
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non
@@ -720,6 +764,101 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-10 — D6b Filet indépendant du framework livré** (treize tâches, plus une vague de
+  correction finale et un correctif de clause ; spec
+  `docs/superpowers/specs/2026-09-09-d6b-filet-independant-design.md`, plan supprimé une fois
+  achevé). Vingt-trois commits `41bceeb..338736f`. La suite Playwright n'adresse plus aucun rouage
+  qui disparaîtra avec AngularJS ou Bootstrap 3, et le produit n'a pas changé d'une ligne de
+  comportement.
+
+  **Critère d'arrêt constaté par exécution réelle**, les six clauses :
+  1. **Plus aucun rouage adressé** : `grep -rn 'loading-bar' tests/functional/` rend zéro ; le
+     cliquet d'adressage rend `TOTAL 0`. *Rédaction à corriger* : la clause portait sur `tests/`,
+     or le cliquet vit sous `tests/qualite/` et **doit** nommer `loading-bar` — c'est sa liste
+     close. Et sa commande doit porter `--no-cov`, sans quoi `fail_under` appliqué à deux fichiers
+     la fait sortir en code 1 alors que le test passe.
+  2. **Le cliquet est armé des deux côtés** : un site fautif témoin le fait rougir sous `pytest`
+     nu **et** sous `make check`, en nommant fichier, ligne, sélecteur et motif ; vert après
+     retrait.
+  3. **Vingt lancements consécutifs verts** de la suite complète sur `338736f`, `58 passed`
+     chacun, de 16:49:32 à 18:28:03 le 2026-09-10. **Première tentative échouée au 7e** — cf.
+     « Ce que le lot a appris ».
+  4. **Le produit est inerte** : aucun fichier non-`.html` sous `libreosteoweb/` dans le diff ;
+     les 18 gabarits privés de leurs `data-testid` redeviennent identiques à `41bceeb` **octet
+     pour octet**, CRLF de `404.html` compris ; `rm -rf static/CACHE && make static` rend les huit
+     noms `output.<hash>` de référence.
+  5. **Les deux trous fonctionnels comblés** : `R-FAC-06` et `R-SAU-02` ont leur preuve d'écran.
+  6. **`make check` vert**, `315 passed`, couverture 91,54 %, quatre cliquets tenus, zéro test
+     fonctionnel orphelin.
+
+  **Les chiffres du lot** : suite de **53 à 58 tests** ; sites d'adressage condamnés de **197
+  couples sur 167 sites** à **0** ; périmètre `mypy` de 116 à 118 entrées ; 51 `data-testid` posés
+  sur 18 gabarits ; sept tests orphelins rattachés au cahier.
+
+  **Ce que le lot a appris, et qui n'était pas su au cadrage :**
+  - **La barrière `#loading-bar` était inerte pour l'essentiel de la suite.** Son retrait complet
+    laisse 51 tests verts sur 53 — la spec en annonçait trois rouges, le contrôleur en a mesuré
+    deux, et cinq lancements du même arbre ont donné 2, 1, 3, 2 puis 2 rouges sur cinq tests
+    distincts. **Un lancement vert ne prouve rien sur ce dépôt.**
+  - **Une classe d'échec qu'aucune attente ne corrige.** `ui-router` insère la vue entrante avant
+    de faire sortir la sortante et `ngAnimate` laisse la quittée dans le DOM : un sélecteur
+    ambigu résout deux éléments. Une *strict mode violation* de Playwright **n'est jamais
+    rejouée** — vérifié dans sa source, `Frame.expect()` la fait sortir par `isNonRetriableError`
+    avant la boucle de reprise. Seul un locator non ambigu la ferme. Les `data-testid` sont le
+    remède structurel.
+  - **Le cahier de recette était moins fiable que le code qu'il vérifie.** Trois fiches
+    défaillantes trouvées : `R-TAB-01` ne prouvait rien (les compteurs valent « 1/2/0 » sur les
+    trois périodes, le clic n'avait aucun effet observable) ; `R-FAC-06` décrivait un parcours
+    **injouable** (le bouton « Facturer » est sous `ng-show="model.status > 0 && model.status < 3"`
+    et `EXAMINATION_NOT_INVOICED = 3`) ; `R-SAU-02` inversait une chronologie.
+  - **Playwright inclut le contenu des pseudo-éléments dans le nom accessible.** La glyphe Font
+    Awesome préfixe cinq libellés, si bien qu'`exact=True` ne peut jamais y matcher.
+  - **La clause des vingt lancements était indispensable, et elle l'a prouvé en échouant.**
+
+  **Deux défauts produit établis, non corrigés** (le lot interdit d'y toucher) :
+  - **Perte silencieuse de donnée médicale dans le dossier patient.** L'éditable autonome
+    `original_name` (`partials/patient-detail.html:19`) est hors du `<form>` de `:29`, porte
+    `blur="submit"`, et `patient.js:565` l'ouvre d'office. Le gestionnaire de clic *document* de
+    xeditable le soumet au premier clic venu — **ou au premier `Tab`** (`xeditable.js:676-677`,
+    et `original_name` a le focus initial). Le callback `$scope.patient = data`
+    (`patient.js:292`) efface alors en bloc les `div hallo-editor` liés par `ng-model`
+    (`:159-198`) : antécédents, traitement en cours, motifs. Mesuré : `job=''` en base après un
+    clic sur une case à cocher. `family_name` et `first_name` (`:18`, `:21`) offrent un second
+    chemin. **Objet du lot D8.**
+  - **Le volet de consultation se rouvre tout seul.** Le callback de clôture appelle
+    `reloadExaminations`, qui affecte `previousExamination.data` avec l'objet `$resource` rendu
+    *immédiatement*, avant le retour de la réponse. Refermer le volet dans cette fenêtre le fait
+    rouvrir au retour, et la chronologie disparaît. Prouvé de façon déterministe par un retard
+    adverse de 1 500 ms. **Appartient à D6e.**
+
+  **Ce que le lot renvoie plus loin :**
+  - **Dix-neuf sites adressent des classes générées par `webshim`** — `input.dd`, `input.mm`,
+    `input.yy` (17 sites, dont `helpers.creer_patient`, traversé par 34 tests) et
+    `input.ws-date.*` (2 sites). `ws-` est le préfixe de ce greffon jQuery, qui meurt avec la
+    constellation. **Aucun motif de la liste close ne les couvre** et le cadrage les avait
+    classés « classe applicative ». Le produit ne peut y poser aucun ancrage, les sous-champs
+    étant générés en JS : le remède est un **quatrième contrat neutre**, « saisir une date par ses
+    trois cases ». C'est le trou de fond du lot. **Pour D6c ou D6d.**
+  - **Quinze sites dépendent du routage par hash** : douze `page.goto(…/#/…)` et trois
+    `to_have_url`. Le motif `#/` figure dans la liste close mais `goto` et `to_have_url` ne sont
+    pas des méthodes de sélection : **il est inerte**. **Pour D6f.**
+  - **`statut-facture-annulee` est devenu orphelin** dans `invoice-list.html:74`, et la
+    nomenclature est inversée : la valeur générique désigne la Comptabilité, la valeur qualifiée
+    la consultation. À renommer en D6c.
+  - **Trois défauts de gabarit** relevés et non corrigés : `office-settings.html:200` porte
+    `<label for"…">` sans signe égal ; `rebuild-index.html:20,24` porte `<div class)"col-md-2">` ;
+    `examination.html:14` porte `… class="col-md-7" disable-enter">`, guillemet parasite qui rend
+    l'attribut inerte.
+  - **`UserOfficeSerializer.validate_family_name` est mort** — `Meta.fields` déclare `last_name`,
+    et DRF n'appelle `validate_<champ>` que pour un champ déclaré. Le filtre de casse s'applique
+    au profil mais pas à l'édition en ligne du même nom.
+  - **Le job CI `quality` réécrit les commandes de `make check`** au lieu d'appeler la cible
+    (`.github/workflows/main.yml`). `CLAUDE.md` écrit qu'il en est « exactement » le contenu :
+    vrai du contenu, faux du mécanisme, et rien ne tient les deux listes synchrones. C'est
+    pourquoi le cliquet de D6b est un test `pytest` et non une cible de `Makefile`.
+  - **La passe de recette de D6b reste à jouer**, et avec elle les requêtes `psql` que T12 a
+    écrites dans `R-FAC-06` sans pouvoir les exécuter — aucun conteneur n'était monté.
 
 - **2026-09-08 — D7 recetté sur instance conteneur, sur l'archive de production.** Pile
   montée depuis `Docker/deploy/pg/docker-compose.yml`, images
