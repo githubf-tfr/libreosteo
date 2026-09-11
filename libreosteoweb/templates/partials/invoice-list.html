@@ -71,7 +71,7 @@
                 <span class="label label-danger" ng-if="invoice.status === 1">{% trans 'Not paid' %}</span>
                 <span class="label label-success" ng-if="invoice.status === 2 && invoice.type ==='invoice'">{% trans 'Paid' %}</span>
                 <span class="label label-success" ng-if="invoice.status === 2 && invoice.type ==='creditnote'">{% trans 'Credit note' %}</span>
-                <span class="label label-warning" ng-if="invoice.status === 3" data-testid="statut-facture-annulee">{% trans 'Cancelled' %}</span>
+                <span class="label label-warning" ng-if="invoice.status === 3" data-testid="statut-facture-annulee-comptabilite">{% trans 'Cancelled' %}</span>
             </td>
             <td>
               <span>{$ invoice.canceled_by.number $}</span>
