@@ -289,7 +289,15 @@ patient.controller('PatientCtrl', ['$scope', '$state', '$stateParams', '$filter'
         patientId: $scope.patient.id
       }, model, function (data) {
         // Should reload the patient
+        // La liste des documents deja affichee est reportee sur l'objet neuf. La reponse
+        // du PUT ne porte pas medicalReportsDoc, qui est construit ici et nulle part
+        // ailleurs : sans ce report, la liste n'existe plus entre cette reponse et celle
+        // du rechargement ci-dessous. Le ng-repeat de patient-detail.html detruit alors
+        // sa tuile, ngAnimate la garde 500 ms en ng-leave (libreosteo.css) et la tuile
+        // rechargee entre a cote d'elle : deux tuiles a l'ecran pour un seul document.
+        var documentsAffiches = $scope.patient.medicalReportsDoc;
         $scope.patient = data;
+        $scope.patient.medicalReportsDoc = documentsAffiches;
         $scope.patient.birth_date = convertUTCDateToLocalDate(new Date(data.birth_date));
         $scope.patient.medical_reports_doc(updateMedicalDocumentReports);
       }, function (data) {
