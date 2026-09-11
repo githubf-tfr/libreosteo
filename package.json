@@ -10,6 +10,7 @@
     "postinstall": "node -e \"try { require('fs').symlinkSync(require('path').resolve('node_modules/@components'), 'libreosteoweb/static/components', 'junction') } catch (e) { }\""
   },
   "dependencies": {
+    "@components/alpinejs": "npm:alpinejs@3.17.2",
     "@components/angular": "angular/bower-angular#0f57428c3ffe2f486264ab7fbee3968dccc7b720",
     "@components/angular-animate": "angular/bower-angular-animate#ac17971fdc62d7ea816a079401084e6da2af3e3e",
     "@components/angular-bind-html-compile": "git+https://github.com/incuna/angular-bind-html-compile.git#151a13da353246709afd7692c4405577103bc954",
@@ -30,6 +31,7 @@
     "@components/bootstrap-daterangepicker": "dangrossman/bootstrap-daterangepicker#d4aabfbceaf57117e1af33f3f82e92162719eee9",
     "@components/bootstrap-tour": "sorich87/bootstrap-tour#1a06475e27f852bb642b9353574638d51673b0d5",
     "@components/hallo": "git+https://github.com/bergie/hallo.git#fa144fb844517c1f54e54a93ab9f28fa07f5eedc",
+    "@components/htmx": "npm:htmx.org@2.0.10",
     "@components/jquery": "git+https://github.com/jquery/jquery-dist.git#5e89585e0121e72ff47de177c5ef604f3089a53d",
     "@components/jquery-ui": "git+https://github.com/components/jqueryui.git#b68f1ee8749c90b2dfc5f2cb33c76fd0308bd356",
     "@components/jquery-ui-bootstrap": "git+https://github.com/gustavohenke/jquery-ui-bootstrap.git#acde257309de8a8fba35d527fc40c162591afa90",

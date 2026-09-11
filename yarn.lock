@@ -2,6 +2,13 @@
 # yarn lockfile v1
 
 
+"@components/alpinejs@npm:alpinejs@3.17.2":
+  version "3.17.2"
+  resolved "https://registry.yarnpkg.com/alpinejs/-/alpinejs-3.17.2.tgz#56e1df47e46593990a83861fc4a3915466ad06ca"
+  integrity sha512-xbnG3LlnmFkiNO49C+qhqjEDqOdB0snKqvT48ZVp8TakpZOpsoQbc/jAxpptQRjZi7c9rLeCfvwQ/XOSirIZFQ==
+  dependencies:
+    "@vue/reactivity" "~3.5.40"
+
 "@components/angular-animate@angular/bower-angular-animate#ac17971fdc62d7ea816a079401084e6da2af3e3e":
   version "1.5.11"
   resolved "https://codeload.github.com/angular/bower-angular-animate/tar.gz/ac17971fdc62d7ea816a079401084e6da2af3e3e"
@@ -94,6 +101,11 @@
   version "1.1.1"
   resolved "git+https://github.com/bergie/hallo.git#fa144fb844517c1f54e54a93ab9f28fa07f5eedc"
 
+"@components/htmx@npm:htmx.org@2.0.10":
+  version "2.0.10"
+  resolved "https://registry.yarnpkg.com/htmx.org/-/htmx.org-2.0.10.tgz#62442b0e2952a885ae2e50a7654b8b20d0981134"
+  integrity sha512-kdeJe7ZVwaS6QMz/ebBIVtZdpwen6L0OQ5GOhPV9MKBb196TCZeZu4yA7ZIQsaLKv7EpXz+So7KSXNuHXhj7Cw==
+
 "@components/jquery-ui-bootstrap@git+https://github.com/gustavohenke/jquery-ui-bootstrap.git#acde257309de8a8fba35d527fc40c162591afa90":
   version "0.0.0"
   resolved "git+https://github.com/gustavohenke/jquery-ui-bootstrap.git#acde257309de8a8fba35d527fc40c162591afa90"
@@ -130,6 +142,18 @@
   version "6.0.8"
   resolved "https://registry.yarnpkg.com/@uirouter/core/-/core-6.0.8.tgz#a1e919a4743be729751aafc4ce353d0dc0ffd26c"
   integrity sha512-Gc/BAW47i4L54p8dqYCJJZuv2s3tqlXQ0fvl6Zp2xrblELPVfxmjnc0eurx3XwfQdaqm3T6uls6tQKkof/4QMw==
+
+"@vue/reactivity@~3.5.40":
+  version "3.5.42"
+  resolved "https://registry.yarnpkg.com/@vue/reactivity/-/reactivity-3.5.42.tgz#800220f023d36fd04d94460c7c7ab5808f8ae75f"
+  integrity sha512-TzNNfKpb7hDxbQltwAut8VDQA5YP+BuRlxntHUuRjyKwlMvmAPbs3unhCvieijifY6vFfVBwsS7wG/C7uq+bEQ==
+  dependencies:
+    "@vue/shared" "3.5.42"
+
+"@vue/shared@3.5.42":
+  version "3.5.42"
+  resolved "https://registry.yarnpkg.com/@vue/shared/-/shared-3.5.42.tgz#a413cf21262502662354cda3b65ab31bca979202"
+  integrity sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==
 
 angular@>=1.4.0, angular@~1.x:
   version "1.8.3"
