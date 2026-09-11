@@ -1478,16 +1478,29 @@ existante ne couvrait la casse.
 8. Répéter l'étape 7 pour remettre `Picard`.
    Attendu : le titre affiche de nouveau `Picard (Dupont) Jean-Luc`. L'état E2 est
    restauré quant au nom.
+9. Cliquer l'onglet « Compte-rendus médicaux », cliquer « Éditer », cliquer sur le nom
+   de famille `Picard` dans le titre.
+   Attendu : **aucun champ de saisie ne s'ouvre** — même garde que sur les onglets
+   précédents, posé ici sur `form.medicalForm`. Cliquer « Fin d'édition ».
+10. Hors mode édition, toujours sur l'onglet « Compte-rendus médicaux », cliquer sur le
+    nom de famille `Picard` dans le titre.
+    Attendu : un champ de saisie s'ouvre, prérempli `Picard`. Valider par le bouton ✓
+    sans le modifier.
+    Attendu : le titre affiche toujours `Picard (Dupont) Jean-Luc` — le nom redevient
+    modifiable hors édition sur cet onglet aussi, sans rien changer à l'état E2.
 
 **Constat** : les étapes 6 et 7 se lisent ensemble. Le nom se corrige hors mode édition,
 comme avant ; il ne se corrige plus **pendant** l'édition du dossier, parce que ce geste
 faisait repartir un enregistrement complet du patient qui écrasait les saisies du
 formulaire ouvert. Le garde ferme le titre sur les quatre onglets du dossier (Infos
-générales, Antécédents, Comptes rendus médicaux, Consultations), pas seulement celui
+générales, Antécédents, Compte-rendus médicaux, Consultations), pas seulement celui
 exercé ici — les onglets Antécédents et Consultation en sont la preuve nommée en
-« Couverture auto » ; l'onglet Comptes rendus médicaux, couvert par le même mécanisme
-générique, n'a d'équivalent ni manuel ni automatisé nommé dans ce cahier. Effet de bord
-relevé en revue, hors du défaut initial : le nom de
+« Couverture auto » ; l'onglet « Compte-rendus médicaux » (`form.medicalForm`, même
+registre `loEditFormManager`) est couvert par les étapes 9 et 10 ci-dessus, **seule
+preuve de cet onglet dans ce cahier — manuelle, sans test nommé en regard** : le
+mécanisme du garde est déjà prouvé par deux onglets indépendants (« Couverture auto »
+ci-dessus), un troisième test n'aurait rien démontré de plus que ces deux-là. Effet de
+bord relevé en revue, hors du défaut initial : le nom de
 naissance vide n'est plus invisible — la ligne « Nom de naissance : non renseigné » du
 panneau (étape 1) s'affiche désormais en lecture sur toute fiche patient, y compris
 celles qui n'ont jamais eu ce champ renseigné.
