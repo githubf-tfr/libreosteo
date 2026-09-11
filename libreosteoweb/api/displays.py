@@ -21,7 +21,6 @@ from django.forms.models import ModelForm
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 
-import libreosteoweb
 from libreosteoweb import models
 from libreosteoweb.api.version import version
 
@@ -96,16 +95,10 @@ def display_index(request):
     global new_version, new_version_available
     if new_version is None:
         new_version_available, new_version = version.ask_for_new_version()
-    return render(
-        request,
-        "index.html",
-        {
-            "version": libreosteoweb.__version__,
-            "request": request,
-            "new_version_available": new_version_available,
-            "new_version": new_version,
-        },
-    )
+    # Les trois clefs du menu viennent desormais du context processor
+    # `libreosteoweb.context_processors.version` (D6c, A4). Cette vue reste la seule a
+    # remplir la memorisation ci-dessus, et donc la seule a faire l'appel reseau.
+    return render(request, "index.html", {"request": request})
 
 
 def display_patient(request):

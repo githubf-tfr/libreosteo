@@ -149,6 +149,9 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.request",
                 "django.template.context_processors.i18n",
+                # Le menu est partage par index.html et par base.html : son contexte doit
+                # l'etre aussi (D6c, A4). Ne declenche aucun appel reseau.
+                "libreosteoweb.context_processors.version",
             ],
             "libraries": {
                 "compress": "compressor.templatetags.compress",
