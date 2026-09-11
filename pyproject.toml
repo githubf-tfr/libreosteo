@@ -184,6 +184,7 @@ files = [
     "tests/functional/test_therapeute.py",
     "tests/qualite/__init__.py",
     "tests/qualite/test_contrat_adressage.py",
+    "tests/qualite/test_contrat_gabarits.py",
     "winserver.py",
     "zipcode_lookup/__init__.py",
     "zipcode_lookup/management/commands/__init__.py",
