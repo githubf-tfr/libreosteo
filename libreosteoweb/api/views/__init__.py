@@ -25,11 +25,11 @@ from .administration import (
     OfficeEventViewSet,
     OfficeSettingsView,
     RebuildIndex,
-    SearchViewHtml,
     StatisticsView,
     TherapeutSettingsViewSet,
     UserOfficeViewSet,
     UserViewSet,
+    recherche,
 )
 from .consultation import ExaminationCommentViewSet, ExaminationViewSet
 from .facturation import InvoiceViewHtml, InvoiceViewSet, PaimentMeanViewSet
@@ -62,11 +62,11 @@ __all__ = [
     "PatientViewSet",
     "RebuildIndex",
     "RegularDoctorViewSet",
-    "SearchViewHtml",
     "StatisticsView",
     "TherapeutSettingsViewSet",
     "UserOfficeViewSet",
     "UserViewSet",
     "create_superuser",
+    "recherche",
     "telecharger_fichier",
 ]
