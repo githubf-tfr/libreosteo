@@ -579,6 +579,52 @@ def test_le_nom_ne_s_ouvre_pas_pendant_l_edition_d_une_consultation(
     expect(titre.locator("input")).to_have_count(0)
 
 
+def test_le_nom_de_famille_redevient_modifiable_apres_un_cycle_d_edition(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Le garde se releve apres un cycle complet d'edition, pas seulement a l'etat vierge.
+
+    Risque symetrique de celui que `edit-disabled` ferme : si un `trigger.save` restait
+    colle a `true` apres une edition terminee, `editFormManager.action_available('save')`
+    resterait vrai en permanence et les noms du titre deviendraient **definitivement**
+    non cliquables — une regression silencieuse, puisque aucune assertion existante ne
+    re-clique le titre apres etre sorti du mode edition.
+    `test_le_nom_de_famille_reste_modifiable_hors_edition` ne couvre pas ce risque : il
+    clique le titre sur une fiche fraiche, jamais entree en edition, donc sur un
+    `trigger.save` qui n'a jamais valu `true`. Celui-ci boucle le cycle entier : Editer,
+    une saisie, Fin d'edition, puis le meme clic — et verifie qu'il s'ouvre encore et
+    s'enregistre.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+
+    page.get_by_role("button", name="Éditer").click()
+    page.check("input[name=smoker]")
+    attendre_enregistrement_declenche(
+        page,
+        patient.id,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+    )
+    expect(page.get_by_role("button", name="Éditer")).to_be_visible()
+
+    titre = page.get_by_test_id("titre-patient")
+    expect(titre.locator("input")).to_have_count(0)
+
+    titre.get_by_test_id("nom-de-famille").click()
+    champ = titre.locator("input")
+    expect(champ).to_have_count(1)
+    champ.fill("Kirk")
+    attendre_enregistrement_declenche(
+        page,
+        patient.id,
+        lambda: titre.locator("button[type=submit]").click(),
+    )
+
+    patient.refresh_from_db()
+    assert patient.family_name == "Kirk"
+
+
 def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) -> None:
     """Ferme le site laisse sans couverture par le defaut A (design, T4).
 
