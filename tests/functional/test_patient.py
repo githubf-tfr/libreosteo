@@ -251,8 +251,16 @@ def test_edition_du_dossier_patient(
     )
     expect(page.get_by_role("button", name="Éditer")).to_be_visible()
 
-    # Antecedents (memes champs de texte riche reperes par `name`).
-    page.click("#history")
+    # Antecedents (memes champs de texte riche reperes par `name`). Le changement
+    # d'onglet declenche ici aussi une sauvegarde implicite (save-on-lost-focus) : les
+    # `div[hallo-editor]` des informations generales restent dans le DOM apres la
+    # fermeture du formulaire (contrairement aux `input` xeditable, que `$hide` retire),
+    # `.ng-dirty` y reste donc vrai, et `uiTabChange` (diffuse par le clic sur #history)
+    # declenche un `$save()` dont le succes appelle `onaftersave` sans garde sur
+    # `$visible`. Mesure directe (D8 T2, `enregistrements_patient_observes`) : ce clic
+    # emet 1 PUT /api/patients/:id. Meme course que celle deja barree quatre lignes plus
+    # bas sur #medicalreports, meme barriere.
+    attendre_enregistrement_patient(page, patient.id, lambda: page.click("#history"))
     page.get_by_role("button", name="Éditer").click()
     remplir_champ_de_texte_riche(
         page, page.locator("div[name=surgical_history]"), "Surgical history"
@@ -419,7 +427,14 @@ def test_aucun_enregistrement_sur_tabulation_en_edition(
 
     page.get_by_role("button", name="Éditer").click()
     with enregistrements_patient_observes(page, patient.id) as enregistrements:
-        page.locator("input[name=original_name]").press("Tab")
+        # Scope sur l'onglet, pas la page entiere : `add-patient.html:20` porte un
+        # homonyme de `input[name=original_name]`, et aucun `page.goto` n'intercale
+        # entre `creer_patient` et ce clic — `ui-router` insere la vue entrante avant de
+        # faire sortir la sortante, donc les deux peuvent coexister brievement. Une
+        # violation de mode strict sur ce locator ne serait jamais rejouee par une
+        # attente (D8 T2, revue centrale).
+        onglet_infos_generales = page.get_by_test_id("onglet-infos-generales")
+        onglet_infos_generales.locator("input[name=original_name]").press("Tab")
         # `fill` ne clique pas : la seule cause d'enregistrement candidate reste le Tab.
         page.fill("input[name=city]", "La Barre")
         attendre_enregistrement_declenche(
@@ -502,6 +517,35 @@ def test_le_nom_de_famille_reste_modifiable_hors_edition(
 
     patient.refresh_from_db()
     assert patient.family_name == "Kirk"
+
+
+def test_le_nom_ne_s_ouvre_pas_pendant_l_edition_des_antecedents(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Meme defaut, depuis un onglet autre que « Infos generales ».
+
+    Constat de revue (D8 T2, apres livraison) : `edit-disabled` ne portait, avant
+    cette extension, que sur `form.patientForm.$visible` — vrai seulement quand
+    l'onglet « Infos generales » est actif et en edition. Le bouton « Éditer » global
+    (`editFormManager.call_action('edit')`) ne declenche l'action « edit » que des
+    formulaires dont le `<form>` est visible au sens jQuery
+    (`FormAction.isAvailable`, editformmanager.js) : depuis l'onglet « Antecedents »,
+    seul `form.historyForm.$visible` devenait vrai, jamais `form.patientForm.$visible`.
+    Le titre restait donc cliquable, et valider y relancait `savePatient()` en pleine
+    edition des antecedents — meme classe de defaut que celle fermee sur l'onglet
+    general, exposee ailleurs. Un seul onglet non general suffit a prouver que le
+    garde couvre desormais la classe, pas seulement le cas particulier deja ferme.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+
+    page.click("#history")
+    titre = page.get_by_test_id("titre-patient")
+    page.get_by_role("button", name="Éditer").click()
+    expect(titre.locator("input")).to_have_count(0)
+
+    titre.get_by_test_id("nom-de-famille").click()
+    expect(titre.locator("input")).to_have_count(0)
 
 
 def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) -> None:
