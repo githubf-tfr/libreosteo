@@ -436,6 +436,74 @@ def test_aucun_enregistrement_sur_tabulation_en_edition(
     assert patient.address_city == "La Barre"
 
 
+def test_le_nom_ne_s_ouvre_pas_pendant_l_edition_du_dossier(
+    page: Page, live_server: LiveServer
+) -> None:
+    """En mode edition, cliquer le nom ou le prenom du titre n'ouvre aucun champ.
+
+    Second chemin de perte du defaut D8 : `family_name` et `first_name` sont des
+    editables autonomes **sans** `e-form`, donc cliquables, et porteurs de
+    `onaftersave="savePatient()"`. En mode edition, une validation explicite depuis le
+    titre relance un enregistrement complet du patient, dont la reponse efface les
+    saisies du formulaire ouvert. `edit-disabled` les desarme pendant l'edition, et
+    seulement pendant : `is_disabled()` est reevalue a chaque clic.
+
+    Depuis D8 T1, le titre ne porte plus aucun champ de saisie propre en mode edition :
+    le nom de naissance (`original_name`) a quitte le `<h1>` pour le formulaire du
+    panneau « Infos patient », le remede initialement prevu (`e-form` en le laissant
+    dans le titre) ayant ete ecarte en cours de tache (cf. commit T1, 6d467f0). Le titre
+    attendu est donc `0` a l'entree en edition, et `0` apres chaque clic sur le nom de
+    famille ou sur le prenom une fois le correctif pose ; `expect(...).to_have_count`
+    est lui-meme la barriere d'ordonnancement (il reinterroge jusqu'a 15 s, cf.
+    conftest.py), une ouverture d'editable autonome etant un effet synchrone du clic,
+    sans aller-retour reseau.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+
+    titre = page.get_by_test_id("titre-patient")
+    page.get_by_role("button", name="Éditer").click()
+    expect(titre.locator("input")).to_have_count(0)
+
+    titre.get_by_test_id("nom-de-famille").click()
+    expect(titre.locator("input")).to_have_count(0)
+
+    titre.get_by_test_id("prenom").click()
+    expect(titre.locator("input")).to_have_count(0)
+
+
+def test_le_nom_de_famille_reste_modifiable_hors_edition(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Hors mode edition, cliquer le nom du titre l'ouvre et la validation l'enregistre.
+
+    C'est la fonctionnalite que le lot D8 doit **preserver** : `edit-disabled` ne vaut
+    que pendant l'edition du dossier. Sans ce test, une expression mal ecrite
+    (`!form.patientForm.$visible`, par exemple) desarmerait le champ en permanence et
+    supprimerait la fonctionnalite en silence.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+
+    titre = page.get_by_test_id("titre-patient")
+    expect(titre.locator("input")).to_have_count(0)
+
+    titre.get_by_test_id("nom-de-famille").click()
+    champ = titre.locator("input")
+    expect(champ).to_have_count(1)
+    champ.fill("Kirk")
+    # Le bouton de validation de l'editable ouvert : seul `button[type=submit]` du titre.
+    attendre_enregistrement_declenche(
+        page,
+        patient.id,
+        lambda: titre.locator("button[type=submit]").click(),
+    )
+
+    patient.refresh_from_db()
+    assert patient.family_name == "Kirk"
+
+
 def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) -> None:
     """Ferme le site laisse sans couverture par le defaut A (design, T4).
 
