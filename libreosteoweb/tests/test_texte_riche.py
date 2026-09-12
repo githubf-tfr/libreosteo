@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django import forms
 from django.contrib.auth import get_user_model
 from django.db import models as db_models
 from django.test import SimpleTestCase, TestCase
@@ -47,11 +48,53 @@ class TestTableClose(SimpleTestCase):
         self.assertFalse(ChampTexteRiche().strip)
 
     def test_les_classes_de_champs_couvrent_le_modele(self) -> None:
-        from libreosteoweb.models import Document, Examination, Patient
-
         self.assertEqual(len(classes_de_champs(Patient)), 9)
         self.assertEqual(len(classes_de_champs(Examination)), 11)
         self.assertEqual(len(classes_de_champs(Document)), 1)
+
+    def test_les_classes_de_champs_ne_rendent_que_le_champ_sans_rognage(self) -> None:
+        """Le cardinal ne dit rien du type rendu.
+
+        Sans cette assertion, un `classes_de_champs` qui rendrait `forms.CharField` —
+        celui qui rogne — garderait les bons comptes et resterait vert. T5 depose ce
+        dictionnaire verbatim : c'est la valeur qui est le contrat, pas sa taille.
+        """
+        for modele in (Patient, Examination, Document):
+            with self.subTest(modele=modele.__name__):
+                self.assertEqual(
+                    set(classes_de_champs(modele).values()),
+                    {ChampTexteRiche},
+                    f"classes_de_champs({modele.__name__}) ne rend pas que "
+                    "des ChampTexteRiche",
+                )
+
+    def test_aucun_textfield_du_produit_n_echappe_a_la_table(self) -> None:
+        """La derive inverse : le produit gagne un champ que la table ignore.
+
+        Les quatre exclusions sont nommees une a une, et non deduites : un champ neuf
+        arrive donc en rouge, et il faut trancher explicitement s'il est de texte riche.
+        """
+        exclusions = {
+            "Patient": set(),
+            # `reason` est un `editable-text`, pas un `hallo-editor` ; `status_reason`
+            # est ecrit par le produit, jamais saisi par le praticien.
+            "Examination": {"reason", "status_reason"},
+            # `title` est le nom de la vignette ; `mime_type` est technique.
+            "Document": {"title", "mime_type"},
+        }
+        for nom_modele, modele in MODELES.items():
+            with self.subTest(modele=nom_modele):
+                reels = {
+                    champ.name
+                    for champ in modele._meta.get_fields()
+                    if isinstance(champ, db_models.TextField)
+                }
+                self.assertEqual(
+                    reels - exclusions[nom_modele],
+                    set(CHAMPS_DE_TEXTE_RICHE[nom_modele]),
+                    f"les TextField de {nom_modele} ne correspondent plus a la table "
+                    "close : trancher si le champ neuf est de texte riche",
+                )
 
 
 class TestAucunRognageParDRF(TestCase):
@@ -190,3 +233,44 @@ class TestCorpusDeTexteRiche(TestCase):
                 ("Examination", consultation.id, "conclusion", "  RAS  "),
             },
         )
+
+
+class TestAucunRognageParFormulaire(TestCase):
+    """La seconde surface : `forms.CharField.strip` vaut `True` par defaut.
+
+    `ChampTexteRiche().strip is False` ne prouve que **l'attribut**. Ce que ce test
+    prouve en plus, et qui est ce que T5 empruntera reellement : le montage Django,
+    `TextField.formfield(form_class=...)` declenche par `Meta.field_classes`. Ce qu'il ne
+    regarde pas : le rendu du widget, et l'enregistrement en base — l'assertion porte sur
+    `cleaned_data`, c'est-a-dire la valeur telle que le formulaire la rend a l'appelant.
+    """
+
+    def test_un_modelform_monte_par_classes_de_champs_ne_rogne_pas(self) -> None:
+        classes = classes_de_champs(Patient)
+
+        class FormulairePatient(forms.ModelForm):
+            class Meta:
+                model = Patient
+                fields = [
+                    "family_name",
+                    "birth_date",
+                    *CHAMPS_DE_TEXTE_RICHE["Patient"],
+                ]
+                field_classes = classes
+
+        charge = {
+            "family_name": "Picard",
+            "birth_date": "1935-07-13",
+        }
+        charge.update(
+            {champ: VALEUR_BORDEE for champ in CHAMPS_DE_TEXTE_RICHE["Patient"]}
+        )
+        formulaire = FormulairePatient(data=charge)
+        self.assertTrue(formulaire.is_valid(), formulaire.errors)
+        for champ in CHAMPS_DE_TEXTE_RICHE["Patient"]:
+            with self.subTest(champ=champ):
+                self.assertEqual(
+                    formulaire.cleaned_data[champ],
+                    VALEUR_BORDEE,
+                    f"Patient.{champ} a ete rogne par le formulaire",
+                )
