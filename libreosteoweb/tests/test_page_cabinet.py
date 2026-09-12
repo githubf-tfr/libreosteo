@@ -374,6 +374,74 @@ class TestOngletUtilisateurs(TestCase):
         self.praticien.refresh_from_db()
         self.assertEqual("Picard", self.praticien.first_name)
 
+    def test_l_edition_d_une_cellule_ne_touche_que_son_champ(self):
+        """Equivalent de page de
+        `TestContratUtilisateursDeCabinet.test_un_put_sans_email_conserve_l_adresse_en_base`
+        (D6d T2, supprimee par T12) : la vue `cellule` ecrit
+        `setattr(utilisateur, champ, valeur)`, jamais une instance entiere -- editer
+        `first_name` ne peut donc pas effacer `email` ni `last_name`."""
+        self.praticien.last_name = "Picard"
+        self.praticien.email = "jean-luc@test.com"
+        self.praticien.save()
+        url = reverse(
+            "cabinet-utilisateur-cellule", args=[self.praticien.pk, "first_name"]
+        )
+        self.client.post(url, data={"valeur": "Beverly"})
+        self.praticien.refresh_from_db()
+        self.assertEqual("Beverly", self.praticien.first_name)
+        self.assertEqual("Picard", self.praticien.last_name)
+        self.assertEqual("jean-luc@test.com", self.praticien.email)
+
+    def test_l_edition_du_prenom_normalise_la_casse(self):
+        """Equivalent de page de
+        `TestContratUtilisateursDeCabinet.test_la_casse_du_prenom_est_normalisee`
+        (D6d T2, supprimee par T12) : l'autorite de casse n'est plus
+        `UserOfficeSerializer.validate_first_name`, c'est `get_name_filters()` appele par
+        la vue `cellule` elle-meme."""
+        url = reverse(
+            "cabinet-utilisateur-cellule", args=[self.praticien.pk, "first_name"]
+        )
+        reponse = self.client.post(url, data={"valeur": "beverly"})
+        self.assertEqual(200, reponse.status_code)
+        self.praticien.refresh_from_db()
+        self.assertEqual("Beverly", self.praticien.first_name)
+
+    def test_l_edition_du_nom_normalise_la_casse(self):
+        """Equivalent de page de
+        `TestContratUtilisateursDeCabinet.test_la_casse_du_nom_est_normalisee`
+        (D6d T2, supprimee par T12) — **la bascule de D6d T3, et le seul changement de
+        comportement produit du lot**.
+
+        Avant T3, `validate_family_name` nommait un champ absent de `Meta.fields` : DRF ne
+        l'appelait jamais et « picard » restait « picard ». T3 a renomme la methode d'apres
+        le champ declare ; T10 a porte la regle dans la vue `cellule`, ou c'est le meme
+        `get_name_filters()` qui capitalise le nom comme le prenom. C'est la preuve a ne
+        surtout pas perdre en supprimant la surface DRF."""
+        url = reverse(
+            "cabinet-utilisateur-cellule", args=[self.praticien.pk, "last_name"]
+        )
+        reponse = self.client.post(url, data={"valeur": "picard"})
+        self.assertEqual(200, reponse.status_code)
+        self.praticien.refresh_from_db()
+        self.assertEqual("Picard", self.praticien.last_name)
+
+    def test_un_non_administrateur_ne_peut_pas_ecrire_sur_une_cellule(self):
+        """Equivalent de page de
+        `TestContratUtilisateursDeCabinet.test_un_non_personnel_ne_peut_pas_ecrire_sur_un_autre`
+        (D6d T2, supprimee par T12) : le garde-fou vit desormais dans `cellule`, pas dans
+        un `ViewSet` DRF."""
+        with sans_receivers():
+            cree_praticien(username="simple", is_staff=False)
+        self.client.logout()
+        self.client.login(username="simple", password="testpw")
+        url = reverse(
+            "cabinet-utilisateur-cellule", args=[self.praticien.pk, "first_name"]
+        )
+        reponse = self.client.post(url, data={"valeur": "Pirate"})
+        self.assertEqual(403, reponse.status_code)
+        self.praticien.refresh_from_db()
+        self.assertNotEqual("Pirate", self.praticien.first_name)
+
     def test_un_refus_de_cellule_rend_la_cellule_en_edition_et_n_ecrit_pas(self):
         reponse = self.client.post(
             reverse(
@@ -393,3 +461,33 @@ class TestOngletUtilisateurs(TestCase):
             reverse("cabinet-utilisateur-cellule", args=[self.praticien.pk, "password"])
         )
         self.assertEqual(404, reponse.status_code)
+
+    def test_changer_le_mot_de_passe_d_un_tiers(self):
+        """Equivalent de page de `TestMotDePasse.test_changer_le_mot_de_passe`
+        (`test_exploitation.py`) : le `POST api/office-users/<id>/set_password` du
+        `ViewSet` supprime par T12 est remplace par `cabinet-utilisateur-mot-de-passe`,
+        la meme modale que le profil (D6d T7)."""
+        with sans_receivers():
+            cible = cree_praticien(username="cible", is_staff=False)
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[cible.pk]),
+            data={
+                "password1": "nouveau-mot-de-passe",
+                "password2": "nouveau-mot-de-passe",
+            },
+        )
+        self.assertEqual(200, reponse.status_code)
+        cible.refresh_from_db()
+        self.assertTrue(cible.check_password("nouveau-mot-de-passe"))
+
+    def test_deux_mots_de_passe_differents_sont_refuses_sans_ecrire(self):
+        """Equivalent de page de `TestMotDePasse.test_charge_invalide_est_refusee`."""
+        with sans_receivers():
+            cible = cree_praticien(username="cible", is_staff=False)
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[cible.pk]),
+            data={"password1": "un-mot-de-passe", "password2": "un-autre"},
+        )
+        self.assertEqual(422, reponse.status_code)
+        cible.refresh_from_db()
+        self.assertFalse(cible.check_password("un-mot-de-passe"))

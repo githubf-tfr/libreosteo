@@ -29,13 +29,11 @@ REGISTRE_ATTENDU = [
     ("doctors", "RegularDoctorViewSet", "regulardoctor"),
     ("examinations", "ExaminationViewSet", "examination"),
     ("documents", "DocumentViewSet", "document"),
-    ("users", "UserViewSet", "user"),
     ("events", "OfficeEventViewSet", "officeevent"),
     ("invoices", "InvoiceViewSet", "invoice"),
     ("settings", "OfficeSettingsView", "officesettings"),
     ("profiles", "TherapeutSettingsViewSet", "therapeutsettings"),
     ("comments", "ExaminationCommentViewSet", "examinationcomment"),
-    ("office-users", "UserOfficeViewSet", "OfficeUser"),
     ("file-import", "FileImportViewSet", "fileimport"),
     ("patient-documents", "PatientDocumentViewSet", "PatientDocuments"),
     ("paiment-mean", "PaimentMeanViewSet", "PaimentMean"),
@@ -52,7 +50,7 @@ NOMS_HORS_ROUTEUR = [
 
 
 class TestRoutage(SimpleTestCase):
-    def test_le_routeur_enregistre_les_memes_quatorze_ressources(self):
+    def test_le_routeur_enregistre_les_memes_douze_ressources(self):
         registre = [(p, v.__name__, b) for p, v, b in router.registry]
         self.assertEqual(registre, REGISTRE_ATTENDU)
 

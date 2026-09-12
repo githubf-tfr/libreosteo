@@ -27,8 +27,6 @@ from .administration import (
     RebuildIndex,
     StatisticsView,
     TherapeutSettingsViewSet,
-    UserOfficeViewSet,
-    UserViewSet,
     recherche,
 )
 from .consultation import ExaminationCommentViewSet, ExaminationViewSet
@@ -97,8 +95,6 @@ __all__ = [
     "RegularDoctorViewSet",
     "StatisticsView",
     "TherapeutSettingsViewSet",
-    "UserOfficeViewSet",
-    "UserViewSet",
     "create_superuser",
     "recherche",
     "telecharger_fichier",

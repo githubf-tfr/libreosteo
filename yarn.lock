@@ -25,10 +25,6 @@
   version "1.5.11"
   resolved "https://codeload.github.com/angular/bower-angular-cookies/tar.gz/a443bb1d7edc1688acf8d820932f27b4b19b89bc"
 
-"@components/angular-daterangepicker@fragaria/angular-daterangepicker#82f904a53b5cc513375de9059d6d3abc1cd370ed":
-  version "0.2.2"
-  resolved "https://codeload.github.com/fragaria/angular-daterangepicker/tar.gz/82f904a53b5cc513375de9059d6d3abc1cd370ed"
-
 "@components/angular-growl@marcorinck/angular-growl#9eb745aeeeca8f600e0e6afea9a88bb488940cfa":
   version "0.4.0"
   resolved "https://codeload.github.com/marcorinck/angular-growl/tar.gz/9eb745aeeeca8f600e0e6afea9a88bb488940cfa"
@@ -57,12 +53,6 @@
   version "1.0.3"
   resolved "https://codeload.github.com/petebacondarwin/angular-toArrayFilter/tar.gz/9715ece12f759a76070ed51f24c953e08d714633"
 
-"@components/angular-ui-grid@angular-ui/bower-ui-grid#3ed468e78d2702d9fe94a6c521e46e6ae2643ff7":
-  version "4.12.7"
-  resolved "https://codeload.github.com/angular-ui/bower-ui-grid/tar.gz/3ed468e78d2702d9fe94a6c521e46e6ae2643ff7"
-  dependencies:
-    angular ">=1.4.0"
-
 "@components/angular-ui-router@angular-ui/angular-ui-router-bower#74e2197736dda6aedd2cbc32375ea986fbc1e5d0":
   version "1.0.30"
   resolved "https://codeload.github.com/angular-ui/angular-ui-router-bower/tar.gz/74e2197736dda6aedd2cbc32375ea986fbc1e5d0"
@@ -82,13 +72,6 @@
 "@components/angular@angular/bower-angular#0f57428c3ffe2f486264ab7fbee3968dccc7b720":
   version "1.5.11"
   resolved "https://codeload.github.com/angular/bower-angular/tar.gz/0f57428c3ffe2f486264ab7fbee3968dccc7b720"
-
-"@components/bootstrap-daterangepicker@dangrossman/bootstrap-daterangepicker#d4aabfbceaf57117e1af33f3f82e92162719eee9":
-  version "2.1.27"
-  resolved "https://codeload.github.com/dangrossman/bootstrap-daterangepicker/tar.gz/d4aabfbceaf57117e1af33f3f82e92162719eee9"
-  dependencies:
-    jquery ">=1.10"
-    moment "^2.9.0"
 
 "@components/bootstrap-tour@sorich87/bootstrap-tour#1a06475e27f852bb642b9353574638d51673b0d5":
   version "0.12.0"
@@ -155,7 +138,7 @@
   resolved "https://registry.yarnpkg.com/@vue/shared/-/shared-3.5.42.tgz#a413cf21262502662354cda3b65ab31bca979202"
   integrity sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==
 
-angular@>=1.4.0, angular@~1.x:
+angular@~1.x:
   version "1.8.3"
   resolved "https://registry.yarnpkg.com/angular/-/angular-1.8.3.tgz#851ad75d5163c105a7e329555ef70c90aa706894"
   integrity sha512-5qjkWIQQVsHj4Sb5TcEs4WZWpFeVFHXwxEBHUhrny41D8UrBAd6T/6nPPAsLngJCReIOqi95W3mxdveveutpZw==
@@ -165,12 +148,7 @@ bootstrap@~3:
   resolved "https://registry.yarnpkg.com/bootstrap/-/bootstrap-3.4.1.tgz#c3a347d419e289ad11f4033e3c4132b87c081d72"
   integrity sha512-yN5oZVmRCwe5aKwzRj6736nSmKDX7pLYwsXiCj/EYmo16hODaBiT4En5btW/jhBF/seV+XMx3aYwukYC3A49DA==
 
-jquery@>=1.10, jquery@>=1.8:
+jquery@>=1.8:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/jquery/-/jquery-4.0.0.tgz#95c33ac29005ff72ec444c5ba1cf457e61404fbb"
   integrity sha512-TXCHVR3Lb6TZdtw1l3RTLf8RBWVGexdxL6AC8/e0xZKEpBflBsjh9/8LXw+dkNFuOyW9B7iB3O1sP7hS0Kiacg==
-
-moment@^2.9.0:
-  version "2.30.1"
-  resolved "https://registry.yarnpkg.com/moment/-/moment-2.30.1.tgz#f8c91c07b7a786e30c59926df530b4eac96974ae"
-  integrity sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==

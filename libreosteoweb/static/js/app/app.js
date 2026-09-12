@@ -34,7 +34,6 @@ var libreosteoApp = angular.module('libreosteo', [
     'angular-toArrayFilter',
     'ui.validate',
     'loOfficeSettings',
-    'ui.grid',
     'infinite-scroll',
     'loEditFormManager',
     'loHalloEditor',

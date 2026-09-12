@@ -14,7 +14,6 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.files.base import ContentFile
 from django.core.management import call_command
@@ -44,7 +43,6 @@ from libreosteoweb.api.events.settings import (
 
 from ..permissions import (
     IsStaffOrReadOnlyTargetUser,
-    IsStaffOrTargetUser,
     IsStaffOrTargetUserFactory,
     StaffRequiredMixin,
     maintenance_available,
@@ -100,30 +98,6 @@ def recherche(request):
         gabarit,
         {"query": requete, "page": page, "paginator": paginateur},
     )
-
-
-class UserViewSet(viewsets.ModelViewSet):
-    model = get_user_model()
-    serializer_class = apiserializers.UserInfoSerializer
-    permission_classes = [IsStaffOrTargetUser]
-    queryset = get_user_model().objects.all()
-
-
-class UserOfficeViewSet(viewsets.ModelViewSet):
-    queryset = get_user_model().objects.all()
-    serializer_class = apiserializers.UserOfficeSerializer
-    permission_classes = [IsStaffOrReadOnlyTargetUser]
-
-    @action(detail=True, methods=["post"])
-    def set_password(self, request, pk=None):
-        user = self.get_object()
-        serializer = apiserializers.PasswordSerializer(data=request.data)
-        if serializer.is_valid():
-            user.set_password(serializer.data["password"])
-            user.save()
-            return Response({"status": "password set"})
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class StatisticsView(APIView):

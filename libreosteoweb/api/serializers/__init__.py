@@ -23,10 +23,8 @@ from .administration import (
     OfficeDetailSerializer,
     OfficeEventSerializer,
     OfficeSettingsSerializer,
-    PasswordSerializer,
     TherapeutSettingsSerializer,
     UserInfoSerializer,
-    UserOfficeSerializer,
 )
 from .communs import WithPkMixin, check_birth_date
 from .consultation import (
@@ -71,7 +69,6 @@ __all__ = [
     "PaimentMeanSerializer",
     "PaimentModeSerializer",
     "PaimentSerializer",
-    "PasswordSerializer",
     "PatientDocumentDemonstrationSerializer",
     "PatientDocumentSerializer",
     "PatientExportSerializer",
@@ -80,7 +77,6 @@ __all__ = [
     "RegularDoctorSerializer",
     "TherapeutSettingsSerializer",
     "UserInfoSerializer",
-    "UserOfficeSerializer",
     "WithPkMixin",
     "check_birth_date",
 ]
