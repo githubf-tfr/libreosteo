@@ -16,11 +16,13 @@
 sequence (D6d T9)."""
 
 import re
+from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from libreosteoweb.models import OfficeEvent, OfficeSettings, PaimentMean
+from libreosteoweb.models import Invoice, OfficeEvent, OfficeSettings, PaimentMean
 
 from .fixtures import (
     cree_praticien,
@@ -184,6 +186,37 @@ class TestPageCabinet(TestCase):
         self.assertIn("errorlist", reponse.content.decode("utf-8"))
         self.cabinet.refresh_from_db()
         self.assertEqual("500", self.cabinet.invoice_start_sequence)
+
+    def test_une_sequence_egale_au_maximum_deja_emis_est_refusee_sous_le_champ(self):
+        """La borne exacte, sur l'autre surface d'appel de `valider_sequence_de_
+        depart` que `TestMaximumDeSequenceSurLesTroisSurfaces` (DRF) : une facture
+        porte deja le numero 20000, le reposer a l'identique doit rester refuse.
+        C'est le seul cas ou `<=` et `<` divergent — le test ci-dessus (valeur 1
+        sous une borne par defaut de 1) les distinguait deja par coincidence, mais
+        pas sur un numero reellement emis."""
+        self.cabinet.invoice_start_sequence = "30000"
+        self.cabinet.save()
+        Invoice.objects.create(
+            date=timezone.now(),
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number="20000",
+            patient_family_name="Picard",
+            officesettings_id=self.cabinet.id,
+        )
+        reponse = self.client.post(
+            reverse("cabinet-general"),
+            data=_charge_utile_valide(invoice_start_sequence="20000"),
+        )
+        self.assertEqual(422, reponse.status_code)
+        self.assertIn("errorlist", reponse.content.decode("utf-8"))
+        self.cabinet.refresh_from_db()
+        self.assertEqual("30000", self.cabinet.invoice_start_sequence)
 
     def test_les_moyens_de_paiement_sont_ecrits_dans_la_meme_requete(self):
         """Sans cette preuve, un enregistrement du cabinet desactiverait tous les moyens

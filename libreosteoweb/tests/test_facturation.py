@@ -352,6 +352,19 @@ class TestMaximumDeSequenceSurLesTroisSurfaces(APITestCase):
         self.cabinet.refresh_from_db()
         self.assertEqual(self.cabinet.invoice_start_sequence, "10003")
 
+    def test_une_sequence_egale_au_maximum_deja_emis_est_refusee(self):
+        """La borne exacte : 10001 (teste ci-dessus) reste refuse que la comparaison
+        soit `<=` ou `<`. Seule une valeur egale au maximum reellement emis (10002)
+        distingue les deux operateurs — `<` l'accepterait a tort."""
+        reponse = self.client.patch(
+            reverse("officesettings-detail", kwargs={"pk": self.cabinet.id}),
+            data={"invoice_start_sequence": "10002"},
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_403_FORBIDDEN)
+        self.cabinet.refresh_from_db()
+        self.assertEqual(self.cabinet.invoice_start_sequence, "10003")
+
     def test_une_sequence_au_dessus_du_maximum_reel_est_acceptee(self):
         reponse = self.client.patch(
             reverse("officesettings-detail", kwargs={"pk": self.cabinet.id}),
