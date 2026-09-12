@@ -156,12 +156,27 @@ class TestCreation(SocleConnecte):
         self.assertEqual(patient.birth_date, date(1935, 7, 13))
         self.assertEqual(patient.consent, date.today())
 
-    def test_la_creation_trace_l_evenement_au_nom_du_praticien(self):
-        """`set_user_operation` : sans lui, `receiver_newpatient` ecrit un evenement
-        anonyme, et le tableau de bord perd le nom de qui a cree le dossier."""
+    def test_la_creation_trace_l_evenement_au_nom_du_praticien_connecte(self):
+        """L'evenement nomme **celui qui a cliqué**, pas un autre compte du cabinet.
+
+        Un second praticien existe, cree **apres** celui du socle et connecte a sa place :
+        une vue qui crediterait « le premier utilisateur de la table », ou le proprietaire
+        du cabinet, plutot que `request.user`, rougit ici. Sans ce second compte,
+        l'assertion serait satisfaite par n'importe quelle facon d'aller chercher un
+        utilisateur, et ne prouverait rien.
+
+        **Ce qu'il ne regarde pas**, et la revue de T8 l'a mesure : l'**absence** de
+        `set_user_operation`. `OfficeEvent.user` est `null=False` — l'oubli ne produit
+        donc pas un evenement anonyme mais une `IntegrityError`, couverte par
+        `test_une_panne_d_ecriture_etrangere_n_est_pas_presentee_comme_un_doublon`.
+        """
+        second = cree_praticien(username="second")
+        cree_reglages_praticien(second)
+        self.client.login(username="second", password="testpw")
         self.client.post(self.url, CHARGE_UTILE)
         evenement = OfficeEvent.objects.get(clazz="Patient")
-        self.assertEqual(evenement.user, self.praticien)
+        self.assertEqual(evenement.user, second)
+        self.assertNotEqual(evenement.user, self.praticien)
         self.assertEqual(evenement.type, Patient.TYPE_NEW_PATIENT)
 
     def test_le_consentement_non_coche_est_refuse(self):
@@ -299,12 +314,23 @@ class TestRefusDeDoublon(SocleConnecte):
         unitaire : on remplace donc **l'ecriture**, et rien d'autre, par l'echec exact que
         la base leverait.
 
+        La fenetre est rejouee telle quelle : la detection ne voit **rien** quand la vue
+        regarde, l'ecriture echoue, et la re-lecture voit **la ligne concurrente**. Un
+        temoin ecrit en base ne modeliserait pas la course — il serait annule avec le
+        point de sauvegarde, et la re-lecture ne verrait rien.
+
         Ce que ce test regarde : que l'`IntegrityError` devienne le refus du produit. Ce
         qu'il laisserait passer : le fait que la base leve bien cette exception-la —
         c'est la contrainte `unique_patient_nom_prenom_naissance` qui le garantit, et
         `libreosteoweb/tests/test_concurrence.py` qui l'eprouve.
         """
-        with mock.patch.object(Patient, "save", side_effect=IntegrityError):
+        with (
+            mock.patch(
+                "libreosteoweb.api.views.pages.nouveau_patient._doublon_existe",
+                side_effect=[False, True],
+            ),
+            mock.patch.object(Patient, "save", side_effect=IntegrityError),
+        ):
             reponse = self.client.post(
                 self.url,
                 dict(CHARGE_UTILE, birth_date="1990-02-03", confirme="1"),
@@ -312,6 +338,28 @@ class TestRefusDeDoublon(SocleConnecte):
         self.assertEqual(reponse.status_code, 400)
         self.assertIn("Ce patient existe déjà", _corps(reponse))
         self.assertEqual(Patient.objects.count(), 1)
+
+    def test_une_panne_d_ecriture_etrangere_n_est_pas_presentee_comme_un_doublon(self):
+        """Le rattrapage ne couvre que le doublon, et il le verifie (revue T8).
+
+        `IntegrityError` est le type commun a **toute** violation d'integrite de la
+        requete, receivers compris. Mesure de la revue : prive de `set_user_operation`,
+        `receiver_newpatient` ecrit un `OfficeEvent` dont `user` est nul — `null=False` —
+        donc une `IntegrityError` qui n'a rien d'un doublon. Un rattrapage attrape-tout
+        l'aurait affichee « Ce patient existe déjà » a un praticien dont le dossier n'a
+        **aucun** doublon : un diagnostic faux, sur un ecran clinique.
+
+        Ce que ce test regarde : que la panne remonte au lieu d'etre travestie. Il ne dit
+        rien de la page que le serveur rendrait alors — c'est un defaut serveur, et il
+        doit se voir comme tel.
+        """
+        with (
+            mock.patch.object(Patient, "set_user_operation"),
+            self.assertRaises(IntegrityError),
+        ):
+            self.client.post(
+                self.url, dict(CHARGE_UTILE, birth_date="1990-02-03", confirme="1")
+            )
 
     def test_le_refus_reemet_le_formulaire_hors_bande_et_vide_la_modale(self):
         """Le patron hors-bande de D6d : **une seule autorite par element**.
@@ -394,6 +442,11 @@ class TestModaleDHomonyme(SocleConnecte):
         element ne naisse dans le DOM. Ce qu'il laisserait passer : une charge placee
         ailleurs que dans le nom de famille — le prenom et la date suivent le meme chemin
         d'interpolation, non teste ici.
+
+        **Seul l'`assertNotIn` mord ici** (revue T8) : la forme echappee apparait de toute
+        facon dans le champ cache de rejeu de la saisie (`homonymes.html:11`, `value=`),
+        que la liste d'homonymes soit echappee ou non. L'assertion positive documente la
+        forme attendue ; c'est la negative qui est la preuve.
         """
         charge = 'Picard<mark id="xss-marker">X</mark>'
         with sans_receivers():

@@ -141,10 +141,14 @@ class FormulaireNouveauPatient(forms.ModelForm):
         **Ce filtre n'est pas cosmetique : sans lui, l'avertissement d'homonyme ne
         s'ouvrirait jamais sur un doublon exact.** Django 5 valide les `UniqueConstraint`
         a expressions dans `_post_clean`, donc a l'interieur d'`is_valid()`, et rend
-        « Constraint "unique_patient_nom_prenom_naissance" is violated. » — une chaine que
-        personne n'a jamais vue a l'ecran et qui n'est pas traduite. Un formulaire ainsi
-        invalide serait refuse **avant** l'etape de l'homonyme, alors que le produit
-        ouvre la modale d'abord et ne refuse qu'apres confirmation (C5, `R-PAT-07`).
+        « La contrainte « unique_patient_nom_prenom_naissance » n'est pas respectee. » —
+        une phrase traduite, mais que personne n'a jamais vue a l'ecran et qui nomme un
+        objet de base de donnees a un praticien. Un formulaire ainsi invalide serait
+        refuse **avant** l'etape de l'homonyme, alors que le produit ouvre la modale
+        d'abord et ne refuse qu'apres confirmation (C5, `R-PAT-07`).
+
+        Le filtre porte donc sur le **nom de la contrainte**, present dans les deux
+        langues, et non sur la phrase qui l'entoure.
 
         **Ici et non dans `_post_clean`** : `add_error` est le point de passage **unique**
         de toute erreur de formulaire, y compris celles que `_update_errors` remonte du
@@ -253,6 +257,18 @@ def page_nouveau_patient(request: HttpRequest) -> HttpResponse:
             patient.full_clean(validate_constraints=False)
             patient.save()
     except IntegrityError:
+        # **Le rattrapage ne couvre que le doublon, et il le verifie** (revue T8).
+        # `IntegrityError` est le type commun a *toute* violation d'integrite de la
+        # requete, receivers compris : `receiver_newpatient` ecrit un `OfficeEvent` dont
+        # `user` est `null=False`, et une panne de ce cote leverait la meme exception. Un
+        # rattrapage attrape-tout aurait affiche « Ce patient existe déjà » a un praticien
+        # dont le dossier n'a aucun doublon — un diagnostic faux, sur un ecran clinique.
+        # La re-lecture est preferee a une comparaison du message de la base : celui-ci
+        # varie selon le moteur (SQLite en test, PostgreSQL en production) et selon la
+        # locale du serveur. Le savepoint est referme a la sortie du bloc `atomic`, donc
+        # la connexion est de nouveau interrogeable ici.
+        if not _doublon_existe(formulaire.cleaned_data):
+            raise
         formulaire.add_error(None, _("This patient already exists"))
         return _refus(request, formulaire)
 

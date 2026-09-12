@@ -6,8 +6,27 @@
 {# pages htmx ne chargent pas. Alpine pose donc lui-meme l'affichage, l'occultation et la #}
 {# classe `modal-open` du <body>, en reutilisant les classes de mise en forme de #}
 {# Bootstrap 3 : meme apparence, aucune ligne de jQuery (reconnaissance, § F.3). #}
-<div x-data="{ ouverte: true }"
-     x-init="$watch('ouverte', v => document.body.classList.toggle('modal-open', v)); document.body.classList.add('modal-open')"
+{# **`destroy()` n'est pas une precaution, il ferme une fuite mesuree** (revue D6e T8) : #}
+{# une modale se referme de deux facons, et une seule passait par `ouverte`. Le bouton #}
+{# « Annuler », la croix et la touche Echap posent `ouverte = false`, et le `$watch` retire #}
+{# `modal-open`. Mais une reponse htmx qui **vide `#modale`** retire l'element du DOM sans #}
+{# jamais toucher `ouverte` : `.modal-open{overflow:hidden}` restait alors sur <body>, et #}
+{# la page n'etait plus defilable jusqu'au prochain chargement complet. C'est le geste de #}
+{# fermeture des trois ecrans deja livres (profil, cabinet, nouveau patient) et des sept #}
+{# modales de T12 : le remede appartient donc au composant, pas a l'ecran. #}
+{# Alpine 3 appelle `destroy()` d'un objet `x-data` quand l'element quitte le DOM, et il #}
+{# traite les noeuds **retires avant les ajoutes** (mesure dans `cdn.min.js` 3.17.2 : #}
+{# `for (let o of r) ... Tr.forEach(...)` precede `for (let o of t) ... Or.forEach(...)`). #}
+{# Une modale qui en remplace une autre pose donc bien `modal-open` apres que la sortante #}
+{# l'a retire, et non l'inverse. #}
+<div x-data="{
+       ouverte: true,
+       init() {
+         this.$watch('ouverte', v => document.body.classList.toggle('modal-open', v));
+         document.body.classList.add('modal-open');
+       },
+       destroy() { document.body.classList.remove('modal-open'); }
+     }"
      @keydown.escape.window="ouverte = false">
   {# `x-show` seul ne suffit pas sur cet element : a la premiere ouverture, `ouverte` vaut #}
   {# deja `true` des l'init, et Alpine *retire* alors la propriete `display` de l'attribut #}

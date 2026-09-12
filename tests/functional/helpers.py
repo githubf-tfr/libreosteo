@@ -227,7 +227,10 @@ def creer_patient(
     # sont recomposees ici en la seule valeur ISO qu'un champ de date natif accepte.
     page.fill("input[name=family_name]", nom)
     page.fill("input[name=first_name]", prenom)
-    saisir_date(page, "#birthdate", f"{annee}-{mois}-{jour}")
+    # `:02d` et non une interpolation nue : un appelant qui passerait `jour="3"` produirait
+    # une date ISO invalide, que `page.fill` refuserait par une erreur opaque. La signature
+    # ne change pas, les six appelants non plus.
+    saisir_date(page, "#birthdate", f"{annee}-{int(mois):02d}-{int(jour):02d}")
     page.check("#consent")
     page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
     expect(page.get_by_test_id("titre-patient")).to_contain_text(nom)
