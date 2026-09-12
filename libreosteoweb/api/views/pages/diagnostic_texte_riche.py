@@ -27,12 +27,30 @@ construit, et la reproduire en Python demanderait un analyseur conforme HTML5, d
 dependance neuve, qui ne serait toujours qu'une approximation du navigateur du praticien.
 Faire la mesure dans la page **exige d'y transporter les valeurs**.
 
-Les trois garde-fous, et ils sont tous les trois testes :
-1. `is_staff` requis — un non-`is_staff` recoit un **404** et non un 403 : une page absente
-   du menu ne confirme pas son existence a qui n'y a pas droit ;
-2. le JSON n'est **jamais rendu** : aucun gabarit ne l'interpole dans du texte visible ;
-3. les trois tableaux ne portent que des compteurs, des noms de balises, des noms
-   d'attributs et des identifiants.
+Les quatre garde-fous, et ils sont tous les quatre testes :
+
+1. `is_staff` requis — un utilisateur **authentifie** non `is_staff` recoit un **404** et
+   non un 403 : une page absente du menu ne confirme pas son existence a qui n'y a pas
+   droit. Un **anonyme**, lui, ne parvient jamais jusqu'ici : `LoginRequiredMiddleware`
+   passe avant et le redirige vers le formulaire de connexion — exactement comme pour une
+   URL qui n'existe pas, si bien que la non-divulgation tient sur ce chemin-la aussi, mais
+   par une autre mecanique et avec un autre code.
+2. Le JSON n'est **jamais rendu** : aucun gabarit ne l'interpole dans du texte visible.
+3. **`never_cache`** : la reponse porte tout le texte riche de la base, et rien ne doit en
+   rester sur le disque d'un navigateur ou d'un intermediaire. Meme idiome que `DbDump`
+   (`api/views/administration.py`), la seule autre surface « base entiere » du produit.
+4. Les quatre tableaux ne portent que des compteurs, des noms de balises, des noms
+   d'attributs et des identifiants — **jamais le texte d'un enregistrement**.
+
+   **Et ce quatrieme point demande une precision, parce qu'une formulation trop large
+   serait fausse** : un nom de balise et un nom d'attribut *sont* des octets venus du
+   dossier. Une valeur qui contiendrait `<SECRET-Clinique-42 nom-de-famille-picard='1'>`
+   ferait apparaitre `secret-clinique-42` et `nom-de-famille-picard` a l'ecran. C'est le
+   propre d'un outil qui inventorie le balisage, et le brief l'autorise nommement : le
+   retirer viderait la page de son sens. Ce qui est garanti, exactement : **aucun contenu
+   textuel, aucune valeur d'attribut, aucun fragment de phrase saisie** ne sont rendus ;
+   seuls des noms d'elements et d'attributs le sont, et ils ne portent du sens clinique
+   qu'a la marge, sur du balisage volontairement forge.
 """
 
 from __future__ import annotations
@@ -42,6 +60,7 @@ from html.parser import HTMLParser
 
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.views.decorators.cache import never_cache
 
 from libreosteoweb.api.texte_riche import (
     CHAMPS_DE_TEXTE_RICHE,
@@ -87,6 +106,7 @@ class InventaireDuBalisage(HTMLParser):
         self.reset()
 
 
+@never_cache
 def page_diagnostic_texte_riche(request: HttpRequest) -> HttpResponse:
     if not request.user.is_staff:
         raise Http404

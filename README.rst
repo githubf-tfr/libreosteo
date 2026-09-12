@@ -474,9 +474,11 @@ it is deliberately absent from every menu ::
 
     https://<your instance>/office/rich-text-diagnostic
 
-It is reserved to staff accounts. A non-staff account gets a plain ``404`` there, not a
-``403`` : a page that is not in the menu has no reason to confirm its own existence to
-someone who has no right to it.
+It is reserved to staff accounts. A signed-in account that is not staff gets a plain
+``404`` there, not a ``403`` : a page that is not in the menu has no reason to confirm its
+own existence to someone who has no right to it. A visitor who is not signed in never
+reaches that check at all — the login middleware redirects first, and it redirects exactly
+the same way for a URL that does not exist, so nothing is disclosed on that path either.
 
 **The page never writes.** It reads, counts and displays. It converts nothing, repairs
 nothing, offers no correction, and accepts no form. Opening it on a production database is
@@ -496,9 +498,25 @@ That last measurement is the reason the page exists, and it cannot be made on th
 what a browser gives back is the serialisation of the tree *that browser* built, and no
 Python library reproduces it faithfully. The measurement therefore runs in the page, which
 means the page carries every rich text value of the database in a JSON block of its own
-source. **The screen shows only counters, tag names, attribute names and record
-identifiers — never a byte of a record's content**, but the source of the page is as
-sensitive as the data itself : do not save it to a file and do not share it.
+source.
+
+**What the screen shows, exactly** : counters, tag names, attribute names and record
+identifiers. **No text content, no attribute value, no fragment of a typed sentence is
+ever displayed.** Tag and attribute names are, however, bytes that came out of the records
+— that is what an inventory of markup is — so a record deliberately holding something like
+``<SECRET-Clinique-42 patient-name-picard='1'>`` would show those two names on screen.
+That is the one and only way a record can put characters of its own on this page, and it
+takes forged markup to do it ; a practitioner's rich text puts none.
+
+The **source** of the page, on the other hand, is as sensitive as the data itself : do not
+save it to a file and do not share it. The server asks browsers and intermediaries not to
+cache it (``Cache-Control: no-store``), the same way it asks for the database archive.
+
+**Expect it to be heavy on a busy practice.** The whole rich text corpus is loaded, then
+serialised into the page, so both the server's memory and the page weigh on the order of
+the corpus itself — a practice holding 100 MB of rich text produces a page of that order,
+several times over in transient memory. Open it when the machine is not busy, and close
+the tab afterwards.
 
 What it does **not** measure : the *values* of attributes (only their names), whether the
 markup is valid, and what any individual record says. The stability figure is the verdict

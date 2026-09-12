@@ -1285,8 +1285,9 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
   n'apparaît dans le texte de la page. **Ne vérifie pas** l'inventaire détaillé du balisage,
   le comptage des espaces de bord ni celui des retours chariot, qui sont couverts en
   unitaire par libreosteoweb/tests/test_page_diagnostic_texte_riche.py mais **pas** par un
-  geste d'écran ; **ne vérifie pas non plus** le 404 rendu à un non-administrateur, couvert
-  en unitaire seulement.)
+  geste d'écran ; **ne vérifie pas non plus** le 404 rendu à un non-administrateur, la
+  redirection rendue à un visiteur non connecté, ni l'en-tête `Cache-Control` — tous trois
+  couverts en unitaire seulement.)
 - **État requis** : E2
 
 **Étapes**
@@ -1295,6 +1296,10 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
    Attendu : titre de page « Diagnostic du texte riche » ; un encart d'avertissement
    rappelant que la page lit et compte, et n'écrit jamais. **Vérifier au passage qu'aucune
    entrée de menu ne mène ici** : la page n'est atteignable que par son URL.
+   **Sur une base chargée, l'affichage peut être long et la page lourde** : tout le corpus
+   de texte riche est chargé puis sérialisé dans la page, dont le poids est donc de l'ordre
+   du corpus lui-même. C'est la contrepartie assumée de la mesure de stabilité, pas un
+   défaut — jouer cette fiche à une heure creuse, et fermer l'onglet ensuite.
 2. Lire le premier tableau.
    Attendu : 21 lignes, une par champ de texte riche, avec le nombre d'enregistrements non
    vides, la longueur maximale, le nombre de valeurs portant un espace de tête ou de
@@ -1313,7 +1318,10 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
    le navigateur réécrirait » est affiché ; le tableau qui suit nomme, pour chacune, le
    modèle, l'identifiant et le champ — **jamais son contenu**.
 6. Se déconnecter, se reconnecter avec un compte non administrateur, ouvrir la même URL.
-   Attendu : page « 404 ».
+   Attendu : page « 404 ». **Puis se déconnecter et rouvrir l'URL sans être connecté** :
+   attendu, le formulaire de connexion — exactement ce que rend une URL qui n'existe pas,
+   et non un 404. Les deux chemins ne divulguent rien, mais par deux mécaniques
+   différentes.
 
 ### Thérapeute
 

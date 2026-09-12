@@ -55,6 +55,44 @@ class TestDiagnosticTexteRiche(TestCase):
         self.client.force_login(self.simple)
         self.assertEqual(self.client.get(self.url).status_code, 404)
 
+    def test_un_anonyme_est_redirige_comme_sur_une_url_inexistante(self) -> None:
+        """Le chemin anonyme : `LoginRequiredMiddleware` passe **avant** la vue.
+
+        Un anonyme ne recoit donc pas le 404 de la garde `is_staff`, mais la redirection
+        du middleware — et c'est bien elle qui tient la non-divulgation, puisqu'une URL
+        qui n'existe pas donne au meme anonyme exactement la meme reponse. C'est cette
+        egalite qui est la propriete, pas le code pris seul.
+
+        Ce que ce test laisserait passer : une difference dans le corps des deux reponses.
+        Il compare le code et la cible de redirection, pas ce qu'elles rendent ensuite.
+        """
+        page = self.client.get(self.url)
+        inexistante = self.client.get("/office/cette-page-n-existe-pas")
+        self.assertEqual(page.status_code, 302)
+        self.assertEqual(page.status_code, inexistante.status_code)
+        self.assertEqual(
+            page.headers["Location"].split("?")[0],
+            inexistante.headers["Location"].split("?")[0],
+        )
+
+    def test_la_reponse_interdit_toute_mise_en_cache(self) -> None:
+        """La reponse porte tout le texte riche de la base : elle ne doit rien laisser
+        derriere elle.
+
+        Sans `Cache-Control`, un navigateur ou un intermediaire peut l'ecrire sur disque,
+        et le `README.rst` recommande au meme moment de ne pas l'enregistrer dans un
+        fichier. Meme idiome que `DbDump`, la seule autre surface « base entiere » du
+        produit.
+
+        Ce que ce test laisserait passer : un cache qui ignorerait l'en-tete. Il prouve ce
+        que le produit demande, pas ce que l'intermediaire fait.
+        """
+        self.client.force_login(self.staff)
+        cache = self.client.get(self.url).headers["Cache-Control"]
+        for directive in ("no-store", "no-cache", "max-age=0", "private"):
+            with self.subTest(directive=directive):
+                self.assertIn(directive, cache)
+
     def test_la_page_ne_rend_aucun_contenu_clinique(self) -> None:
         """**Le garde-fou d'AR6, teste et non affirme.**
 
