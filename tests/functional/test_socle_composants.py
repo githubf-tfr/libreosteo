@@ -116,6 +116,89 @@ def test_la_modale_s_ouvre_se_ferme_et_pose_l_occultation(
     expect(modale).to_be_hidden()
 
 
+# `modal-open` pose `overflow:hidden` sur <body> (Bootstrap 3). C'est la **seule**
+# consequence observable de la fuite que ces deux tests gardent, et elle dure jusqu'au
+# prochain chargement complet du document : la page cesse de defiler.
+#
+# La mesure porte sur le style calcule, jamais sur la classe. Le cliquet d'adressage (A14)
+# interdit d'adresser une classe de presentation et A20 interdit `to_have_class` comme
+# `to_have_css` : ce qui est en cause ici est le **comportement** — une page qui ne defile
+# plus — et non le nom de la classe qui le provoque.
+DEFILEMENT_BLOQUE = "getComputedStyle(document.body).overflow"
+
+
+@pytest.mark.urls("tests.functional.banc.urls")
+def test_la_modale_videe_rend_la_page_defilable(
+    page: Page, live_server: LiveServer, banc: None
+) -> None:
+    """Une modale fermee **par vidage** ne laisse pas <body> bloque (revue D6e T8).
+
+    Une modale se referme de deux facons, et une seule passait par l'etat `ouverte` : le
+    bouton « Annuler », la croix et Echap posent `ouverte = false`, et le `$watch` retire
+    `modal-open`. Une reponse htmx qui vide `#modale` retire l'element du DOM **sans jamais
+    toucher `ouverte`** — c'est le geste de fermeture des trois ecrans livres (profil,
+    cabinet, nouveau patient) et des sept modales a venir.
+
+    Ce test vit sur le banc, et non sur l'ecran qui a revele le defaut : c'est le composant
+    qui portait la fuite, c'est le composant qui doit la garder. Le chemin exerce ici est
+    octet pour octet celui du profil et du cabinet — meme conteneur, meme `hx-swap`, meme
+    gabarit.
+
+    Les trois sens sont assertes. Sans « libre avant », un composant qui bloquerait la page
+    des le chargement passerait ; sans « bloque pendant », un composant qui ne poserait
+    jamais rien passerait aussi, et la fermeture ne defairait plus rien.
+
+    Falsifiable : rendre a `partials/modale.html` son `x-init` d'avant la revue — celui qui
+    n'avait pas de `destroy()` — fait echouer la derniere assertion, `'hidden' != 'hidden'`.
+    """
+    page.goto(f"{live_server.url}/banc/")
+    modale = page.get_by_test_id("modale")
+    assert page.evaluate(DEFILEMENT_BLOQUE) != "hidden"
+
+    page.click("#ouvrir-modale")
+    expect(modale).to_be_visible()
+    assert page.evaluate(DEFILEMENT_BLOQUE) == "hidden"
+
+    page.click("#vider-modale")
+    expect(modale).to_have_count(0)
+    assert page.evaluate(DEFILEMENT_BLOQUE) != "hidden"
+
+
+@pytest.mark.urls("tests.functional.banc.urls")
+def test_une_modale_qui_en_remplace_une_autre_garde_la_page_bloquee(
+    page: Page, live_server: LiveServer, banc: None
+) -> None:
+    """Le cas symetrique, et le seul que le remede pouvait casser.
+
+    Flux reel et livre : `cabinet.utilisateur_nouveau` et `profil.mot_de_passe` repondent
+    un 422 qui **reaffiche la modale par-dessus elle-meme**. La sortante est detruite, la
+    remplacante initialisee. Si Alpine traitait les noeuds ajoutes avant les retires, le
+    `destroy()` de la sortante retirerait `modal-open` **apres** que la remplacante l'a
+    pose : modale ouverte, page defilante — le defaut symetrique de celui que la revue a
+    releve.
+
+    L'ordre inverse est le fait mesure dans `cdn.min.js` 3.17.2 (les retires d'abord). Ce
+    test est ce qui l'etablit autrement que par la lecture du bundle, et ce qui le gardera
+    a la prochaine montee de version d'Alpine.
+
+    La barriere est le **titre** de la modale remplacante : deux rendus identiques seraient
+    indiscernables, et l'assertion partirait avant l'echange.
+
+    Falsifiable : differer le `destroy()` du composant d'un `queueMicrotask` produit
+    exactement l'etat que l'ordre inverse produirait, et fait echouer la derniere
+    assertion.
+    """
+    page.goto(f"{live_server.url}/banc/")
+    page.click("#ouvrir-modale")
+    expect(page.get_by_test_id("titre-modale")).to_have_text("Confirmer la suppression")
+    assert page.evaluate(DEFILEMENT_BLOQUE) == "hidden"
+
+    page.click("#rouvrir-modale")
+    expect(page.get_by_test_id("titre-modale")).to_have_text("Modale remplacante")
+    expect(page.get_by_test_id("modale")).to_be_visible()
+    assert page.evaluate(DEFILEMENT_BLOQUE) == "hidden"
+
+
 # Les octets que le serveur doit recevoir, sous la forme ou le banc les rend : le `repr()`
 # Python de `banc.vues.VALEUR_HOSTILE`. Ecrit en dur ici, et non calcule par `repr()` sur la
 # variable importee : ce que ces tests comparent est une **chaine litterale attendue**, pas

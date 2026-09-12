@@ -99,53 +99,6 @@ def test_le_bouton_reste_desactive_tant_que_le_formulaire_est_invalide(
     expect(bouton).to_be_enabled()
 
 
-def test_la_modale_fermee_par_vidage_rend_la_page_defilable(
-    page: Page, live_server: LiveServer
-) -> None:
-    """Une modale fermee en vidant `#modale` ne laisse pas <body> bloque (revue D6e T8).
-
-    Ce que ce test regarde : que le defilement de la page redevienne possible apres la
-    fermeture. C'est la seule consequence visible de la fuite, et elle dure jusqu'au
-    prochain chargement complet du document.
-
-    **La mesure porte sur le style calcule de <body>, pas sur une classe** : le cliquet
-    d'adressage (A14, A20) interdit d'adresser une classe de presentation, et ce qui est
-    en cause ici est bien le comportement — une page qui ne defile plus — et non le nom de
-    la classe qui le provoque.
-
-    Les deux sens sont assertes. Sans l'assertion « bloque pendant que la modale est
-    ouverte », le test serait vert meme si le composant ne posait jamais rien, et ne
-    prouverait plus que la fermeture defait quelque chose.
-
-    Le remede vit dans `partials/modale.html`, composant partage : ce test garde donc
-    aussi le profil therapeute et les parametres du cabinet, qui ferment leurs modales par
-    le meme geste.
-    """
-    connexion(page, live_server)
-    creer_patient(page)
-
-    # Le meme patient une seconde fois : la modale d'homonyme s'ouvre, puis le refus vide
-    # `#modale` — c'est exactement le chemin qui laissait <body> bloque.
-    page.click("a:has-text('Nouveau patient')")
-    expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
-        "Nouveau patient"
-    )
-    page.fill("input[name=family_name]", "Picard")
-    page.fill("input[name=first_name]", "Jean-Luc")
-    saisir_date(page, "#birthdate", "1935-07-13")
-    page.check("#consent")
-    page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
-
-    expect(page.get_by_test_id("corps-modale")).to_be_visible()
-    assert page.evaluate("getComputedStyle(document.body).overflow") == "hidden"
-
-    confirmer_la_modale(page)
-    # La notification d'erreur est la barriere : elle nait de la meme reponse que le
-    # vidage de `#modale`, donc elle prouve que l'echange a eu lieu.
-    expect(notifications_d_erreur(page)).to_contain_text("Ce patient existe déjà")
-    assert page.evaluate("getComputedStyle(document.body).overflow") != "hidden"
-
-
 def test_avertissement_d_homonyme_puis_creation(
     page: Page, live_server: LiveServer
 ) -> None:

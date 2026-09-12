@@ -82,19 +82,54 @@ def notifications(request: HttpRequest) -> HttpResponse:
     )
 
 
+# Les deux gestes de fermeture du produit, portes **par le corps de la modale** et non par
+# la page : c'est ainsi qu'ils arrivent en vrai. `cabinet.utilisateur_nouveau` (422) et
+# `profil.mot_de_passe` (422) reaffichent la modale par-dessus elle-meme depuis
+# `#modal-btn-ok` ; `nouveau_patient._refus` vide `#modale` depuis le meme bouton. Un
+# declencheur pose derriere l'occultation ne serait pas cliquable, et le simuler par
+# `force=True` eprouverait un chemin que le produit n'emprunte jamais.
+CORPS_MODALE = mark_safe(
+    "Cette action est definitive."
+    '<button type="button" id="rouvrir-modale" hx-get="/banc/modale?rang=2"'
+    ' hx-target="#modale">Rouvrir par-dessus</button>'
+    '<button type="button" id="vider-modale" hx-get="/banc/modale-vide"'
+    ' hx-target="#modale">Vider</button>'
+)
+
+
 def modale(request: HttpRequest) -> HttpResponse:
+    """La modale du produit. `rang=2` rend **une autre** modale, reconnaissable a son titre.
+
+    Sans ce titre distinct, un test qui remplace une modale par une autre n'aurait aucune
+    barriere : les deux rendus seraient indiscernables, et l'assertion qui suit partirait
+    avant l'echange.
+    """
+    remplacante = request.GET.get("rang") == "2"
     return HttpResponse(
         render_to_string(
             "partials/modale.html",
             {
-                "titre": "Confirmer la suppression",
-                "corps": "Cette action est definitive.",
+                "titre": (
+                    "Modale remplacante" if remplacante else "Confirmer la suppression"
+                ),
+                "corps": CORPS_MODALE,
                 "libelle_confirmer": "Supprimer",
                 "libelle_annuler": "Annuler",
             },
             request=request,
         )
     )
+
+
+def modale_vide(request: HttpRequest) -> HttpResponse:
+    """Le geste de fermeture par vidage, dans sa forme la plus nue.
+
+    Les trois ecrans livres qui l'emploient repondent en fait des fragments **hors-bande**
+    seuls (le formulaire re-rendu, la notification) : htmx les extrait, et la cible
+    principale recoit donc du vide. L'operation que `#modale` subit est exactement celle-ci
+    — `innerHTML := ""` — et c'est elle que le composant doit survivre.
+    """
+    return HttpResponse("")
 
 
 # Le banc du texte riche. Il rend **la page du produit** : `{% extends "base.html" %}` pour
