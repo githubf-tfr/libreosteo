@@ -1699,6 +1699,41 @@ celles qui n'ont jamais eu ce champ renseigné.
 `<ul><li>…</li></ul>`. Ils ne prouvent rien de l'apparence à l'écran : c'est cette fiche,
 et elle seule, qui la vérifie.
 
+### R-PAT-11 — Auto-complétion du code postal
+
+- **Domaine** : Patient
+- **Couverture auto** : oui —
+  tests/functional/test_code_postal.py::test_une_suggestion_pose_le_code_postal_et_la_ville,
+  ::test_le_reglage_desactive_supprime_les_suggestions (le premier saisit cinq chiffres,
+  clique une suggestion et vérifie que **le code postal et la ville** sont posés puis
+  enregistrés ; le second coupe le réglage de profil et vérifie qu'**aucune requête de
+  recherche ne part** et qu'aucune suggestion n'apparaît. Ni l'un ni l'autre ne regarde la
+  mise en forme de la liste, son ordre ou son nombre d'entrées — l'étape 2 ci-dessous est
+  vérifiée à la main.)
+- **État requis** : E2. Suppose que la base des codes postaux a été importée
+  (`manage.py import_zipcodes`).
+
+**Étapes**
+
+1. Profil utilisateur, onglet « Paramètres d'affichage » : la case « Auto-complétion via le
+   code postal (France) » est cochée.
+   Attendu : la case est cochée (réglage par défaut).
+2. Rechercher `Picard`, ouvrir sa fiche, onglet « Infos générales », cliquer « Éditer »,
+   saisir `701` dans le champ Code postal.
+   Attendu : **aucune suggestion n'apparaît** — le service n'accepte qu'un code postal
+   complet, à cinq chiffres.
+3. Compléter en `70190`.
+   Attendu : une liste de suggestions apparaît sous le champ, chaque ligne au format
+   « 70190 <Ville> ».
+4. Cliquer une suggestion.
+   Attendu : le champ Code postal affiche `70190` **et** le champ Ville affiche la ville
+   cliquée.
+5. Cliquer « Fin d'édition », recharger complètement la page.
+   Attendu : le panneau affiche toujours le code postal et la ville — persistance réelle.
+6. Profil utilisateur, décocher « Auto-complétion via le code postal (France) »,
+   « Enregistrer ». Revenir sur la fiche Picard, « Éditer », saisir `70190`.
+   Attendu : **aucune suggestion n'apparaît**.
+
 ### Documents patient
 
 ### R-DOC-01 — Joindre un document au patient
