@@ -431,12 +431,15 @@ désormais en commentaire à côté du motif.
 Relevés en cadrant D6b, qui interdit tout changement de comportement produit. Aucun n'est
 corrigé par ce lot ; chacun attend le chantier qui réécrit son écran.
 
-- **`libreosteoweb/templates/partials/office-settings.html:200`** — `<label
+- ~~**`libreosteoweb/templates/partials/office-settings.html:200`** — `<label
   for"invoice_start_sequence">` : `for` sans signe égal, donc attribut inerte et libellé
-  associé à rien. Le réparer rendrait le libellé focalisant, donc changerait le comportement.
-  Pour D6d.
-- **`libreosteoweb/templates/partials/rebuild-index.html:20,24`** — `<div class)"col-md-2">` :
-  parenthèse au lieu d'un signe égal, l'attribut de classe n'est jamais posé. Pour D6d.
+  associé à rien.~~ — **fermé le 2026-09-12 par D6d** : le gabarit est remplacé par
+  `pages/fragments/cabinet-general.html`, dont le libellé porte un `for` réel
+  (`id_for_label`, ligne 180) ; le commentaire de la ligne 176 garde la trace du legs.
+- ~~**`libreosteoweb/templates/partials/rebuild-index.html:20,24`** — `<div class)"col-md-2">` :
+  parenthèse au lieu d'un signe égal, l'attribut de classe n'est jamais posé.~~ — **fermé le
+  2026-09-12 par D6d** : le gabarit est remplacé par `pages/reindexation.html`, dont aucune
+  classe n'est écrite ainsi.
 - **La numérotation des `uib-tab` de `partials/patient-detail.html` saute l'index 4.** Sans
   effet observable ; relevé pour que D6e ne le reproduise pas.
 - **Le job CI `quality` ne joue pas `make check`, il en réécrit les commandes**
@@ -449,6 +452,32 @@ corrigé par ce lot ; chacun attend le chantier qui réécrit son écran.
   la spec D7 rend aujourd'hui **2** lignes : les deux tests de bundles posés par D6a
   (`229ffc8`) qu'aucune fiche de `docs/recette.md` ne nomme. Rien n'exécute cette commande
   automatiquement, donc la dette se rouvre à chaque test ajouté sans fiche.
+
+### Défauts versés par D6d (2026-09-12, non corrigés, à trancher hors lot de migration)
+
+Chacun préexiste à D6d, qui les **reproduit à l'identique** plutôt que de les trancher : un
+lot de migration ne change pas le produit. Chacun vient avec son emplacement et sa preuve.
+
+- **La ponctuation des montants diverge entre l'écran et la facture imprimée.**
+  `libreosteoweb/templates/pages/fragments/comptabilite-liste.html` affiche `55.55 €` avec
+  un **point** — valeur formatée par `format(v.normalize(), "f")`, qui reproduit l'affichage
+  d'avant à l'octet —, et `libreosteoweb/templates/invoice/invoice-result.html:81` affiche
+  `55,55 EUR` avec une **virgule** (`{{invoice.amount|floatformat:2}}`). Les deux
+  ponctuations cohabitent déjà sur la **même page imprimée** :
+  `tests/functional/test_facturation.py` attend `"Template with 55.55 EUR"` et `"55,55 EUR"`
+  à deux lignes d'intervalle. Basculer en virgule est un changement de produit que
+  l'utilisateur n'a pas demandé ; le coût mesuré est de **deux assertions et deux étapes de
+  fiche**.
+- **Un utilisateur non-administrateur ne peut pas changer son propre mot de passe.**
+  `libreosteoweb/api/permissions.py:34` — `IsStaffOrReadOnlyTargetUser.has_permission`
+  refuse toute méthode non sûre à un non-`is_staff` **avant tout contrôle d'objet**, et
+  `libreosteoweb/tests/test_acces.py` le prouvait déjà unitairement sans en tirer la
+  conséquence. D6d **reproduit** ce refus dans la vue de page
+  (`views/pages/profil.py::changer_mot_de_passe`) et l'**affiche**, là où il était
+  auparavant sans consommateur visible. À trancher hors D6d, comme le multi-cabinet.
+- **La page de réindexation n'a pas de garde `is_staff` ; seule son action en a une.**
+  `display_rebuild_index` n'en avait pas non plus : le fait est reproduit à l'identique, et
+  versé ici pour que la décision soit prise une fois.
 
 ### Dette technique (constat, pas action)
 
@@ -789,6 +818,75 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-12 — D6d Administration migrée : les cinq écrans en htmx, sans AngularJS**
+  (treize tâches ; spec `docs/superpowers/specs/2026-09-11-d6d-administration-design.md`).
+  **Treize commits `cb91310..da50c5a`**, soit un par tâche plus `2827648`, un correctif
+  isolé en commit séparé — la borne exacte de `valider_sequence_de_depart` n'était prouvée
+  sur aucune des deux surfaces, et la prouver était plus honnête que de l'affirmer.
+  75 fichiers, **+4 925/−1 939**. Les cinq écrans — profil thérapeute, paramètres du
+  cabinet, import/export, réindexation, comptabilité — sont servis par des vues de page
+  Django et ne chargent plus une ligne d'AngularJS ; la coquille, elle, vit jusqu'à D6f.
+
+  **Les chiffres du lot** : suite fonctionnelle de **71 à 82 tests** (onze tests d'écran
+  neufs) ; suite `make check` de **337 à 400** ; couverture de **91,82 % à 92,08 %** ;
+  périmètre `mypy` de **127 à 141** entrées. `fail_under = 90` inchangé, `ruff`
+  `ignore = []` inchangé, **zéro `noqa` neuf, zéro `# type: ignore` neuf, zéro `skip`**.
+
+  **Le seul changement de comportement produit du lot** est la réparation de la casse du
+  nom de famille sur les utilisateurs de cabinet (T3, `9892f57`) : le prénom était
+  normalisé, le nom ne l'était pas. Il est décrit à `R-CAB-05` étape 3, et sa preuve a
+  déménagé de la surface DRF à la surface de page quand T12 a supprimé les deux viewsets.
+
+  **Trois faits de lot, parce qu'ils changent ce que les lots suivants peuvent supposer :**
+  - Le `pattern="[1-9][0-9,.]*"` d'`#amount` devient **actif**, le `novalidate` qui le
+    rendait inerte ayant disparu avec Angular. Un tarif par défaut commençant par `0`
+    serait désormais refusé par le navigateur ; le serveur, lui, ne l'a jamais refusé.
+  - La première colonne du tableau des utilisateurs affichait `Username`, en anglais,
+    `ui-grid` humanisant le nom du champ faute de `displayName`. Elle affiche désormais
+    `Nom utilisateur`, la traduction que le catalogue portait déjà.
+  - **`api/users` et `api/office-users` n'existent plus** : le registre DRF passe de
+    quatorze à douze ressources. `api/settings`, `api/profiles`, `api/paiment-mean` et
+    `api/invoices` restent, consommés par `tour.js`, `patient.js` et `examination.js`.
+
+  **Deux simplifications d'écran tranchées en cours de route, et portées au cahier.**
+  L'engagement du lot était « mêmes écrans » ; ces deux-là sont des retraits de geste,
+  motivés au code, et T13 a vérifié qu'aucune fiche ne décrit plus le geste disparu.
+  - Le **menu d'export déroulant** de la comptabilité devient un **lien unique** : un seul
+    format existe (XLSX), et un menu déroulant Bootstrap 3 privé de jQuery aurait exigé un
+    composant Alpine dédié pour un gain nul.
+  - Le **second sélecteur, celui du cabinet**, devient une **information en lecture seule** :
+    `cabinet_id` n'est jamais substituable par un paramètre de requête dans la vue, et un
+    vrai sélecteur aurait inventé un filtre que la vue ne consomme pas. Cohérent avec le
+    constat du 2026-09-10 — le multi-cabinet est codé mais inatteignable.
+
+  **La mesure de bundles exigée par C9, et la mise en garde qui va avec.** Après
+  `rm -rf static/CACHE && make static` sur `da50c5a` : **un seul fichier** sous
+  `static/CACHE/js`. La mesure d'ouverture du lot, prise le 2026-09-12, disait **4** —
+  **ne pas lire « 4 → 1 » comme une réduction produite par le lot.** `static/CACHE`
+  **accumule une génération par empreinte** et ne se vide jamais seul : deux bundles de
+  tailles voisines, datés de 08 h 59 et 09 h 06 le même matin, y ont été observés avant
+  nettoyage. Le « 4 » est donc vraisemblablement un compte de générations accumulées, et
+  les deux mesures ne sont pas comparables. Le nombre **structurel** vaut **un**, et il se
+  lit dans les gabarits : un seul `{% compress js %}` dans tout l'arbre
+  (`libreosteoweb/templates/index.html:60`), ce que la sentinelle de
+  `test_authentification.py` exige déjà en n'acceptant qu'un bundle JS chargé par le
+  document authentifié. **Seule la mesure de clôture suit un `rm -rf static/CACHE`.**
+
+  **La seconde mesure exigée par C9 n'est pas prise** : la durée d'une réindexation
+  complète sur un parc réel se relève sur le parc de 100 patients de `R-IMP-01`, en jouant
+  `R-RCH-02` juste après, et le chiffre s'inscrit à la fiche `R-RCH-02`. Elle décide si le
+  délai de 180 s d'A12 suffit. Aucune mesure n'existe encore dans le dépôt ; elle appartient
+  à la passe de recette manuelle de D6d, qui reste due.
+
+  **Cahier de recette (T13)** : trois fiches neuves — `R-CAB-05` (les utilisateurs du
+  cabinet, domaine qu'aucune fiche ne couvrait, à aucun niveau), `R-THE-03` (les paramètres
+  d'affichage du profil, qui porte l'avertissement `stats_enabled`) et `R-FAC-07` (le filtre
+  de période de la comptabilité, dont l'étape 2 mesure la dette refermée : `166.65` là où
+  l'écran affichait `166.64999999999998`). Deux étapes reprises, `R-FAC-02` étape 1 et
+  `R-FAC-06` étape 5, toutes deux parce qu'elles décrivaient le sélecteur de période
+  disparu — le plan n'en annonçait qu'une. Aucune renumérotation. Zéro test fonctionnel
+  orphelin à la clôture, vérification rejouée **après** le dernier commit.
 
 - **2026-09-11 — D6c Socle de coexistence htmx/Alpine livré, deux écrans migrés** (onze
   tâches ; spec `docs/superpowers/specs/2026-09-10-d6c-socle-coexistence-design.md`, plan

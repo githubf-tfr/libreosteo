@@ -1058,12 +1058,13 @@ au journal.
 
 - **Domaine** : Authentification
 - **Couverture auto** : oui —
-  tests/functional/test_recherche.py::test_la_session_expiree_renvoie_a_la_connexion
-  (la session est invalidée côté navigateur, puis une pagination de recherche est
-  demandée ; le navigateur atterrit sur la page de connexion et la zone de résultats
-  a disparu. Non couvert : le retour effectif sur la page quittée après
-  réidentification, et le cas où la session est prise par une seconde connexion du
-  même compte)
+  tests/functional/test_recherche.py::test_la_session_expiree_renvoie_a_la_connexion,
+  ::test_la_session_expiree_pendant_une_reindexation_renvoie_a_la_connexion (le pont est
+  éprouvé sur deux écrans htmx : la pagination de recherche et l'action de réindexation.
+  La session est invalidée côté navigateur, puis la requête htmx est demandée ; le
+  navigateur atterrit sur la page de connexion et la zone visée a disparu. Non couvert :
+  le retour effectif sur la page quittée après réidentification, et le cas où la session
+  est prise par une seconde connexion du même compte)
 - **État requis** : E2
 
 **Étapes**
@@ -1218,6 +1219,53 @@ suivante. C'est ce trou que cette fiche referme, sur les trois surfaces qui
 lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
 (étape 6) et la persistance (étape 7).
 
+### R-CAB-05 — Gestion des utilisateurs du cabinet
+
+- **Domaine** : Cabinet
+- **Couverture auto** : oui — tests/functional/test_cabinet.py::test_edition_en_place_d_un_prenom_et_d_un_nom,
+  ::test_le_refus_d_une_cellule_est_affiche_et_n_ecrit_rien, ::test_tri_du_tableau_des_utilisateurs,
+  ::test_ajout_d_un_utilisateur_et_refus_d_un_nom_deja_pris (l'édition en place, le refus
+  d'écriture, le tri et l'ajout ; le changement du mot de passe d'un tiers n'a pas
+  d'équivalent automatisé)
+- **État requis** : E1. Cette fiche crée durablement un utilisateur et modifie le nom du
+  compte `test` : à l'issue de son exécution, remonter l'état E1 (chapitre 1) avant de
+  jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur → « Paramètres », onglet « Utilisateurs ».
+   Attendu : un tableau à six colonnes, dans cet ordre : `Nom utilisateur`, `Prénom`,
+   `Nom`, `Administrateur`, `Actif`, `Mot de passe` ; une seule ligne, `test`, dont les
+   colonnes Administrateur et Actif affichent `oui` ; un bouton « Ajouter un utilisateur »
+   au-dessus du tableau.
+2. Cliquer sur la cellule « Prénom » de la ligne `test`, saisir `beverly`, valider.
+   Attendu : la cellule affiche `Beverly` — la majuscule est posée par l'application, la
+   saisie était en minuscules.
+3. Cliquer sur la cellule « Nom » de la ligne `test`, saisir `crusher`, valider.
+   Attendu : la cellule affiche `Crusher`. **Avant ce lot, le nom n'était pas normalisé** :
+   il serait resté `crusher`.
+4. Cliquer sur la cellule « Prénom », saisir une valeur de plus de 150 caractères, valider.
+   Attendu : un message d'erreur apparaît sous le champ ; la cellule reste en saisie ;
+   aucune valeur n'est enregistrée. Annuler en rechargeant la page : la cellule affiche
+   toujours `Beverly`.
+5. Cliquer sur l'en-tête « Nom utilisateur ».
+   Attendu : l'ordre des lignes s'inverse (une seule ligne à ce stade : l'ordre ne change
+   pas visiblement — l'étape 7 le vérifie après l'ajout).
+6. Cliquer « Ajouter un utilisateur », saisir `test` comme nom d'utilisateur, `motdepasse`
+   dans les deux champs, cliquer « Valider ».
+   Attendu : la fenêtre reste ouverte, un message indique que ce nom d'utilisateur existe
+   déjà ; aucun utilisateur n'est créé.
+7. Remplacer le nom d'utilisateur par `crusher`, cliquer « Valider ».
+   Attendu : la fenêtre se ferme ; le tableau porte désormais deux lignes, `crusher` et
+   `test`, dans cet ordre alphabétique ; un message de confirmation s'affiche. Cliquer
+   l'en-tête « Nom utilisateur » : l'ordre s'inverse, `test` passe en premier.
+8. Sur la ligne `crusher`, colonne « Mot de passe », cliquer « modifier », saisir
+   `nouveaumdp` dans les deux champs, cliquer « Valider ».
+   Attendu : la fenêtre se ferme ; message affiché « Le mot de passe a été modifié. ».
+9. Se déconnecter, s'identifier avec `crusher` / `nouveaumdp`.
+   Attendu : connexion acceptée ; le menu utilisateur affiche `crusher`, et **l'entrée
+   « Import/export » n'y figure pas** — l'utilisateur créé n'est pas administrateur.
+
 ### Thérapeute
 
 ### R-THE-01 — Compléter le profil thérapeute
@@ -1273,6 +1321,45 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
    « À Le Vigen, le <date du jour> » ; `Facture 10000` ; le contenu de facture
    `Template with 55 EUR` ; `Règlement par chèque` ; `HONORAIRES 55,00 EUR` ; pied
    de page `Footer`.
+
+### R-THE-03 — Paramètres d'affichage du profil
+
+- **Domaine** : Thérapeute
+- **Couverture auto** : oui — tests/functional/test_therapeute.py::test_modules_d_affichage_du_profil
+  (la case « Historique des évènements » seule, décochée puis relue en base ; les trois
+  autres cases sont couvertes en unitaire par
+  libreosteoweb/tests/test_profil_therapeute.py::TestModulesOptionnelsDuProfil, et
+  **jamais au navigateur** — voir l'avertissement ci-dessous)
+- **État requis** : E1
+
+**⚠️ Avertissement, à lire avant d'écrire un test sur cet écran.** Décocher « Statistiques »
+rend le tableau de bord sans bloc de statistiques, et la barrière d'ouverture de session de
+la suite fonctionnelle (`tests/functional/helpers.py::connexion`) attend précisément le
+compteur de nouveaux patients, qui n'est renseigné que par l'appel de statistiques. Un test
+qui décocherait cette case ferait échouer **toute la suite**, sans le moindre indice : la
+barrière expirerait au plafond d'attente. C'est la raison pour laquelle cet onglet n'était
+couvert par rien — ce n'était pas un oubli, c'était un piège.
+
+**Étapes**
+
+1. Menu utilisateur → « Profil utilisateur », onglet « Paramètres d'affichage ».
+   Attendu : deux groupes, « Tableau de bord » et « Consultation » ; quatre cases, toutes
+   cochées : `Statistiques`, `Historique des évènements`, `Sphères`,
+   `Auto-complétion via le code postal (France)` ; une vignette d'illustration à droite de
+   chaque case.
+2. Décocher `Historique des évènements`, cliquer « Enregistrer ».
+   Attendu : message affiché « Profil mis à jour » ; l'onglet reste « Paramètres
+   d'affichage » — l'enregistrement ne renvoie pas au premier onglet.
+3. Aller au tableau de bord (logo « LibreOsteo » en haut à gauche).
+   Attendu : le bloc « Derniers évènements » n'est plus affiché ; le bloc de statistiques,
+   lui, l'est toujours.
+4. Revenir sur Profil utilisateur → « Paramètres d'affichage », recocher
+   `Historique des évènements`, cliquer « Enregistrer », retourner au tableau de bord.
+   Attendu : le bloc « Derniers évènements » est de nouveau affiché.
+5. Décocher `Sphères`, cliquer « Enregistrer », ouvrir une consultation en cours sur un
+   patient (mêmes gestes que R-CON-01).
+   Attendu : les champs de sphères (ORL, viscérale, cardio-pulmonaire, uro-gynéco,
+   périphérique) ne sont plus affichés. Recocher la case et vérifier leur retour.
 
 ### Patient
 
@@ -1900,16 +1987,11 @@ la marge nécessaire pour redater vers l'avant tout en restant dans le passé).
 **Étapes**
 
 1. Menu du haut, cliquer « Comptabilité ».
-   Attendu : titre de page « Comptabilité » ; un bouton de période affichant
-   l'intervalle du mois en cours, du premier au dernier jour de ce mois, au format
-   « <jour de semaine> <jour> <mois> <année> → <jour de semaine> <jour> <mois>
-   <année> » — ce bouton filtre sur la **date de séance** des factures (cf.
-   R-FAC-06), et non sur leur date d'émission ; un bouton « Exporter » proposant
-   une entrée « XLSX » ; une ligne « Montant total sur la période sélectionnée:
-   55 » ; un tableau avec les colonnes « N° de facture », « Date », « Patient »,
-   « Montant », « Moyen de paiement », « État », « Par », « Actions » ; une seule
-   ligne, celle de l'état E2 : `10000`, `Jean-Luc Picard`, `55 €`, `Chèque`,
-   `Réglée`.
+   Attendu : page « Comptabilité » affichée ; deux champs de date, « Du » et « Au »,
+   préremplis au premier et au dernier jour du mois en cours ; trois liens de plage
+   prédéfinie (le mois en cours, l'année en cours, l'année précédente) ; le tableau liste
+   une ligne unique : N° de facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`,
+   Moyen de paiement `Chèque`, État `Réglée`.
 2. Sur cette ligne, ouvrir le menu « Actions ».
    Attendu : un menu déroulant s'ouvre, avec deux entrées « Imprimer » et
    « Annuler ».
@@ -2026,7 +2108,8 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
   tests/functional/test_facturation.py::test_facture_imprimee_porte_sa_date_stockee_pas_celle_du_jour
   (le nom d'onglet et la mention « À …, le … » du gabarit imprimé portent la
   date stockée de la facture, jamais celle du jour d'ouverture de l'onglet).
-  Non couvert : le sélecteur de période de la Comptabilité (étape 5).
+  Non couvert : le filtre de période de la Comptabilité appliqué à une facture
+  reculée (étape 5) — `R-FAC-07` couvre le filtre lui-même, jamais ce cas-ci.
 - **État requis** : E2. Cette fiche facture durablement une nouvelle
   consultation, consommant le numéro `10001`, puis redate durablement cette
   consultation et sa facture : remonter l'état E2 (chapitre 1) avant de jouer
@@ -2062,10 +2145,10 @@ recette contre un `decimal_places` mal posé ou une frontière JSON passée aux 
 4. Sur cette page, lire la ligne de lieu et de date.
    Attendu : « À Le Vigen, le <date reculée> » — la même date qu'à l'étape 3,
    écrite en toutes lettres.
-5. Menu « Comptabilité », ouvrir le sélecteur de période et le régler sur le
-   mois de la date reculée.
-   Attendu : la facture `10001` apparaît dans cette période. Régler le
-   sélecteur sur le mois en cours : elle n'y apparaît plus.
+5. Menu « Comptabilité », saisir dans les champs « Du » et « Au » le premier et le
+   dernier jour du mois de la date reculée, puis valider.
+   Attendu : la facture `10001` apparaît dans cette période. Cliquer ensuite la
+   plage prédéfinie du mois en cours : elle n'y apparaît plus.
 
 **Constat** : la facture porte la date de la séance, recopiée au moment de
 l'émission puis figée — y compris après une redatation ultérieure des deux
@@ -2077,12 +2160,49 @@ aujourd'hui de facturer une consultation déjà close « Non facturée »
 `EXAMINATION_NOT_INVOICED = 3`) — c'est la fiche, et non le produit, qui
 tenait pour jouable un parcours qui ne l'est pas. Une fois les deux dates
 reculées, c'est la date de séance qui gagne — sur le document imprimé comme
-dans le sélecteur de période de la Comptabilité. C'est un changement visible :
+dans le filtre de période de la Comptabilité. C'est un changement visible :
 une facture dont la date remonte au mois précédent ne figure plus dans la
 Comptabilité du mois en cours (étape 5). C'est l'intention de l'arbitrage du
 2026-09-06, pas un défaut ; si l'exercice comptable devait suivre la date
 d'émission, cet arbitrage serait à reprendre, et il faudrait alors garder les
 deux dates.
+
+### R-FAC-07 — Filtrer la comptabilité sur une période
+
+- **Domaine** : Facturation
+- **Couverture auto** : oui — tests/functional/test_facturation.py::test_periode_par_defaut_de_la_comptabilite,
+  ::test_periode_sans_facture, ::test_filtre_de_periode_par_les_champs_de_date,
+  ::test_total_exact_sur_trois_factures_a_centimes (la période par défaut, la période vide,
+  la saisie de deux dates et l'exactitude du total ; les trois plages prédéfinies n'ont pas
+  d'équivalent automatisé)
+- **État requis** : E1, complété par trois factures émises sur deux périodes distinctes
+  (étape 1).
+
+**Étapes**
+
+1. Facturer trois consultations pour un même patient (mêmes gestes que R-CON-03), en
+   saisissant `55,55` comme montant à chaque fois.
+   Attendu : trois factures émises, aux numéros consécutifs.
+2. Menu du haut, cliquer « Comptabilité ».
+   Attendu : page « Comptabilité » affichée ; deux champs de date affichent le premier et
+   le dernier jour du **mois en cours** ; le tableau liste les trois factures ; la ligne de
+   total affiche `Montant total sur la période sélectionnée: 166.65`.
+   **C'est l'étape qui mesure la dette que ce lot referme** : avant, ce même total
+   s'affichait `166.64999999999998`, la somme étant calculée en virgule flottante dans le
+   navigateur.
+3. Cliquer la plage prédéfinie de l'année précédente.
+   Attendu : le tableau ne liste aucune facture ; la ligne de total affiche
+   `Montant total sur la période sélectionnée: 0` — un zéro, jamais une valeur vide.
+4. Cliquer la plage prédéfinie de l'année en cours.
+   Attendu : les trois factures sont de nouveau listées ; le total affiche `166.65`.
+5. Saisir dans le champ « Du » la date du jour, dans le champ « Au » la date du jour, puis
+   valider.
+   Attendu : les trois factures sont listées, l'URL affichée porte les deux dates saisies.
+   Recharger la page : la période saisie est conservée.
+6. Sur la première ligne, ouvrir le menu « Actions » et cliquer « Annuler », confirmer.
+   Attendu : un message de confirmation s'affiche ; la facture passe à l'état « Annulée »
+   et un avoir apparaît dans la liste ; le total est inchangé — l'avoir porte un montant
+   négatif qui compense exactement la facture annulée.
 
 ### Médecins traitants
 
@@ -2275,7 +2395,10 @@ deux dates.
 ### R-IMP-03 — Fichier CSV invalide refusé sans import partiel
 
 - **Domaine** : Import CSV
-- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_csv_invalide_refuse_sans_import_partiel
+- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_csv_invalide_refuse_sans_import_partiel,
+  ::test_analyse_en_echec_affiche_un_message (le second couvre le cas distinct du fichier
+  de consultations déposé dans le champ patient, que l'application avalait en silence
+  avant D6d)
 - **État requis** : E1
 
 **Étapes**
@@ -2569,9 +2692,13 @@ un geste du produit, et qui ne peuvent donc pas en décrire un.
 - `tests/functional/test_socle_composants.py::test_la_modale_s_ouvre_se_ferme_et_pose_l_occultation`
 
   Les deux exercent la notification et la modale du socle (D6c) sur un banc d'essai monté
-  par un URLconf de test (`tests/functional/banc/`), qui n'ajoute rien au produit. Aucun
-  écran livré ne les emploie encore : le premier qui le fera est un écran de D6d ou de
-  D6e, et c'est à ce moment-là qu'un geste de recette existera pour eux. Sans ce banc, les
+  par un URLconf de test (`tests/functional/banc/`), qui n'ajoute rien au produit.
+  Depuis D6d, cinq écrans livrés emploient ces deux composants — les notifications de
+  succès du profil et du cabinet, les modales de mot de passe, d'ajout d'utilisateur et de
+  confirmation d'annulation — et leurs gestes sont décrits par `R-AUTH-05`, `R-CAB-01`,
+  `R-CAB-05`, `R-THE-03` et `R-FAC-07`. Ces deux tests-ci restent néanmoins sans geste de
+  recette : ils éprouvent les composants **sur un banc d'essai**, monté par un URLconf de
+  test qui n'ajoute rien au produit, et non un écran que l'on puisse ouvrir. Sans ce banc, les
   deux composants entreraient dans ces lots **non prouvés dans un navigateur** — et ils y
   seraient entrés cassés : les deux gabarits livrés par T5 ne fonctionnaient pas, le banc
   l'a établi et le correctif `dfb2473` l'a fermé.
