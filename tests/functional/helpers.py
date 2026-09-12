@@ -11,6 +11,12 @@ from django.utils.formats import date_format
 from playwright.sync_api import Locator, Page, Request, expect
 from pytest_django.live_server_helper import LiveServer
 
+# Duree, en millisecondes, pendant laquelle l'editeur de texte riche protege le focus de sa
+# barre d'outils apres un `mousedown` dessus (`protectFocusFrom`, hallo.js:235-243). Lue
+# dans le produit, jamais choisie ici. `appliquer_mise_en_forme` l'utilise comme **borne
+# superieure** d'une attente toleree, jamais comme une temporisation.
+DELAI_PROTECTION_BARRE_D_OUTILS_MS = 300
+
 
 def connexion(
     page: Page,
@@ -361,36 +367,47 @@ def appliquer_mise_en_forme(page: Page, champ: Locator, libelle: str) -> None:
     (l'attribut `id` de chaque bouton est prefixe d'un UUID tire au hasard a chaque
     activation) ni role propre. Le filtre `visible=true` est indispensable et non
     decoratif : chaque champ active cree **sa propre** barre d'outils dans `<body>`, que la
-    desactivation se contente de masquer. Neuf champs de texte riche cohabitent sur le
-    dossier patient, donc autant de boutons `bold` masques des que plusieurs champs ont ete
-    touches ; sans ce filtre, le mode strict de Playwright refuse le clic.
+    desactivation se contente de masquer (`halloToolbarFixed._bindEvents`, hallo.js:2836).
+    Mesure directe sur quatre champs mis en forme dans un meme test : **quatre** barres
+    presentes a la fin, donc quatre boutons `bold`, mais **une seule visible** a tout
+    instant. C'est la presence, pas la visibilite, que le mode strict de Playwright compte :
+    sans ce filtre il refuse le clic des le deuxieme champ touche.
 
     La selection passe par `Control+a` **apres un clic dans le champ** : la barre d'outils
     n'apparait qu'une fois le champ actif, et une commande appliquee sans selection ne
     produit aucune balise.
 
-    Les **deux** `blur()` encadrant l'attente de focalisation sont le prix d'un mecanisme
-    mesure, pas une precaution : l'implementation actuelle protege le focus de sa barre
-    d'outils pendant 300 ms apres un `mousedown` dessus (`protectFocusFrom`, hallo.js:235).
-    Dans cette fenetre, un `blur` n'est pas honore — il est **annule**, et le focus est
-    rendu au champ 300 ms plus tard. Le premier `blur()` ne commet donc rien ; l'attente de
-    la refocalisation est la seule barriere d'etat qui prouve que la fenetre s'est refermee
-    (le drapeau interne, lui, tombe avant elle : son minuteur est arme en premier) ; le
-    second `blur()` est celui qui commet reellement la valeur vers le modele, exactement
-    comme `remplir_champ_de_texte_riche` le fait et pour la meme raison. Mesure directe :
-    sans cette barriere, la valeur mise en forme du **dernier** champ touche avant
-    l'enregistrement part en base sans sa balise (`'Traitement H2O'` au lieu de
-    `'<ul><li>Traitement H2O</li></ul>'`), silencieusement.
+    Le `blur()` **conditionnel** qui suit est le prix d'un mecanisme mesure, pas une
+    precaution : l'implementation actuelle protege le focus de sa barre d'outils pendant
+    300 ms apres un `mousedown` dessus (`protectFocusFrom`, hallo.js:235). Dans cette
+    fenetre, un `blur` n'est pas honore — il est **annule**, et le focus est rendu au champ
+    300 ms plus tard. Le premier `blur()` ne commet alors rien, et c'est le second qui
+    recopie la valeur vers le modele, exactement comme `remplir_champ_de_texte_riche` le
+    fait et pour la meme raison. Mesure directe : sans lui, la valeur mise en forme du
+    **dernier** champ touche avant l'enregistrement part en base sans sa balise
+    (`'Traitement H2O'` au lieu de `'<ul><li>Traitement H2O</li></ul>'`), silencieusement.
 
-    Un composant de remplacement qui ne protegerait pas le focus de sa barre d'outils ne
-    refocaliserait pas le champ : c'est alors cette attente — et elle seule — qui serait a
-    revoir dans ce helper, jamais les tests qui l'appellent.
+    **La fenetre de protection est un delai, pas un etat : l'attendre sans condition serait
+    parier dessus.** Si plus de 300 ms s'ecoulent entre le clic et le `blur` — machine
+    chargee, et c'est precisement la charge d'un lancement complet —, le drapeau est deja
+    retombe, le premier `blur` est honore, la valeur part correctement en base et le champ
+    **ne reprend jamais le focus**. Une attente ferme rougirait alors sur un produit qui a
+    parfaitement fonctionne. L'attente est donc bornee et toleree : si la refocalisation
+    vient, la fenetre etait ouverte et il faut blur une seconde fois ; si elle ne vient pas,
+    la commande est **deja** commise et il n'y a rien a faire. Les deux branches menent au
+    meme etat, et c'est ce que les appelants observent en base.
+
+    Un composant de remplacement qui ne protegerait pas le focus de sa barre d'outils
+    prendrait simplement la seconde branche, sans retouche ici.
     """
     champ.click()
     page.keyboard.press("Control+a")
     page.get_by_title(libelle, exact=True).locator("visible=true").click()
     champ.blur()
-    expect(champ).to_be_focused()
+    try:
+        expect(champ).to_be_focused(timeout=DELAI_PROTECTION_BARRE_D_OUTILS_MS * 3)
+    except AssertionError:
+        return
     champ.blur()
 
 

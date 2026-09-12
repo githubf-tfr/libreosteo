@@ -1,4 +1,4 @@
-"""La mise en forme du texte riche : la premiere preuve qu'elle ait jamais eue (D6e, A7).
+"""La mise en forme du texte riche (R-PAT-09) : sa premiere preuve (D6e, A7).
 
 Quatre tests, une famille de commande chacun — c'est le decoupage qu'AR2 fixe. Chacun
 **relit la base par l'ORM** et y cherche la balise produite : ni classe, ni CSS, ni rendu
@@ -64,7 +64,8 @@ def test_la_mise_en_forme_de_caractere_est_enregistree(
         page, live_server, "job", "Navigateur", "bold"
     )
     assert "Navigateur" in patient.job
-    assert "<b>" in patient.job or "<strong>" in patient.job, (
+    marque = patient.job.lower()
+    assert "<b>" in marque or "<strong>" in marque, (
         f"aucune balise de gras dans la valeur enregistree : {patient.job!r}"
     )
 

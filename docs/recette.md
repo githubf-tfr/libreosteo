@@ -1688,8 +1688,11 @@ celles qui n'ont jamais eu ce champ renseigné.
    `h1`, `h2`, `h3`, `p`, `pre`, `blockquote` ; en choisir un applique ce bloc à la ligne.
    **Ce bouton n'est couvert par aucun test** : cette étape est la seule preuve qu'il ait.
 8. Cliquer « Fin d'édition », puis recharger complètement la page.
-   Attendu : toutes les mises en forme des étapes 2 à 7 sont toujours affichées — preuve
-   d'une persistance réelle.
+   Attendu : **la dernière mise en forme appliquée à chaque étape** est toujours affichée —
+   preuve d'une persistance réelle. Les étapes 4, 5, 6 et 7 appliquent des commandes
+   successives au même mot ou à la même ligne : seule la dernière de chaque série y
+   survit, c'est attendu et ce n'est pas un défaut. Des étapes 2 et 3, les quatre mots
+   distincts gardent chacun leur mise en forme.
 
 **Constat** : ce que les quatre tests prouvent, c'est que la commande écrit sa balise
 **dans la base** — `<b>…</b>`, `<h1>…</h1>`, `<div style="text-align: center;">…</div>`,
