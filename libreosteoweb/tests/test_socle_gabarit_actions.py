@@ -31,8 +31,12 @@ Ce fichier etablit trois choses :
    fonctionnait ; c'est faux, et le troisieme test le fige pour que la correction ne se
    reperde pas.
 
-La forme du lot reste la surcharge de bloc : `with` borne la variable a l'include, la
-voie du contexte la laisse visible par tout le document et par ses autres `{% include %}`.
+La forme du lot reste la surcharge de bloc, et la raison en est **mesuree** et non
+affirmee : `with` borne la variable a l'include, tandis que la voie du contexte la laisse
+visible par tout le document et par ses autres `{% include %}`. Les deux gabarits
+impriment `gabarit_actions` dans leur `{% block contenu %}`, hors du menu, sous l'ancre
+`id="portee"` ; les deux tests y attendent des valeurs opposees et se falsifient donc l'un
+l'autre sur cette ancre comme ils le font deja sur le bandeau.
 """
 
 from __future__ import annotations
@@ -44,13 +48,18 @@ from django.test import RequestFactory, TestCase
 GABARIT_AVEC_ACTIONS = """
 {% extends "base.html" %}
 {% block menu %}{% if request.user.is_authenticated %}{% include "partials/menu.html" with gabarit_actions="partials/actions-coquille.html" %}{% endif %}{% endblock %}
-{% block contenu %}<p id="corps">corps</p>{% endblock %}
+{% block contenu %}<p id="corps">corps</p><p id="portee">{{ gabarit_actions|default:"vide" }}</p>{% endblock %}
 """
 
 GABARIT_SANS_ACTIONS = """
 {% extends "base.html" %}
-{% block contenu %}<p id="corps">corps</p>{% endblock %}
+{% block contenu %}<p id="corps">corps</p><p id="portee">{{ gabarit_actions|default:"vide" }}</p>{% endblock %}
 """
+
+# L'ancre qui mesure la portee de `gabarit_actions` hors du menu, et les deux valeurs
+# opposees que les deux voies y produisent.
+PORTEE_VIDE = '<p id="portee">vide</p>'
+PORTEE_VISIBLE = '<p id="portee">partials/actions-coquille.html</p>'
 
 
 class TestGabaritActions(TestCase):
@@ -70,13 +79,20 @@ class TestGabaritActions(TestCase):
         for libelle in ("Éditer", "Fin d'édition", "Supprimer"):
             self.assertIn(libelle, rendu, f"« {libelle} » absent du bandeau")
         # A l'emplacement du menu, et non ailleurs : le fragment est rendu **dans** la
-        # barre de navigation, apres le formulaire de recherche. Sans cette assertion, un
-        # fragment rendu n'importe ou satisferait le test.
-        self.assertLess(rendu.index('id="headerNavbar"'), rendu.index("Fin d'édition"))
+        # barre de navigation, et **apres le formulaire de recherche**. La borne basse est
+        # le champ de recherche (`name="q"`) et non `id="headerNavbar"` : entre le second
+        # et `</nav>` tient le formulaire entier, donc un fragment rendu **avant** lui
+        # satisferait une borne posee sur la barre.
+        self.assertLess(rendu.index('id="headerNavbar"'), rendu.index('name="q"'))
+        self.assertLess(rendu.index('name="q"'), rendu.index("Fin d'édition"))
         self.assertLess(rendu.index("Fin d'édition"), rendu.index("</nav>"))
 
     def test_le_parametre_rend_le_fragment_dans_le_menu(self) -> None:
-        self._exiger_le_bandeau(self._rendre(GABARIT_AVEC_ACTIONS))
+        rendu = self._rendre(GABARIT_AVEC_ACTIONS)
+        self._exiger_le_bandeau(rendu)
+        # La portee, mesuree : `with` borne la variable a l'include du menu, donc le reste
+        # du document ne la voit pas. C'est ce qui fait preferer cette voie a l'autre.
+        self.assertIn(PORTEE_VIDE, rendu)
 
     def test_sans_le_parametre_le_bandeau_reste_vide(self) -> None:
         rendu = self._rendre(GABARIT_SANS_ACTIONS)
@@ -88,9 +104,11 @@ class TestGabaritActions(TestCase):
         # Meme gabarit que le test precedent, **sans** surcharge du bloc `menu` : seul le
         # contexte de rendu change. L'include de `base.html:39` n'a pas de `only`, donc il
         # voit la variable. Les deux tests forment la falsification l'un de l'autre.
-        self._exiger_le_bandeau(
-            self._rendre(
-                GABARIT_SANS_ACTIONS,
-                {"gabarit_actions": "partials/actions-coquille.html"},
-            )
+        rendu = self._rendre(
+            GABARIT_SANS_ACTIONS,
+            {"gabarit_actions": "partials/actions-coquille.html"},
         )
+        self._exiger_le_bandeau(rendu)
+        # La contrepartie exacte de l'assertion du premier test, sur la meme ancre : la
+        # variable de contexte reste visible hors du menu, dans tout le document.
+        self.assertIn(PORTEE_VISIBLE, rendu)
