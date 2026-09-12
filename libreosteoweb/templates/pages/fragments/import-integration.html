@@ -9,8 +9,8 @@
     {% if erreurs_patient %}
     <p>{% trans 'Errors when integrating patients' %}</p>
     {% for erreur in erreurs_patient %}
-    <p>{% trans 'line : '%} {{ erreur.0 }}</p>
-    <ul>{% for cle, valeur in erreur.1.items %}<li>{{ valeur }}</li>{% endfor %}</ul>
+    <p>{% trans 'line : '%} {{ erreur.ligne }}</p>
+    <ul>{% for message in erreur.messages %}<li>{{ message }}</li>{% endfor %}</ul>
     {% endfor %}
     {% endif %}
     <p>{{ rapport.examination.imported }} {% trans 'lines imported from file examination' %}</p>
@@ -22,8 +22,8 @@
     {% if erreurs_examination %}
     <p>{% trans 'Errors when integrating examinations' %}</p>
     {% for erreur in erreurs_examination %}
-    <p>{% trans 'line : '%} {{ erreur.0 }}</p>
-    <ul>{% for cle, valeur in erreur.1.items %}<li>{{ valeur }}</li>{% endfor %}</ul>
+    <p>{% trans 'line : '%} {{ erreur.ligne }}</p>
+    <ul>{% for message in erreur.messages %}<li>{{ message }}</li>{% endfor %}</ul>
     {% endfor %}
     {% endif %}
   </div>

@@ -147,6 +147,16 @@ def test_import_des_consultations(page: Page, live_server: LiveServer) -> None:
     expect(page.get_by_test_id("import-avec-erreurs-detail")).to_contain_text(
         "50 lignes importées du fichier consultation"
     )
+    # Le message, et non la structure qui le porte : l'etape 3 de `R-IMP-02` l'attend en
+    # clair, et le rendu serveur affichait la representation Python de la liste
+    # d'`ErrorDetail` qui l'enveloppe. Les deux moities comptent — la chaine est **aussi**
+    # presente a l'interieur du `repr`, donc seul son absence prouve la reparation.
+    expect(page.get_by_test_id("import-avec-erreurs-detail")).to_contain_text(
+        "Ce patient existe déjà"
+    )
+    expect(page.get_by_test_id("import-avec-erreurs-detail")).not_to_contain_text(
+        "ErrorDetail"
+    )
     assert Patient.objects.count() == 100
     assert Examination.objects.count() == 50
     # Meme non-complaisance que ci-dessus : une ligne concrete, plus le lien de cle

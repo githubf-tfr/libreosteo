@@ -137,6 +137,37 @@ def analyser(request: HttpRequest) -> HttpResponse:
     )
 
 
+def _erreurs_lisibles(brutes: list) -> list[dict]:
+    """Aplatit les erreurs d'integration en `{ligne, messages}`, lisibles tels quels.
+
+    `file_integrator.py` remonte **trois** formes pour une meme entree, selon l'endroit
+    ou la ligne a ete refusee : le dictionnaire `champ -> [ErrorDetail]` de
+    `serializer.errors`, un dictionnaire `champ -> message` (les deux `except` de
+    `IntegratorExamination`), et une simple liste de messages quand la fabrique n'a meme
+    pas pu construire le serializer (date illisible) ou que la contrainte d'unicite a
+    parle en base. Le gabarit n'en connaissait qu'une, et interpolait la valeur telle
+    quelle : l'operateur lisait la representation Python de la liste
+    (`[ErrorDetail(string='Ce patient existe deja', code='invalid')]`) au lieu du message,
+    et ne lisait **rien** du tout pour la troisieme forme, qui n'a pas d'`.items`.
+
+    L'aplatissement vit ici, pas dans le service : `FileImportViewSet.integrate` rend le
+    meme rapport en JSON, ou la structure par champ est l'interface. Comme ailleurs dans
+    ce module (`_resume`), la vue prepare ce que le gabarit se contente d'afficher, et le
+    gabarit n'a pas d'indice numerique a manipuler.
+    """
+    lisibles = []
+    for ligne, detail in brutes:
+        valeurs = detail.values() if hasattr(detail, "values") else [detail]
+        messages: list[str] = []
+        for valeur in valeurs:
+            if isinstance(valeur, (list, tuple)):
+                messages.extend(str(message) for message in valeur)
+            else:
+                messages.append(str(valeur))
+        lisibles.append({"ligne": ligne, "messages": messages})
+    return lisibles
+
+
 def integrer(request: HttpRequest, identifiant: int) -> HttpResponse:
     """Integre un couple deja analyse, et rend le panneau de resultat choisi par la vue."""
     instance = get_object_or_404(models.FileImport, pk=identifiant)
@@ -148,8 +179,8 @@ def integrer(request: HttpRequest, identifiant: int) -> HttpResponse:
             status=409,
         )
     rapport = services_import.integrer(instance, utilisateur=request.user)
-    erreurs_patient = rapport["patient"]["errors"]
-    erreurs_examination = rapport["examination"]["errors"]
+    erreurs_patient = _erreurs_lisibles(rapport["patient"]["errors"])
+    erreurs_examination = _erreurs_lisibles(rapport["examination"]["errors"])
     return render(
         request,
         "pages/fragments/import-integration.html",

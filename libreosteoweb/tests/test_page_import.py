@@ -163,3 +163,66 @@ class TestIntegrer(BaseImport):
         self.assertIn('data-testid="import-avec-erreurs-titre"', corps_erreurs)
         self.assertNotIn('data-testid="import-reussi-titre"', corps_erreurs)
         self.assertEqual(200, reponse_analyse.status_code)
+
+    def _integre(self, lignes):
+        """Analyse puis integre un fichier patient, et rend le corps du panneau."""
+        self.client.post(
+            reverse("import-analyse"),
+            data={"patientFile": csv_televerse("patients.csv", ENTETE_PATIENT, lignes)},
+        )
+        depot = models.FileImport.objects.order_by("-pk").first()
+        reponse = self.client.post(
+            reverse("import-integration", kwargs={"identifiant": depot.pk})
+        )
+        self.assertEqual(200, reponse.status_code)
+        return reponse.content.decode("utf-8")
+
+    def test_une_ligne_en_erreur_affiche_son_message_et_non_la_structure(self):
+        """`serializer.errors` est un dict `champ -> [ErrorDetail]`. Interpole tel quel
+        par Django, l'operateur lisait la representation Python de la liste au lieu du
+        message : `[ErrorDetail(string='Ce patient existe deja', code='invalid')]`."""
+        corps = self._integre([ligne_patient(1), ligne_patient(2)])
+        self.assertIn("Ce patient existe déjà", corps)
+        # La moitie qui compte : la chaine est **aussi** presente dans le `repr` casse.
+        self.assertNotIn("ErrorDetail", corps)
+
+    def test_une_ligne_en_erreur_sur_deux_champs_affiche_les_deux_messages(self):
+        """Une entree porte autant de messages que de champs refuses : aucun ne se perd."""
+        ligne = ligne_patient(1)
+        ligne[1] = ""  # nom de famille obligatoire
+        ligne[10] = "pas-une-adresse"  # email invalide
+        corps = self._integre([ligne])
+        self.assertNotIn("ErrorDetail", corps)
+        self.assertIn("Ce champ ne peut être vide.", corps)
+        self.assertIn("Saisissez une adresse e-mail valide.", corps)
+
+    def test_une_ligne_refusee_avant_le_serializer_affiche_quand_meme_son_message(self):
+        """Deuxieme forme d'erreur : `FilePatientFactory.get_serializer` n'a pas pu lire
+        la date et rend `{"errors": [message]}`, soit une **liste** sans `.items` — le
+        gabarit boucle dessus dans le vide et n'affichait que le numero de ligne."""
+        ligne = ligne_patient(1)
+        ligne[4] = "pas-une-date"
+        corps = self._integre([ligne])
+        self.assertIn("pas-une-date", corps)
+        self.assertIn("<li>", corps)
+
+    def test_une_consultation_sans_patient_connu_affiche_son_message(self):
+        """Troisieme forme : `IntegratorExamination` rend `{champ: message}`, un
+        dictionnaire de chaines et non de listes. Elle s'affichait deja correctement ;
+        l'aplatissement ne doit pas la casser en la prenant pour une liste."""
+        self.client.post(
+            reverse("import-analyse"),
+            data={
+                "examinationFile": csv_televerse(
+                    "consultations.csv", ENTETE_CONSULTATION, [ligne_consultation(1)]
+                )
+            },
+        )
+        depot = models.FileImport.objects.order_by("-pk").first()
+        reponse = self.client.post(
+            reverse("import-integration", kwargs={"identifiant": depot.pk})
+        )
+        corps = reponse.content.decode("utf-8")
+        self.assertIn(
+            "<li>Il y a un problème lors de la lecture de la ligne.</li>", corps
+        )
