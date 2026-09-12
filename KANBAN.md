@@ -459,20 +459,18 @@ Relevés par la passe complète (cf. « Terminé »), arbitrés au code après c
 premiers sont des régressions de D6d** : ils n'existaient pas avant la réécriture des
 écrans, et sont à reprendre en priorité.
 
-- **L'export XLSX de la Comptabilité ne suit pas la période choisie.**
-  `libreosteoweb/templates/pages/comptabilite.html` : le formulaire de dates, les trois
-  liens de plage prédéfinie et le lien d'export vivent **hors** de `#liste-comptabilite`,
-  seul élément que `hx-swap` remplace. Après un clic sur une plage, le lien d'export garde
-  son `href` d'origine et les deux champs de date restent figés ; seul un rechargement
-  rétablit la cohérence, `hx-push-url` tenant l'URL à jour. L'écran d'avant recalculait
-  l'URL côté client à chaque changement de période (`buildXlsxUrl`). Constaté par
-  `R-FAC-02` étape 4.
-- **Les erreurs d'import CSV s'affichent en représentation Python.**
-  `libreosteoweb/templates/pages/fragments/import-integration.html:13,26` fait
-  `{{ valeur }}` sur la liste d'`ErrorDetail` que rend DRF, d'où
-  `[ErrorDetail(string='Ce patient existe déjà', code='invalid')]` à l'écran. L'ancien
-  gabarit interpolait la même donnée passée par JSON, où AngularJS rendait la chaîne nue.
-  Constaté par `R-IMP-02` étape 3.
+- ~~**L'export XLSX de la Comptabilité ne suit pas la période choisie.** Après un clic
+  sur une plage, le lien d'export gardait son `href` d'origine et les deux champs de date
+  restaient figés : le formulaire, les liens de plage et le lien d'export vivaient **hors**
+  de `#liste-comptabilite`, seul élément que `hx-swap` remplace.~~ — **fermé le 2026-09-12
+  par `2a75d2b`** (cf. « Terminé »), par rafraîchissement hors-bande plutôt
+  qu'élargissement du fragment.
+- ~~**Les erreurs d'import CSV s'affichent en représentation Python.** `{{ valeur }}`
+  sur la liste d'`ErrorDetail` que rend DRF, d'où
+  `[ErrorDetail(string='Ce patient existe déjà', code='invalid')]` à l'écran, là où
+  AngularJS rendait la chaîne nue après passage par JSON.~~ — **fermé le 2026-09-12 par
+  `a8bab9c`** (cf. « Terminé »), qui a refermé du même geste **deux autres formes
+  d'erreur** que le gabarit ne savait pas rendre, dont une qui n'affichait rien du tout.
 - **L'import de masse n'affiche aucun indicateur d'attente.** L'intégration de 100 patients
   répond en **114 s** et le navigateur reçoit bien la réponse — l'ancien défaut du
   2026-09-01 est donc fermé —, mais rien à l'écran ne signale le travail en cours pendant
@@ -481,6 +479,13 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
   `libreosteoweb/templates/pages/import-export.html:43` porte `This file is the full
   content of your database…` en clair, hors `{% trans %}`. Identique à l'octet dans le
   gabarit d'avant : **défaut amont, pas régression**. Constaté par `R-SAU-01` étape 1.
+- **Un clic de plage prédéfinie perd le thérapeute sélectionné.** Les trois liens portent
+  `hx-get="…?plage=mois"` sans `therapeut` : la vue retombe alors sur l'utilisateur connecté
+  pendant que la liste déroulante continue d'afficher « Tous ». La liste filtrée et le
+  sélecteur se contredisent. **Même famille que l'export figé, sur une quatrième surface**,
+  et préexistant au correctif `2a75d2b` comme après lui — relevé par son auteur, laissé
+  hors de son périmètre. À trancher : soit les liens de plage transportent le thérapeute
+  courant, soit le sélecteur est rafraîchi hors-bande comme les dates l'ont été.
 - **Deux boutons de `R-SAU-02` commencent par « Restaurer », et viser le mauvais ne produit
   aucun message.** Le geste correct rend bien `412` et l'alerte attendue. Relevé comme
   piège de geste par l'exécutant ; ressemble à un défaut d'ergonomie, non instruit.
@@ -860,6 +865,64 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-12 — Les deux régressions de D6d constatées par la recette sont corrigées**
+  (`a8bab9c`, `2a75d2b`, en TDD, falsification dans les deux sens à chaque fois). `make
+  check` passe de `400` à **`406 passed`**, couverture de 92,08 % à **92,14 %**, périmètre
+  `mypy` **141** inchangé — aucun module Python créé. Les deux correctifs ont été menés en
+  parallèle sur des fichiers disjoints.
+
+  **L'affichage des erreurs d'import (`a8bab9c`) — le correctif a trouvé plus que le
+  défaut signalé.** Les erreurs remontent du service sous **trois** formes, établies en
+  lisant `libreosteoweb/api/file_integrator.py` et non en supposant :
+  `(ligne, {champ: [ErrorDetail, …]})` pour `serializer.errors` — c'est celle que la
+  recette a vue, rendue en `repr` Python ; `(ligne, {champ: "texte"})` pour les deux
+  `except` d'`IntegratorExamination`, qui s'affichait correctement mais que toute
+  correction naïve aurait rendue **lettre par lettre** ; et `(ligne, ["texte"])` — sans
+  `.items` — pour la date illisible et le rattrapage `IntegrityError`, sur laquelle le
+  gabarit **bouclait dans le vide** : l'opérateur lisait `ligne : 2` suivi d'un `<ul></ul>`
+  **sans aucun message**. Un import pouvait donc signaler une ligne en erreur sans jamais
+  dire pourquoi. Les trois formes sont désormais rendues, **et plusieurs champs en erreur
+  sur une même ligne le sont tous** (une ligne sans nom de famille et à l'email invalide
+  remonte bien deux messages).
+
+  **L'aplatissement est placé dans la vue, et le motif est dirimant** : `services_import.
+  integrer` sert aussi `FileImportViewSet.integrate`, qui rend le rapport **en JSON** — là,
+  la structure `champ -> [messages]` *est* l'interface. Aplatir à la source aurait changé
+  la charge utile d'une API pour réparer un gabarit.
+
+  **Le trou qui a laissé passer la régression est nommé et refermé** : `R-IMP-02` se
+  déclarait couverte automatiquement, mais son test fonctionnel ne vérifiait que **les
+  compteurs** du panneau, jamais son **texte**. D'où une régression invisible en CI et
+  visible en recette manuelle. Les deux assertions manquantes sont ajoutées — le message
+  présent **et** `ErrorDetail` absent, les deux moitiés comptant : vérifier la seule
+  présence du message serait passé aussi sur le code cassé, la chaîne étant contenue dans
+  le `repr`.
+
+  **L'export et les dates de la Comptabilité (`2a75d2b`) — rafraîchissement hors-bande,
+  pas élargissement du fragment.** La réponse d'échange devient
+  `pages/fragments/comptabilite-echange.html` : la liste sur `hx-target` comme avant, plus
+  les deux champs de date et le lien d'export en éléments frères marqués
+  `hx-swap-oob="true"`, chacun dans son propre fragment inclus sans le drapeau par le
+  document et avec par la réponse — **une seule autorité par élément**, le patron déjà posé
+  par `comptabilite-liste.html` et `cabinet-utilisateurs-corps.html`. `_url_export` reste
+  le seul endroit où l'URL se calcule : rien ne remonte dans le navigateur, l'engagement du
+  lot est tenu.
+
+  **Trois raisons mesurées de ne pas élargir**, qui valent pour les prochains écrans htmx :
+  (a) **le focus** — htmx 2 ne le restaure que sur un élément *portant un `id`*
+  (`htmx.js:1958-1968`), or ni les liens de plage ni le bouton « Rechercher » n'en ont ;
+  ici rien de tout cela n'est remplacé, et le seul élément remplacé qui puisse avoir le
+  focus est un champ de date, qui a un `id` ; (b) un fragment élargi **réécrirait la liste
+  déroulante des thérapeutes** à chaque clic de plage, surface que le défaut ne concerne
+  pas ; (c) le flux d'annulation, qui renvoie déjà la liste hors-bande, aurait dû
+  recomposer toute la barre d'outils pour une action qui ne change pas la période.
+
+  **Deux fiches mises à jour dans le même commit** : `R-FAC-07` étape 3, dont les champs
+  « Du » et « Au » suivent désormais le clic — l'opérateur voit autre chose qu'avant —, et
+  sa ligne « Couverture auto », qui affirmait que les trois plages prédéfinies n'avaient
+  pas d'équivalent automatisé : c'est faux depuis ce commit. `R-FAC-02` étape 4 décrivait
+  déjà le bon comportement et n'a pas bougé.
 
 - **2026-09-12 — Passe complète du cahier de recette : 60 fiches, 51 OK, 7 KO, 2 non
   jouées, contre le commit `9fe7ec2`.** Première passe complète depuis celle du
