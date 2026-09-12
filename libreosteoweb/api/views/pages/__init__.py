@@ -35,6 +35,7 @@ from .diagnostic_texte_riche import page_diagnostic_texte_riche
 from .import_export import analyser as analyser_import
 from .import_export import integrer as integrer_import
 from .import_export import page_import_export
+from .medecins import medecin_nouveau, selecteur_medecin
 from .nouveau_patient import page_nouveau_patient
 from .profil import (
     enregistrer_affichage,
@@ -53,6 +54,7 @@ __all__ = [
     "enregistrer_identite",
     "fragment_utilisateurs",
     "integrer_import",
+    "medecin_nouveau",
     "mot_de_passe",
     "mot_de_passe_utilisateur",
     "page_cabinet",
@@ -62,5 +64,6 @@ __all__ = [
     "page_nouveau_patient",
     "page_profil",
     "page_reindexation",
+    "selecteur_medecin",
     "utilisateur_nouveau",
 ]

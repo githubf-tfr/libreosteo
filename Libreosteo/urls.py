@@ -143,6 +143,16 @@ urlpatterns = [
     # `addPatient` en camelCase : l'URL est reprise a l'octet de la table d'etats
     # d'`app.js` (A1), pour que le menu fige de `404.html` continue d'y mener.
     re_path(r"^addPatient$", views.page_nouveau_patient, name="nouveau-patient"),
+    # Le medecin traitant (T9). **Aucun ecran ne rend encore ces deux vues** : c'est T12 qui
+    # inclut le selecteur dans le dossier et dans la colonne patient de la consultation.
+    # `/doctors/new` est repris a l'octet de la table d'etats (A2) et ne porte donc pas
+    # d'identifiant de patient : celui-ci voyage dans la requete.
+    re_path(r"^doctors/new$", views.medecin_nouveau, name="medecin-nouveau"),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/doctor$",
+        views.selecteur_medecin,
+        name="medecin-selecteur",
+    ),
     re_path(r"^invoices$", views.page_comptabilite, name="comptabilite"),
     re_path(
         r"^invoices/(?P<identifiant>\d+)/cancel$",

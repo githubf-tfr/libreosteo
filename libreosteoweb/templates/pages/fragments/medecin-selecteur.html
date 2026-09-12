@@ -1,0 +1,15 @@
+{% load i18n %}
+{# La ligne « Medecin traitant » du dossier et de la colonne patient de la consultation. #}
+{# **`data-testid="ligne-medecin-traitant"` n'est pose que sur l'exemplaire du dossier** : #}
+{# `examination.html:313` porte son propre selecteur, et `test_medecins.py:41` documente #}
+{# que seul celui de la fiche patient porte ce testid. Le parametre `avec_testid` le #}
+{# gouverne, et l'appelant decide. #}
+{# Cette ligne n'est **jamais** la cible d'un echange hors-bande : elle appartient a l'ecran #}
+{# qui l'inclut, qui seul sait s'il doit poser l'ancre. C'est le `<span>` interieur du #}
+{# fragment d'edition qui se rafraichit (une seule autorite par element, C8). #}
+<div id="medecin-traitant-{{ patient.id }}"{% if avec_testid %} data-testid="ligne-medecin-traitant"{% endif %}>
+  {% trans 'Regular doctor' %} :
+  {% if editable %}{% include "pages/fragments/medecin-selecteur-edition.html" %}
+  {% elif patient.doctor %}{{ patient.doctor.family_name }} - {{ patient.doctor.city }}
+  {% else %}{% trans 'not documented' %} - {% trans 'not documented' %}{% endif %}
+</div>

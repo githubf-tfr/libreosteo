@@ -1,0 +1,20 @@
+{% load i18n %}
+{# Le selecteur en mode edition : la liste triee et le bouton d'ajout. #}
+{# **C'est lui, et lui seul, que la creation d'un medecin rafraichit hors-bande** : le #}
+{# `<span>` doit donc rester fille directe de la reponse quand `hors_bande` vaut vrai, #}
+{# sans quoi htmx ne l'extrait pas (patron de D6d, `comptabilite-echange.html`). #}
+<span id="selecteur-medecin-{{ patient.id }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}>
+  {# L'option vide reste sans libelle, comme la liste d'`editable-select` qu'elle remplace : #}
+  {# c'est la ligne de lecture qui dit « non renseigne - non renseigne », pas le selecteur. #}
+  <select name="doctor" class="form-control input-sm">
+    <option value=""{% if not patient.doctor_id %} selected{% endif %}></option>
+    {% for medecin in medecins %}<option value="{{ medecin.id }}"{% if medecin.id == patient.doctor_id %} selected{% endif %}>{{ medecin.family_name }} - {{ medecin.city }}</option>
+    {% endfor %}
+  </select>
+  {# `title` conserve a l'octet : `test_medecins.py:22` clique `button[title='Ajouter un #}
+  {# médecin']`. Les classes Bootstrap 3 et Font Awesome sont reprises telles quelles de #}
+  {# `doctor-selector.html:7`. #}
+  <button type="button" class="btn btn-default btn-xs fa fa-plus" title="{% trans 'Add a doctor' %}"
+          hx-get="{% url 'medecin-nouveau' %}?patient={{ patient.id }}"
+          hx-target="#modale" hx-swap="innerHTML"></button>
+</span>

@@ -1,0 +1,16 @@
+{% load i18n %}
+{# Corps de la modale d'ajout. Le `<form>` porte l'identifiant passe a `modale.html` par #}
+{# `formulaire_confirmer` : c'est `#modal-btn-ok` qui le soumet (E9). #}
+{# Le patient voyage dans un champ cache : l'URL `/doctors/new` est reprise a l'octet de la #}
+{# table d'etats et ne porte pas d'identifiant de patient. #}
+<form id="formulaire-medecin" hx-post="{% url 'medecin-nouveau' %}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  <input type="hidden" name="patient" value="{{ patient.id }}">
+  {% for champ in formulaire %}
+  <div class="form-group">
+    <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+    {{ champ }}
+    {% if champ.errors %}<span class="help-block" data-testid="erreur-{{ champ.name }}">{{ champ.errors|striptags }}</span>{% endif %}
+  </div>
+  {% endfor %}
+</form>

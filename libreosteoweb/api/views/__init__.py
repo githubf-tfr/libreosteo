@@ -43,6 +43,7 @@ from .pages import (
     enregistrer_identite,
     fragment_utilisateurs,
     integrer_import,
+    medecin_nouveau,
     mot_de_passe,
     mot_de_passe_utilisateur,
     page_cabinet,
@@ -52,6 +53,7 @@ from .pages import (
     page_nouveau_patient,
     page_profil,
     page_reindexation,
+    selecteur_medecin,
     utilisateur_nouveau,
 )
 from .patient import (
@@ -86,6 +88,7 @@ __all__ = [
     "enregistrer_identite",
     "fragment_utilisateurs",
     "integrer_import",
+    "medecin_nouveau",
     "mot_de_passe",
     "mot_de_passe_utilisateur",
     "page_cabinet",
@@ -101,6 +104,7 @@ __all__ = [
     "TherapeutSettingsViewSet",
     "create_superuser",
     "recherche",
+    "selecteur_medecin",
     "telecharger_fichier",
     "utilisateur_nouveau",
 ]
