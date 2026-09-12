@@ -827,9 +827,22 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   4. **Les composants du socle sont exercés dans un navigateur**, sur le banc d'essai de
      T6 — `2 passed` sur `tests/functional/test_socle_composants.py`. A10 n'a pas eu à
      jouer sa porte de sortie.
-  5. **Les vingt lancements consécutifs de la suite complète restent DUS.** Cette clause
-     revient nommément à la session centrale, comme pour D8 ; rien ici ne la présume
-     tenue. Le compte à retrouver aux vingt lignes est **`70 passed`**.
+  5. **Vingt lancements consécutifs verts** de la suite fonctionnelle complète, **tenue**,
+     mesurée par la session centrale sur **`fb39bbc`**, arbre propre et aucun commit
+     pendant la campagne : **`71 passed` les vingt fois**, zéro `failed`, zéro `error`, du
+     2026-09-12 00:15:58 au 02:48:48 (+02:00). 9 483 s de `pytest` cumulés, soit 2 h 38 de
+     test effectif, **438 à 513 s** par lancement. Le compte est **71 et non les 70**
+     annoncés à la clôture : le test de non-régression du dédoublement de tuile est entré
+     entre-temps.
+
+     **Une première campagne a été abandonnée, et le dire est la preuve que le cliquet n'a
+     pas été contourné.** Sur `1301bc3`, le commit de clôture, **huit** lancements verts à
+     `70 passed`, puis un **rouge au neuvième** :
+     `test_timeline_consultations_et_documents`, « strict mode violation:
+     locator(".document_title") resolved to 2 elements ». Un échec n'est pas un aléa — il a
+     été instruit, corrigé à la source (`74a8942`), son test de non-régression rattaché au
+     cahier (`fb39bbc`), et **le compte est reparti de zéro** sur l'arbre corrigé, comme le
+     critère d'arrêt l'exige.
   6. **Le cliquet de compression est armé des deux côtés** (T10) : un `{% if %}`
      réintroduit à la main dans `search.html` le fait rougir en nommant fichier et ligne,
      sous `pytest` nu **comme** sous `make check` ; vert après retrait. Une seule
@@ -839,7 +852,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
      ligne. Six orphelins ont été fermés à la clôture, dont **un legs de D8** —
      `test_le_nom_de_famille_redevient_modifiable_apres_un_cycle_d_edition`, ajouté par
      la troisième ronde de revue de D8 T2 et jamais nommé par la fiche `R-PAT-08` écrite
-     à T4.
+     à T4. **La clause a été rouverte puis refermée** : le correctif `74a8942`, postérieur
+     à la clôture, a livré un septième orphelin,
+     `test_enregistrer_le_patient_ne_dedouble_pas_la_tuile` ; il est rattaché à `R-DOC-01`
+     par `fb39bbc`, et la commande ne rend de nouveau aucune ligne.
   8. **`make check` vert** : **`337 passed`**, couverture **91,82 %**, périmètre `mypy`
      **127** entrées, cinq cliquets tenus. `fail_under = 90` inchangé, `ruff`
      `ignore = []` inchangé, **zéro `noqa` neuf, zéro `# type: ignore` neuf, zéro
@@ -951,6 +967,40 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     échouer `ruff format --check` ; à T9, les mutations de falsifiabilité ont été restaurées
     depuis une copie prise avant édition. Toute tâche qui touche ce fichier par un outil
     shell doit restituer les `\r`.
+  - **La clause des vingt lancements a fait son travail, et c'est la première fois qu'on
+    peut le prouver.** Elle a attrapé un défaut qu'**aucun** des douze lancements du lot
+    n'avait vu : taux mesuré d'un rouge sur neuf en suite complète, d'un sur dix sur
+    `test_patient.py` seul. Un lot qui se serait arrêté à deux lancements verts aurait
+    livré ce défaut sans le savoir. Le coût de la clause — 2 h 38 de test effectif, deux
+    campagnes — est le prix de cette garantie, et il se paie une fois par lot.
+  - **Le défaut était amont, pas de D6c, et l'imputabilité s'établit, elle ne se plaide
+    pas.** Trois preuves convergentes : `git diff afeb02f..HEAD` ne touche aucun des trois
+    fichiers en cause ; `git log -L 284,300:libreosteoweb/static/js/app/patient.js` ne rend
+    qu'**un seul commit**, le fork initial ; et le test de non-régression est **rouge à
+    l'identique** sur un worktree jetable placé sur `afeb02f`, l'arbre d'avant les douze
+    commits du lot. Mécanisme : `savePatient()` substituait la réponse du `PUT` à
+    `$scope.patient`, or cette réponse ne porte pas `medicalReportsDoc`, construit par
+    `updateMedicalDocumentReports` et par lui seul ; la tuile détruite, ngAnimate la gardait
+    500 ms en `ng-leave` et la tuile rechargée entrait **à côté** d'elle — deux vignettes
+    pendant ~750 ms pour un seul document. **Il ne gênait pas que les tests : la liste des
+    documents clignotait à chaque enregistrement du dossier.** Ce que D6c a changé, ce sont
+    quelques dizaines de millisecondes de temps de réponse ; la fenêtre, elle, datait de
+    l'amont.
+  - **Une leçon d'outil, réutilisable partout :
+    `expect(locator).to_have_text(chaîne)` ne retente pas une violation de mode strict.**
+    L'échec tombe en **0,04 s**, pas au bout des 15 s d'attente — mesuré sur banc isolé, sur
+    une page où le doublon dure 1,5 s. Un locator non ancré transforme donc un état
+    **transitoire** en rouge immédiat, sans reprise possible. C'est pour cela que les quatre
+    assertions voisines de `test_timeline_consultations_et_documents` ont été ancrées à
+    `li.documenttile` : le doublon est supprimé à la source, mais le motif qui en faisait un
+    rouge irrattrapable reste un piège du dépôt partout où il subsiste.
+  - **Le procédé qui laisse passer un orphelin s'est reproduit, deux fois en deux jours.**
+    T11 venait de verser au fichier le constat — *un test né d'une ronde de revue
+    postérieure à l'écriture des fiches échappe à la vérification d'orphelins de son propre
+    lot* — et le correctif `74a8942` l'a rejoué une fiche plus loin, hors lot cette fois.
+    Le dire, parce que la parade tient aujourd'hui à la **vigilance** de la session qui
+    clôt, et pas encore à un cliquet : la commande de rattachement n'est pas dans
+    `make check`.
 
   **Les trois défauts non corrigés, avec leur lot destinataire :**
   - `account/login.html:14-27` — bloc `{% compress css %}` ouvert `:14`, `</head>` `:26`,
