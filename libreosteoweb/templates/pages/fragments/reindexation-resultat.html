@@ -1,0 +1,13 @@
+{% load i18n %}
+{# La reponse **est** le resultat : c'est le fragment que la vue choisit, non deux blocs #}
+{# tous deux presents dans le DOM et masques par `ng-if` (D6d, C6). #}
+{# Les deux defauts de balisage legues par D6b sont refermes ici : `<div class)"col-md-2"` #}
+{# — une parenthese au lieu d'un signe egal, donc un attribut de classe jamais pose — et #}
+{# les deux `<span>` jamais fermes (KANBAN.md, defauts du cadrage de D6b). #}
+{% if reussi %}
+<i style="font-size:24px" class="fa fa-check" data-testid="reindexation-reussie"></i>
+<span>{% trans 'Finished' %}</span>
+{% else %}
+<i style="font-size:24px" class="fa fa-exclamation" data-testid="reindexation-echouee"></i>
+<span>{% trans 'Failed' %}</span>
+{% endif %}

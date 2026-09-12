@@ -230,10 +230,6 @@ def display_import_files(request):
     )
 
 
-def display_rebuild_index(request):
-    return render(request, "partials/rebuild-index.html", {"request": request})
-
-
 def display_file_manager(request):
     return render(request, "partials/filemanager.html", {"request": request})
 

@@ -39,7 +39,6 @@ var libreosteoApp = angular.module('libreosteo', [
     'loEditFormManager',
     'loHalloEditor',
     'loFileImport',
-    'loRebuildIndex',
     'ngFileUpload',
     'loFileManager',
     'angular-bind-html-compile'
@@ -125,12 +124,6 @@ libreosteoApp.config(['$stateProvider', '$urlRouterProvider',
                     url : '/office/import-file',
                     templateUrl : 'web-view/partials/import-file',
                     controller : 'ImportFileCtrl'
-                }).
-            state('rebuild-index',
-                {
-                    url : '/office/rebuild-index',
-                    templateUrl : 'web-view/partials/rebuild-index',
-                    controller : 'RebuildIndexCtrl'
                 }).
             state('invoice-list',
             {

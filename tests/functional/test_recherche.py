@@ -124,3 +124,35 @@ def test_la_session_expiree_renvoie_a_la_connexion(
     # resultats prouve qu'un document entier (la page de connexion) a remplace l'autre,
     # et non un fragment insere dedans par un simple echange de contenu.
     expect(page.locator("#resultats-recherche")).to_have_count(0)
+
+
+def test_la_session_expiree_pendant_une_reindexation_renvoie_a_la_connexion(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Le pont de session, prouve sur le **premier ecran authentifie de D6d**.
+
+    `test_la_session_expiree_renvoie_a_la_connexion` l'eprouve sur la recherche, ou la
+    requete htmx est un `hx-get` de pagination sur une page publique par son URL ; ici la
+    requete part d'un ecran du menu utilisateur, et sa cible est une **action**
+    (`internal/rebuild_index`) et non un fragment de liste. Les deux chemins traversent
+    `LoginRequiredMiddleware`, et le pont vit dans `libreosteoweb.middleware.rediriger`.
+
+    Falsifiable : neutraliser a la main la branche `HX-Request` de `rediriger` — le
+    document de connexion s'insere alors dans `#resultat-reindexation`, l'URL ne bouge pas,
+    et les deux dernieres assertions echouent franchement. **Une assertion d'URL seule ne
+    prouve jamais un changement de document quand htmx est en jeu** (legs de D6c) : c'est
+    l'absence de `#resultat-reindexation` qui distingue un document qui en a remplace un
+    autre d'un fragment insere dedans.
+    """
+    connexion(page, live_server)
+    ouvrir_menu_utilisateur(page)
+    page.click("#rebuild-index")
+    expect(page.get_by_test_id("titre-reindexation")).to_contain_text("Réindexer")
+
+    # La session est invalidee cote navigateur : la requete htmx suivante partira sans
+    # cookie de session, et le middleware la redirigera.
+    page.context.clear_cookies()
+
+    page.click("button:has-text('réindexer')")
+    expect(page).to_have_url(re.compile(r"/accounts/login"))
+    expect(page.locator("#resultat-reindexation")).to_have_count(0)

@@ -251,10 +251,27 @@ class DbDump(PermissionRequiredMixin, View):
 
 class RebuildIndex(StaffRequiredMixin, View):
     def get(self, request, *args, **kwargs):
-        call_command(
-            "rebuild_index", interactive=False, stdout=LoggerWriter(logger.info)
+        # `HttpResponse("index rebuilt")` etait du texte nu que personne n'affichait :
+        # `rebuild_index.js` posait `$scope.finished = true` sans le lire, et son seul
+        # consommateur disparait avec ce commit. La reponse est desormais le fragment que
+        # l'ecran echange (D6d, C6). La branche d'echec existait deja cote client
+        # (`$scope.failed`) sans qu'aucune erreur serveur ne la declenche jamais : elle est
+        # ici reliee a la seule cause reelle, l'echec de la commande d'indexation.
+        try:
+            call_command(
+                "rebuild_index", interactive=False, stdout=LoggerWriter(logger.info)
+            )
+        except Exception:
+            logger.exception("Rebuild index failed")
+            return render(
+                request,
+                "pages/fragments/reindexation-resultat.html",
+                {"reussi": False},
+                status=500,
+            )
+        return render(
+            request, "pages/fragments/reindexation-resultat.html", {"reussi": True}
         )
-        return HttpResponse("index rebuilt")
 
 
 class LoadDump(View):

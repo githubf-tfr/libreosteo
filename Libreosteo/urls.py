@@ -80,6 +80,11 @@ urlpatterns = [
     ),
     re_path(r"^myuserid", TemplateView.as_view(template_name="account/myuserid.html")),
     re_path(r"^search$", views.recherche, name="search"),
+    re_path(
+        r"^office/rebuild-index$",
+        views.page_reindexation,
+        name="reindexation",
+    ),
     re_path(r"", include("libreosteoweb.urls")),
     re_path(r"^internal/dump.json", views.DbDump.as_view(), name="db_dump"),
     re_path(r"^internal/restore", views.LoadDump.as_view(), name="load_dump"),
@@ -105,7 +110,6 @@ urlpatterns = [
     re_path(r"^web-view/partials/set-password-modal", displays.display_setpassword),
     re_path(r"^web-view/partials/office-settings$", displays.display_officesettings),
     re_path(r"^web-view/partials/import-file$", displays.display_import_files),
-    re_path(r"^web-view/partials/rebuild-index$", displays.display_rebuild_index),
     re_path(r"^web-view/partials/filemanager$", displays.display_file_manager),
     re_path(
         r"^web-view/partials/restore$",

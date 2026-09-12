@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+{% load compress %}
+
+{% block titre %}{% trans 'Rebuild index' %}{% endblock %}
+
+{% block css_page %}
+{% compress css %}
+{# La meme mise en page qu'aujourd'hui : `#page-wrapper` de sb-admin-2 pose le decalage #}
+{# sous le bandeau fixe, `libreosteo.css` porte les regles propres au produit. Aucun #}
+{# fichier CSS n'est ajoute au depot : ce sont ceux que la coquille charge deja, et que #}
+{# `search.html` (D6c) charge de la meme facon. Le bloc `compress` ne porte **aucune** #}
+{# condition : le cliquet de compression l'interdit, et D6g posera COMPRESS_OFFLINE. #}
+<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
+<link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
+{% endcompress %}
+{% endblock %}
+
+{% block contenu %}
+<div id="page-wrapper">
+    <h1 class="page-header" data-testid="titre-reindexation">
+        {% trans 'Rebuild index' %}
+    </h1>
+    <div class="row">
+    <p>{% blocktrans %}This function helps to rebuild index when for different reason, searching does not work.
+        Be sure that no body is adding new patient and examination before to do that.{% endblocktrans %}</p>
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">{% trans 'Rebuild index' %}</div>
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <i style="font-size:24px" class="fa fa-wrench-o"></i>
+                            {# `hx-disabled-elt="this"` desactive le bouton pendant la #}
+                            {# requete : la reindexation est synchrone et tient la #}
+                            {# connexion, un second lancement concurrent n'a aucun sens. #}
+                            {# `hx-request` pose le delai a 180 000 ms, valeur du #}
+                            {# `--http-timeout 180` d'uwsgi : htmx 2 n'a aucun plafond par #}
+                            {# defaut, et le laisser implicite serait reproduire S4-10 par #}
+                            {# une autre porte (D6d, A12). #}
+                            <button class="btn btn-success" type="button"
+                                    hx-get="{% url 'rebuild_index' %}"
+                                    hx-target="#resultat-reindexation"
+                                    hx-indicator="#reindexation-en-cours"
+                                    hx-disabled-elt="this"
+                                    hx-request='{"timeout": 180000}'>{% trans 'rebuild index'%}</button>
+                        </div>
+                        <div class="col-md-4" id="resultat-reindexation"></div>
+                        <div class="col-md-5">
+                            <p class="bg-success htmx-indicator" id="reindexation-en-cours"><i class="fa fa-cog fa-spin fa-lg fa-fw"></i> {% trans 'Loading in progress'%}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

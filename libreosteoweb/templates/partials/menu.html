@@ -52,7 +52,13 @@
           {% if request.user.is_staff %}
           <li id="import-file"><a ui-sref="import-file" href="/#/office/import-file"><i class="fa fa-upload"></i> {% trans "Import/export" %}</a>
           </li>
-          <li id="rebuild-index"><a ui-sref="rebuild-index" href="/#/office/rebuild-index"><i class="fa fa-wrench"></i> {% trans "Rebuild index" %}</a>
+          {# `ui-sref` retire **en meme temps** que le `href` change : la directive #}
+          {# reecrit l'attribut `href` de l'element qui la porte, donc un `href` absolu #}
+          {# pose a cote serait reecrit en `#/office/rebuild-index` des que la coquille est #}
+          {# affichee — et menerait a un etat dont le fragment n'existe plus (D6d, E2). #}
+          {# L'identifiant `rebuild-index` ne bouge pas : cinq helpers du filet le #}
+          {# cliquent, et `tour.js` s'ancre sur ses deux voisins. #}
+          <li id="rebuild-index"><a href="{% url 'reindexation' %}"><i class="fa fa-wrench"></i> {% trans "Rebuild index" %}</a>
           </li>
           {% endif %}
           {% if request.has_multiple_office %}
