@@ -1998,6 +1998,13 @@ la marge nécessaire pour redater vers l'avant tout en restant dans le passé).
 3. Cliquer « Imprimer ».
    Attendu : un nouvel onglet s'ouvre sur la facture imprimée (contenu couvert par
    R-FAC-01).
+4. Revenir sur « Comptabilité », cliquer le bouton « XLSX » situé à droite des liens de
+   plage prédéfinie.
+   Attendu : un fichier tableur est téléchargé ; ouvert, il porte la facture `10000` et
+   elle seule. **C'est un lien de téléchargement ordinaire, pas un menu déroulant** : un
+   seul format d'export existe, et le menu qu'affichait l'écran précédent n'avait qu'une
+   entrée. L'export suit la période affichée : refaire le geste après avoir cliqué la
+   plage de l'année précédente produit un fichier sans aucune facture.
 
 ### R-FAC-03 — Numérotation continue sur deux factures successives
 
