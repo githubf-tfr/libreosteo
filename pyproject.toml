@@ -172,6 +172,7 @@ files = [
     "libreosteoweb/tests/test_service_facturation.py",
     "libreosteoweb/tests/test_service_import.py",
     "libreosteoweb/tests/test_service_sauvegarde.py",
+    "libreosteoweb/tests/test_socle_gabarit_actions.py",
     "libreosteoweb/tests/test_trace_redatation.py",
     "libreosteoweb/tests/test_traductions.py",
     "libreosteoweb/tests/test_utils.py",
