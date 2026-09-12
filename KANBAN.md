@@ -453,6 +453,48 @@ corrigé par ce lot ; chacun attend le chantier qui réécrit son écran.
   (`229ffc8`) qu'aucune fiche de `docs/recette.md` ne nomme. Rien n'exécute cette commande
   automatiquement, donc la dette se rouvre à chaque test ajouté sans fiche.
 
+### Défauts constatés par la passe de recette du 2026-09-12 (non corrigés)
+
+Relevés par la passe complète (cf. « Terminé »), arbitrés au code après coup. **Les deux
+premiers sont des régressions de D6d** : ils n'existaient pas avant la réécriture des
+écrans, et sont à reprendre en priorité.
+
+- **L'export XLSX de la Comptabilité ne suit pas la période choisie.**
+  `libreosteoweb/templates/pages/comptabilite.html` : le formulaire de dates, les trois
+  liens de plage prédéfinie et le lien d'export vivent **hors** de `#liste-comptabilite`,
+  seul élément que `hx-swap` remplace. Après un clic sur une plage, le lien d'export garde
+  son `href` d'origine et les deux champs de date restent figés ; seul un rechargement
+  rétablit la cohérence, `hx-push-url` tenant l'URL à jour. L'écran d'avant recalculait
+  l'URL côté client à chaque changement de période (`buildXlsxUrl`). Constaté par
+  `R-FAC-02` étape 4.
+- **Les erreurs d'import CSV s'affichent en représentation Python.**
+  `libreosteoweb/templates/pages/fragments/import-integration.html:13,26` fait
+  `{{ valeur }}` sur la liste d'`ErrorDetail` que rend DRF, d'où
+  `[ErrorDetail(string='Ce patient existe déjà', code='invalid')]` à l'écran. L'ancien
+  gabarit interpolait la même donnée passée par JSON, où AngularJS rendait la chaîne nue.
+  Constaté par `R-IMP-02` étape 3.
+- **L'import de masse n'affiche aucun indicateur d'attente.** L'intégration de 100 patients
+  répond en **114 s** et le navigateur reçoit bien la réponse — l'ancien défaut du
+  2026-09-01 est donc fermé —, mais rien à l'écran ne signale le travail en cours pendant
+  ces presque deux minutes. Préexiste à D6d, qui n'a pas changé ce point.
+- **Un paragraphe du panneau d'archive n'est pas traduit.**
+  `libreosteoweb/templates/pages/import-export.html:43` porte `This file is the full
+  content of your database…` en clair, hors `{% trans %}`. Identique à l'octet dans le
+  gabarit d'avant : **défaut amont, pas régression**. Constaté par `R-SAU-01` étape 1.
+- **Deux boutons de `R-SAU-02` commencent par « Restaurer », et viser le mauvais ne produit
+  aucun message.** Le geste correct rend bien `412` et l'alerte attendue. Relevé comme
+  piège de geste par l'exécutant ; ressemble à un défaut d'ergonomie, non instruit.
+- **Le champ de montant refuse la virgule en silence.** `55,55` rend le formulaire invalide
+  et désactive « Valider » sans aucun message, là où `55.55` passe — asymétrique avec le
+  refus des trois décimales, qui affiche une bannière. Préexiste à D6d.
+- **`R-INST-07` : six de ses huit lectures statiques ne correspondent plus à l'arbre.**
+  27 références `@components/` au lieu de 29, deux références `npm:` sans SHA40 (`alpinejs`
+  et `htmx`, entrées avec D6c), `--frozen-lockfile` absent de `.github/workflows/main.yml`.
+  La fiche porte un cliquet de reproductibilité du build : **il ne se relâche pas depuis
+  une session de recette**, et l'exécutant a eu raison de n'y pas toucher. À instruire hors
+  passe — soit l'arbre a dérivé, soit la fiche doit être remise à jour, et seule une
+  lecture du chantier D5 peut le dire.
+
 ### Défauts versés par D6d (2026-09-12, non corrigés, à trancher hors lot de migration)
 
 Chacun préexiste à D6d, qui les **reproduit à l'identique** plutôt que de les trancher : un
@@ -819,6 +861,142 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-12 — Passe complète du cahier de recette : 60 fiches, 51 OK, 7 KO, 2 non
+  jouées, contre le commit `9fe7ec2`.** Première passe complète depuis celle du
+  2026-09-01 (`994181e`, 42 fiches alors). Instance unique montée selon le chapitre 0
+  (`Docker/deploy/pg/docker-compose.yml`, images `libreosteo/libreosteo-pg:9fe7ec2` et
+  `libreosteo/libreosteo-http:9fe7ec2`), répertoire de travail hors dépôt, détruite en fin
+  de passe. Cinq exécutants **en séquence** sur cette même instance — et non trois en
+  parallèle comme en 2026-09-01 : la machine n'offrait que 1,9 Go disponibles, de quoi
+  tenir une pile, pas trois. Chaque exécutant n'a lu que `docs/recette.md`, et aucun n'a
+  eu accès au code ni aux tests. Aucun navigateur interactif n'étant disponible sur la
+  machine (extension non appairée, aucun binaire Chrome installé), les gestes ont été
+  joués par Playwright depuis le dépôt, en scripts jetables qui **impriment ce que la page
+  contient** au lieu d'asserter — la consigne distinguant l'exécutant de la suite
+  automatisée était explicite dans les cinq briefs.
+
+  | Chapitre | Fiches | OK | KO | Non jouées |
+  |---|---|---|---|---|
+  | Installation | 8 | 4 | 2 | 2 |
+  | Authentification, Cabinet, Thérapeute, Médecins | 16 | 15 | 1 | — |
+  | Patient, Documents | 13 | 13 | — | — |
+  | Consultation, Facturation | 11 | 9 | 2 | — |
+  | Agenda, Import, Sauvegarde, Recherche, Tableau de bord, Erreurs | 12 | 10 | 2 | — |
+  | **Total** | **60** | **51** | **7** | **2** |
+
+  **Les sept KO, arbitrés au code après la passe** — la règle « constater sans corriger »
+  lie l'exécutant, pas l'arbitrage qui suit. Deux d'entre eux seulement sont des
+  régressions de D6d.
+
+  1. **`R-FAC-02` étape 4 — l'export XLSX ne suit pas la période. Régression de D6d.**
+     Après un clic sur une plage prédéfinie, l'écran se met à jour mais le lien d'export
+     garde son `href` d'origine et retélécharge la période précédente ; les deux champs de
+     date restent figés eux aussi. Cause lue dans le gabarit : le formulaire de dates, les
+     trois liens de plage et le lien d'export vivent **hors** de `#liste-comptabilite`,
+     seul élément que `hx-swap` remplace. L'écran d'avant recalculait l'URL côté client à
+     chaque changement de période (`buildXlsxUrl`) ; le nouveau la calcule une fois, au
+     chargement. `hx-push-url` tient l'URL affichée à jour, donc un rechargement rétablit
+     la cohérence — ce qui rend le défaut d'autant plus discret.
+     **Constaté par une étape de recette âgée de quelques heures** : elle a été ajoutée le
+     même jour pour combler le trou de couverture que la reprise verbatim de l'étape 1 par
+     T13 avait ouvert, et elle attrape la régression au premier passage.
+  2. **`R-IMP-02` étape 3 — les erreurs d'import sont affichées en `repr` Python.
+     Régression de D6d.** Attendu « Ce patient existe déjà » ; constaté, pour les cent
+     entrées, `[ErrorDetail(string='Ce patient existe déjà', code='invalid')]`. Même
+     donnée qu'avant, rendu différent : l'ancien gabarit interpolait `{$ value $}` sur une
+     valeur passée par JSON, où AngularJS rendait la chaîne nue ; le nouveau fait
+     `{{ valeur }}` sur la liste Python d'`ErrorDetail`, dont Django rend la
+     représentation. Tout le reste de la fiche est conforme, numéros de ligne compris.
+  3. **`R-INST-05` étape 3 et `R-INST-08` étape 3 — l'entrelacement `stdout`/`stderr` du
+     journal Docker, enfin reproduit.** `R-INST-05` : la ligne `Applying …0057_…` est
+     **absente** du journal, qui enchaîne `Running migrations:` puis le `CommandError`.
+     `R-INST-08` : les lignes de reprise **précèdent** `Applying 0060 … OK` au lieu de le
+     suivre, et **chaque message est écrit deux fois, à la même milliseconde**. Dans les
+     deux cas la substance passe intégralement — la garde métier refuse bien, la
+     renumérotation s'exécute (`Facture #2 renumérotée : 10000 devient 1000000.`), la
+     contrainte est posée, le rejeu est idempotent. **Ce qui est KO, c'est ce que le
+     journal montre à l'opérateur qui suit la procédure**, jamais le comportement.
+     Le point en suspens du 2026-09-06 donnait ce défaut pour « non reproduit en mode
+     contrôlé » : il vient de l'être deux fois, sous deux formes différentes, dans la même
+     passe. Ce qui manquait pour trancher existe désormais.
+  4. **`R-SAU-01` étape 1 — un paragraphe en anglais dans un panneau français.** L'écran
+     affiche `This file is the full content of your database. It could only be used by
+     LibreOsteo. Use it to restore your database or transfert the content to an other
+     machine.` **Ce n'est pas une régression** : la chaîne est identique à l'octet dans
+     l'ancien et le nouveau gabarit, n'ayant jamais été enveloppée dans `{% trans %}` en
+     amont. D6d l'a reproduite fidèlement, comme il devait.
+  5. **`R-THE-01` étape 1 et `R-FAC-07` étape 6 — défauts du manuel, requalifiés.** Les
+     deux exécutants ont appliqué la bonne règle (« dans le doute, KO produit ») ;
+     l'arbitrage les renverse, et les deux fiches sont corrigées.
+     - `R-THE-01` attendait un placeholder « Pied de page de facture » : **il n'a jamais
+       existé**. L'ancien écran posait `placeholder="{{ therapeutsettings.invoice_footer }}"`,
+       c'est-à-dire la valeur du champ — invisible à vide comme à plein — et son `<label>`
+       portait lui aussi la valeur, donc rien du tout sur un champ vide. D6d a **réparé**
+       ce libellé orphelin et laissé tomber un placeholder qui n'affichait rien.
+     - `R-FAC-07` attendait un total « inchangé » après annulation ; l'écran affiche
+       `111.10` au lieu de `166.65`. La phrase de la fiche se contredisait : si l'avoir
+       « compense exactement » la facture annulée, le total baisse du montant annulé.
+       `test_un_avoir_compense_arithmetiquement` fixe la règle réelle — `cancel_invoice`
+       ne pose `replace` sur aucune des deux factures, la facture annulée reste à `+55.55`
+       et l'avoir à `-55.55`, et il reste les deux factures valides. **111.10 est juste**,
+       et l'écran d'avant affichait la même chose.
+
+  **La mesure de C9 qui manquait au dépôt est prise.** Réindexation complète sur un parc
+  de **101 patients** : **11 secondes**, deux mesures concordantes (11,0 s et 11,1 s),
+  horloge démarrée au clic sur « réindexer » et arrêtée à l'apparition de « Terminé » dans
+  le document — donc tout l'aller-retour, pas seulement le serveur. Le délai accordé aux
+  travaux longs est de 180 000 ms : **marge d'un facteur 16**, et la borne ne serait
+  approchée que vers ~1 500 patients. Le chiffre est inscrit à la fiche `R-RCH-02`, seul
+  endroit du cahier où une mesure a sa place. **A12 est donc confirmé dimensionné.**
+
+  **Ce que la passe ferme.** `R-PAT-08`, due depuis D8 et jamais jouée, **passe sur ses
+  dix étapes** : après clic sur la case « Fumeur », saisie, puis « Fin d'édition »,
+  `Profession` et `Loisirs` survivent au rechargement complet — aucune perte silencieuse
+  de saisie. L'étape 4 neuve de `R-DOC-01` passe également ; son attendu « regarder la
+  liste pendant le clic » n'étant pas honnêtement observable à l'œil, l'exécutant a posé
+  un observateur de mutations doublé d'un échantillonnage à 20 ms sur 6 s, qui n'enregistre
+  **qu'un seul état** de la liste : ni clignotement, ni dédoublement. Les fiches dues de
+  D6c sont jouées, `R-INST-01` et `R-AUTH-01/02/03/06` comprises. **La dette de recette de
+  D6c, D6d et D8 est soldée.**
+
+  **L'ancien KO des imports ne se reproduit pas.** `R-IMP-01` et `R-IMP-02` étaient en
+  échec le 2026-09-01 parce que le navigateur ne recevait jamais la réponse de l'import
+  dans l'instance conteneurisée. Le navigateur la reçoit désormais (`200` sur
+  `/office/import-file/N/integrate`), **après 114 s** — mais l'écran n'affiche **aucun
+  indicateur d'attente perceptible** pendant ces presque deux minutes. Le défaut de fond
+  est fermé, celui d'ergonomie ne l'est pas.
+
+  **Douze défauts du manuel corrigés au fil de la passe** (aucune date, aucun verdict,
+  aucune case cochée n'entre jamais dans `docs/recette.md`). Le plus coûteux, et de loin :
+  **six horodatages `--since` auxquels manquait le suffixe `Z`**. Sans lui, `docker logs
+  --since` lit la borne en heure **locale** et rouvre deux heures d'historique — constaté
+  à `R-INST-04`, où un `WSGI app 0 … ready` antérieur est remonté dans la fenêtre. C'est
+  exactement le faux écart que le paragraphe justifiant le `--since` disait vouloir éviter.
+  Les onze autres sont des libellés d'écran (« Email » devenu « Adresse électronique »,
+  « Cancel » devenu « Annuler », « Derniers évènements » devenu « Évènements »), deux états
+  requis faux (`R-THE-03` exige E2 et non E1, `R-FAC-07` exige un patient que E1 n'a pas),
+  un montant `55,55` que le champ refuse **en silence** là où `55.55` passe, et la note du
+  chapitre 0 sur `import_zipcodes` — qui **n'échoue pas** dans cet environnement,
+  contrairement à ce qu'elle affirmait.
+
+  **Deux fiches non jouées, motifs nets.** `R-INST-06` (montée majeure PostgreSQL) exige
+  une image PostgreSQL 13 du fork qui n'existe pas — les deux tags `libreosteo-pg`
+  pointent la même image, moteur 18.6 — et la fabriquer aurait demandé un build que la
+  passe s'interdit. `R-INST-07` (construction reproductible du frontend) exige deux builds
+  `--no-cache` à deux dates distinctes. Son étape 2, purement statique, a tout de même été
+  jouée : **six lectures sur huit ne correspondent plus à l'arbre** — 27 références
+  `@components/` au lieu de 29, deux références `npm:` sans SHA40 (`alpinejs` et `htmx`,
+  entrées avec D6c), `--frozen-lockfile` absent de `.github/workflows/main.yml`. L'exécutant
+  a refusé d'y toucher, et il a eu raison : **un cliquet ne se relâche pas depuis une
+  session de recette.** À reprendre hors passe.
+
+  **Trois pièges de constatation**, notés pour les passes suivantes : les modales du
+  produit sont en `position: fixed` et un test de visibilité naïf les déclare fermées à
+  tort ; les info-bulles sont des attributs `tooltip=` d'ui-bootstrap, invisibles en
+  headless et absentes de `title` ; `docker compose restart` rend la main plusieurs
+  secondes avant que le service ne réponde, et une page demandée trop tôt rend
+  `ERR_CONNECTION_RESET` sans que rien ne soit cassé.
+
 - **2026-09-12 — D6d Administration migrée : les cinq écrans en htmx, sans AngularJS**
   (treize tâches ; spec `docs/superpowers/specs/2026-09-11-d6d-administration-design.md`,
   plan supprimé une fois achevé).
@@ -882,11 +1060,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   à **45 %** sous la charge de la suite complète : les cinq écrans migrés n'en réintroduisent
   pas. C'est la seconde fois que la clause passe sans reprise.
 
-  **La seconde mesure exigée par C9 n'est pas prise** : la durée d'une réindexation
-  complète sur un parc réel se relève sur le parc de 100 patients de `R-IMP-01`, en jouant
-  `R-RCH-02` juste après, et le chiffre s'inscrit à la fiche `R-RCH-02`. Elle décide si le
-  délai de 180 s d'A12 suffit. Aucune mesure n'existe encore dans le dépôt ; elle appartient
-  à la passe de recette manuelle de D6d, qui reste due.
+  **La seconde mesure exigée par C9 est prise depuis, le même jour** : la réindexation
+  complète d'un parc de 101 patients prend **11 s**, contre 180 s accordées — marge d'un
+  facteur 16, A12 confirmé dimensionné. Détail et méthode à l'entrée « Passe complète du
+  cahier de recette » ci-dessus ; chiffre inscrit à la fiche `R-RCH-02`.
 
   **Cahier de recette (T13)** : trois fiches neuves — `R-CAB-05` (les utilisateurs du
   cabinet, domaine qu'aucune fiche ne couvrait, à aucun niveau), `R-THE-03` (les paramètres

@@ -131,9 +131,12 @@ suffit. `docker compose ... ps` montre `db` en `Up (healthy)` — le service app
 n'est lancé qu'une fois la sonde TCP passante — puis `libreosteo` en `Up` ; le journal
 montre toutes les migrations `Applying ... OK`, puis `WSGI app 0 (mountpoint='') ready` et
 `spawned uWSGI http 1`. Aucun `pg_isready`, aucun `restart` : si l'un des deux paraît
-nécessaire, c'est un écart produit, à noter comme tel. `import_zipcodes` échoue
-systématiquement en sandbox (réseau deny par défaut) — non bloquant, à ignorer, une ligne
-du journal le dit désormais explicitement.
+nécessaire, c'est un écart produit, à noter comme tel. `import_zipcodes` s'exécute au
+démarrage et **dépend du réseau sortant** : quand il aboutit, le journal montre
+`Fetching zipcodes for FRANCE from …`, `Inserting zipcodes into database from URL …` puis
+`Done` ; quand le réseau est refusé (sandbox en deny par défaut), il échoue, une ligne du
+journal le dit explicitement. Les deux issues sont normales et non bloquantes — la recette
+ne dépend pas des codes postaux.
 
 **Étape 5 — vérification externe :**
 
@@ -265,7 +268,7 @@ inactif) sont déjà en place par les migrations — aucune saisie à faire.
 |---|---|
 | Nom | `Tester` |
 | Prénom | `Robot` |
-| Email | `test@test.com` |
+| Adresse électronique | `test@test.com` |
 | Identifiant professionnel (sous le libellé dynamique « Adeli ») | `67654684` |
 | Identifiant de structure (sous le libellé dynamique « SIRET ») | `52282868700022` |
 | Qualité (sous le libellé « Qualité ») | `Ostéopathe DO` |
@@ -295,7 +298,7 @@ consultation ».
 
 | Champ | Valeur |
 |---|---|
-| Motif (texte en gras, cliquable) | `Motif de consultation` |
+| Motif (champ de saisie, placeholder « Motif ») | `Motif de consultation` |
 | Examen médical (zone sous le motif) | `Examen normal` |
 
 Bouton « Clôturer ». Dans la fenêtre « Facturation » : choisir « Facturée » (le champ
@@ -441,7 +444,10 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    migration n'est rejouée).
 3. S'identifier avec `test` / `test`.
    Attendu : titre de page « LibreOsteo » ; connexion acceptée.
-4. Dans le champ de recherche (en haut de l'écran), saisir `Picard`, valider.
+4. Dans le champ de recherche (en haut de l'écran), saisir `Picard`, valider, puis
+   cliquer le résultat `Picard Jean-Luc` — la validation ouvre l'écran de recherche
+   (titre « Recherche de "Picard" »), pas la fiche : c'est le comportement normal du
+   produit, cf. `R-RCH-01`.
    Attendu : la fiche patient de Jean-Luc Picard s'affiche (titre de page contenant
    « Picard Jean-Luc ») ; l'onglet « Consultations » liste les deux consultations créées
    à l'état E2 ; l'onglet « Compte-rendus médicaux » liste le document
@@ -486,7 +492,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
    ```sh
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml stop db
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
@@ -494,7 +500,10 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
    Le `--since` n'est pas un confort : `logs` sans borne rend tout l'historique du
    conteneur, y compris les démarrages réussis précédents, et leurs lignes
-   `WSGI app 0 (mountpoint='') ready` feraient lire un faux écart.
+   `WSGI app 0 (mountpoint='') ready` feraient lire un faux écart. Le `Z` final
+   n'est pas décoratif : sans lui, `docker` lit l'horodatage comme une heure
+   **locale** et la borne saute du décalage horaire — sur une machine à UTC+2, elle
+   rouvre deux heures d'historique et le faux écart revient.
 
    Attendu : `ps -a` affiche le service `libreosteo` en `Exited` avec un **code de sortie
    non nul** ; le journal montre la trace d'erreur de `migrate`
@@ -518,7 +527,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
    ```sh
    mv "$SCRATCH/settings/__init__.py" "$SCRATCH/settings/__init__.py.retire"
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
@@ -604,7 +613,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 3. Redémarrer le service applicatif, sur l'image portant les migrations de D3 :
 
    ```sh
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
@@ -638,7 +647,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    ```sh
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
      exec db psql -U libreosteo -d libreosteo -c "DELETE FROM libreosteoweb_patient WHERE family_name = 'PICARD';"
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
    curl -sD - -o /dev/null http://localhost:8085/
@@ -853,7 +862,7 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 3. Redémarrer le service applicatif, sur l'image portant `0060` :
 
    ```sh
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
@@ -899,7 +908,7 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 6. Rejouer le démarrage une seconde fois, sans rien changer :
 
    ```sh
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%S)
+   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo | grep -i 'renumérot'
    ```
@@ -1033,8 +1042,8 @@ au journal.
 1. Cliquer sur le nom d'utilisateur en haut à droite → « Profil utilisateur », onglet
    « Utilisateur ».
    Attendu : titre de page « LibreOsteo » ; page « Profil utilisateur » affichée ; les
-   champs Nom, Prénom et Email affichent respectivement `Tester`, `Robot` et
-   `test@test.com` (valeurs du socle E1).
+   champs Nom, Prénom et Adresse électronique affichent respectivement `Tester`, `Robot`
+   et `test@test.com` (valeurs du socle E1).
 2. Remplacer la valeur du champ Nom par `TesterModifie`, cliquer « Enregistrer ».
    Attendu : message affiché « Profil mis à jour » ; le champ Nom affiche
    `TesterModifie` inchangé — une majuscule à l'intérieur d'un mot (ici le second
@@ -1285,8 +1294,12 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
    Attendu : page « Profil utilisateur » affichée ; le champ sous le libellé
    dynamique « Adeli » affiche `67654684` ; le champ sous le libellé dynamique
    « SIRET » affiche `52282868700022` ; le champ sous le libellé « Qualité » affiche
-   `Ostéopathe DO` ; le champ sous le libellé « Pied de page de facture » est vide
-   (placeholder « Pied de page de facture » affiché en grisé).
+   `Ostéopathe DO` ; le champ sous le libellé « Pied de page de facture » est vide, et
+   **son libellé est bien ce texte-là** — aucun placeholder n'est attendu dans ce champ.
+   Avant la réécriture de cet écran, le libellé affichait la *valeur* du champ et non son
+   intitulé (`<label>{{ therapeutsettings.invoice_footer }}</label>`), de sorte qu'à vide
+   il n'affichait rien du tout ; le placeholder, lui, reprenait cette même valeur et
+   n'était donc jamais visible. Le libellé réel est ce que la réécriture a apporté.
 2. Remplacer l'identifiant professionnel (Adeli) par `99887766`, l'identifiant de
    structure (SIRET) par `11122233300099`, la Qualité par `Ostéopathe animalier`, et
    saisir `Merci de votre confiance` dans le pied de page de facture, cliquer
@@ -1330,7 +1343,8 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
   autres cases sont couvertes en unitaire par
   libreosteoweb/tests/test_profil_therapeute.py::TestModulesOptionnelsDuProfil, et
   **jamais au navigateur** — voir l'avertissement ci-dessous)
-- **État requis** : E1
+- **État requis** : E2. Les étapes 1 à 4 se jouent depuis E1, mais l'étape 5 ouvre une
+  consultation sur un patient, ce que E1 — qui n'en porte aucun — ne permet pas.
 
 **⚠️ Avertissement, à lire avant d'écrire un test sur cet écran.** Décocher « Statistiques »
 rend le tableau de bord sans bloc de statistiques, et la barrière d'ouverture de session de
@@ -1351,11 +1365,11 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
    Attendu : message affiché « Profil mis à jour » ; l'onglet reste « Paramètres
    d'affichage » — l'enregistrement ne renvoie pas au premier onglet.
 3. Aller au tableau de bord (logo « LibreOsteo » en haut à gauche).
-   Attendu : le bloc « Derniers évènements » n'est plus affiché ; le bloc de statistiques,
+   Attendu : le bloc « Évènements » n'est plus affiché ; le bloc de statistiques,
    lui, l'est toujours.
 4. Revenir sur Profil utilisateur → « Paramètres d'affichage », recocher
    `Historique des évènements`, cliquer « Enregistrer », retourner au tableau de bord.
-   Attendu : le bloc « Derniers évènements » est de nouveau affiché.
+   Attendu : le bloc « Évènements » est de nouveau affiché.
 5. Décocher `Sphères`, cliquer « Enregistrer », ouvrir une consultation en cours sur un
    patient (mêmes gestes que R-CON-01).
    Attendu : les champs de sphères (ORL, viscérale, cardio-pulmonaire, uro-gynéco,
@@ -1519,7 +1533,7 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
    patient ».
    Attendu : reste sur le formulaire « Nouveau patient » ; une fenêtre modale
    s'ouvre, texte « Un patient de même nom existe déjà : » suivi du patient
-   homonyme déjà en base ; boutons « Ok » et « Cancel ».
+   homonyme déjà en base ; boutons « Ok » et « Annuler ».
 2. Cliquer « Ok ».
    Attendu : la fiche du nouveau patient s'ouvre, URL de la forme
    `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — l'avertissement
@@ -1579,7 +1593,8 @@ existante ne couvrait la casse.
    titre ne gagne aucun champ de saisie — le nom de naissance ne s'y saisit plus,
    seulement en lecture entre parenthèses et seulement s'il est renseigné (absent ici) ;
    le panneau « Infos patient » affiche en première ligne « Nom de naissance : non
-   renseigné ».
+   renseigné » — ligne relevée à l'ouverture de la fiche, avant « Éditer » : en mode
+   édition cette même ligne porte le champ de saisie, vide ici, que l'étape 5 renseigne.
 2. Cocher la case « Fumeur » — **c'est le geste qui déclenchait le défaut** : avant
    correctif, ce seul clic enregistrait le patient entier.
    Attendu : la case se coche, rien d'autre ne bouge à l'écran.
@@ -2182,13 +2197,16 @@ deux dates.
   ::test_total_exact_sur_trois_factures_a_centimes (la période par défaut, la période vide,
   la saisie de deux dates et l'exactitude du total ; les trois plages prédéfinies n'ont pas
   d'équivalent automatisé)
-- **État requis** : E1, complété par trois factures émises sur deux périodes distinctes
-  (étape 1).
+- **État requis** : E1, complété par un patient et trois factures émises le jour du passage
+  (étape 1). E1 ne porte aucun patient : créer d'abord celui de l'état E2 (chapitre 1,
+  point E2.1 — `Picard` / `Jean-Luc` / `13`/`07`/`1935`, case de consentement cochée).
 
 **Étapes**
 
-1. Facturer trois consultations pour un même patient (mêmes gestes que R-CON-03), en
-   saisissant `55,55` comme montant à chaque fois.
+1. Facturer trois consultations pour ce patient (mêmes gestes que R-CON-03), en
+   saisissant `55.55` comme montant à chaque fois — séparateur décimal **point**, comme
+   en R-FAC-05 : le champ Montant refuse la virgule (il passe en invalide et le bouton
+   « Valider » reste désactivé, sans message).
    Attendu : trois factures émises, aux numéros consécutifs.
 2. Menu du haut, cliquer « Comptabilité ».
    Attendu : page « Comptabilité » affichée ; deux champs de date affichent le premier et
@@ -2208,8 +2226,12 @@ deux dates.
    Recharger la page : la période saisie est conservée.
 6. Sur la première ligne, ouvrir le menu « Actions » et cliquer « Annuler », confirmer.
    Attendu : un message de confirmation s'affiche ; la facture passe à l'état « Annulée »
-   et un avoir apparaît dans la liste ; le total est inchangé — l'avoir porte un montant
-   négatif qui compense exactement la facture annulée.
+   et un avoir apparaît dans la liste, portant un montant négatif. **Le total passe de
+   `166.65` à `111.10`**, soit les deux factures qui restent valides : la facture annulée
+   reste comptée à `+55.55` et l'avoir à `-55.55`, les deux s'annulant exactement. C'est
+   la règle du produit et non un effet de bord — une facture n'est retirée de la somme que
+   lorsque son numéro figure dans le champ `replace` d'une autre facture de la période, ce
+   que l'annulation par avoir ne fait sur aucune des deux.
 
 ### Médecins traitants
 
@@ -2591,6 +2613,13 @@ deux dates.
    l'index, la recherche reste probante. Depuis D6c, cette étape quitte la coquille
    pour le document `/search` rendu par le serveur : le navigateur charge une page
    entière au lieu de changer d'état. Le geste, le titre et le résultat sont les mêmes.
+
+**Ordre de grandeur de l'étape 2.** Le bouton « réindexer » accorde au travail un délai
+d'attente de 180 s. Mesure prise sur un parc de 101 patients et 2 consultations (état E2
+augmenté des 100 patients de `R-IMP-01`), du clic jusqu'à l'affichage de « Terminé » :
+**11 s** (deux mesures, 11,0 s et 11,1 s). La marge est donc large — mais la mesure est
+linéaire en nombre d'enregistrements : un parc de l'ordre de 1 500 patients approcherait
+la borne.
 
 ### R-TAB-01 — Compteurs du tableau de bord
 
