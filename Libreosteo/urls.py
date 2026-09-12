@@ -182,6 +182,34 @@ urlpatterns = [
         views.envoyer_facture,
         name="facture-envoi",
     ),
+    # La chronologie et les documents (T11). **Aucun ecran ne rend encore ces cinq vues** :
+    # c'est T12 qui inclura les fragments dans le dossier patient. Les sous-ressources sont
+    # en anglais sous l'URL de leur ecran (A2) ; les noms de route sont en francais.
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/documents$",
+        views.documents_du_patient,
+        name="documents",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/documents/(?P<document>\d+)$",
+        views.document_vignette,
+        name="document-vignette",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/documents/(?P<document>\d+)/edit$",
+        views.document_edition,
+        name="document-edition",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/documents/(?P<document>\d+)/delete$",
+        views.document_suppression,
+        name="document-suppression",
+    ),
+    re_path(
+        r"^examination/(?P<identifiant>\d+)/comments$",
+        views.commentaires_de_seance,
+        name="seance-commentaires",
+    ),
     re_path(r"^invoices$", views.page_comptabilite, name="comptabilite"),
     re_path(
         r"^invoices/(?P<identifiant>\d+)/cancel$",

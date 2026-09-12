@@ -1,0 +1,49 @@
+{% load i18n %}
+{# Une vignette de compte rendu, en **lecture** (D6e, T11). #}
+{# #}
+{# **Meme racine que `document-edition.html`** — `<li id="document-vignette-N">` — pour #}
+{# qu'un echange `outerHTML` remplace l'element entier dans les deux sens. Les six classes #}
+{# du filet se conservent a l'octet : `li.documenttile`, `.document_title`, `.document_ico`, #}
+{# `button.document-edit`, et `button.document-edit-delete` cote edition. #}
+{# #}
+{# **`button.document-edit` est unique en mode lecture** : `test_documents.py:91` le clique #}
+{# sans ancrage supplementaire, donc un second exemplaire le rendrait strict. Les trois #}
+{# boutons qui portent aussi cette classe vivent dans le fragment d'edition, qui remplace #}
+{# celui-ci et ne coexiste jamais avec lui. #}
+{# #}
+{# **Le lien de telechargement reste un `<a href>` ordinaire** vers `/files/…`, servi par #}
+{# `telecharger_fichier`, qui force le titre en `Content-Disposition`. htmx ne sait pas #}
+{# declencher un enregistrement de fichier, et D6d a deja paye cette regle (son A13). #}
+{# #}
+{# L'extrait de notes reproduit `| htmlToPlaintext | limitTo:40` par `|striptags| #}
+{# truncatechars:40`. **Ecart cosmetique assume** : `truncatechars` compte son point de #}
+{# suspension dans les quarante caracteres et l'ajoute lui-meme, la ou `limitTo` rendait #}
+{# quarante caracteres nus suivis du seul lien. Le lien d'expansion, lui, ne s'affiche qu'au #}
+{# dela de quarante caracteres, comme `doc.notes.length > 40`. #}
+{# #}
+{# `uib-tooltip` devient `title` : l'info-bulle native dit la meme chose sans directive. #}
+{% trans 'Notes' as libelle_notes %}
+<li class="documenttile animate col-md-3" id="document-vignette-{{ entree.document.id }}">
+  <div class="thumbnail doc_thumbnail" x-data="{ deplie: false }">
+    <button type="button" class="close document-edit" aria-label="Edit"
+            hx-get="{{ entree.url_edition }}"
+            hx-target="#document-vignette-{{ entree.document.id }}"
+            hx-swap="outerHTML"><span aria-hidden="true"><i class="fa fa-edit"></i></span></button>
+    <p class="document_title" data-testid="titre-document"><b>{{ entree.document.title }}</b></p>
+    <div class="document_ico"><a href="{{ entree.url_fichier }}" target="_blank"><i class="fa fa-2x {{ entree.classe_icone }}"></i></a></div>
+    {% if entree.document.notes %}
+    <div>
+      <span class="document_notes">{% trans 'Notes' %}</span>
+      <div class="document_partialnote" x-show="!deplie">
+        <span data-testid="extrait-notes">{{ entree.document.notes|striptags|truncatechars:40 }}</span>{% if entree.document.notes|striptags|length > 40 %}<a href="#" class="expand" title="{% trans 'Click to expand the notes' %}" data-testid="deplier-notes" @click.prevent="deplie = true">...</a>{% endif %}
+      </div>
+      {# Masque en ligne et non par une feuille : `x-show` *retire* la propriete `display` #}
+      {# plutot que d'y ecrire une valeur (legs de D6c, `dfb2473`). #}
+      <div class="document_fullnote" x-show="deplie" style="display: none;">
+        {% include "pages/fragments/texte-riche.html" with nom="notes" valeur=entree.document.notes libelle=libelle_notes editable=False %}
+      </div>
+    </div>
+    {% endif %}
+    <p class="doc_date">{{ entree.document.document_date|date:"d-m-Y" }}</p>
+  </div>
+</li>

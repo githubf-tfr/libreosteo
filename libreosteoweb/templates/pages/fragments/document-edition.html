@@ -1,0 +1,51 @@
+{% load i18n %}
+{# Une vignette de compte rendu, en **edition** (D6e, T11). #}
+{# #}
+{# **Meme racine que `document-vignette.html`** — `<li id="document-vignette-N">` — et le #}
+{# `<form>` vit **a l'interieur** de cette racine, jamais l'inverse : sur succes il #}
+{# disparait avec l'element remplace, sur refus il n'a aucune occasion de s'imbriquer dans #}
+{# lui-meme (regle payee par T10 sur le volet de consultation). #}
+{# #}
+{# **Les deux placeholders se conservent a l'octet** : `helpers.joindre_document` remplit #}
+{# `input[placeholder*='Titre']` et `input[placeholder*='Date']:visible`. Ils sont poses par #}
+{# `FormulaireDocument`, pas ici : une seule autorite. #}
+{# #}
+{# `button.document-edit-delete` ouvre la modale de confirmation dans `#modale`, **jamais #}
+{# dans l'ecran** : une cible qui pointerait dans le dossier ferait remplacer la liste des #}
+{# vignettes par la modale, et laisserait `modal-open` sur `<body>` a la fermeture. #}
+{# #}
+{# « Annuler » n'annule rien en base : il relit la vignette telle qu'elle est. C'est ce que #}
+{# faisait `edit_doc(doc, false)`, qui rechargeait les documents du patient. #}
+{% trans 'Notes' as libelle_notes %}
+<li class="documenttile animate col-md-12" id="document-vignette-{{ entree.document.id }}">
+  <div class="thumbnail doc_expand">
+    <form id="formulaire-document-{{ entree.document.id }}" method="post"
+          hx-post="{{ entree.url_edition }}"
+          hx-target="#document-vignette-{{ entree.document.id }}"
+          hx-swap="outerHTML">
+      {% csrf_token %}
+      <button type="submit" class="close document-close document-edit document-edit-ok"
+              aria-label="Close"><i class="fa fa-1 fa-check"></i></button>
+      <button type="button" class="close document-close document-edit document-edit-cancel"
+              aria-label="Close"
+              hx-get="{{ entree.url_vignette }}"
+              hx-target="#document-vignette-{{ entree.document.id }}"
+              hx-swap="outerHTML"><i class="fa fa-1 fa-close"></i></button>
+      <button type="button" class="close document-close document-edit document-edit-delete"
+              aria-label="Close"
+              hx-get="{{ entree.url_suppression }}"
+              hx-target="#modale"
+              hx-swap="innerHTML"><i class="fa fa-1 fa-trash"></i></button>
+      <p class="document_title"><b>{{ entree.document.title }}</b></p>
+      <div class="document_ico"><a href="{{ entree.url_fichier }}" target="_blank"><i class="fa fa-2x {{ entree.classe_icone }}"></i></a></div>
+
+      <div class="form-group animate">
+        {{ formulaire.title }}{{ formulaire.title.errors }}
+        {{ formulaire.document_date }}{{ formulaire.document_date.errors }}
+        <p class="help-block">{% trans 'Notes' %}</p>
+        {% include "pages/fragments/texte-riche.html" with nom="notes" valeur=formulaire.notes.value libelle=libelle_notes editable=True %}
+        {{ formulaire.notes.errors }}
+      </div>
+    </form>
+  </div>
+</li>

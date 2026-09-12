@@ -1,0 +1,60 @@
+{% load i18n %}
+{# Le volet de commentaires d'une seance (D6e, T11), repris de `timeline.html:29-52`. #}
+{# #}
+{# **Le compteur et la liste vivent dans le meme fragment**, donc dans la meme autorite : #}
+{# l'echange d'envoi les rafraichit d'un seul geste, et un compteur ne peut pas mentir sur #}
+{# une liste qu'il ne gouverne pas. C'est le patron hors-bande de D6d applique a l'envers — #}
+{# un seul element, donc aucun hors-bande necessaire. #}
+{# #}
+{# **L'etat pose par le serveur et l'etat initial d'Alpine disent la meme chose.** Le volet #}
+{# revient **deplie** apres un envoi : `deplie: true` dans `x-data` et **aucun** #}
+{# `display: none` en ligne. S'il ne le disait qu'a moitie, le premier rendu d'Alpine #}
+{# refermerait le volet sur le commentaire qui vient d'etre ecrit — le defaut que T10 a #}
+{# mesure sur sa modale, ou une radio deja cochee ne pouvait plus emettre de `change`. #}
+{# #}
+{# **La classe `hidden` de Bootstrap 3 n'est pas reprise** (`timeline.html:35`), et c'est le #}
+{# legs de D6c : `.hidden{display:none !important}` vient d'une feuille, et `x-show` se #}
+{# contente de *retirer* la propriete `display` — le volet serait invisible pour toujours. #}
+{# Le masquage est donc en ligne, la ou Alpine peut ecrire. #}
+{# #}
+{# **`#btn-input` et `#btn-chat` se conservent a l'octet**, et ils se dedoublent d'une #}
+{# seance a l'autre exactement comme aujourd'hui (`timeline.html` les rend sous un #}
+{# `ng-repeat`). C'est une limitation du produit reproduite telle quelle, pas un oubli : #}
+{# T12 doit ancrer tout locator sur la seance (`#chronologie-commentaires-<id>`), jamais sur #}
+{# l'identifiant nu. #}
+<div id="chronologie-commentaires-{{ entree.seance.id }}"
+     x-data="{ deplie: {{ entree.deplie|yesno:'true,false' }} }">
+  <div class="timeline-footer">
+    <p><small class="text-muted">
+      <button type="button" class="btn btn-link" data-testid="compteur-commentaires"
+              @click="deplie = !deplie">{% if entree.nombre_de_commentaires %}{{ entree.nombre_de_commentaires }} commentaire{{ entree.nombre_de_commentaires|pluralize }}{% else %}{% trans 'No comment' %}{% endif %}</button>
+    </small></p>
+  </div>
+  <div class="timeline-panel-footer" x-show="deplie"{% if not entree.deplie %} style="display: none;"{% endif %}>
+    {# La cible englobe ce formulaire et n'est jamais a l'interieur de lui : sur succes il #}
+    {# disparait avec l'element remplace, sur refus il ne peut pas s'imbriquer en lui-meme. #}
+    <form method="post" hx-post="{{ entree.url_commentaires }}"
+          hx-target="#chronologie-commentaires-{{ entree.seance.id }}"
+          hx-swap="outerHTML">
+      {% csrf_token %}
+      <div class="input-group">
+        <input id="btn-input" type="text" class="form-control input-sm" name="comment"
+               placeholder="{% trans 'Comment' %}" value="">
+        <span class="input-group-btn">
+          <button class="btn btn-warning btn-sm" id="btn-chat" type="submit">{% trans 'Send' %}</button>
+        </span>
+      </div>
+    </form>
+    <div class="timeline-comments">
+      <ul class="comments-list">
+        {% for commentaire in entree.commentaires %}
+        <li class="comment">
+          <p class="comment-ident">{{ commentaire.user.last_name }} {{ commentaire.user.first_name }}</p>
+          <p class="comment-content" data-testid="contenu-commentaire">{{ commentaire.comment }}</p>
+          <p class="text-muted comment-time"><i class="fa fa-clock-o"></i> {{ commentaire.date|timesince }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>

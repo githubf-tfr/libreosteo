@@ -1,0 +1,64 @@
+{% load i18n %}
+{# Le bloc de televersement d'un compte rendu (D6e, T11), repris de `filemanager.html`. #}
+{# #}
+{# **Aucun ecran ne le rend encore** : c'est T12 qui l'inclura, par #}
+{# `{% include "pages/fragments/document-televersement.html" with patient=patient %}` — et #}
+{# qui devra fournir `formulaire` (un `FormulaireDocument` vide suffit). #}
+{# #}
+{# **`div.document_create` gouverne une barriere du filet.** `helpers.joindre_document` #}
+{# attend sa visibilite puis son **absence** (`to_have_count(0)`), et son docstring dit #}
+{# pourquoi le libelle du bouton ne peut pas la porter : il passe par « en cours... » avant #}
+{# le succes. Le bloc est donc rendu par un `<template x-if>` — Alpine l'**ajoute et le #}
+{# retire du DOM**, la ou un `x-show` le laisserait present et masque, donc compte a un par #}
+{# Playwright. #}
+{# #}
+{# **Il ne peut disparaitre que par le rafraichissement hors-bande de ce bloc.** La reponse #}
+{# principale est la liste des vignettes ; le champ de fichier, lui, garderait sa selection, #}
+{# `choisi` resterait vrai et le bloc ne sortirait jamais du DOM. Ce fragment revient donc #}
+{# en `hx-swap-oob` sur toute reponse de televersement — neuf, donc vide de toute selection. #}
+{# C'est aussi ce qui permet un second depot : un champ de fichier remplace est un element #}
+{# neuf, dont le `change` se declenche a nouveau sur le meme chemin. #}
+{# #}
+{# **Un refus ne remplace pas les vignettes.** La cible principale reste la liste, qui #}
+{# revient inchangee, et ce bloc revient hors-bande avec le motif du refus. Cibler ce bloc #}
+{# en principal ferait remplacer les vignettes par un formulaire — le defaut exact que T10 a #}
+{# paye sur sa modale de facturation. Le fichier choisi est perdu au passage : aucun serveur #}
+{# ne peut repeupler un `<input type="file">`. Le refus n'est atteignable qu'en contournant #}
+{# la validation HTML5 du titre. #}
+{# #}
+{# `hx-indicator` : htmx pose lui-meme la regle `.htmx-indicator{opacity:0}` (il l'injecte #}
+{# au demarrage), donc aucun fichier CSS ne s'ajoute. #}
+{% trans 'Notes' as libelle_notes %}
+<div id="document-televersement-{{ patient.id }}"{% if hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
+  <form method="post"
+        hx-post="{% url 'documents' patient.id %}"
+        hx-target="#documents-liste-{{ patient.id }}"
+        hx-swap="outerHTML"
+        hx-encoding="multipart/form-data"
+        enctype="multipart/form-data"
+        x-data="{ choisi: false }">
+    {% csrf_token %}
+    <div class="form-group">
+      <label for="addDocumentMedicalReport">{% trans 'Add document' %}</label>
+      <input type="file" id="addDocumentMedicalReport" name="fichiers" multiple
+             @change="choisi = $el.files.length > 0">
+      <p class="help-block" x-show="!choisi">{% trans 'Add document as medical report. Could be image, pdf, text file, ...' %}</p>
+    </div>
+    {% if formulaire.errors %}
+    <div class="alert alert-danger" role="alert">
+      {{ formulaire.non_field_errors }}{{ formulaire.title.errors }}{{ formulaire.document_date.errors }}{{ formulaire.notes.errors }}
+    </div>
+    {% endif %}
+    <template x-if="choisi">
+      <div class="form-group document_create">
+        <button type="submit" class="btn label label-info"
+                hx-indicator="#televersement-en-cours-{{ patient.id }}">{% trans 'Click to send' %}</button>
+        <span id="televersement-en-cours-{{ patient.id }}" class="htmx-indicator label label-warning">{% trans 'in progress...' %}</span>
+        {{ formulaire.title }}
+        {{ formulaire.document_date }}
+        <p class="help-block">{% trans 'Notes' %}</p>
+        {% include "pages/fragments/texte-riche.html" with nom="notes" valeur=formulaire.notes.value libelle=libelle_notes editable=True testid="notes-document" %}
+      </div>
+    </template>
+  </form>
+</div>

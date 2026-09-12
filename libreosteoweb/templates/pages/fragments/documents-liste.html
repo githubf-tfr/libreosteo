@@ -1,0 +1,22 @@
+{% load i18n %}
+{# La liste des vignettes de comptes rendus (D6e, T11). #}
+{# #}
+{# **Aucun ecran ne la rend encore** : c'est T12 qui l'inclura, par #}
+{# `{% include "pages/fragments/documents-liste.html" with patient=patient documents=… %}`. #}
+{# `contexte_documents()` compose les deux. #}
+{# #}
+{# **Cet element est la cible principale du televersement**, echange en `outerHTML` : la #}
+{# reponse *est* la liste complete, jamais la seule vignette creee. La course de #}
+{# dedoublement fermee par `74a8942` disparait avec le mecanisme qui la portait — il n'y a #}
+{# plus d'instant ou la liste est detruite puis reconstruite. #}
+{# #}
+{# `hors_bande` sert la suppression, dont la reponse principale est vide (elle referme la #}
+{# modale) : la liste revient alors a cote, seule autorite de son propre element. #}
+{# #}
+{# Le tri est celui de la vue — `-document_date`, l'ordre d'`orderBy` de #}
+{# `patient-detail.html:290`, et non l'ordre croissant du viewset DRF. #}
+<div id="documents-liste-{{ patient.id }}"{% if hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
+  <ul class="row document_list">
+    {% for entree in documents %}{% include "pages/fragments/document-vignette.html" %}{% endfor %}
+  </ul>
+</div>

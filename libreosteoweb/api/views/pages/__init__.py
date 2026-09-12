@@ -39,6 +39,13 @@ from .consultation import (
     regulariser_consultation,
 )
 from .diagnostic_texte_riche import page_diagnostic_texte_riche
+from .documents import (
+    commentaires_de_seance,
+    document_edition,
+    document_suppression,
+    document_vignette,
+    documents_du_patient,
+)
 from .import_export import analyser as analyser_import
 from .import_export import integrer as integrer_import
 from .import_export import page_import_export
@@ -57,6 +64,11 @@ __all__ = [
     "annuler_facture",
     "cellule_utilisateur",
     "cloturer_consultation",
+    "commentaires_de_seance",
+    "document_edition",
+    "document_suppression",
+    "document_vignette",
+    "documents_du_patient",
     "enregistrer_affichage",
     "enregistrer_cabinet",
     "enregistrer_consultation",

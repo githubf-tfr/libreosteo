@@ -1,0 +1,20 @@
+{% load i18n %}
+{# Le corps de la modale de suppression d'un document (D6e, T11), rendu par #}
+{# `partials/modale.html`. Le bouton « OK » de la modale soumet ce formulaire par son #}
+{# attribut HTML5 `form` : c'est le patron pose par D6d (E9), et il poste sans une ligne de #}
+{# JavaScript. #}
+{# #}
+{# **`hx-target="#modale"`, et non la liste des vignettes.** C'est le patron de T10 : la #}
+{# reponse de succes n'a pas de corps principal, `#modale` recoit du vide, la modale se #}
+{# referme, et `partials/modale.html` retire lui-meme `modal-open` du `<body>`. La liste #}
+{# revient hors-bande, seule autorite de son propre element. Cibler la liste laisserait la #}
+{# modale ouverte et la page non defilable. #}
+{# #}
+{# Le libelle se conserve a l'octet : `test_documents.py:95` attend « Êtes-vous sûr(e) de #}
+{# supprimer ce document ? ». Il vient de `djangojs.po` et entre au catalogue `django` avec #}
+{# ce commit, la modale n'etant plus construite par du JavaScript. #}
+<form id="formulaire-suppression-document" method="post"
+      hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  <p>{% trans 'Are you sure to delete this document ?' %}</p>
+</form>

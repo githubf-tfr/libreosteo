@@ -633,6 +633,18 @@ msgstr "Annuler"
 msgid "Confirm"
 msgstr "Confirmer"
 
+#. Les deux libelles suivants viennent de `djangojs.po` : la modale de suppression et
+#. la notification de succes d'une vignette de document etaient construites par
+#. `patient.js` (`:724` et `:732`). Migrees en htmx (D6e, T11), elles sont rendues par
+#. Django et doivent donc exister dans le domaine `django`. Les traductions sont
+#. reprises **a l'octet** de `djangojs.po:136` et `:139` : c'est ce que le produit
+#. affiche aujourd'hui, et A22 tranche en faveur de l'affiche.
+msgid "Are you sure to delete this document ?"
+msgstr "Êtes-vous sûr(e) de supprimer ce document ?"
+
+msgid "Update success"
+msgstr "Mise à jour effectuée"
+
 msgid "Ok"
 msgstr "Ok"
 
