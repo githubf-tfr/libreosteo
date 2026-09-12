@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-"""Trois vues de demonstration, montees par le seul URLconf de test du banc.
+"""Les vues de demonstration, montees par le seul URLconf de test du banc.
 
 Leurs gabarits sont des chaines de ce module, rendues par `engines["django"].from_string`.
 Elles `{% extends %}` et `{% include %}` les gabarits **du produit** : les composants
@@ -94,4 +94,61 @@ def modale(request: HttpRequest) -> HttpResponse:
             },
             request=request,
         )
+    )
+
+
+# Le banc du texte riche. Il rend **la page du produit** : `{% extends "base.html" %}` pour
+# le socle (htmx, Alpine, le `<style>` qui porte la regle de placeholder) et
+# `{% include %}` du fragment du produit, jamais une copie.
+#
+# Le formulaire ne poste rien d'autre que le composant : la vue d'echo renvoie les octets
+# **recus**, et c'est la seule chose que les tests regardent. Aucun ecran du produit ne sait
+# faire cela, d'ou le banc.
+PAGE_TEXTE_RICHE = """
+{% extends "base.html" %}
+{% load static %}
+{% load compress %}
+{% block titre %}Banc du texte riche{% endblock %}
+{% block menu %}{% endblock %}
+{% block contenu %}
+<div class="container">
+  <form id="formulaire-banc" hx-post="/banc/texte-riche" hx-target="#recu">
+    {% csrf_token %}
+    {% include "pages/fragments/texte-riche.html" with nom="champ" valeur=valeur libelle="Antecedents" editable=True testid="zone-banc" %}
+    <button type="submit" id="fin-edition">Fin d'edition</button>
+  </form>
+  <div id="recu"></div>
+</div>
+{% endblock %}
+{% block js_page %}
+{% compress js %}
+<script src="{% static "js/composants/texte-riche.js" %}"></script>
+{% endcompress %}
+{% endblock %}
+"""
+
+# `<P>x</P>` n'est **pas** un point fixe de l'analyseur du navigateur : reinjecte par
+# `innerHTML`, il ressort `<p>x</p>`. C'est exactement la valeur qui fait echouer `hallo`,
+# et c'est pour cela qu'elle est la valeur du banc (D6e, C6, clause 4).
+VALEUR_HOSTILE = "<P>x</P>"
+
+ECHO = """<pre id="recu" data-testid="valeur-recue">{{ recu }}</pre>"""
+
+
+def texte_riche(request: HttpRequest) -> HttpResponse:
+    """Rend la page en GET, renvoie en POST les octets recus pour le champ `champ`.
+
+    `mark_safe` sur la valeur : le fragment applique `|safe`, mais le passage par
+    `from_string(...).render(...)` echapperait la variable en amont sans cette marque — et
+    le banc rendrait `&lt;P&gt;x&lt;/P&gt;` au lieu de `<P>x</P>`, ce qui ferait passer les
+    tests pour de mauvaises raisons.
+    """
+    if request.method == "POST":
+        return HttpResponse(
+            engines["django"].from_string(ECHO).render({"recu": request.POST["champ"]})
+        )
+    return HttpResponse(
+        engines["django"]
+        .from_string(PAGE_TEXTE_RICHE)
+        .render({"valeur": mark_safe(VALEUR_HOSTILE)}, request)
     )

@@ -274,3 +274,140 @@ class TestAucunRognageParFormulaire(TestCase):
                     VALEUR_BORDEE,
                     f"Patient.{champ} a ete rogne par le formulaire",
                 )
+
+
+# --- Le cliquet de montage : tout `ModelForm` du produit monte-t-il `ChampTexteRiche` ? ---
+#
+# `classes_de_champs(modele)` existe depuis T4, mais **rien ne rougit si un `ModelForm` de
+# D6e oublie de le deposer dans son `Meta.field_classes`**. L'oubli serait silencieux, champ
+# par champ, sur de la donnee medicale : le formulaire validerait, enregistrerait, et
+# rognerait. Ce cliquet ferme cette porte pour T10, T11 et T12, qui ecrivent les
+# formulaires des ecrans cliniques.
+#
+# Le balayage est **large** : tout module de `libreosteoweb` hors migrations et hors tests.
+# Un formulaire pose ailleurs que sous `api/views/pages/` est donc vu quand meme.
+PAQUETS_HORS_BALAYAGE = ("libreosteoweb.migrations", "libreosteoweb.tests")
+
+# Exemption close, et justifiee : `api/displays.py` declare six `ModelForm` batis sur
+# `[f.name for f in model._meta.fields if f.editable]`, donc portant les champs de texte
+# riche. Ils ne sont **jamais lies a des donnees** — `displays.py:94-136` les instancie sans
+# argument et n'en lit que `display_fields()`, c'est-a-dire les libelles, pour la coquille
+# AngularJS. Aucun `is_valid()`, aucun `cleaned_data`, donc aucun rognage possible. Ce sont
+# les derniers consommateurs de cette mecanique et D6e les retire.
+MODULES_EXEMPTES = frozenset(["libreosteoweb.api.displays"])
+
+
+def formulaires_du_produit() -> list[type[forms.ModelForm]]:
+    """Tous les `ModelForm` declares par `libreosteoweb`, hors exemption close."""
+    import importlib
+    import pkgutil
+
+    import libreosteoweb
+
+    trouves: dict[str, type[forms.ModelForm]] = {}
+    for information in pkgutil.walk_packages(
+        libreosteoweb.__path__, prefix="libreosteoweb."
+    ):
+        nom = information.name
+        if nom.startswith(PAQUETS_HORS_BALAYAGE) or nom in MODULES_EXEMPTES:
+            continue
+        module = importlib.import_module(nom)
+        for objet in vars(module).values():
+            if (
+                isinstance(objet, type)
+                and issubclass(objet, forms.ModelForm)
+                and objet is not forms.ModelForm
+                and objet.__module__ == nom
+            ):
+                trouves[f"{nom}.{objet.__name__}"] = objet
+    return list(trouves.values())
+
+
+def champs_de_texte_riche_non_proteges(
+    formulaire: type[forms.ModelForm],
+) -> list[str]:
+    """Les champs de texte riche que `formulaire` porte **sans** `ChampTexteRiche`.
+
+    Rend une liste vide pour un formulaire qui n'en porte aucun. Regarde `base_fields`,
+    c'est-a-dire les champs reellement montes par `ModelForm`, jamais la declaration
+    `Meta.field_classes` : deposer le dictionnaire et le deposer **correctement** sont deux
+    choses differentes, et c'est la seconde qui compte.
+    """
+    modele = formulaire._meta.model
+    if modele is None:
+        return []
+    attendus = CHAMPS_DE_TEXTE_RICHE.get(modele.__name__, ())
+    return [
+        nom
+        for nom in attendus
+        if nom in formulaire.base_fields
+        and not isinstance(formulaire.base_fields[nom], ChampTexteRiche)
+    ]
+
+
+class TestCliquetDeMontage(SimpleTestCase):
+    def test_le_balayage_voit_les_formulaires_deja_livres(self) -> None:
+        """Le balayage n'est pas aveugle : sans ceci, le cliquet passerait a vide.
+
+        Les trois formulaires nommes ici sont ceux de D6c et D6d, sur des modeles qui ne
+        portent aucun champ de texte riche. Ils ne prouvent donc rien du rognage — ils
+        prouvent que le balayage **trouve** un `ModelForm` la ou D6e en posera.
+        """
+        noms = {formulaire.__name__ for formulaire in formulaires_du_produit()}
+        for attendu in (
+            "FormulaireCabinet",
+            "FormulaireIdentite",
+            "FormulaireTherapeute",
+        ):
+            self.assertIn(attendu, noms, f"le balayage ne voit plus {attendu}")
+
+    def test_un_formulaire_naif_est_signale_champ_par_champ(self) -> None:
+        """Le detecteur mord : un `ModelForm` sans `field_classes` sort ses neuf champs.
+
+        C'est **la** preuve du cliquet. Sans elle, le test du produit ci-dessous serait vert
+        par vacuite tant qu'aucun formulaire de texte riche n'existe.
+        """
+
+        class FormulairePatientNaif(forms.ModelForm):
+            class Meta:
+                model = Patient
+                fields = ["family_name", *CHAMPS_DE_TEXTE_RICHE["Patient"]]
+
+        self.assertEqual(
+            champs_de_texte_riche_non_proteges(FormulairePatientNaif),
+            list(CHAMPS_DE_TEXTE_RICHE["Patient"]),
+        )
+
+    def test_un_formulaire_monte_par_classes_de_champs_ne_l_est_pas(self) -> None:
+        """Le detecteur ne mord pas a tort : le meme formulaire, monte par T4, passe."""
+
+        class FormulairePatientProtege(forms.ModelForm):
+            class Meta:
+                model = Patient
+                fields = ["family_name", *CHAMPS_DE_TEXTE_RICHE["Patient"]]
+                field_classes = classes_de_champs(Patient)
+
+        self.assertEqual(
+            champs_de_texte_riche_non_proteges(FormulairePatientProtege), []
+        )
+
+    def test_aucun_formulaire_du_produit_ne_rogne_un_champ_de_texte_riche(self) -> None:
+        """Le cliquet lui-meme. Il porte sur **tous** les `ModelForm` du produit.
+
+        Ce qu'il regarde : la classe reellement montee dans `base_fields`. Ce qu'il
+        laisserait passer : un formulaire qui ecrirait ces champs sans les declarer (par
+        `save(commit=False)` puis affectation directe), et les six `ModelForm` de
+        `api/displays.py`, exemptes nommement ci-dessus parce qu'ils ne sont jamais lies.
+        """
+        fautifs = [
+            f"{formulaire.__module__}.{formulaire.__name__} : {', '.join(champs)}"
+            for formulaire in formulaires_du_produit()
+            if (champs := champs_de_texte_riche_non_proteges(formulaire))
+        ]
+        self.assertEqual(
+            fautifs,
+            [],
+            "champ de texte riche monte sans `ChampTexteRiche` "
+            "(deposer `classes_de_champs(modele)` dans `Meta.field_classes`) :\n"
+            + "\n".join(fautifs),
+        )

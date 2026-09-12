@@ -29,6 +29,11 @@
     <style>
       .lo-notifications { position: fixed; top: 10px; right: 10px; width: 250px; z-index: 1050; }
       .lo-notification { margin-bottom: 10px; }
+      /* D6e : le placeholder du texte riche est du CSS, et ne peut donc jamais vider
+         le champ. `hallo` comparait l'HTML au placeholder et vidait en cas d'egalite — or
+         le placeholder **est** le libelle du champ. */
+      .lo-zone-texte-riche:empty::before { content: attr(data-placeholder); color: #999; }
+      .lo-barre-texte-riche { margin-bottom: 4px; }
     </style>
 </head>
 

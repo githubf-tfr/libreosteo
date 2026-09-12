@@ -1,0 +1,97 @@
+{# Composant de texte riche (D6e, C6). Il remplace `hallo`, qui n'etait qu'un repartiteur #}
+{# `document.execCommand` sans modele de document — et qui **reecrivait la valeur a chaque #}
+{# sortie du mode edition**, meme sans saisie (`halloeditor.js:110-121`). #}
+{# #}
+{# **La propriete centrale, et elle est de construction** : le gabarit rend **deux** #}
+{# elements portant le meme `name` — un `contenteditable`, qui n'est pas un controle de #}
+{# formulaire et ne se soumet donc jamais, et une **entree cachee**, qui est la seule #}
+{# soumise. L'entree cachee porte la valeur stockee, echappee par Django ; le #}
+{# `contenteditable` porte la meme valeur, rendue par `|safe`. **Tant qu'aucune saisie #}
+{# n'a eu lieu, personne n'ecrit dans l'entree cachee** : la valeur soumise est alors, #}
+{# octet pour octet, celle que le serveur a rendue. #}
+{# #}
+{# Le `name` sur le `contenteditable` se conserve a l'octet : neuf sites du filet #}
+{# l'adressent (`div[name=job]`…), et le cliquet d'adressage interdit toute classe de #}
+{# bibliotheque. C'est aussi pourquoi un simple `<textarea>` cache ne suffit pas : les #}
+{# deux elements doivent coexister. #}
+{# #}
+{# Le placeholder est **du CSS** (`:empty::before`, regle posee dans le `<style>` de #}
+{# `base.html`). Il ne peut donc plus vider le champ : `hallo` comparait l'HTML au #}
+{# placeholder et vidait en cas d'egalite — or le placeholder **est** le libelle du champ, #}
+{# donc saisir « Antecedents chirurgicaux » dans le champ du meme nom l'effacait. #}
+{# #}
+{# **Quatorze boutons, et quatorze info-bulles conservees a l'octet** (D6e, E16). Elles #}
+{# ont ete relevees a l'ecran par T2 puis retrouvees dans le source de `hallo` : #}
+{# `halloformat` rend `bold, italic, underline, strikethrough` — dans cet ordre, parce que #}
+{# `$.widget.extend` fusionne la cle `strikethrough` de `halloeditor.js:68` **apres** #}
+{# `underline`, la cle `strikeThrough` du defaut restant fausse ; `halloheadings` rend #}
+{# `p, h1, h2, h3`, le tableau `[1, 2, 3]` d'`halloeditor.js:75` ne touchant jamais #}
+{# `formatBlocks` (hallo.js:793) ; `hallojustify` rend **trois** alignements et **aucun #}
+{# bouton « justifier »** (hallo.js:2257-2259) ; `hallolists` rend `OL, UL` ; `halloblock` #}
+{# rend un menu titre `block`. C'est ce qui permet aux quatre tests de mise en forme #}
+{# ecrits contre l'ancien editeur de traverser la migration sans une retouche. #}
+{# #}
+{# **Aucun ecouteur sur `blur`** : en poser un ecrirait dans l'entree cachee a la sortie #}
+{# d'un champ que personne n'a touche, ce qui detruirait la propriete centrale. C'est #}
+{# exactement ce que `hallo` fait aujourd'hui (`$(element).on('hallodeactivated', read)`), #}
+{# et c'est le defaut que ce composant existe pour fermer. #}
+{# #}
+{# `@mousedown.prevent` sur chaque bouton de la barre : le focus quitte la zone au #}
+{# `mousedown`, pas au `click`, et une commande appliquee sans selection ne produit aucune #}
+{# balise. `hallo` reglait le meme probleme par une fenetre de protection de 300 ms qui #}
+{# **annulait le premier `blur`** (hallo.js:235-243) — au prix d'une mise en forme perdue #}
+{# en silence quand le champ n'etait quitte qu'une fois. Empecher le defaut du `mousedown` #}
+{# obtient le meme resultat sans aucun delai, et sans rien annuler. #}
+<div class="lo-texte-riche" x-data="texteRiche">
+  {% if editable %}
+  <div class="btn-toolbar lo-barre-texte-riche" role="toolbar" aria-label="{{ libelle }}">
+    <div class="btn-group">
+      <button type="button" class="btn btn-default btn-xs" title="bold" @mousedown.prevent @click.prevent="commande('bold')"><b>B</b></button>
+      <button type="button" class="btn btn-default btn-xs" title="italic" @mousedown.prevent @click.prevent="commande('italic')"><i>I</i></button>
+      <button type="button" class="btn btn-default btn-xs" title="underline" @mousedown.prevent @click.prevent="commande('underline')"><u>U</u></button>
+      <button type="button" class="btn btn-default btn-xs" title="strikethrough" @mousedown.prevent @click.prevent="commande('strikethrough')"><s>S</s></button>
+    </div>
+    <div class="btn-group">
+      <button type="button" class="btn btn-default btn-xs" title="p" @mousedown.prevent @click.prevent="commande('formatBlock', 'p')">P</button>
+      <button type="button" class="btn btn-default btn-xs" title="h1" @mousedown.prevent @click.prevent="commande('formatBlock', 'h1')">H1</button>
+      <button type="button" class="btn btn-default btn-xs" title="h2" @mousedown.prevent @click.prevent="commande('formatBlock', 'h2')">H2</button>
+      <button type="button" class="btn btn-default btn-xs" title="h3" @mousedown.prevent @click.prevent="commande('formatBlock', 'h3')">H3</button>
+    </div>
+    <div class="btn-group">
+      <button type="button" class="btn btn-default btn-xs" title="Left" @mousedown.prevent @click.prevent="commande('justifyLeft')">&#8676;</button>
+      <button type="button" class="btn btn-default btn-xs" title="Center" @mousedown.prevent @click.prevent="commande('justifyCenter')">&#8596;</button>
+      <button type="button" class="btn btn-default btn-xs" title="Right" @mousedown.prevent @click.prevent="commande('justifyRight')">&#8677;</button>
+    </div>
+    <div class="btn-group">
+      <button type="button" class="btn btn-default btn-xs" title="OL" @mousedown.prevent @click.prevent="commande('insertOrderedList')">1.</button>
+      <button type="button" class="btn btn-default btn-xs" title="UL" @mousedown.prevent @click.prevent="commande('insertUnorderedList')">&bull;</button>
+    </div>
+    {# Le quatorzieme bouton est un menu, pas une commande : `halloblock` #}
+    {# (hallo.js:606-689) ouvre les six memes elements, dont `pre` et `blockquote` qu'aucun #}
+    {# autre bouton n'atteint. Le menu porte son `display:none` **en ligne** et non dans #}
+    {# une feuille : `x-show` retire la propriete au lieu d'y ecrire une valeur, et un #}
+    {# `display:none` venu d'une classe ne serait alors jamais leve (legs de D6c, dfb2473). #}
+    <div class="btn-group" x-data="{ menuOuvert: false }">
+      <button type="button" class="btn btn-default btn-xs" title="block" @mousedown.prevent @click.prevent="menuOuvert = !menuOuvert">&para;</button>
+      <div class="btn-group-vertical" x-show="menuOuvert" style="display: none; position: absolute; top: 100%; left: 0; z-index: 1000;">
+        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'h1'); menuOuvert = false">h1</button>
+        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'h2'); menuOuvert = false">h2</button>
+        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'h3'); menuOuvert = false">h3</button>
+        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'p'); menuOuvert = false">p</button>
+        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'pre'); menuOuvert = false">pre</button>
+        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'blockquote'); menuOuvert = false">blockquote</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {# `>{{ valeur|safe }}<` sans espace autour : un espace d'indentation entrerait dans #}
+  {# l'`innerHTML` et casserait la preservation a l'octet des la premiere saisie. #}
+  <div class="form-control lo-zone-texte-riche"
+       name="{{ nom }}"{% if testid %} data-testid="{{ testid }}"{% endif %}
+       data-placeholder="{{ libelle }}"
+       {% if editable %}contenteditable="true"{% endif %}
+       x-ref="zone"
+       @input="commettreDepuisLaFrappe()"
+       @paste="commettreDepuisLeCollage()">{{ valeur|safe }}</div>
+  <input type="hidden" name="{{ nom }}" x-ref="cachee" value="{{ valeur }}">
+</div>

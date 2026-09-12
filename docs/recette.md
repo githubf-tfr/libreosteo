@@ -2836,3 +2836,19 @@ un geste du produit, et qui ne peuvent donc pas en décrire un.
   deux composants entreraient dans ces lots **non prouvés dans un navigateur** — et ils y
   seraient entrés cassés : les deux gabarits livrés par T5 ne fonctionnaient pas, le banc
   l'a établi et le correctif `dfb2473` l'a fermé.
+
+- `tests/functional/test_socle_composants.py::test_le_texte_riche_non_touche_soumet_la_valeur_a_l_octet`
+- `tests/functional/test_socle_composants.py::test_le_texte_riche_commet_la_frappe`
+- `tests/functional/test_socle_composants.py::test_le_texte_riche_commet_le_collage`
+- `tests/functional/test_socle_composants.py::test_le_texte_riche_commet_la_commande_de_barre_d_outils`
+- `tests/functional/test_socle_composants.py::test_le_texte_riche_applique_un_bloc_du_menu_de_bloc`
+
+  Les cinq éprouvent le composant de texte riche (D6e) **sur le banc d'essai**, qui rend au
+  serveur les octets exacts qu'il a reçus — ce qu'aucun écran du produit ne fait. Les gestes
+  correspondants sont décrits par `R-PAT-09` (la mise en forme) et `R-PAT-10` (la
+  préservation), et ce sont ces deux fiches, plus les tests de `test_patient.py` et
+  `test_consultation.py`, qui prouvent le composant **sur les écrans cliniques**. Les cinq
+  tests ci-dessus prouvent autre chose, et une seule chose : que chacune des trois voies de
+  saisie est écoutée, que la voie « aucune saisie » n'écrit rien, et que le quatorzième
+  bouton de la barre — `block`, le seul qui soit un menu et non une commande directe —
+  applique bien un bloc.

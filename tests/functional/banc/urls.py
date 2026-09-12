@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-"""URLconf de test : les trois routes du banc, puis le produit entier.
+"""URLconf de test : les routes du banc, puis le produit entier.
 
 Les routes du banc passent **avant** celles du produit : `Libreosteo/urls.py:82` monte
 `re_path(r"", include("libreosteoweb.urls"))`, un motif vide qui ne doit pas etre traverse
@@ -30,4 +30,5 @@ urlpatterns = [
     re_path(r"^banc/$", vues.page, name="banc"),
     re_path(r"^banc/notifications$", vues.notifications, name="banc-notifications"),
     re_path(r"^banc/modale$", vues.modale, name="banc-modale"),
+    re_path(r"^banc/texte-riche$", vues.texte_riche, name="banc-texte-riche"),
 ] + urlpatterns_du_produit
