@@ -1,0 +1,31 @@
+{# Composant d'onglets (D6d, A10) : le balisage `nav nav-tabs` de Bootstrap 3, dont le CSS #}
+{# existe deja, pilote par Alpine. Il naît avec le profil (deux onglets) et sert au #}
+{# cabinet (deux) puis a l'import (trois). #}
+{# #}
+{# Contrat, honore par les trois pages : le contexte porte `onglets`, une liste de #}
+{# dictionnaires `{"cle": …, "libelle": …}` **construite par la vue** (une liste ne se #}
+{# construit pas dans un gabarit Django), et un ancetre porte un `x-data` declarant une #}
+{# variable Alpine nommee **`actif`**. La variable de boucle s'appelle `onglet` et la #}
+{# variable Alpine `actif` : les deux noms sont distincts pour que `{{ onglet.cle }}` ne #}
+{# masque jamais l'etat. #}
+{# #}
+{# L'onglet actif est un **etat local Alpine** : il n'entre pas dans l'URL (A11). Le #}
+{# porter dans l'URL serait un gain que personne n'a demande, et il changerait l'URL sous #}
+{# les six appels d'`ouvrir_import` du filet. #}
+{# #}
+{# `class="active"` est **aussi** rendu par le serveur sur le premier onglet, en plus de la #}
+{# liaison `:class` : Alpine est charge en `defer`, et sans cette classe la barre #}
+{# n'afficherait aucun onglet actif entre le rendu et le demarrage d'Alpine. La syntaxe #}
+{# objet de `:class` n'ajoute et ne retire que les classes qu'elle nomme : les autres #}
+{# survivent. #}
+<ul class="nav nav-tabs" role="tablist">
+  {% for onglet in onglets %}
+  <li role="presentation" class="{% if forloop.first %}active{% endif %}"
+      :class="{ 'active': actif === '{{ onglet.cle }}' }">
+    {# Le libelle **est** l'adressage : `test_import_csv.py` clique #}
+    {# `a:has-text("Importer d'un système externe")`, six fois. Les onglets restent donc #}
+    {# des `<a>` portant leur libelle exact (C3). #}
+    <a href="#" role="tab" @click.prevent="actif = '{{ onglet.cle }}'">{{ onglet.libelle }}</a>
+  </li>
+  {% endfor %}
+</ul>

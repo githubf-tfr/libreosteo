@@ -1,0 +1,22 @@
+{% load i18n %}
+{# Corps de la modale de changement de mot de passe. Le `<form>` porte l'identifiant que #}
+{# `partials/modale.html` recoit par `formulaire_confirmer` : c'est le bouton #}
+{# `#modal-btn-ok` du pied de modale qui le soumet, par l'attribut HTML5 `form` (E9). #}
+{# `hx-target="#modale"` : la reponse remplace la modale entiere — vide en cas de succes, #}
+{# la modale reecrite avec son message en cas de refus. #}
+<form id="form-mot-de-passe" hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  {% if erreur %}
+  <div class="alert alert-danger" role="alert" data-testid="erreur-mot-de-passe">{{ erreur }}</div>
+  {% endif %}
+  <div class="form-group">
+    <label for="password1">{% trans 'Password' %}</label>
+    <input type="password" class="form-control" required name="password1" id="password1"
+           placeholder="{% trans 'Password' %}">
+  </div>
+  <div class="form-group">
+    <label for="password2">{% trans 'Confirm the password' %}</label>
+    <input type="password" class="form-control" required name="password2" id="password2"
+           placeholder="{% trans 'Password' %}">
+  </div>
+</form>

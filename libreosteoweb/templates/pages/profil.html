@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+{% load compress %}
+
+{% block titre %}{% trans 'User profile' %}{% endblock %}
+
+{% block css_page %}
+{% compress css %}
+<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
+<link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
+{% endcompress %}
+{% endblock %}
+
+{% block contenu %}
+<div id="page-wrapper">
+    <h1 class="page-header" data-testid="titre-profil">
+        {% trans 'User profile' %}
+    </h1>
+
+    {# L'etat de l'onglet actif vit ici, au-dessus des deux panneaux et du composant #}
+    {# `partials/onglets.html`, qui suppose une variable Alpine nommee `actif`. Il n'entre #}
+    {# pas dans l'URL (A11) : un rafraichissement ramene au premier onglet, exactement #}
+    {# comme aujourd'hui. #}
+    <div x-data="{ actif: 'identite' }">
+      {% include "partials/onglets.html" %}
+      <div class="tab-content">
+        {# Panneaux **sans** la classe `tab-pane` : Bootstrap 3 la pose a `display:none`, #}
+        {# et un `x-show` dont l'etat initial vaut `true` *retire* la propriete `display` #}
+        {# au lieu d'y ecrire une valeur — il decouvrirait la regle au lieu de l'occulter #}
+        {# (legs de D6c, `dfb2473`). Le panneau inactif porte un `display: none` rendu par #}
+        {# le serveur : sans lui, les deux panneaux s'afficheraient entre le rendu et le #}
+        {# demarrage d'Alpine, qui est charge en `defer`. #}
+        <div id="onglet-identite" x-show="actif === 'identite'">
+          {% include "pages/fragments/profil-identite.html" %}
+        </div>
+        <div id="onglet-affichage" x-show="actif === 'affichage'" style="display: none">
+          {% include "pages/fragments/profil-affichage.html" %}
+        </div>
+      </div>
+    </div>
+</div>
+{% endblock %}

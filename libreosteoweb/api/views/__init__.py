@@ -36,7 +36,13 @@ from .facturation import InvoiceViewHtml, InvoiceViewSet, PaimentMeanViewSet
 from .fichiers import telecharger_fichier
 from .import_fichiers import FileImportViewSet
 from .installation import CreateAdminAccountView, InstallView, create_superuser
-from .pages import page_reindexation
+from .pages import (
+    enregistrer_affichage,
+    enregistrer_identite,
+    mot_de_passe,
+    page_profil,
+    page_reindexation,
+)
 from .patient import (
     DocumentViewSet,
     PatientDocumentViewSet,
@@ -61,6 +67,10 @@ __all__ = [
     "PaimentMeanViewSet",
     "PatientDocumentViewSet",
     "PatientViewSet",
+    "enregistrer_affichage",
+    "enregistrer_identite",
+    "mot_de_passe",
+    "page_profil",
     "page_reindexation",
     "RebuildIndex",
     "RegularDoctorViewSet",

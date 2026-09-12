@@ -1,0 +1,80 @@
+{% load i18n %}
+{# Ce fragment est **inclus** par le document et **rendu seul** par la vue d'ecriture : #}
+{# une seule source de verite pour le formulaire d'identite, comme `search-result.html` #}
+{# l'est pour les resultats de recherche (D6c, A7). #}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-xs-12 col-sm-8 col-md-6 col-sm-offset-2 col-md-offset-3">
+      {# Pas de `novalidate` : il n'existait que parce qu'Angular validait a la place du #}
+      {# navigateur. `hx-target` vise le conteneur de l'onglet, jamais le document : #}
+      {# l'echange est partiel, et l'onglet actif ne bouge pas (A11). #}
+      <form hx-post="{% url 'profil-identite' %}"
+            hx-target="#onglet-identite"
+            hx-swap="innerHTML">
+        {% csrf_token %}
+        <div class="form-group">
+          {# L'identifiant est en lecture seule, comme aujourd'hui (`ng-disabled="true"`), #}
+          {# et il n'est pas un champ du formulaire : le poster ne changerait rien, et #}
+          {# `Meta.fields` ne le declare pas. #}
+          <label for="username">{% trans 'Username' %}</label>
+          <input type="text" id="username" name="username" class="form-control input-lg"
+                 value="{{ utilisateur.username }}" disabled>
+        </div>
+        <div class="row">
+          <div class="col-xs-6 col-sm-6 col-md-6">
+            <div class="form-group">
+              <label for="{{ formulaire_identite.last_name.id_for_label }}">{{ formulaire_identite.last_name.label }}</label>
+              {{ formulaire_identite.last_name }}
+              {{ formulaire_identite.last_name.errors }}
+            </div>
+          </div>
+          <div class="col-xs-6 col-sm-6 col-md-6">
+            <div class="form-group">
+              <label for="{{ formulaire_identite.first_name.id_for_label }}">{{ formulaire_identite.first_name.label }}</label>
+              {{ formulaire_identite.first_name }}
+              {{ formulaire_identite.first_name.errors }}
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="{{ formulaire_identite.email.id_for_label }}">{{ formulaire_identite.email.label }}</label>
+          {{ formulaire_identite.email }}
+          {{ formulaire_identite.email.errors }}
+        </div>
+
+        {% if not DEMONSTRATION %}
+        {# Le bouton reste affiche pour tout le monde, comme aujourd'hui : le refus #}
+        {# oppose a un non-administrateur est celui du serveur, et il s'affiche en #}
+        {# notification d'erreur (A22). #}
+        <button class="btn btn-default" type="button"
+                hx-get="{% url 'profil-mot-de-passe' %}"
+                hx-target="#modale">{% trans 'Change password'%}</button>
+        {% endif %}
+        <hr/>
+        <div class="form-horizontal">
+          {# Les deux premiers libelles sont **dynamiques** : ils viennent des reglages du #}
+          {# cabinet (`professional_id_label` vaut « Adeli », `office_identifier_label` #}
+          {# vaut « SIRET » au socle E1), et `R-THE-01` etape 1 les decrit comme tels. #}
+          <div class="form-group">
+            <label for="inputProfessionalId" class="col-sm-2 control-label">{{ officesettings.professional_id_label }}</label>
+            <div class="col-sm-10">{{ formulaire_therapeute.professional_id }}</div>
+          </div>
+          <div class="form-group">
+            <label for="inputOfficeIdentifier" class="col-sm-2 control-label">{{ officesettings.office_identifier_label }}</label>
+            <div class="col-sm-10">{{ formulaire_therapeute.office_identifier }}</div>
+          </div>
+          <div class="form-group">
+            <label for="inputQuality" class="col-sm-2 control-label">{{ formulaire_therapeute.quality.label }}</label>
+            <div class="col-sm-10">{{ formulaire_therapeute.quality }}</div>
+          </div>
+          <div class="form-group">
+            <label for="inputFooter" class="col-sm-2 control-label">{{ formulaire_therapeute.invoice_footer.label }}</label>
+            <div class="col-sm-10">{{ formulaire_therapeute.invoice_footer }}</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" type="submit"
+                data-testid="enregistrer-profil">{% trans 'Save' %}</button>
+      </form>
+    </div>
+  </div>
+</div>

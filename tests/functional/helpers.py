@@ -81,15 +81,28 @@ def ouvrir_profil_therapeute(page: Page) -> None:
     ouvrir_menu_utilisateur(page)
     page.click("#user-profile")
     expect(page.get_by_test_id("titre-profil")).to_contain_text("Profil utilisateur")
-    # Meme risque de course qu'au-dessus (GET /myuserid, /api/users/:id,
-    # /api/profiles/get_by_user) : `email` est rempli par ces reponses, contrairement a
-    # `professional_id` ou `quality` que certains tests vident expres pour declencher la
-    # visite guidee. Meme choix de barriere qu'au-dessus : une valeur non vide plutot que
-    # celle semee en dur par le socle.
-    # Echeance : D6d T7. Meme raison qu'au-dessus : les trois appels asynchrones
-    # (/myuserid, /api/users/:id, /api/profiles/get_by_user) disparaissent avec l'ecran, et
-    # `email` est alors rendu par le serveur dans le document. Reecrite dans ce commit-la.
+    # Depuis D6d T7, ce clic est une **navigation de document** : le profil est une page
+    # Django (`/accounts/user-profile`), et le titre comme les valeurs arrivent dans le
+    # meme document. Les trois appels asynchrones qui motivaient cette barriere
+    # (`GET /myuserid`, `/api/users/:id`, `/api/profiles/get_by_user`) n'existent plus, et
+    # `UserProfileCtrl` non plus.
+    #
+    # La barriere reste, et elle reste juste : elle est desormais **immediatement
+    # satisfaite**, ce qui ne coute rien, et elle continue de distinguer un document charge
+    # d'un document en cours de chargement. Un `email` non vide prouve que le formulaire
+    # porte ses valeurs, et non seulement son titre.
     expect(page.locator("input[name=email]")).not_to_have_value("")
+    # Mesure sur D6d T7, 2 echecs identiques sur 2 lancements complets (invisible en
+    # isolation) : contrairement a `connexion()`, dont la barriere attend un appel reseau
+    # asynchrone qui laisse largement le temps au script Alpine `defer` de s'executer,
+    # cette barriere-ci est satisfaite par du contenu rendu par le serveur des la reponse —
+    # elle ne coute rien, donc elle n'attend pas Alpine non plus. Le premier geste sur le
+    # composant d'onglets (T7) qui suit immediatement cette navigation peut alors arriver
+    # avant que `@click.prevent` ne soit attache, et retombe sur la navigation par defaut
+    # de l'ancre `href="#"` (constate : l'URL de la page porte alors un `#` final). Attendre
+    # `window.Alpine` — assigne par le module a la fin de son execution synchrone, avant
+    # que Playwright ne puisse a nouveau interroger la page — ferme cette fenetre.
+    page.wait_for_function("() => window.Alpine !== undefined")
 
 
 def notifications_de_succes(page: Page) -> Locator:
@@ -149,19 +162,18 @@ def attendre_notification_de_succes(page: Page, geste: Callable[[], None]) -> No
 def enregistrer_formulaire(page: Page, bouton: Locator) -> None:
     """Clique le bouton d'enregistrement et attend la confirmation de l'application.
 
-    La barriere est la notification, et non la reponse d'une requete nommee : les deux
-    ecrans concernes n'ecrivent pas en une seule requete. « Mettre a jour » (cabinet) lance
-    les reglages et un enregistrement par moyen de paiement **en parallele**, et ne
-    confirme qu'apres le dernier ; « Enregistrer » (profil) en enchaine deux, l'utilisateur
-    puis les reglages du therapeute, et ne confirme qu'apres la seconde. La notification est
-    donc le seul signal en aval de *toutes* les ecritures — ce que l'arbitrage A1 exige
-    quand l'assertion qui suit porte sur la base.
+    La barriere est la notification, et non la reponse d'une requete nommee. Elle l'etait
+    parce que les deux ecrans concernes n'ecrivaient pas en une seule requete ; depuis
+    D6d T7 le profil ecrit en **une** requete (l'utilisateur et ses reglages, dans la meme
+    transaction), et « Mettre a jour » (cabinet) lance encore les reglages et un
+    enregistrement par moyen de paiement **en parallele**, ne confirmant qu'apres le
+    dernier — cette moitie-la du motif tombe en D6d T9.
 
-    Echeance : D6d T7 (profil) et T9 (cabinet). Sous htmx, chacun des deux ecrans ecrit en
-    **une** requete, et le motif ci-dessus — N+1 requetes en parallele pour le cabinet, deux
-    requetes enchainees pour le profil — devient faux. La barriere, elle, reste la bonne :
-    la notification est toujours le seul signal en aval de l'ecriture. Reecrite en deux
-    fois, dans chacun des deux commits de migration.
+    Le choix de barriere, lui, ne change pas et n'a pas a changer : la notification reste le
+    seul signal en aval de *toutes* les ecritures, ce que l'arbitrage A1 de D6b exige quand
+    l'assertion qui suit porte sur la base. Elle vaut pour les deux implementations de
+    notification (`growl` et le composant de D6c), le contrat neutre acceptant les deux
+    pendant la cohabitation (D6d, A18).
     """
     attendre_notification_de_succes(page, bouton.click)
 

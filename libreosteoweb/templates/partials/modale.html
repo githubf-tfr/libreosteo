@@ -31,8 +31,17 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-testid="annuler-modale"
                   @click="ouverte = false">{{ libelle_annuler|default:_("Cancel") }}</button>
-          <button type="button" class="btn btn-primary" id="modal-btn-ok"
-                  data-testid="confirmer-modale">{{ libelle_confirmer|default:_("OK") }}</button>
+          {# `formulaire_confirmer` : identifiant d'un `<form>` que ce bouton soumet, #}
+          {# declare par le corps de modale (D6d, E9). L'attribut HTML5 `form` sur un #}
+          {# bouton de soumission situe **hors** du formulaire est standard, et htmx #}
+          {# intercepte l'evenement `submit` qu'il declenche — c'est ce qui permet a une #}
+          {# modale de poster sans une ligne de JavaScript. Sans ce parametre, le bouton #}
+          {# reste ce qu'il etait : un `type="button"` inerte, que le banc d'essai de D6c #}
+          {# eprouve toujours a l'identique. #}
+          {# L'identifiant `modal-btn-ok` ne bouge pas : `helpers.bouton_de_confirmation` #}
+          {# l'adresse, et douze appels de `confirmer_la_modale` en dependent (C1). #}
+          <button id="modal-btn-ok" class="btn btn-primary" data-testid="confirmer-modale"
+                  {% if formulaire_confirmer %}type="submit" form="{{ formulaire_confirmer }}"{% else %}type="button"{% endif %}>{{ libelle_confirmer|default:_("OK") }}</button>
         </div>
       </div>
     </div>

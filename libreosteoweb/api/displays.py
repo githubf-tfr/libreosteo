@@ -15,7 +15,6 @@
 # import the logging library
 import logging
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.forms.models import ModelForm
 from django.shortcuts import render
@@ -155,23 +154,6 @@ def display_examination(request):
             "examination": displayExamination.display_fields(),
             "patient": displayPatient.display_fields(),
             "therapeutsettings": therapeut_settings,
-        },
-    )
-
-
-def display_userprofile(request):
-    displayUser = UserDisplay()
-    displayTherapeutSettings = TherapeutSettingsDisplay()
-    office_settings = request.officesettings
-    return render(
-        request,
-        "partials/user-profile.html",
-        {
-            "user": displayUser.display_fields(),
-            "therapeutsettings": displayTherapeutSettings.display_fields(),
-            "officesettings": office_settings,
-            "optional_modules": models.TherapeutSettings.MODULES_FIELDS,
-            "DEMONSTRATION": settings.DEMONSTRATION,
         },
     )
 

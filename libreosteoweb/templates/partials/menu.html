@@ -45,7 +45,10 @@
           <i class="fa fa-user fa-fw"></i> {{ request.user.username }} <i class="fa fa-caret-down"></i>
         </a>
         <ul class="dropdown-menu dropdown-user" data-testid="menu-utilisateur">
-          <li id="user-profile"><a ui-sref="user-profile" href="/#/accounts/user-profile"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
+          {# `ui-sref` retire en meme temps que le `href` change (E2). L'identifiant #}
+          {# `user-profile` ne bouge pas : `tour.js:43` s'y ancre, et #}
+          {# `helpers.ouvrir_profil_therapeute` le clique. #}
+          <li id="user-profile"><a href="{% url 'profil' %}"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
           </li>
           <li id="office-settings"><a ui-sref="office-settings" href="/#/office/settings"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
           </li>

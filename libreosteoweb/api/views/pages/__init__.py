@@ -22,8 +22,18 @@ echange vivent sous `libreosteoweb/templates/pages/fragments/`. Les ecrans migre
 passent plus par DRF : ils postent vers ces vues, qui rendent des fragments (D6d, A3).
 """
 
+from .profil import (
+    enregistrer_affichage,
+    enregistrer_identite,
+    mot_de_passe,
+    page_profil,
+)
 from .reindexation import page_reindexation
 
 __all__ = [
+    "enregistrer_affichage",
+    "enregistrer_identite",
+    "mot_de_passe",
+    "page_profil",
     "page_reindexation",
 ]
