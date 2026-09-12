@@ -191,6 +191,7 @@ def test_le_detecteur_ne_signale_pas_une_inclusion_qui_charge_son_script() -> No
 _INCLUSION_QUELCONQUE = re.compile(r"""{%\s*include\s+["']([^"']+)["']""")
 _COMMENTAIRE = re.compile(r"{#.*?#}", re.DOTALL)
 _PREFIXE_GABARITS = "libreosteoweb/templates/"
+DOSSIER_DES_FRAGMENTS = "pages/fragments/"
 
 
 def _nom_de_gabarit(cle: str) -> str | None:
@@ -220,7 +221,6 @@ def _script_atteint(
     cle: str,
     parents: dict[str, list[str]],
     vus: frozenset[str],
-    depart: bool,
 ) -> bool:
     if SCRIPT_TEXTE_RICHE in sources[cle]:
         return True
@@ -229,13 +229,20 @@ def _script_atteint(
         return False
     ascendants = parents.get(cle, [])
     if not ascendants:
-        # Une source sans parent est une racine de rendu. **L'exemption ne vaut que pour
-        # le fragment de depart** : si la racine est un ancetre, c'est elle le document qui
-        # rend le composant, et il lui faut le script.
-        return depart
+        # Une source sans parent est une racine de rendu. **L'exemption ne vaut que pour un
+        # fragment de depart**, et un fragment se reconnait a son chemin. Sans cette
+        # seconde condition, la regle exempterait **tout document de page** : un document
+        # `{% extends %}` et n'est jamais inclus, donc il n'a jamais de parent, et un
+        # document qui inclurait le composant sans charger son script serait devenu muet.
+        # C'est le mode d'echec que T5 nomme « le plus grave du lot » — la barre reste
+        # invisible et le formulaire soumet l'ancienne valeur sans rien signaler.
+        #
+        # Un **fragment** sans parent, lui, n'est rendu par aucun document : le mode
+        # d'echec garde ne peut pas se produire, et c'est l'etat de
+        # `pages/fragments/consultation*.html` entre T10 et T12.
+        return DOSSIER_DES_FRAGMENTS in cle
     return all(
-        _script_atteint(sources, parent, parents, vus | {cle}, False)
-        for parent in ascendants
+        _script_atteint(sources, parent, parents, vus | {cle}) for parent in ascendants
     )
 
 
@@ -245,7 +252,7 @@ def sans_le_script_ni_porteur(sources: dict[str, str]) -> list[str]:
     return [
         cle
         for cle in inclusions_du_texte_riche(sources)
-        if not _script_atteint(sources, cle, parents, frozenset(), True)
+        if not _script_atteint(sources, cle, parents, frozenset())
     ]
 
 
@@ -271,6 +278,17 @@ def test_le_detecteur_mord_quand_le_document_qui_rend_n_a_pas_le_script() -> Non
         document: '{% include "pages/fragments/volet.html" %}',
     }
     assert sans_le_script_ni_porteur(sources) == [fragment]
+
+
+def test_le_detecteur_mord_sur_un_document_racine_sans_script() -> None:
+    """**Tout document de page est une racine** : il `{% extends %}` et n'est jamais inclus.
+
+    Une exemption qui porterait sur toute source sans parent rendrait donc ce cliquet muet
+    exactement la ou il doit mordre. Ce test est la garde de cette confusion.
+    """
+    document = _PREFIXE_GABARITS + "pages/dossier.html"
+    sources = {document: '{% include "' + FRAGMENT_TEXTE_RICHE + '" with nom="job" %}'}
+    assert sans_le_script_ni_porteur(sources) == [document]
 
 
 def test_le_detecteur_exempte_un_fragment_que_rien_ne_rend() -> None:

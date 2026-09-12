@@ -57,6 +57,7 @@ from .pages import (
     page_nouveau_patient,
     page_profil,
     page_reindexation,
+    regulariser_consultation,
     selecteur_medecin,
     utilisateur_nouveau,
 )
@@ -106,6 +107,7 @@ __all__ = [
     "page_nouveau_patient",
     "page_profil",
     "page_reindexation",
+    "regulariser_consultation",
     "RebuildIndex",
     "RegularDoctorViewSet",
     "StatisticsView",

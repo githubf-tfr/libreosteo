@@ -67,8 +67,10 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from libreosteoweb import models
+from libreosteoweb.api.events.consultation import redatation_event_tracer
 from libreosteoweb.api.invoicing import generator as invoicing_generator
 from libreosteoweb.api.serializers import ExaminationInvoicingSerializer
+from libreosteoweb.api.services import facturation as services_facturation
 from libreosteoweb.api.texte_riche import CHAMPS_DE_TEXTE_RICHE, classes_de_champs
 
 # L'ordre est celui du modele (`models.py:180-185`), qui est aussi celui de l'accordeon
@@ -122,30 +124,54 @@ def valider_date_de_consultation(valeur: datetime) -> None:
         raise ValidationError(_("The examination date is not valid"))
 
 
-def spheres_a_afficher(
+def section_des_spheres_visible(
     consultation: models.Examination, reglages: models.TherapeutSettings
-) -> list[str]:
-    """Les spheres a rendre, ou la liste vide si la section entiere est masquee (C3).
+) -> bool:
+    """**Premier niveau** de la regle des spheres (C3) : la section existe-t-elle ?
 
-    `examination.js:146-174`. Trois raisons, et une seule suffit :
+    `examination.js:158-160` : `if (therapeutSettings.spheres_enabled || filled)`. Sans
+    cette condition, l'objet `examinationSettings` n'est jamais cree, et
+    `ng-show="examinationSettings"` (`examination.html:128`) masque toute la section —
+    les six boutons a cocher compris.
 
-    - le reglage `spheres_enabled` du praticien ;
-    - **au moins une sphere renseignee** — « to avoid hiding information », le commentaire
-      d'origine. C'est la subtilite de cette regle : un reglage desactive ne doit jamais
-      faire disparaitre une note deja prise ;
-    - la consultation est **en cours** : c'est le `|| $scope.newExamination` de la ligne
-      171. Cote serveur, « en cours » se lit sur le statut, seule trace qu'une consultation
-      soit ouverte.
+    Le « ou bien au moins une sphere renseignee » est la subtilite de cette regle, et le
+    commentaire d'origine en donne le motif : « to avoid hiding information ». Un reglage
+    desactive ne doit jamais faire disparaitre une note deja prise.
 
     « Renseignee » reprend `isEmpty` (`examination.js:91`) a l'identique : la chaine vide et
     `None` sont vides, **une chaine d'espaces ne l'est pas**. Ne pas « corriger » en
     `strip()` : ce serait masquer une sphere que le produit affiche.
     """
+    return bool(reglages.spheres_enabled) or any(
+        getattr(consultation, sphere, "") for sphere in SPHERES
+    )
+
+
+def spheres_a_afficher(
+    consultation: models.Examination, reglages: models.TherapeutSettings
+) -> list[str]:
+    """**Second niveau** : les spheres dont le panneau est ouvert (C3).
+
+    `examination.js:171` : `examinationSettings[sphere] = !isEmpty(newValue) ||
+    $scope.newExamination`, lu par `ng-show="examinationSettings.orl"`
+    (`examination.html:157`). Un panneau est donc ouvert si **sa** sphere porte une note,
+    ou si la consultation est en cours. Cote serveur, « en cours » se lit sur le statut,
+    seule trace qu'une consultation soit ouverte.
+
+    La liste est vide quand la section entiere est masquee : les six panneaux existent
+    alors dans le DOM d'AngularJS, mais leur ancetre ne s'affiche pas.
+
+    **Les deux niveaux sont distincts et ne se confondent pas** : avec le reglage actif et
+    aucune note, la section montre ses six boutons a cocher et **aucun** panneau ouvert.
+    Les replier en une seule regle — ce qu'une premiere ecriture de cette tache avait fait —
+    ajoute six panneaux vides sur tout dossier dont le praticien a desactive les spheres.
+    """
+    if not section_des_spheres_visible(consultation, reglages):
+        return []
     en_cours = consultation.status == models.ExaminationStatus.IN_PROGRESS
-    renseignee = any(getattr(consultation, sphere, "") for sphere in SPHERES)
-    if reglages.spheres_enabled or renseignee or en_cours:
-        return list(SPHERES)
-    return []
+    return [
+        sphere for sphere in SPHERES if en_cours or getattr(consultation, sphere, "")
+    ]
 
 
 class FormulaireConsultation(forms.ModelForm):
@@ -184,7 +210,21 @@ class FormulaireConsultation(forms.ModelForm):
     )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        kwargs.setdefault("auto_id", "%s")
+        # **`auto_id` prefixe, et c'est structurel** : le dossier rend deux volets dans le
+        # meme document, et des identifiants nus (`reason`, `type`) y seraient en double.
+        # `#reason` serait en outre en collision avec le champ de motif de la modale de
+        # facturation. Le mode strict de Playwright rend un rouge immediat sur un locator
+        # ambigu, sans retenter (legs n° 3 du lot).
+        #
+        # **`auto_id` et non `prefix`** : `prefix` prefixerait aussi les `name`, qui sont
+        # des ancres du filet (`input[name=laterality]`…) et se conservent a l'octet.
+        #
+        # Deux identifiants echappent au prefixe et le doivent : `#examinationDate`
+        # (declare sur le widget, qui gagne sur `auto_id`) et `#close-examination`, ecrit
+        # dans le gabarit. Ce sont des ancres du filet ; elles etaient **deja** en double
+        # dans le produit AngularJS, et `test_consultation.py:253-258` le documente et leve
+        # l'ambiguite par `:visible`.
+        kwargs.setdefault("auto_id", "consultation-%s")
         super().__init__(*args, **kwargs)
         self.fields["reason"].widget = forms.TextInput(
             attrs={
@@ -209,6 +249,21 @@ class FormulaireConsultation(forms.ModelForm):
         """
         valeur: datetime = self.cleaned_data["date"]
         valider_date_de_consultation(valeur)
+        # **Le jour seul est saisi ; l'heure de la seance se conserve.** `<input
+        # type="date">` ne transporte pas l'heure, donc une date relue telle quelle vaudrait
+        # minuit local. Deux consequences, et la seconde est la pire : l'heure de la seance
+        # serait perdue a chaque enregistrement, et `redatation_event_tracer` ecrirait une
+        # trace « date modifiee » a **chaque** enregistrement d'une seance qui n'a pas
+        # change de jour — le journal que l'exploitant lit s'en trouverait noye.
+        #
+        # Tant que le jour ne bouge pas, on rend donc la valeur d'origine, a l'instant
+        # pres. Le jour se compare en heure **locale** : c'est celui que le praticien a
+        # saisi et celui que le filet relit (`timezone.localtime(...).date()`).
+        ancienne = getattr(self.instance, "date", None)
+        if ancienne is not None and (
+            timezone.localtime(ancienne).date() == timezone.localtime(valeur).date()
+        ):
+            return ancienne
         return valeur
 
 
@@ -241,7 +296,8 @@ class FormulairePatientDeConsultation(forms.ModelForm):
         field_classes = classes_de_champs(models.Patient)
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        kwargs.setdefault("auto_id", "%s")
+        # Meme prefixe que `FormulaireConsultation`, pour la meme raison.
+        kwargs.setdefault("auto_id", "consultation-%s")
         super().__init__(*args, **kwargs)
         self.fields["laterality"].widget.attrs["class"] = "form-control input-sm"
         # Le medecin traitant est gouverne par le selecteur de T9, qui poste sur sa propre
@@ -302,6 +358,7 @@ def contexte_du_volet(
     prefixe: str = "consultation",
     url_liste: str = "",
     cabinet_courant: models.OfficeSettings | None = None,
+    hors_bande: bool = False,
 ) -> dict[str, Any]:
     """Le contexte des deux fragments du volet — **une seule variable, `volet`**.
 
@@ -317,22 +374,31 @@ def contexte_du_volet(
     `url_liste` et `prefixe` appartiennent a l'appelant : le fragment ne sait pas sous quel
     onglet il est rendu, et c'est precisement ce qui lui permet d'y etre rendu deux fois.
     """
-    formulaire = formulaire or FormulaireConsultation(instance=consultation)
+    formulaire = formulaire or FormulaireConsultation(
+        instance=consultation, auto_id=f"{prefixe}-%s"
+    )
     formulaire_patient = formulaire_patient or FormulairePatientDeConsultation(
-        instance=patient
+        instance=patient, auto_id=f"{prefixe}-%s"
     )
     champs = {nom: _champ(formulaire, nom) for nom in CHAMPS_TEXTE_RICHE}
     champs.update({nom: _champ(formulaire_patient, nom) for nom in CHAMPS_DU_PATIENT})
     cabinet = getattr(consultation, "office", None)
+    ouvertes = spheres_a_afficher(consultation, reglages)
     return {
         "consultation": consultation,
         "patient": patient,
         "en_cours": en_cours,
         "prefixe": prefixe,
+        "hors_bande": hors_bande,
         "formulaire": formulaire,
         "formulaire_patient": formulaire_patient,
         "champs": champs,
-        "spheres": [champs[nom] for nom in spheres_a_afficher(consultation, reglages)],
+        # **Deux niveaux, deux clefs.** `section_spheres` gouverne l'existence de la
+        # section — les six boutons a cocher compris ; `spheres` est la liste, toujours
+        # les six quand la section existe, chacune portant `ouverte` pour son panneau.
+        # Les replier en une seule clef est l'erreur que la revue a relevee.
+        "section_spheres": section_des_spheres_visible(consultation, reglages),
+        "spheres": [dict(champs[nom], ouverte=nom in ouvertes) for nom in SPHERES],
         "antecedents": [champs[nom] for nom in ANTECEDENTS],
         "medecins": models.RegularDoctor.objects.order_by("family_name"),
         "libelle_du_type": dict(TYPES_DE_CONSULTATION).get(
@@ -350,6 +416,9 @@ def contexte_du_volet(
         "url_edition": reverse("consultation-edition", args=[consultation.pk]),
         "url_cloture": reverse("consultation-cloture", args=[consultation.pk]),
         "url_facturation": reverse("consultation-facturation", args=[consultation.pk]),
+        "url_regularisation": reverse(
+            "consultation-regularisation", args=[consultation.pk]
+        ),
         "url_envoi": reverse("facture-envoi", args=[consultation.last_invoice.pk])
         if consultation.pk and consultation.last_invoice
         else "",
@@ -402,6 +471,11 @@ def enregistrer_consultation(request: HttpRequest, identifiant: str) -> HttpResp
             {"volet": _volet(request, consultation)},
         )
 
+    # **L'ancienne date se lit ici, et nulle part ailleurs.** `is_valid()` declenche
+    # `_post_clean`, qui applique `cleaned_data` sur `formulaire.instance` : passe cette
+    # ligne, la date d'avant la saisie n'existe plus nulle part. C'est exactement la raison
+    # du commentaire d'`ExaminationViewSet.perform_update`.
+    ancienne_date = consultation.date
     formulaire = FormulaireConsultation(request.POST, instance=consultation)
     formulaire_patient = FormulairePatientDeConsultation(
         request.POST, instance=consultation.patient
@@ -422,7 +496,7 @@ def enregistrer_consultation(request: HttpRequest, identifiant: str) -> HttpResp
             status=422,
         )
 
-    ecrire_le_volet(formulaire, formulaire_patient, request.user)
+    ecrire_le_volet(formulaire, formulaire_patient, request.user, ancienne_date)
     consultation.refresh_from_db()
     return render(
         request,
@@ -435,6 +509,7 @@ def ecrire_le_volet(
     formulaire: FormulaireConsultation,
     formulaire_patient: FormulairePatientDeConsultation,
     utilisateur: Any,
+    ancienne_date: datetime,
 ) -> None:
     """Les deux ecritures du volet, **bornees a leurs colonnes** et indissociables.
 
@@ -445,15 +520,34 @@ def ecrire_le_volet(
     reecrit toutes les colonnes depuis une instance lue **avant** la saisie, et ramene donc
     `status`, `status_reason` ou `office` a leur valeur d'alors.
 
+    **`ancienne_date` se lit avant `is_valid()`, et l'appelant en est responsable** :
+    `_post_clean` applique `cleaned_data` sur `formulaire.instance`, donc la date d'avant la
+    saisie n'existe plus une fois le formulaire valide. Elle est un parametre et non une
+    lecture interne pour que cette contrainte soit visible a l'appel.
+
+    **La redatation est tracee, et ce n'est pas facultatif** : l'acte du 2026-09-06
+    (`api/events/consultation.py:15-28`) autorise la redatation d'une consultation **deja
+    facturee** a la seule condition qu'elle soit tracee. Le chemin DRF l'ecrit
+    (`ExaminationViewSet.perform_update`) ; ce chemin de page doit l'ecrire aussi, sans quoi
+    une garantie arbitree disparait en silence sur une donnee facturee.
+
+    Le rattrapage du therapeute reprend `perform_update` a l'identique : une seance sans
+    therapeute — il y en a d'anciennes en base — se voit attribuer celui qui l'edite.
+
     Les deux ecritures tombent ensemble ou pas du tout : un volet a demi enregistre
     laisserait le praticien devant un ecran qui ne dit pas ce qui a ete retenu.
     """
     with transaction.atomic():
         seance = formulaire.save(commit=False)
-        seance.save(update_fields=("reason", "type", "date", *CHAMPS_TEXTE_RICHE))
+        colonnes = ["reason", "type", "date", *CHAMPS_TEXTE_RICHE]
+        if not seance.therapeut:
+            seance.therapeut = utilisateur
+            colonnes.append("therapeut")
+        seance.save(update_fields=colonnes)
         soigne = formulaire_patient.save(commit=False)
         soigne.set_user_operation(utilisateur)
         soigne.save(update_fields=CHAMPS_DU_PATIENT)
+        redatation_event_tracer(seance, utilisateur, ancienne_date, seance.date)
 
 
 def _modale_de_facturation(
@@ -484,7 +578,10 @@ def _modale_de_facturation(
         "libelle_annuler": _("Cancel"),
         "formulaire_confirmer": "formulaire-facturation",
         "action": request.path,
-        "prefixe": request.GET.get("prefixe", "consultation"),
+        # Le prefixe du volet appelant voyage sur la chaine de requete a l'ouverture, puis
+        # dans un champ cache : la reponse de succes doit rafraichir **le** volet qui a
+        # ouvert la modale, et le dossier en rend deux.
+        "prefixe": _prefixe_de(request),
         "consultation": consultation,
         "facturation_seule": facturation_seule,
         # `enabledPm` de `patient.js:824-832` : les moyens desactives ne sont pas proposes.
@@ -542,11 +639,74 @@ def _facturer(
             request, consultation, facturation_seule, _messages(resultat["errors"]), 422
         )
     consultation.refresh_from_db()
+    return _volet_hors_bande(request, consultation)
+
+
+def _prefixe_de(request: HttpRequest) -> str:
+    """Le prefixe du volet appelant, lu dans la requete."""
+    donnees = request.POST if request.method == "POST" else request.GET
+    return donnees.get("prefixe") or "consultation"
+
+
+def _volet_hors_bande(
+    request: HttpRequest, consultation: models.Examination
+) -> HttpResponse:
+    """La reponse de succes d'une modale : **le volet seul, en hors-bande**.
+
+    C'est le patron pose par D6d (`pages/fragments/comptabilite-echange.html`, repris par
+    `comptabilite-annulation.html` et `utilisateur-nouveau.html`) : la modale poste avec
+    `hx-target="#modale"`, et la reponse ne porte **que** des fragments hors-bande. La
+    cible principale recoit donc du vide, ce qui vide `#modale` et referme la modale —
+    `partials/modale.html` retire alors lui-meme `modal-open` du `<body>` a sa sortie du
+    DOM.
+
+    **Une premiere ecriture de cette tache ciblait le volet directement** : la modale
+    restait ouverte sur un succes, `modal-open` restait pose, et la page n'etait plus
+    defilable — exactement la fuite que T8 venait de fermer. Sur un refus, la reponse
+    (la modale entiere) remplacait le volet par la modale.
+
+    Le fragment hors-bande doit rester **fille directe de la reponse** pour qu'htmx
+    l'extraie : ce corps ne rend donc rien d'autre.
+    """
     return render(
         request,
         "pages/fragments/consultation.html",
-        {"volet": _volet(request, consultation)},
+        {
+            "volet": _volet(
+                request,
+                consultation,
+                prefixe=_prefixe_de(request),
+                hors_bande=True,
+            )
+        },
     )
+
+
+def regulariser_consultation(request: HttpRequest, identifiant: str) -> HttpResponse:
+    """`/examination/<id>/regularize` : le bouton « Regulariser » (`#finishPaimentBtn`).
+
+    **Ce n'est pas une facturation**, et c'est pourquoi elle a sa propre route : Angular
+    ouvrait la meme modale puis appelait `ExaminationServ.update_paiement`
+    (`examination.js:275-288`), qui encaisse une facture deja emise au lieu d'en emettre
+    une seconde. Le service est le meme que celui du chemin DRF
+    (`services.facturation.encaisser`), pour que les deux surfaces disent la meme chose.
+
+    Le refus d'encaissement est rendu dans la modale, la ou l'ancien ecran se contentait
+    d'un `growl` sur une chaine ecrite en dur (`examination.js:285`).
+    """
+    consultation = get_object_or_404(models.Examination, pk=identifiant)
+    if request.method != "POST":
+        return _modale_de_facturation(request, consultation, facturation_seule=True)
+    cabinet = getattr(request, "officesettings", None)
+    assert cabinet is not None
+    try:
+        services_facturation.encaisser(
+            consultation, request.POST.get("paiment_mode", ""), cabinet
+        )
+    except services_facturation.EncaissementRefuse as refus:
+        return _modale_de_facturation(request, consultation, True, [str(refus)], 422)
+    consultation.refresh_from_db()
+    return _volet_hors_bande(request, consultation)
 
 
 def _messages(erreurs: Any) -> list[str]:

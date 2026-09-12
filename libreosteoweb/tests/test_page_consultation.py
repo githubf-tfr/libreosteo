@@ -49,6 +49,7 @@ from django.template.loader import render_to_string
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
+from django.utils.formats import date_format
 
 from libreosteoweb.api.views.pages.consultation import (
     CHAMPS_DU_PATIENT,
@@ -59,6 +60,7 @@ from libreosteoweb.api.views.pages.consultation import (
     contexte_du_volet,
     ecrire_le_volet,
     fin_du_jour,
+    section_des_spheres_visible,
     spheres_a_afficher,
     valider_date_de_consultation,
 )
@@ -68,6 +70,7 @@ from libreosteoweb.models import (
     ExaminationType,
     Invoice,
     InvoiceStatus,
+    OfficeEvent,
     PaimentMean,
     TherapeutSettings,
 )
@@ -113,6 +116,23 @@ def _zones_de_texte_riche(html: str) -> list[str]:
 
 
 _BALISE = re.compile(r"<[a-zA-Z][^>]*>")
+
+
+# Un panneau de sphere et son etat : le nom vient du `name` de sa zone de texte riche,
+# l'ouverture du `display` en ligne que le serveur pose.
+_PANNEAU = re.compile(
+    r'<details open class="panel panel-primary panel-sphere".*?'
+    r'style="display: (block|none);".*?name="([a-z_]+)"',
+    re.DOTALL,
+)
+
+
+def _panneaux_de_sphere(html: str) -> list[tuple[str, str]]:
+    return [(nom, etat) for etat, nom in _PANNEAU.findall(html)]
+
+
+def _spheres_ouvertes(html: str) -> list[str]:
+    return [nom for nom, etat in _panneaux_de_sphere(html) if etat == "block"]
 
 
 def _balises_desequilibrees(html: str) -> list[str]:
@@ -212,67 +232,83 @@ class TestBorneDeLaDateDeConsultation(SimpleTestCase):
 
 
 class TestReglesDAffichageDesSpheres(SimpleTestCase):
-    """`examination.js:146-174`, portee dans la vue (C3).
+    """`examination.js:146-174` et `examination.html:128,157`, portees dans la vue (C3).
 
-    Les six noms sont rendus **dans l'ordre du modele**, celui de l'accordeon d'origine.
+    **Deux niveaux, et ils ne se confondent pas** : `section_des_spheres_visible` dit si la
+    section existe — les six boutons a cocher compris —, `spheres_a_afficher` dit quels
+    panneaux sont ouverts. Une premiere ecriture de cette tache les avait replies en une
+    seule regle, ce qui ajoutait six panneaux vides sur trois des quatre cas.
+
+    Les noms sont rendus **dans l'ordre du modele**, celui de l'accordeon d'origine.
     """
 
-    def test_les_spheres_activees_affichent_les_six(self) -> None:
-        self.assertEqual(
-            list(SPHERES),
-            spheres_a_afficher(
-                _consultation(), TherapeutSettings(spheres_enabled=True)
-            ),
-        )
+    def test_le_reglage_actif_montre_la_section_et_aucun_panneau(self) -> None:
+        """Angular cree `examinationSettings` (la section existe, six boutons a cocher)
+        mais chaque `examinationSettings[sphere]` vaut `false` : aucun panneau.
 
-    def test_les_spheres_desactivees_et_vides_n_affichent_rien(self) -> None:
-        self.assertEqual(
-            [],
-            spheres_a_afficher(
-                _consultation(), TherapeutSettings(spheres_enabled=False)
-            ),
-        )
+        Ce qu'il laisserait passer : une section absente sur un reglage actif. Les deux
+        assertions sont distinctes parce qu'elles portent sur deux niveaux differents.
+        """
+        consultation = _consultation()
+        reglages = TherapeutSettings(spheres_enabled=True)
+        self.assertTrue(section_des_spheres_visible(consultation, reglages))
+        self.assertEqual([], spheres_a_afficher(consultation, reglages))
 
-    def test_une_sphere_renseignee_affiche_les_six_malgre_le_reglage(self) -> None:
+    def test_le_reglage_inactif_et_rien_de_renseigne_masque_tout(self) -> None:
+        consultation = _consultation()
+        reglages = TherapeutSettings(spheres_enabled=False)
+        self.assertFalse(section_des_spheres_visible(consultation, reglages))
+        self.assertEqual([], spheres_a_afficher(consultation, reglages))
+
+    def test_une_sphere_renseignee_ouvre_son_panneau_et_lui_seul(self) -> None:
         """« pour eviter de cacher de l'information » — le commentaire d'origine.
 
-        Ce qu'il laisserait passer : rien. C'est ce cas que la falsification de l'etape 2
-        fait rougir.
+        La section reapparait malgre le reglage, **et un seul panneau s'ouvre** : celui de
+        la sphere renseignee. Ce qu'il laisserait passer : rien. C'est le cas que la revue
+        a releve comme non declare, et que la premiere ecriture rendait a six panneaux.
         """
-        self.assertEqual(
-            list(SPHERES),
-            spheres_a_afficher(
-                _consultation(orl="<p>acouphenes</p>"),
-                TherapeutSettings(spheres_enabled=False),
-            ),
-        )
+        consultation = _consultation(orl="<p>acouphenes</p>")
+        reglages = TherapeutSettings(spheres_enabled=False)
+        self.assertTrue(section_des_spheres_visible(consultation, reglages))
+        self.assertEqual(["orl"], spheres_a_afficher(consultation, reglages))
 
-    def test_une_consultation_en_cours_affiche_les_six_malgre_le_reglage(self) -> None:
+    def test_une_consultation_en_cours_ouvre_les_six_panneaux(self) -> None:
         """Le `|| $scope.newExamination` d'`examination.js:171`.
 
         Cote serveur, « en cours » se lit sur le statut : c'est la seule trace qu'une
         consultation soit ouverte, et elle ne depend d'aucun etat de client.
         """
-        self.assertEqual(
-            list(SPHERES),
-            spheres_a_afficher(
-                _consultation(status=ExaminationStatus.IN_PROGRESS),
-                TherapeutSettings(spheres_enabled=False),
-            ),
+        consultation = _consultation(
+            status=ExaminationStatus.IN_PROGRESS, orl="<p>acouphenes</p>"
         )
+        reglages = TherapeutSettings(spheres_enabled=False)
+        self.assertEqual(list(SPHERES), spheres_a_afficher(consultation, reglages))
 
-    def test_une_sphere_blanche_ne_compte_pas_comme_renseignee(self) -> None:
-        """`isEmpty` d'`examination.js` teste la chaine vide, pas la chaine blanche.
+    def test_une_consultation_en_cours_sans_note_ni_reglage_ne_montre_rien(
+        self,
+    ) -> None:
+        """**Le second niveau ne ressuscite pas le premier.**
 
-        Ce qu'il laisserait passer : une implementation qui `strip()`erait. On reproduit
-        `isEmpty` a l'identique — une chaine d'espaces **compte** comme renseignee.
+        Une consultation en cours, sans note et sans reglage, n'affiche aucune sphere :
+        `spheres_enabled || filled` est faux, donc `examinationSettings` n'existe pas et
+        `ng-show="examinationSettings"` masque la section entiere, `newExamination` ou non.
+        Le brief de la tache annoncait « les six » : c'est lui qui se trompait.
         """
-        self.assertEqual(
-            list(SPHERES),
-            spheres_a_afficher(
-                _consultation(visceral=" "), TherapeutSettings(spheres_enabled=False)
-            ),
-        )
+        consultation = _consultation(status=ExaminationStatus.IN_PROGRESS)
+        reglages = TherapeutSettings(spheres_enabled=False)
+        self.assertFalse(section_des_spheres_visible(consultation, reglages))
+        self.assertEqual([], spheres_a_afficher(consultation, reglages))
+
+    def test_une_sphere_blanche_compte_comme_renseignee(self) -> None:
+        """`isEmpty` d'`examination.js` teste `0 === str.length`, pas la chaine nettoyee.
+
+        Ce qu'il laisserait passer : une implementation qui `strip()`erait — elle masquerait
+        une sphere que le produit affiche.
+        """
+        consultation = _consultation(visceral=" ")
+        reglages = TherapeutSettings(spheres_enabled=False)
+        self.assertTrue(section_des_spheres_visible(consultation, reglages))
+        self.assertEqual(["visceral"], spheres_a_afficher(consultation, reglages))
 
 
 class TestFormulaireConsultation(TestCase):
@@ -370,6 +406,22 @@ class TestFormulaireConsultation(TestCase):
         formulaire.save()
         self.consultation.refresh_from_db()
         self.assertEqual(hier, timezone.localtime(self.consultation.date).date())
+
+    def test_un_jour_inchange_conserve_l_heure_de_la_seance(self) -> None:
+        """`<input type="date">` ne transporte pas l'heure : sans garde, chaque
+        enregistrement ramenerait la seance a minuit.
+
+        Ce qu'il laisserait passer : un changement d'heure **demande**, qu'aucun champ de
+        l'ecran ne permet de saisir. Ce qu'il attrape : la perte silencieuse de l'heure, et
+        avec elle la trace de redatation parasite qu'elle declencherait a chaque
+        enregistrement.
+        """
+        veille = timezone.localtime(self.consultation.date)
+        formulaire = FormulaireConsultation(self._donnees(), instance=self.consultation)
+        self.assertTrue(formulaire.is_valid(), formulaire.errors.as_text())
+        formulaire.save()
+        self.consultation.refresh_from_db()
+        self.assertEqual(veille, timezone.localtime(self.consultation.date))
 
     def test_la_date_enregistree_est_aware(self) -> None:
         """La garantie que `ExaminationSerializer.validate_date` portait cote DRF.
@@ -582,8 +634,8 @@ class TestFragmentDeLecture(_VoletRendu):
             with self.subTest(gabarit=gabarit):
                 self.assertEqual([], _balises_desequilibrees(self.rendu(gabarit)))
 
-    def test_les_spheres_rendues_suivent_la_regle(self) -> None:
-        """La regle de `spheres_a_afficher`, vue depuis le gabarit.
+    def test_la_section_des_spheres_suit_le_premier_niveau(self) -> None:
+        """La regle de `section_des_spheres_visible`, vue depuis le gabarit.
 
         Ce qu'il laisserait passer : une regle juste dont le gabarit ne se servirait pas.
         C'est exactement le trou que `R-IMP-02` a laisse passer en D6d.
@@ -597,6 +649,28 @@ class TestFragmentDeLecture(_VoletRendu):
         noms = _zones_de_texte_riche(self.rendu())
         for sphere in SPHERES:
             self.assertIn(sphere, noms)
+
+    def test_les_panneaux_ouverts_suivent_le_second_niveau(self) -> None:
+        """**Le second niveau se lit dans le style en ligne**, pas dans la presence.
+
+        Les six panneaux sont toujours dans le DOM quand la section existe — c'est ce que
+        faisait `ng-show`, qui masque sans detruire, et c'est ce qui garde les six champs
+        de texte riche soumis avec le formulaire. Ce qui distingue un panneau ouvert d'un
+        panneau ferme est son `display`.
+
+        Ce qu'il laisserait passer : un panneau ouvert par Alpine au demarrage plutot que
+        par le serveur — le banc de T5 le verrait, pas ce test.
+        """
+        self.reglages.spheres_enabled = False
+        self.consultation.status = ExaminationStatus.INVOICED_PAID
+        self.consultation.orl = "<p>acouphenes</p>"
+        html = self.rendu()
+        self.assertEqual(6, len(_panneaux_de_sphere(html)))
+        self.assertEqual(["orl"], _spheres_ouvertes(html))
+
+    def test_une_consultation_en_cours_ouvre_ses_six_panneaux(self) -> None:
+        self.consultation.status = ExaminationStatus.IN_PROGRESS
+        self.assertEqual(list(SPHERES), _spheres_ouvertes(self.rendu(en_cours=True)))
 
 
 class TestEncartDeFacture(_VoletRendu):
@@ -736,6 +810,48 @@ class TestModaleDeFacturation(_VoletRendu):
             reverse("consultation-cloture", args=[self.consultation.id])
         )
         self.assertIn('value="55"', reponse.content.decode())
+
+    def test_le_formulaire_de_modale_vise_le_conteneur_de_modale(self) -> None:
+        """**Le patron hors-bande de D6d**, cote gabarit.
+
+        `hx-target="#modale"` est ce qui permet a la reponse de succes — le volet seul, en
+        hors-bande — de vider `#modale` et de refermer la modale. Viser le volet
+        directement laissait la modale ouverte sur un succes, et remplacait le volet par la
+        modale entiere sur un refus.
+
+        Ce qu'il laisserait passer : un `hx-swap` inadapte. Ce que rien d'unitaire ne peut
+        voir : que le navigateur le fasse — c'est un geste d'ecran, donc T12.
+        """
+        reponse = self.client.get(
+            reverse("consultation-cloture", args=[self.consultation.id])
+        )
+        html = reponse.content.decode()
+        self.assertIn('hx-target="#modale"', html)
+        self.assertNotIn("-volet", html)
+
+    def test_le_prefixe_du_volet_voyage_en_champ_cache(self) -> None:
+        reponse = self.client.get(
+            reverse("consultation-cloture", args=[self.consultation.id])
+            + "?prefixe=en-cours"
+        )
+        self.assertIn(
+            '<input type="hidden" name="prefixe" value="en-cours">',
+            reponse.content.decode(),
+        )
+
+    def test_le_champ_de_montant_est_desactive_hors_du_mode_facture(self) -> None:
+        """Un champ masque mais actif reste **valide** par le navigateur.
+
+        `#amount` porte un `pattern` : une valeur hors motif laissee dans un bloc masque
+        rendrait la soumission muette et le champ infocalisable. Un champ desactive n'est
+        ni valide ni soumis.
+        """
+        reponse = self.client.get(
+            reverse("consultation-cloture", args=[self.consultation.id])
+        )
+        html = reponse.content.decode()
+        montant = html[html.index('id="amount"') : html.index('id="amount"') + 400]
+        self.assertIn("disabled", montant)
 
     def test_la_facturation_seule_ne_propose_pas_non_facturee(self) -> None:
         """`ng-if="… && !invoice_only"` (`invoice-modal.html:7`)."""
@@ -974,7 +1090,9 @@ class TestVuesDuVolet(_VoletRendu):
             job="<p>capitaine</p>"
         )
 
-        ecrire_le_volet(formulaire, formulaire_patient, self.praticien)
+        ecrire_le_volet(
+            formulaire, formulaire_patient, self.praticien, self.consultation.date
+        )
 
         self.consultation.refresh_from_db()
         self.patient.refresh_from_db()
@@ -982,6 +1100,166 @@ class TestVuesDuVolet(_VoletRendu):
         self.assertEqual(ExaminationStatus.NOT_INVOICED, self.consultation.status)
         self.assertEqual("Confrere", self.consultation.status_reason)
         self.assertEqual("<p>capitaine</p>", self.patient.job)
+
+    def test_la_redatation_est_tracee_au_journal(self) -> None:
+        """**L'acte du 2026-09-06 conditionne la redatation a sa trace.**
+
+        `api/events/consultation.py:15-28` : une consultation deja facturee peut etre
+        redatee **a condition que la redatation soit tracee**. Le chemin DRF l'ecrit
+        (`ExaminationViewSet.perform_update`) ; ce chemin de page doit l'ecrire aussi, sans
+        quoi une garantie arbitree disparait en silence sur une donnee facturee. Une
+        premiere ecriture de cette tache ne l'ecrivait pas.
+
+        Ce qu'il regarde : qu'un `OfficeEvent` de classe `Examination` et de type
+        `TYPE_UPDATE_DATE` reference cette consultation, et que son commentaire nomme les
+        **deux** dates. Ce qu'il laisserait passer : le libelle exact du commentaire, qui
+        appartient a `redatation_event_tracer` et a ses propres tests.
+        """
+        self.consultation.status = ExaminationStatus.INVOICED_PAID
+        self.consultation.save(update_fields=["status"])
+        veille = (fin_du_jour() - timedelta(days=1)).date()
+        with sans_receivers():
+            reponse = self.client.post(
+                reverse("consultation-edition", args=[self.consultation.id]),
+                {
+                    "date": veille.strftime("%Y-%m-%d"),
+                    "type": ExaminationType.NORMAL,
+                    "reason": "Lombalgie",
+                },
+            )
+        self.assertEqual(200, reponse.status_code)
+        traces = OfficeEvent.objects.filter(
+            clazz="Examination",
+            type=Examination.TYPE_UPDATE_DATE,
+            reference=self.consultation.id,
+        )
+        self.assertEqual(1, traces.count())
+        self.assertIn(date_format(veille, "SHORT_DATE_FORMAT"), traces.get().comment)
+
+    def test_une_date_inchangee_n_ecrit_aucune_trace(self) -> None:
+        """`redatation_event_tracer` ne trace que ce qui bouge.
+
+        Ce qu'il laisserait passer : rien. Sans lui, une trace par enregistrement
+        noierait le journal que l'exploitant lit.
+        """
+        with sans_receivers():
+            self.client.post(
+                reverse("consultation-edition", args=[self.consultation.id]),
+                {
+                    "date": timezone.localtime(self.consultation.date).strftime(
+                        "%Y-%m-%d"
+                    ),
+                    "type": ExaminationType.NORMAL,
+                    "reason": "Cervicalgie",
+                },
+            )
+        self.assertEqual(
+            0,
+            OfficeEvent.objects.filter(
+                clazz="Examination", type=Examination.TYPE_UPDATE_DATE
+            ).count(),
+        )
+
+    def test_une_seance_sans_therapeute_recoit_celui_qui_l_edite(self) -> None:
+        """`perform_update` (`views/consultation.py:121-123`), a l'identique.
+
+        Il reste d'anciennes seances sans therapeute en base ; les laisser telles quelles
+        ferait rendre un titre « Seance du … par  » sans nom.
+        """
+        self.consultation.therapeut = None
+        self.consultation.save(update_fields=["therapeut"])
+        with sans_receivers():
+            self.client.post(
+                reverse("consultation-edition", args=[self.consultation.id]),
+                {
+                    "date": timezone.localtime(self.consultation.date).strftime(
+                        "%Y-%m-%d"
+                    ),
+                    "type": ExaminationType.NORMAL,
+                    "reason": "Cervicalgie",
+                },
+            )
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.praticien, self.consultation.therapeut)
+
+    def test_la_regularisation_encaisse_la_facture_en_attente(self) -> None:
+        """`#finishPaimentBtn` : **encaisser**, pas facturer une seconde fois.
+
+        Angular appelait `ExaminationServ.update_paiement` (`examination.js:275-288`), et
+        non `invoice`. Le service est le meme que celui du chemin DRF.
+        """
+        facture = Invoice.objects.create(
+            amount=Decimal("55.00"),
+            currency="EUR",
+            number="9995",
+            date=self.consultation.date,
+            officesettings_id=self.cabinet.id,
+            status=InvoiceStatus.WAITING_FOR_PAIEMENT,
+        )
+        self.consultation.invoices.add(facture)
+        self.consultation.status = ExaminationStatus.WAITING_FOR_PAIEMENT
+        self.consultation.save(update_fields=["status"])
+        reponse = self.client.post(
+            reverse("consultation-regularisation", args=[self.consultation.id]),
+            {"paiment_mode": "cash"},
+        )
+        self.assertEqual(200, reponse.status_code)
+        self.consultation.refresh_from_db()
+        facture.refresh_from_db()
+        self.assertEqual(ExaminationStatus.INVOICED_PAID, self.consultation.status)
+        self.assertEqual(InvoiceStatus.INVOICED_PAID, facture.status)
+        self.assertEqual(1, Invoice.objects.count())
+
+    def test_le_bouton_regulariser_ouvre_la_modale_sans_mode_non_facturee(self) -> None:
+        """Le `GET` de la route de regularisation : la meme modale qu'une facturation
+        seule, puisqu'une seance deja facturee ne peut plus devenir « non facturee »."""
+        reponse = self.client.get(
+            reverse("consultation-regularisation", args=[self.consultation.id])
+        )
+        html = reponse.content.decode()
+        self.assertIn('value="invoiced"', html)
+        self.assertNotIn('value="notinvoiced"', html)
+
+    def test_une_regularisation_sans_facture_est_refusee(self) -> None:
+        """`EncaissementRefuse`, rendu dans la modale la ou l'ancien ecran se contentait
+        d'un `growl` sur une chaine ecrite en dur (`examination.js:285`)."""
+        reponse = self.client.post(
+            reverse("consultation-regularisation", args=[self.consultation.id]),
+            {"paiment_mode": "cash"},
+        )
+        self.assertEqual(422, reponse.status_code)
+
+    def test_la_reponse_de_succes_d_une_modale_ne_porte_que_le_volet_hors_bande(
+        self,
+    ) -> None:
+        """**Le patron hors-bande de D6d**, sans lequel la modale ne se referme pas.
+
+        La modale poste avec `hx-target="#modale"` : la cible principale doit donc recevoir
+        du **vide**, et le volet rafraichi voyager en `hx-swap-oob`. Une premiere ecriture
+        ciblait le volet directement — la modale restait ouverte, `modal-open` restait sur
+        `<body>` et la page n'etait plus defilable (la fuite fermee par T8).
+
+        Ce qu'il regarde : que la reponse porte `hx-swap-oob="true"` sur le volet et
+        **aucune** balise de modale. Ce qu'il ne peut pas regarder : que le navigateur en
+        fasse quelque chose — c'est un geste d'ecran, donc T12.
+        """
+        reponse = self._cloturer(status="notinvoiced", reason="Confrere")
+        html = reponse.content.decode()
+        self.assertIn('hx-swap-oob="true"', html)
+        self.assertNotIn('data-testid="modale"', html)
+        self.assertTrue(html.lstrip().startswith('<div id="consultation-volet"'))
+
+    def test_le_prefixe_du_volet_appelant_revient_dans_la_reponse(self) -> None:
+        """Le dossier rend deux volets : la reponse doit viser celui qui a ouvert la modale.
+
+        Ce qu'il laisserait passer : un prefixe absent du formulaire de modale — d'ou le
+        test de la modale ci-dessous, qui verifie le champ cache.
+        """
+        reponse = self.client.post(
+            reverse("consultation-cloture", args=[self.consultation.id]),
+            {"status": "notinvoiced", "reason": "Confrere", "prefixe": "en-cours"},
+        )
+        self.assertIn('id="en-cours-volet"', reponse.content.decode())
 
     def test_l_edition_ecrit_la_consultation_et_la_colonne_patient(self) -> None:
         hier = (fin_du_jour() - timedelta(days=1)).date()

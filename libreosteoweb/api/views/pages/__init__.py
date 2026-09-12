@@ -36,6 +36,7 @@ from .consultation import (
     enregistrer_consultation,
     envoyer_facture,
     facturer_consultation,
+    regulariser_consultation,
 )
 from .diagnostic_texte_riche import page_diagnostic_texte_riche
 from .import_export import analyser as analyser_import
@@ -74,6 +75,7 @@ __all__ = [
     "page_nouveau_patient",
     "page_profil",
     "page_reindexation",
+    "regulariser_consultation",
     "selecteur_medecin",
     "utilisateur_nouveau",
 ]

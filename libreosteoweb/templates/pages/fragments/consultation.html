@@ -20,7 +20,10 @@
 {# `examination.html:14` ferme sa balise sur un guillemet orphelin, qui rend l'attribut #}
 {# voisin inerte. Aucune balise de ce gabarit ne porte un nombre impair de guillemets, et #}
 {# `TestAncresDuGabaritDOrigine` le tient sur le rendu. #}
-<div id="{{ volet.prefixe }}-volet"
+{# `hx-swap-oob` quand la reponse vient d'une modale : la cible principale est alors #}
+{# `#modale`, qui recoit du vide et se referme (patron de D6d, `comptabilite-echange.html`). #}
+{# Le fragment reste **fille directe** de la reponse, sans quoi htmx ne l'extrait pas. #}
+<div id="{{ volet.prefixe }}-volet"{% if volet.hors_bande %} hx-swap-oob="true"{% endif %}
      data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
   <div class="row">
     <div class="col-md-12">
@@ -91,20 +94,8 @@
     {# L'accordeon d'`uib-accordion` devient un `<details>` natif : la classe `.collapse` #}
     {# de Bootstrap 3 porte un `display:none` qu'aucun etat initial ne pourrait lever #}
     {# proprement (legs de D6c, `dfb2473`). #}
-    {% if volet.spheres %}
-    <div class="row">
-      <div class="col-md-12">
-        <h4>{% trans 'Spheres' %}</h4>
-        {% for sphere in volet.spheres %}
-        <details open class="panel panel-primary panel-sphere">
-          <summary class="panel-heading">{{ sphere.libelle }}</summary>
-          <div class="panel-body">
-            {% include "pages/fragments/texte-riche.html" with nom=sphere.nom valeur=sphere.valeur libelle=sphere.libelle editable=False %}
-          </div>
-        </details>
-        {% endfor %}
-      </div>
-    </div>
+    {% if volet.section_spheres %}
+    {% include "pages/fragments/consultation-spheres.html" with editable=False %}
     {% endif %}
 
     <div class="row" style="padding-top:15px">
@@ -147,7 +138,7 @@
         {# une seconde fois. #}
         {% if volet.consultation.status < 1 %}
         <button type="button" id="close-examination" class="btn btn-success pull-right"
-                hx-get="{{ volet.url_cloture }}" hx-target="#modale" hx-swap="innerHTML">{% trans 'Close' %}</button>
+                hx-get="{{ volet.url_cloture }}?prefixe={{ volet.prefixe }}" hx-target="#modale" hx-swap="innerHTML">{% trans 'Close' %}</button>
         {% endif %}
       </div>
     </div>

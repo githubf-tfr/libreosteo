@@ -1,0 +1,60 @@
+{% load i18n %}
+{# Les six spheres : **deux niveaux, comme AngularJS** (D6e, T10, C3). #}
+{# #}
+{# 1. La section n'existe que si `volet.section_spheres` — `spheres_enabled` du praticien #}
+{#    **ou** au moins une sphere renseignee (`examination.js:158-160`, rendu par #}
+{#    `ng-show="examinationSettings"` sur `examination.html:128`). L'appelant pose ce #}
+{#    `{% if %}` ; ce fragment suppose la section visible. #}
+{# 2. Chaque panneau n'est ouvert que si **sa** sphere porte une note, ou si la #}
+{#    consultation est en cours (`examination.js:171`, lu par #}
+{#    `ng-show="examinationSettings.orl"` sur `examination.html:157`). C'est #}
+{#    `sphere.ouverte`. #}
+{# #}
+{# Replier les deux en une seule regle — ce qu'une premiere ecriture de cette tache avait #}
+{# fait — ajoute six panneaux vides sur tout dossier dont le praticien a desactive les #}
+{# spheres, et six sur toute consultation en cours. L'engagement du lot est « memes #}
+{# ecrans ». #}
+{# #}
+{# **Les six panneaux sont toujours dans le DOM**, ouverts ou non : `uib-accordion-group` #}
+{# faisait de meme (`ng-show` masque, il ne detruit pas), et leur champ de texte riche doit #}
+{# rester soumis avec le formulaire. Masquer par `display` et non par `{% if %}` est donc #}
+{# la reproduction exacte, pas un raccourci. #}
+{# #}
+{# `uib-btn-checkbox` devient une case a cocher native : la classe `active` de Bootstrap 3 #}
+{# est posee par Alpine, exactement comme la directive le faisait. La liaison est un #}
+{# `:style` **explicite** et non un `x-show` — legs de D6c (`dfb2473`) : sur un etat #}
+{# initial vrai, `x-show` *retire* la propriete `display` au lieu d'y ecrire une valeur. #}
+{# `<details>` natif remplace l'accordeon : `.collapse` de Bootstrap 3 porte un #}
+{# `display:none` de feuille de style que rien ne pourrait lever proprement. #}
+{# L'etat est une **table** et non un tableau, et aucune expression ne porte de fonction #}
+{# flechee : `=>` place un `>` a l'interieur d'une valeur d'attribut, ce qu'aucun balayage #}
+{# naif de balises — le cliquet de guillemet orphelin compris — ne sait traverser. #}
+<div class="row" x-data="{ ouvertes: { {% for sphere in volet.spheres %}'{{ sphere.nom }}': {{ sphere.ouverte|yesno:"true,false" }}{% if not forloop.last %}, {% endif %}{% endfor %} } }">
+  <div class="col-md-4">
+    <h4>{% trans 'Spheres' %}</h4>
+    <div class="btn-group btn-group-vertical">
+      {% for sphere in volet.spheres %}
+      <div class="btn-group">
+        <label class="btn btn-default" :class="ouvertes['{{ sphere.nom }}'] ? 'btn btn-default active' : 'btn btn-default'">
+          <input type="checkbox" class="sr-only" value="{{ sphere.nom }}"
+                 {% if sphere.ouverte %}checked{% endif %}
+                 @change="ouvertes['{{ sphere.nom }}'] = !ouvertes['{{ sphere.nom }}']">
+          {{ sphere.libelle }}
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-md-8">
+    {% for sphere in volet.spheres %}
+    <details open class="panel panel-primary panel-sphere"
+             :style="ouvertes['{{ sphere.nom }}'] ? 'display: block' : 'display: none'"
+             style="display: {% if sphere.ouverte %}block{% else %}none{% endif %};">
+      <summary class="panel-heading">{{ sphere.libelle }}</summary>
+      <div class="panel-body">
+        {% include "pages/fragments/texte-riche.html" with nom=sphere.nom valeur=sphere.valeur libelle=sphere.libelle editable=editable %}
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+</div>

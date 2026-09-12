@@ -30,7 +30,8 @@
         {# **Non branche par T10, et c'est dit** : l'annulation depuis la consultation suit #}
         {# le chemin « facture corrective » d'`examination.js:222-262`, qui enchaine deux #}
         {# modales et n'a pas de route de page. T12 lui donne sa cible ; l'identifiant est #}
-        {# pose des maintenant parce qu'il est une ancre du filet. #}
+        {# pose des maintenant parce qu'il est une ancre du filet. Sans attribut htmx, ce #}
+        {# bouton est inerte : il ne peut pas atteindre une mauvaise cible par accident. #}
         <button type="button" id="cancelInvoiceBtn" class="btn btn-danger btn-xs"
                 title="{% trans 'Cancel' %}"><i class="fa fa-ban"></i> </button>
         <span><a href="{% url 'invoice_view' volet.derniere_facture.id %}" target="_blank">n° {{ volet.derniere_facture.number }}</a></span>
@@ -38,13 +39,13 @@
         <span>
           <button type="button" id="invoiceExaminationBtn" class="btn btn-success btn-xs"
                   title="{% trans 'To invoice' %}"
-                  hx-get="{{ volet.url_facturation }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-euro"></i> {% trans 'To invoice' %}</button>
+                  hx-get="{{ volet.url_facturation }}?prefixe={{ volet.prefixe }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-euro"></i> {% trans 'To invoice' %}</button>
         </span>
         {% endif %}
         {% if volet.derniere_facture and volet.consultation.status < 2 %}
         <button type="button" id="finishPaimentBtn" class="btn btn-success btn-xs"
                 title="{% trans 'Regularize' %}"
-                hx-get="{{ volet.url_regularisation }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-euro"></i> {% trans 'Regularize' %}</button>
+                hx-get="{{ volet.url_regularisation }}?prefixe={{ volet.prefixe }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-euro"></i> {% trans 'Regularize' %}</button>
         {% endif %}
         {% if volet.factures %}
         {# Le depliage est un `<details>` natif : `data-toggle="collapse"` exige le #}

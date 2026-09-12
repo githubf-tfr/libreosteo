@@ -10,13 +10,20 @@
 {# #}
 {# Aucune balise ne porte un nombre impair de guillemets : le defaut de balisage #}
 {# d'`examination.html:14` ne se reproduit pas, et `TestAncresDuGabaritDOrigine` le tient. #}
-<form id="{{ volet.prefixe }}-formulaire"
-      hx-post="{{ volet.url_edition }}"
-      hx-target="#{{ volet.prefixe }}-volet"
-      hx-swap="outerHTML">
-  {% csrf_token %}
-  <div id="{{ volet.prefixe }}-volet"
-       data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
+{# **Le conteneur enveloppe le formulaire, et pas l'inverse.** Une premiere ecriture #}
+{# posait la cible `#…-volet` *a l'interieur* du `<form>` : sur succes le formulaire #}
+{# survivait en enveloppe orpheline autour du volet en lecture, et sur refus la reponse — #}
+{# un `<form>` complet — s'inserait dans le `<form>` existant. Les deux fragments ont donc #}
+{# **la meme racine**, `#…-volet`, et l'echange la remplace en entier. #}
+<div id="{{ volet.prefixe }}-volet"
+     data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
+  <form id="{{ volet.prefixe }}-formulaire"
+        hx-post="{{ volet.url_edition }}"
+        hx-target="#{{ volet.prefixe }}-volet"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    {# Le prefixe voyage avec la charge : la reponse de refus doit re-rendre **ce** volet. #}
+    <input type="hidden" name="prefixe" value="{{ volet.prefixe }}">
     <div class="col-md-7">
       <div class="row" style="margin-bottom: 15px">
         <div class="col-md-12">
@@ -68,20 +75,8 @@
         </div>
       </div>
 
-      {% if volet.spheres %}
-      <div class="row">
-        <div class="col-md-12">
-          <h4>{% trans 'Spheres' %}</h4>
-          {% for sphere in volet.spheres %}
-          <details open class="panel panel-primary panel-sphere">
-            <summary class="panel-heading">{{ sphere.libelle }}</summary>
-            <div class="panel-body">
-              {% include "pages/fragments/texte-riche.html" with nom=sphere.nom valeur=sphere.valeur libelle=sphere.libelle editable=True %}
-            </div>
-          </details>
-          {% endfor %}
-        </div>
-      </div>
+      {% if volet.section_spheres %}
+      {% include "pages/fragments/consultation-spheres.html" with editable=True %}
       {% endif %}
 
       <div class="row" style="padding-top:15px">
@@ -186,5 +181,5 @@
       </div>
       {% endfor %}
     </div>
-  </div>
-</form>
+  </form>
+</div>

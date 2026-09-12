@@ -12,10 +12,19 @@
 {# champ hors-sujet masque — mais **ce n'est pas une autorite de validation** : le refus #}
 {# serveur, rendu ci-dessous, reste la seule (E4). Le formulaire n'a pas de `novalidate`, #}
 {# qui n'existait que parce qu'Angular validait a sa place. #}
+{# **`hx-target="#modale"`, et non le volet.** C'est le patron pose par D6d #}
+{# (`comptabilite-annulation.html`, `utilisateur-nouveau.html`) : la reponse de succes ne #}
+{# porte que le volet **hors-bande**, donc la cible principale recoit du vide, `#modale` se #}
+{# vide et la modale se referme — `partials/modale.html` retirant alors lui-meme #}
+{# `modal-open` du `<body>`. Cibler le volet directement laissait la modale ouverte et la #}
+{# page non defilable (la fuite que T8 venait de fermer), et faisait remplacer le volet par #}
+{# la modale entiere sur un refus 422. #}
 <form id="formulaire-facturation" method="post"
-      hx-post="{{ action }}" hx-target="#{{ prefixe }}-volet" hx-swap="outerHTML"
+      hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML"
       x-data="{ mode: '{{ donnees.status|default_if_none:"" }}' }">
   {% csrf_token %}
+  {# Le prefixe du volet appelant, pour que la reponse hors-bande vise le bon des deux. #}
+  <input type="hidden" name="prefixe" value="{{ prefixe }}">
   {% if erreurs %}
   {# Les refus d'`ExaminationInvoicingSerializer.validate` ne portent sur aucun champ en #}
   {# particulier (`non_field_errors`) : ils se rendent donc en tete du corps de modale, la #}
@@ -44,7 +53,11 @@
 
   <div class="form-group" x-show="mode === 'notinvoiced'"{% if donnees.status != 'notinvoiced' %} style="display: none;"{% endif %}>
     <label class="sr-only" for="reason">{% trans 'Reason' %}</label>
+    {# `disabled` hors mode : un champ masque mais actif reste soumis **et valide**, et un #}
+    {# refus natif sur un champ invisible est muet et infocalisable (le navigateur ne peut #}
+    {# pas y amener le praticien). Un champ desactive n'est ni valide ni soumis. #}
     <input type="text" class="form-control" id="reason" name="reason"
+           :disabled="mode !== 'notinvoiced'"{% if donnees.status != 'notinvoiced' %} disabled{% endif %}
            placeholder="{% trans 'Reason' %}" value="{{ donnees.reason|default_if_none:'' }}">
   </div>
 
@@ -60,7 +73,11 @@
         {# HTML5, comme D6d l'a fait pour le `#amount` du cabinet (E13). La virgule reste #}
         {# refusee ; le refus, lui, se voit desormais. Le motif porte aussi la borne des #}
         {# **deux decimales**, que D6d avait mesuree cote serveur sans contrepartie cliente. #}
+        {# Meme `disabled` que `#reason`, et pour la meme raison — ici elle mord vraiment : #}
+        {# ce champ porte un `pattern`, et une valeur hors motif laissee dans un bloc #}
+        {# masque rendrait la soumission muette. #}
         <input type="text" class="form-control" id="amount" name="amount"
+               :disabled="mode !== 'invoiced'"{% if not facturation_seule and donnees.status != 'invoiced' %} disabled{% endif %}
                pattern="[0-9]+([.][0-9]{1,2})?"
                title="{% trans 'Amount is invalid' %}"
                placeholder="{% trans 'Amount' %}" value="{{ montant }}">

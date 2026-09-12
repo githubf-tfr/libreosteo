@@ -1,9 +1,10 @@
 {% load i18n %}
 {# Le corps de la modale d'envoi d'une facture par courriel (D6e, T10). #}
 {# #}
-{# `bind-html-compile` a disparu : le message est **du texte**, rendu par Django et echappe #}
-{# comme tout le reste. C'est ce qui prive `@components/angular-bind-html-compile` de son #}
-{# dernier consommateur — l'autre etait la modale de facturation. #}
+{# `bind-html-compile` a disparu de cette modale : le message est **du texte**, rendu par #}
+{# Django et echappe comme tout le reste. Ce n'est pas encore la fin de la dependance — #}
+{# `partials/confirmation.html` et `partials/invoice-send-modal.html` la consomment #}
+{# jusqu'a T13, qui la retirera. #}
 {# #}
 {# `#email` se conserve a l'octet. Le champ est pre-rempli avec l'adresse du patient, comme #}
 {# `resolve: { email: function () { return patient.email; } }` (`examination.js:225`). #}

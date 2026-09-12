@@ -173,6 +173,11 @@ urlpatterns = [
         name="consultation-facturation",
     ),
     re_path(
+        r"^examination/(?P<identifiant>\d+)/regularize$",
+        views.regulariser_consultation,
+        name="consultation-regularisation",
+    ),
+    re_path(
         r"^invoices/(?P<identifiant>\d+)/send$",
         views.envoyer_facture,
         name="facture-envoi",
