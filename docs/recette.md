@@ -2900,3 +2900,21 @@ un geste du produit, et qui ne peuvent donc pas en décrire un.
   saisie est écoutée, que la voie « aucune saisie » n'écrit rien, et que le quatorzième
   bouton de la barre — `block`, le seul qui soit un menu et non une commande directe —
   applique bien un bloc.
+
+- `tests/functional/test_socle_composants.py::test_l_onglet_conditionnel_et_l_activation_programmatique`
+
+  Il éprouve le composant d'onglets (D6d, étendu par D6e) **sur le banc d'essai**, sur deux
+  propriétés qu'aucun écran livré n'exerce encore : un onglet que la vue ne construit pas,
+  et un onglet activé par du code plutôt que par un clic. Les gestes réels du composant sont
+  décrits par `R-AUTH-05`, `R-CAB-01`, `R-CAB-05`, `R-THE-03` et — après D6e — par
+  `R-PAT-02` et `R-CON-01`, le dossier patient étant le premier écran à avoir besoin des
+  deux propriétés ci-dessus. Ce test-ci ne décrit aucun de ces gestes : il mesure le
+  composant sur une page qui n'existe pas dans le produit.
+
+  Ce qu'il ne couvre **pas**, et qui est couvert ailleurs : **quel** onglet porte le
+  marquage `active` posé par le serveur. Ce marquage ne vaut qu'entre le rendu et le
+  démarrage d'Alpine, chargé en `defer` ; aucune assertion de navigateur ne peut l'observer,
+  et `libreosteoweb/tests/test_socle_onglets.py` le mesure sur les octets rendus. Mesuré le
+  2026-09-12 : supprimer la clause de repli sur le premier onglet laisse `test_therapeute`,
+  `test_cabinet` et `test_import_csv` **entièrement verts** — le filet fonctionnel ne
+  protège pas ce marquage, et ce test unitaire est le seul qui le fasse.

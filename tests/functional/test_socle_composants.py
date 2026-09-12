@@ -350,3 +350,59 @@ def test_seule_la_barre_du_champ_actif_est_visible(
         f"du flux au lieu de basculer sur `visibility` ({boite_avant['y']} puis "
         f"{boite_apres['y']})"
     )
+
+
+@pytest.mark.urls("tests.functional.banc.urls")
+def test_l_onglet_conditionnel_et_l_activation_programmatique(
+    page: Page, live_server: LiveServer, banc: None
+) -> None:
+    """Les deux proprietes ajoutees par D6e au composant d'onglets (A21).
+
+    Ce que ce test regarde : qu'un onglet que la vue ne construit pas soit **absent de la
+    barre**, qu'il apparaisse des que la vue le construit, qu'une ecriture sur la variable
+    Alpine `actif` — depuis un bouton qui n'est pas un onglet — change le panneau affiche,
+    et qu'un `actif_initial` autre que le premier soit bien l'etat qu'Alpine prend au
+    demarrage. Il ne regarde ni classe, ni CSS.
+
+    Ce qu'il **ne prouve pas**, et c'est le partage de travail avec
+    `libreosteoweb/tests/test_socle_onglets.py` : **quel onglet de la barre porte le
+    marquage serveur**. Ce marquage ne vaut qu'entre le rendu et le demarrage d'Alpine,
+    charge en `defer` ; le temps qu'une assertion Playwright s'execute, Alpine a repris la
+    main. Il se mesure sur les octets rendus, pas dans un navigateur, et le test unitaire
+    est le seul endroit ou il soit falsifiable.
+
+    Falsifications jouees : construire toujours les trois onglets dans la vue de banc fait
+    rougir la premiere assertion ; retirer le `@click` du bouton fait rougir la troisieme ;
+    figer `actif` a `'un'` dans le `x-data` du banc fait rougir le temoin d'etat.
+    """
+    # 1. L'onglet conditionnel n'existe pas quand la vue ne le construit pas.
+    page.goto(f"{live_server.url}/banc/onglets")
+    page.wait_for_function("() => window.Alpine !== undefined")
+    expect(page.get_by_role("tab", name="Trois")).to_have_count(0)
+    # Le temoin du compte : sans lui, une barre entierement vide satisferait l'assertion
+    # ci-dessus. Les deux onglets que la vue construit, eux, sont bien la.
+    expect(page.get_by_role("tab")).to_have_count(2)
+    expect(page.get_by_test_id("panneau-un")).to_be_visible()
+
+    # 2. Il existe des que la vue le construit — sans qu'un seul `{% if %}` n'ait ete
+    # ajoute au composant : seule la liste construite par la vue a change.
+    page.goto(f"{live_server.url}/banc/onglets?conditionnel=1")
+    page.wait_for_function("() => window.Alpine !== undefined")
+    expect(page.get_by_role("tab", name="Trois")).to_have_count(1)
+    expect(page.get_by_role("tab")).to_have_count(3)
+
+    # 3. L'activation programmatique : une ecriture sur `actif` depuis un bouton qui n'est
+    # pas un onglet. C'est la forme exacte dont le dossier patient a besoin, ou cinq sites
+    # de `patient.js` pilotent l'onglet actif depuis du code.
+    expect(page.get_by_test_id("panneau-trois")).to_be_hidden()
+    page.click("#activer-trois")
+    expect(page.get_by_test_id("panneau-trois")).to_be_visible()
+    expect(page.get_by_test_id("panneau-un")).to_be_hidden()
+
+    # 4. Un onglet initial autre que le premier. Le temoin `etat-actif` est vide dans les
+    # octets rendus : qu'il porte « deux » prouve qu'Alpine a lu le `x-data` et en a pris
+    # l'etat. La visibilite du panneau, elle, serait deja satisfaite par le rendu serveur.
+    page.goto(f"{live_server.url}/banc/onglets?conditionnel=1&actif=deux")
+    expect(page.get_by_test_id("etat-actif")).to_have_text("deux")
+    expect(page.get_by_test_id("panneau-deux")).to_be_visible()
+    expect(page.get_by_test_id("panneau-un")).to_be_hidden()

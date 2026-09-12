@@ -31,4 +31,5 @@ urlpatterns = [
     re_path(r"^banc/notifications$", vues.notifications, name="banc-notifications"),
     re_path(r"^banc/modale$", vues.modale, name="banc-modale"),
     re_path(r"^banc/texte-riche$", vues.texte_riche, name="banc-texte-riche"),
+    re_path(r"^banc/onglets$", vues.onglets, name="banc-onglets"),
 ] + urlpatterns_du_produit

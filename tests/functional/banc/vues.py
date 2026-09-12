@@ -175,3 +175,61 @@ def texte_riche(request: HttpRequest) -> HttpResponse:
         .from_string(PAGE_TEXTE_RICHE)
         .render({"valeur": VALEUR_HOSTILE}, request)
     )
+
+
+# Le banc des onglets. Il rend le composant **du produit**, celui que le profil, le cabinet
+# et l'import/export consomment deja, et il l'exerce sur les deux proprietes que D6e lui
+# ajoute (A21) : l'onglet conditionnel et l'activation programmatique.
+#
+# Les panneaux portent `style="display: none"` en dur sauf celui qu'`actif_initial` designe :
+# c'est le legs n° 1 de D6c — un composant Alpine dont l'etat initial vaut deja `true` ne
+# peut pas s'en remettre a `x-show` seul, Alpine se contentant alors de **retirer** la
+# propriete `display`. Le retrait suffit ici, et seulement ici, parce que ces panneaux sont
+# des `<div>` nus qu'aucune feuille ne masque — ils ne portent pas `tab-pane`, exactement
+# comme ceux du dossier patient (D6e, legs n° 1).
+#
+# Le bouton, lui, n'est pas un onglet : il ecrit `actif` depuis un `@click` quelconque, et
+# c'est la toute la definition de l'activation programmatique.
+PAGE_ONGLETS = """
+{% extends "base.html" %}
+{% block titre %}Banc des onglets{% endblock %}
+{% block menu %}{% endblock %}
+{% block contenu %}
+<div class="container" x-data="{ actif: '{{ actif_initial }}' }">
+  {% include "partials/onglets.html" %}
+  <div class="tab-content">
+    <div id="panneau-un" x-show="actif === 'un'"{% if actif_initial != 'un' %} style="display: none"{% endif %} data-testid="panneau-un">Un</div>
+    <div id="panneau-deux" x-show="actif === 'deux'"{% if actif_initial != 'deux' %} style="display: none"{% endif %} data-testid="panneau-deux">Deux</div>
+    <div id="panneau-trois" x-show="actif === 'trois'"{% if actif_initial != 'trois' %} style="display: none"{% endif %} data-testid="panneau-trois">Trois</div>
+  </div>
+  <button type="button" id="activer-trois" @click="actif = 'trois'">Activer le troisieme</button>
+  {# Le temoin de l'etat Alpine, et il n'est pas decoratif : le serveur rend deja le bon #}
+  {# panneau visible, donc une assertion de visibilite seule passerait **avant meme** #}
+  {# qu'Alpine ne demarre et ne prouverait rien de l'etat initial qu'il a pris. Ce #}
+  {# `x-text` est vide dans les octets rendus : il ne porte une valeur que si Alpine a #}
+  {# reellement lu le `x-data`. C'est la seule assertion du test qui distingue « Alpine #}
+  {# a pris `deux` » de « le serveur avait deja affiche `deux` ». #}
+  <span data-testid="etat-actif" x-text="actif"></span>
+</div>
+{% endblock %}
+"""
+
+
+def onglets(request: HttpRequest) -> HttpResponse:
+    """Trois onglets, dont le troisieme n'existe que si `?conditionnel=1`.
+
+    C'est **la vue qui decide**, exactement comme le dossier patient decidera de rendre ou
+    non l'onglet « Consultation en cours » (D6e, A21). Le composant, lui, ne gagne aucun
+    `{% if %}` : il se contente de parcourir la liste qu'on lui donne.
+    """
+    liste = [{"cle": "un", "libelle": "Un"}, {"cle": "deux", "libelle": "Deux"}]
+    if request.GET.get("conditionnel") == "1":
+        liste.append({"cle": "trois", "libelle": "Trois"})
+    return HttpResponse(
+        engines["django"]
+        .from_string(PAGE_ONGLETS)
+        .render(
+            {"onglets": liste, "actif_initial": request.GET.get("actif", "un")},
+            request,
+        )
+    )

@@ -18,9 +18,22 @@
 {# n'afficherait aucun onglet actif entre le rendu et le demarrage d'Alpine. La syntaxe #}
 {# objet de `:class` n'ajoute et ne retire que les classes qu'elle nomme : les autres #}
 {# survivent. #}
+{# #}
+{# **Deux proprietes ajoutees par D6e (A21), sans un seul {% if %} neuf dans la boucle** : #}
+{# 1. un **onglet conditionnel** est une entree que la vue **ne construit pas** — le #}
+{#    `{% for %}` la saute par construction, et le composant n'a rien a savoir ; #}
+{# 2. une **activation programmatique** est une simple ecriture sur la variable Alpine #}
+{#    `actif`, depuis n'importe quel `@click`, `x-init` ou `hx-on::after-request`. #}
+{# Le composant est **etendu, jamais duplique** : un second composant d'onglets a cote du #}
+{# premier serait exactement la divergence que D6c existe pour empecher (F16). #}
 <ul class="nav nav-tabs" role="tablist">
   {% for onglet in onglets %}
-  <li role="presentation" class="{% if forloop.first %}active{% endif %}"
+  {# `actif_initial` : l'onglet que le serveur marque actif avant qu'Alpine ne demarre. #}
+  {# Par defaut le premier, ce qui reproduit a l'octet le comportement des trois #}
+  {# consommateurs de D6d ; le dossier patient, lui, ouvre parfois sur « Consultations » #}
+  {# ou « Consultation en cours » (D6e, A21). Sans cette ligne, deux onglets seraient #}
+  {# marques actifs entre le rendu et le demarrage d'Alpine, charge en `defer`. #}
+  <li role="presentation" class="{% if onglet.cle == actif_initial or not actif_initial and forloop.first %}active{% endif %}"
       :class="{ 'active': actif === '{{ onglet.cle }}' }">
     {# Le libelle **est** l'adressage : `test_import_csv.py` clique #}
     {# `a:has-text("Importer d'un système externe")`, six fois. Les onglets restent donc #}
