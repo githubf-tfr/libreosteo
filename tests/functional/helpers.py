@@ -71,6 +71,9 @@ def ouvrir_reglages_cabinet(page: Page) -> None:
     # vraie barriere d'etat. Attendre une valeur non vide plutot que la valeur semee en dur
     # par le socle — un test qui la reecrit (test_cabinet.py) puis rappellerait cette
     # fonction ne resterait pas bloque jusqu'au plafond d'`expect`.
+    # Echeance : D6d T9. Sous rendu serveur, le titre et la valeur arrivent dans le meme
+    # document, et cette barriere devient immediatement satisfaite — elle reste juste, son
+    # motif devient faux. Elle est reecrite dans le commit qui migre cet ecran.
     expect(page.locator("input[name=office_identifier]")).not_to_have_value("")
 
 
@@ -83,6 +86,9 @@ def ouvrir_profil_therapeute(page: Page) -> None:
     # `professional_id` ou `quality` que certains tests vident expres pour declencher la
     # visite guidee. Meme choix de barriere qu'au-dessus : une valeur non vide plutot que
     # celle semee en dur par le socle.
+    # Echeance : D6d T7. Meme raison qu'au-dessus : les trois appels asynchrones
+    # (/myuserid, /api/users/:id, /api/profiles/get_by_user) disparaissent avec l'ecran, et
+    # `email` est alors rendu par le serveur dans le document. Reecrite dans ce commit-la.
     expect(page.locator("input[name=email]")).not_to_have_value("")
 
 
@@ -94,14 +100,35 @@ def notifications_de_succes(page: Page) -> Locator:
     propre directive (`growlDirective.js`), sans aucun attribut `role` ni rôle ARIA
     implicite — un `div` nu : le produit ne peut y poser ni identifiant ni `data-testid`,
     et il n'existe aucun autre adressage possible tant que cette bibliotheque est la.
+
+    **Deux implementations pendant la cohabitation, et une seule fonction** (D6d, A18).
+    `test_facturation.py` traverse D6d et D6e : ses huit appels a
+    `enregistrer_formulaire` et ses quatre appels a `notifications_d_erreur` portent, dans
+    le meme module, sur des ecrans migres (cabinet, profil, comptabilite) et sur des ecrans
+    encore AngularJS (cloture de consultation). Repartir les modules de test entre les deux
+    lots est impossible ; un selecteur qui n'accepterait qu'une implementation casserait
+    treize sites d'appel le jour du premier ecran migre.
+
+    La seconde moitie du selecteur est le contrat pose par D6c
+    (`partials/notification.html`) : `data-testid="notification"` et
+    `data-severite="succes"`. Elle n'est **pas** une exemption supplementaire — la liste
+    close `CONTRATS_NEUTRES` du cliquet d'adressage ne s'allonge pas, c'est l'interieur de
+    ces deux fonctions-la qui s'elargit.
+
+    **Echeance : D6f.** Le jour ou le dernier ecran `growl` disparait, la premiere moitie
+    du selecteur se retire et le commentaire ci-dessus avec elle.
     """
-    return page.locator("div.growl-item.alert-success")
+    return page.locator(
+        'div.growl-item.alert-success, [data-testid="notification"][data-severite="succes"]'
+    )
 
 
 def notifications_d_erreur(page: Page) -> Locator:
     """Les notifications d'erreur affichees par l'application. Meme contrat neutre que
-    `notifications_de_succes`, meme motif."""
-    return page.locator("div.growl-item.alert-danger")
+    `notifications_de_succes`, meme motif, meme echeance."""
+    return page.locator(
+        'div.growl-item.alert-danger, [data-testid="notification"][data-severite="erreur"]'
+    )
 
 
 def attendre_notification_de_succes(page: Page, geste: Callable[[], None]) -> None:
@@ -129,6 +156,12 @@ def enregistrer_formulaire(page: Page, bouton: Locator) -> None:
     puis les reglages du therapeute, et ne confirme qu'apres la seconde. La notification est
     donc le seul signal en aval de *toutes* les ecritures — ce que l'arbitrage A1 exige
     quand l'assertion qui suit porte sur la base.
+
+    Echeance : D6d T7 (profil) et T9 (cabinet). Sous htmx, chacun des deux ecrans ecrit en
+    **une** requete, et le motif ci-dessus — N+1 requetes en parallele pour le cabinet, deux
+    requetes enchainees pour le profil — devient faux. La barriere, elle, reste la bonne :
+    la notification est toujours le seul signal en aval de l'ecriture. Reecrite en deux
+    fois, dans chacun des deux commits de migration.
     """
     attendre_notification_de_succes(page, bouton.click)
 
