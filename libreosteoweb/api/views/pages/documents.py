@@ -291,9 +291,17 @@ class FormulaireDocument(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for champ in self.fields.values():
             champ.widget.attrs["class"] = "form-control"
-        # **Les deux placeholders se conservent a l'octet** : `helpers.joindre_document`
-        # remplit `input[placeholder*='Titre']` et `input[placeholder*='Date']:visible`.
-        self.fields["title"].widget.attrs["placeholder"] = _("Title")
+        # **Les deux placeholders se conservent a l'octet, et les deux balises aussi.**
+        # `helpers.joindre_document` remplit `input[placeholder*='Titre']` et
+        # `input[placeholder*='Date']:visible` : un `<textarea>` ne matche pas `input`, et le
+        # filet tomberait en timeout. Or `Document.title` est un `TextField`, donc le widget
+        # par defaut d'un `ModelForm` est un `Textarea` — ce que l'ancien produit ne rendait
+        # sur aucune des deux surfaces (`filemanager.html:13`, `patient-detail.html:301`
+        # rendent tous deux `<input type="text">`). Le widget se pose donc a la main, comme
+        # celui de la date juste dessous.
+        self.fields["title"].widget = forms.TextInput(
+            attrs={"class": "form-control", "placeholder": _("Title")}
+        )
         self.fields["document_date"].widget = forms.DateInput(
             attrs={
                 "class": "form-control",
@@ -329,24 +337,58 @@ def _patient(identifiant: str) -> models.Patient:
     return get_object_or_404(models.Patient, pk=identifiant)
 
 
+def auto_id_de_televersement(patient: models.Patient) -> str:
+    """Le prefixe d'identifiant du bloc de saisie.
+
+    **Sans lui, le bloc rendrait `id="title"` et `id="document_date"` nus**, qui
+    collisionneraient avec ceux d'une vignette ouverte en edition sur le meme ecran. Meme
+    regle que l'edition, meme raison : le dossier rend plusieurs formulaires du meme modele.
+    """
+    return "document-televersement-%s-%%s" % patient.pk
+
+
+def contexte_televersement(
+    patient: models.Patient,
+    formulaire: FormulaireDocument | None = None,
+    choisi: bool = False,
+    hors_bande: bool = False,
+) -> dict[str, Any]:
+    """Le contexte de `pages/fragments/document-televersement.html`.
+
+    Expose pour T12, qui inclut ce bloc dans l'onglet « Compte-rendus medicaux » : composer
+    le formulaire et son `auto_id` a la main dans un gabarit serait une occasion d'oublier
+    l'un des deux.
+    """
+    return {
+        "patient": patient,
+        "formulaire": formulaire
+        or FormulaireDocument(auto_id=auto_id_de_televersement(patient)),
+        "choisi": choisi,
+        "hors_bande": hors_bande,
+    }
+
+
 def _bloc_de_televersement(
     request: HttpRequest,
     patient: models.Patient,
     formulaire: FormulaireDocument | None = None,
+    choisi: bool = False,
 ) -> str:
     """Le bloc de saisie, **toujours hors-bande** dans une reponse de televersement.
 
     Il est sa propre autorite : la reponse principale est la liste des vignettes, et ce bloc
     revient a cote d'elle. C'est ce qui fait sortir `div.document_create` du DOM au succes
     **reel** du televersement, et a ce moment-la seulement.
+
+    **`choisi` porte l'etat du bloc, et il ne vaut pas toujours faux.** Un refus le rend a
+    `True` : le bloc revient **ouvert**, avec la saisie du praticien et le motif du refus, et
+    `div.document_create` reste dans le DOM. Le coder en dur a faux rendait la barriere de
+    `helpers.joindre_document` — `to_have_count(0)` — **verte sur un echec**, alors que
+    l'`ng-if="f.status != 2"` d'origine ne s'effacait qu'au succes.
     """
     return render_to_string(
         "pages/fragments/document-televersement.html",
-        {
-            "patient": patient,
-            "formulaire": formulaire or FormulaireDocument(),
-            "hors_bande": True,
-        },
+        contexte_televersement(patient, formulaire, choisi=choisi, hors_bande=True),
         request=request,
     )
 
@@ -377,7 +419,9 @@ def documents_du_patient(request: HttpRequest, identifiant: str) -> HttpResponse
             request, "pages/fragments/documents-liste.html", contexte_documents(patient)
         )
 
-    formulaire = FormulaireDocument(request.POST)
+    formulaire = FormulaireDocument(
+        request.POST, auto_id=auto_id_de_televersement(patient)
+    )
     fichiers = request.FILES.getlist("fichiers")
     # **Aucun message n'est ajoute pour l'absence de fichier**, et c'est delibere (AR7) :
     # le bouton d'envoi n'existe qu'une fois un fichier choisi, donc ce chemin n'est
@@ -388,7 +432,7 @@ def documents_du_patient(request: HttpRequest, identifiant: str) -> HttpResponse
         # un formulaire — le defaut exact que T10 a paye sur sa modale de facturation.
         return HttpResponse(
             _liste(request, patient)
-            + _bloc_de_televersement(request, patient, formulaire),
+            + _bloc_de_televersement(request, patient, formulaire, choisi=True),
             status=422,
         )
 

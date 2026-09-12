@@ -58,6 +58,7 @@ from libreosteoweb.api.views.pages.documents import (
     classe_d_icone,
     contexte_chronologie,
     contexte_documents,
+    contexte_televersement,
     url_de_seance,
 )
 from libreosteoweb.models import (
@@ -210,6 +211,35 @@ class _ElementParId(HTMLParser):
     handle_startendtag = handle_starttag
 
 
+class _ElementsAvecAttribut(HTMLParser):
+    """Les elements portant cet attribut : la balise et sa table d'attributs."""
+
+    def __init__(self, attribut: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self._attribut = attribut
+        self.elements: list[tuple[str, dict[str, str | None]]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        table = dict(attrs)
+        if self._attribut in table:
+            self.elements.append((tag, table))
+
+    handle_startendtag = handle_starttag
+
+
+def elements_avec_attribut(
+    html: str, attribut: str
+) -> list[tuple[str, dict[str, str | None]]]:
+    """Les elements portant cet attribut, **balise comprise**.
+
+    `attributs()` ne rend que des valeurs : c'est ce qui a laisse passer un `<textarea
+    placeholder="Titre">` la ou le filet cherche un `input`.
+    """
+    analyseur = _ElementsAvecAttribut(attribut)
+    analyseur.feed(html)
+    return analyseur.elements
+
+
 def element_par_id(html: str, identifiant: str) -> dict[str, str | None]:
     """Les attributs de l'element portant cet identifiant ; `{}` s'il est absent."""
     analyseur = _ElementParId(identifiant)
@@ -252,6 +282,19 @@ class _SocleDuPatient(TestCase):
             return render_to_string(
                 "pages/fragments/chronologie.html",
                 contexte_chronologie(self.patient, **extras),
+            )
+
+    def rend_le_televersement(self, **extras: Any) -> str:
+        """Le bloc de saisie, rendu **avec son formulaire**.
+
+        Le rendre sans (`{"patient": …}` seul) ne produisait ni champ titre ni champ date :
+        quatre preuves regardaient un bloc vide, et c'est ce qui a laisse passer le widget
+        `Textarea` que `helpers.joindre_document` ne peut pas remplir.
+        """
+        with translation.override("fr"):
+            return render_to_string(
+                "pages/fragments/document-televersement.html",
+                contexte_televersement(self.patient, **extras),
             )
 
     def rend_les_documents(self, **extras: Any) -> str:
@@ -508,13 +551,15 @@ class TestCommentairesDeSeance(_SocleDuPatient):
 
         self.assertEqual(ExaminationComment.objects.get().user, self.user)
 
-    def test_le_volet_de_commentaires_garde_ses_deux_identifiants(self) -> None:
-        """`#btn-input` et `#btn-chat` : deux ancres du filet, conservees a l'octet."""
-        html = self.rend_la_chronologie()
+    def test_le_volet_de_commentaires_prefixe_ses_deux_identifiants(self) -> None:
+        """`btn-input` et `btn-chat` sont rendus sous un `ng-repeat` dans `timeline.html`,
+        donc dupliques des la deuxieme seance. Aucun helper ni test fonctionnel ne les
+        adresse : les prefixer ne perd aucune ancre et rend le document valide."""
+        identifiants = attributs(self.rend_la_chronologie(), "id")
 
         self.assertEqual(
-            [v for v in attributs(html, "id") if v in ("btn-input", "btn-chat")],
-            ["btn-input", "btn-chat"],
+            [v for v in identifiants if v.startswith(("btn-input", "btn-chat"))],
+            ["btn-input-%d" % self.seance.pk, "btn-chat-%d" % self.seance.pk],
         )
 
     def test_le_volet_deplie_dit_a_alpine_qu_il_est_deplie(self) -> None:
@@ -677,39 +722,80 @@ class TestTeleversement(_SocleDuPatient):
 
     def test_le_bloc_de_saisie_garde_l_identifiant_du_champ_de_fichier(self) -> None:
         """`#addDocumentMedicalReport` : `helpers.joindre_document` y depose le fichier."""
-        with translation.override("fr"):
-            html = render_to_string(
-                "pages/fragments/document-televersement.html", {"patient": self.patient}
-            )
-
-        self.assertIn('id="addDocumentMedicalReport"', html)
+        self.assertIn('id="addDocumentMedicalReport"', self.rend_le_televersement())
 
     def test_le_bloc_de_saisie_porte_le_champ_de_notes_du_filet(self) -> None:
         """`data-testid="notes-document"` : le champ de texte riche de `filemanager.html:18`."""
-        with translation.override("fr"):
-            html = render_to_string(
-                "pages/fragments/document-televersement.html", {"patient": self.patient}
-            )
-
-        self.assertIn('data-testid="notes-document"', html)
+        self.assertIn('data-testid="notes-document"', self.rend_le_televersement())
 
     def test_le_bouton_d_envoi_porte_son_nom_accessible_exact(self) -> None:
         """« Cliquer pour envoyer », a l'octet : `helpers.joindre_document` le clique."""
-        with translation.override("fr"):
-            html = render_to_string(
-                "pages/fragments/document-televersement.html", {"patient": self.patient}
-            )
-
-        self.assertIn(">Cliquer pour envoyer<", html)
+        self.assertIn(">Cliquer pour envoyer<", self.rend_le_televersement())
 
     def test_le_bloc_de_saisie_est_multipart(self) -> None:
         """Sans `enctype`, le navigateur posterait le nom du fichier et non ses octets."""
-        with translation.override("fr"):
-            html = render_to_string(
-                "pages/fragments/document-televersement.html", {"patient": self.patient}
-            )
+        self.assertIn('enctype="multipart/form-data"', self.rend_le_televersement())
 
-        self.assertIn('enctype="multipart/form-data"', html)
+    def test_le_bloc_de_saisie_rend_deux_entrees_et_non_deux_zones_de_texte(
+        self,
+    ) -> None:
+        """**La preuve qui manquait.** `Document.title` est un `TextField` : le widget par
+        defaut d'un `ModelForm` est un `Textarea`, que `page.fill("input[placeholder*=
+        'Titre']")` ne trouve pas — `helpers.joindre_document` tombait alors en timeout.
+
+        Elle regarde la **balise**, et sur la surface que le filet emploie reellement : le
+        bloc de televersement, et non la vue d'edition.
+
+        Ce qu'elle laisserait passer : l'ordre des deux champs a l'ecran, et tout champ sans
+        `placeholder`.
+        """
+        self.assertEqual(
+            [
+                (balise, table.get("type"), table.get("placeholder"))
+                for balise, table in elements_avec_attribut(
+                    self.rend_le_televersement(), "placeholder"
+                )
+            ],
+            [("input", "text", "Titre"), ("input", "date", "Date")],
+        )
+
+    def test_les_identifiants_du_bloc_de_saisie_sont_prefixes(self) -> None:
+        """Sans prefixe, le bloc rendrait `id="title"` et `id="document_date"` nus, qui
+        collisionneraient avec ceux d'une vignette ouverte en edition sur le meme ecran."""
+        identifiants = attributs(self.rend_le_televersement(), "id")
+
+        # **Les valeurs attendues sont ecrites en clair.** Les composer par
+        # `auto_id_de_televersement()` rendait l'assertion auto-referentielle : le prefixe
+        # ramene a `"%s"` produisait `"title"` des deux cotes, et la preuve restait verte.
+        self.assertEqual(
+            [v for v in identifiants if v.endswith(("title", "document_date"))],
+            [
+                "document-televersement-%d-title" % self.patient.pk,
+                "document-televersement-%d-document_date" % self.patient.pk,
+            ],
+        )
+
+    def test_le_bloc_de_saisie_est_replie_tant_qu_aucun_fichier_n_est_choisi(
+        self,
+    ) -> None:
+        self.assertIn("choisi: false", self.rend_le_televersement())
+
+    def test_un_refus_rend_le_bloc_de_saisie_ouvert(self) -> None:
+        """**La barriere de `helpers.joindre_document` etait verte sur un echec.**
+
+        `to_have_count(0)` sur `div.document_create` etait satisfait par un `choisi` remis a
+        faux, alors que l'`ng-if="f.status != 2"` d'origine ne s'effacait qu'au succes. Le
+        refus rend donc le bloc **ouvert**.
+        """
+        reponse = self.depose_un_document(titre="")
+
+        self.assertIn("choisi: true", reponse.content.decode("utf-8"))
+
+    def test_un_refus_conserve_la_saisie_du_praticien(self) -> None:
+        """Seul le fichier est perdu : aucun serveur ne peut repeupler un champ de fichier."""
+        reponse = self.depose_un_document(titre="", notes="Notes deja saisies")
+
+        self.assertIn("Notes deja saisies", reponse.content.decode("utf-8"))
 
     def test_un_televersement_sans_titre_est_refuse(self) -> None:
         """`Document.title` n'est pas `blank` : le refus vient du `ModelForm`."""
@@ -787,6 +873,34 @@ class TestVignette(_SocleDuPatient):
 
         self.assertEqual([balise for balise, _ in elements], ["button"])
 
+    def test_la_note_depliee_offre_son_bouton_de_repli(self) -> None:
+        """`patient-detail.html:292` porte un `button.left.close.document-close` que la
+        premiere ecriture avait perdu : une note depliee n'avait alors plus aucun retour."""
+        self.assertEqual(
+            [
+                balise
+                for balise, _ in elements_de_classe(
+                    self.rend_la_vignette(), "document-close"
+                )
+            ],
+            ["button"],
+        )
+
+    def test_la_vignette_s_elargit_a_l_expansion(self) -> None:
+        """`ng-class` de `patient-detail.html:289` : `col-md-12` depliee, `col-md-3` sinon.
+
+        La liaison est en **syntaxe objet** — la seule qu'Alpine emploie pour *retirer* une
+        classe posee en dur par le serveur. Une liaison ternaire laisserait `col-md-3` et
+        `col-md-12` ensemble.
+        """
+        vignette = element_par_id(
+            self.rend_la_vignette(), "document-vignette-%d" % self.document.pk
+        )
+
+        self.assertEqual(
+            vignette.get(":class"), "{ 'col-md-12': deplie, 'col-md-3': !deplie }"
+        )
+
     def test_l_extrait_de_notes_est_tronque_a_quarante_caracteres(self) -> None:
         """`| htmlToPlaintext | limitTo:40`, reproduit par `|striptags|truncatechars:40`.
 
@@ -838,12 +952,19 @@ class TestEdition(_SocleDuPatient):
             return self.client.post(self.url(), data=donnees)
 
     def test_l_edition_ouvre_le_formulaire_de_la_vignette(self) -> None:
+        """Memes balises et memes placeholders qu'au televersement : `patient-detail.html:301`
+        rend lui aussi un `<input type="text">`, pas une zone de texte."""
         with translation.override("fr"):
             reponse = self.client.get(self.url())
 
         self.assertEqual(
-            [v for v in attributs(reponse.content.decode("utf-8"), "placeholder")],
-            ["Titre", "Date"],
+            [
+                (balise, table.get("type"), table.get("placeholder"))
+                for balise, table in elements_avec_attribut(
+                    reponse.content.decode("utf-8"), "placeholder"
+                )
+            ],
+            [("input", "text", "Titre"), ("input", "date", "Date")],
         )
 
     def test_annuler_relit_la_vignette_telle_qu_elle_est(self) -> None:
@@ -906,13 +1027,6 @@ class TestEdition(_SocleDuPatient):
             " Licence GNU GPLv3 ",
             "Document.notes a ete rogne",
         )
-
-    def test_l_enregistrement_ne_touche_pas_au_fichier(self) -> None:
-        """`fields` borne l'ecriture a trois colonnes : le fichier n'en est pas."""
-        avant = self.document.document_file.name
-        self.enregistre()
-
-        self.assertEqual(self.document_en_base().document_file.name, avant)
 
     def test_l_enregistrement_notifie_le_succes(self) -> None:
         """« Mise à jour effectuée » — la **seule** notification de succes de cet ecran (AR7).

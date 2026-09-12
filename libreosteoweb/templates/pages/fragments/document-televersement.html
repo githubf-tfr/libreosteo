@@ -22,9 +22,17 @@
 {# **Un refus ne remplace pas les vignettes.** La cible principale reste la liste, qui #}
 {# revient inchangee, et ce bloc revient hors-bande avec le motif du refus. Cibler ce bloc #}
 {# en principal ferait remplacer les vignettes par un formulaire — le defaut exact que T10 a #}
-{# paye sur sa modale de facturation. Le fichier choisi est perdu au passage : aucun serveur #}
-{# ne peut repeupler un `<input type="file">`. Le refus n'est atteignable qu'en contournant #}
-{# la validation HTML5 du titre. #}
+{# paye sur sa modale de facturation. Le refus n'est atteignable qu'en contournant la #}
+{# validation HTML5 du titre. #}
+{# #}
+{# **`choisi` vient du serveur, et il ne vaut pas toujours faux.** Un refus rend ce bloc #}
+{# avec `choisi=True` : il revient **ouvert**, avec la saisie conservee et le motif du #}
+{# refus, et `div.document_create` reste dans le DOM. Le coder en dur a faux rendait la #}
+{# barriere de `helpers.joindre_document` — `to_have_count(0)` — **verte sur un echec**, #}
+{# alors que l'`ng-if="f.status != 2"` d'origine ne s'effacait qu'au succes. C'est aussi la #}
+{# regle payee par T10 : l'etat pose par le serveur et l'etat initial d'Alpine disent la #}
+{# meme chose. Seul le **fichier** est perdu — aucun serveur ne peut repeupler un #}
+{# `<input type="file">` —, le titre, la date et les notes reviennent avec le formulaire. #}
 {# #}
 {# `hx-indicator` : htmx pose lui-meme la regle `.htmx-indicator{opacity:0}` (il l'injecte #}
 {# au demarrage), donc aucun fichier CSS ne s'ajoute. #}
@@ -36,7 +44,7 @@
         hx-swap="outerHTML"
         hx-encoding="multipart/form-data"
         enctype="multipart/form-data"
-        x-data="{ choisi: false }">
+        x-data="{ choisi: {{ choisi|yesno:'true,false' }} }">
     {% csrf_token %}
     <div class="form-group">
       <label for="addDocumentMedicalReport">{% trans 'Add document' %}</label>

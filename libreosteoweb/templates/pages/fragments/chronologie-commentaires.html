@@ -17,11 +17,11 @@
 {# contente de *retirer* la propriete `display` — le volet serait invisible pour toujours. #}
 {# Le masquage est donc en ligne, la ou Alpine peut ecrire. #}
 {# #}
-{# **`#btn-input` et `#btn-chat` se conservent a l'octet**, et ils se dedoublent d'une #}
-{# seance a l'autre exactement comme aujourd'hui (`timeline.html` les rend sous un #}
-{# `ng-repeat`). C'est une limitation du produit reproduite telle quelle, pas un oubli : #}
-{# T12 doit ancrer tout locator sur la seance (`#chronologie-commentaires-<id>`), jamais sur #}
-{# l'identifiant nu. #}
+{# **`btn-input` et `btn-chat` sont prefixes par la seance, et c'est une correction.** #}
+{# `timeline.html` les rend sous un `ng-repeat`, donc dupliques des la deuxieme seance — du #}
+{# HTML invalide. Aucun helper ni test fonctionnel ne les adresse (verifie par balayage de #}
+{# `tests/functional/`), et ils ne figurent pas dans la table globale des ancres du lot : #}
+{# les conserver nus n'aurait rien protege et aurait livre la duplication a T12. #}
 <div id="chronologie-commentaires-{{ entree.seance.id }}"
      x-data="{ deplie: {{ entree.deplie|yesno:'true,false' }} }">
   <div class="timeline-footer">
@@ -38,10 +38,10 @@
           hx-swap="outerHTML">
       {% csrf_token %}
       <div class="input-group">
-        <input id="btn-input" type="text" class="form-control input-sm" name="comment"
-               placeholder="{% trans 'Comment' %}" value="">
+        <input id="btn-input-{{ entree.seance.id }}" type="text" class="form-control input-sm"
+               name="comment" placeholder="{% trans 'Comment' %}" value="">
         <span class="input-group-btn">
-          <button class="btn btn-warning btn-sm" id="btn-chat" type="submit">{% trans 'Send' %}</button>
+          <button class="btn btn-warning btn-sm" id="btn-chat-{{ entree.seance.id }}" type="submit">{% trans 'Send' %}</button>
         </span>
       </div>
     </form>

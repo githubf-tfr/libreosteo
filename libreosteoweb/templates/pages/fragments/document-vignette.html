@@ -22,9 +22,21 @@
 {# dela de quarante caracteres, comme `doc.notes.length > 40`. #}
 {# #}
 {# `uib-tooltip` devient `title` : l'info-bulle native dit la meme chose sans directive. #}
+{# **La vignette s'elargit a l'expansion, et elle sait s'y refermer.** Deux reprises de #}
+{# `patient-detail.html` : l'`ng-class` `col-md-12`/`col-md-3` de `:289`, et le #}
+{# `button.left.close.document-close` de `:292`, sans lequel une note depliee n'aurait plus #}
+{# aucun retour. La liaison de classe est en **syntaxe objet** : c'est la seule qu'Alpine #}
+{# emploie pour *retirer* une classe posee en dur par le serveur, donc la seule qui evite #}
+{# de porter `col-md-3` et `col-md-12` en meme temps. #}
 {% trans 'Notes' as libelle_notes %}
-<li class="documenttile animate col-md-3" id="document-vignette-{{ entree.document.id }}">
-  <div class="thumbnail doc_thumbnail" x-data="{ deplie: false }">
+<li class="documenttile animate col-md-3" id="document-vignette-{{ entree.document.id }}"
+    x-data="{ deplie: false }"
+    :class="{ 'col-md-12': deplie, 'col-md-3': !deplie }">
+  <div class="thumbnail doc_thumbnail"
+       :class="{ 'doc_thumbnail': !deplie, 'doc_expand': deplie }">
+    <button type="button" class="left close document-close" aria-label="Close"
+            x-show="deplie" style="display: none;"
+            @click="deplie = false"><span aria-hidden="true">&times;</span></button>
     <button type="button" class="close document-edit" aria-label="Edit"
             hx-get="{{ entree.url_edition }}"
             hx-target="#document-vignette-{{ entree.document.id }}"
