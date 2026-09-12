@@ -43,9 +43,21 @@
 {# neuf en permanence sur le dossier patient et dix-huit sur la consultation, ce qui serait #}
 {# un ecart d'ecran, pas un detail de presentation. `@focusin` / `@focusout` sur #}
 {# l'enveloppe ne font que basculer un booleen — **ils n'ecrivent jamais dans l'entree #}
-{# cachee**, et la propriete centrale reste intacte. `x-show` part de `false` avec un #}
-{# `display:none` **en ligne** : Alpine retire la propriete au lieu d'y ecrire une valeur, #}
-{# et l'etat initial faux est le sens sur du legs de D6c (`dfb2473`). #}
+{# cachee**, et la propriete centrale reste intacte. #}
+{# #}
+{# **La bascule porte sur `visibility`, jamais sur `display`**, et c'est la seule raison #}
+{# pour laquelle cette barre n'est pas un second ecart d'ecran : une barre retiree du flux #}
+{# a la prise de focus ferait **sauter tout le contenu sous le champ** de sa hauteur, a #}
+{# chaque clic. `hallo` ne decalait jamais rien, sa barre etant absolue dans `<body>`. #}
+{# `visibility` reserve la place en permanence — une bande vide de la hauteur de la barre #}
+{# au-dessus de chaque champ editable, **et seulement en mode edition**. C'est un ecart #}
+{# benin, assume et prefere a un positionnement absolu, qui aurait recouvert le champ #}
+{# voisin et se serait fait rogner en haut de panneau. #}
+{# #}
+{# La liaison est un `:style` **explicite**, qui ecrit une valeur dans les deux sens, et #}
+{# non un `x-show`, qui se contente de retirer une propriete : c'est le patron que D6c a #}
+{# paye et corrige (`dfb2473`), applique ici d'emblee. La valeur en ligne evite le #}
+{# scintillement avant le demarrage d'Alpine. #}
 {# #}
 {# `@mousedown.prevent` sur chaque bouton de la barre : le focus quitte la zone au #}
 {# `mousedown`, pas au `click`, et une commande appliquee sans selection ne produit aucune #}
@@ -57,7 +69,7 @@
      @focusin="actif = true" @focusout="actif = false">
   {% if editable %}
   <div class="btn-toolbar lo-barre-texte-riche" role="toolbar" aria-label="{{ libelle }}"
-       x-show="actif" style="display: none;">
+       :style="{ visibility: actif ? 'visible' : 'hidden' }" style="visibility: hidden;">
     <div class="btn-group">
       <button type="button" class="btn btn-default btn-xs" title="bold" @mousedown.prevent @click.prevent="commande('bold')"><b>B</b></button>
       <button type="button" class="btn btn-default btn-xs" title="italic" @mousedown.prevent @click.prevent="commande('italic')"><i>I</i></button>

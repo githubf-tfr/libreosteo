@@ -154,7 +154,14 @@ def test_le_texte_riche_non_touche_soumet_la_valeur_a_l_octet(
     minuscule. Le CRLF final et le guillemet de l'attribut `style` piquent deux autres
     canaux d'alteration, decrits dans `banc/vues.py`.
 
-    Ce qu'il laisserait passer : une implementation qui commettrait `innerHTML` a la
+    Ce qu'il **ne prouve pas**, et il faut le dire : que le `contenteditable` homonyme ne
+    se soumette pas. Il precede l'entree cachee dans le document, donc
+    `request.POST["champ"]` rendrait la meme valeur meme s'il etait serialise. La garantie
+    est reelle — un `contenteditable` n'est pas un controle de formulaire et
+    `form.elements` ne contient que l'`INPUT` — mais elle vient de la plateforme, pas de
+    cette assertion.
+
+    Ce qu'il laisserait passer aussi : une implementation qui commettrait `innerHTML` a la
     premiere frappe **mais l'aurait deja abime au rendu** (un espace d'indentation autour
     de `{{ valeur|safe }}`, par exemple) resterait verte ici tant qu'aucune saisie n'a
     lieu ; c'est le test de la frappe qui la verrait.
@@ -254,8 +261,12 @@ def test_le_texte_riche_applique_un_bloc_du_menu_de_bloc(
     autre bouton. Sans ce test, le seul bouton de la barre qui ne soit pas un simple
     repartiteur entrerait dans T10, T11 et T12 sans avoir jamais ete ouvert.
 
-    Ce que ce test regarde : les octets recus portent `<blockquote>`. Ce qu'il laisserait
-    passer : les cinq autres entrees du menu, et l'etat visuel du menu apres le choix.
+    Ce que ce test regarde : les octets recus portent `<blockquote`, **sans le chevron
+    fermant**. L'affaiblissement est exige par la valeur bordee du banc : Chrome propage le
+    `style` du paragraphe d'origine sur le bloc qu'il pose, et l'assertion lirait alors
+    `<blockquote style="text-align: center;">`. Ce qu'il laisserait passer : les cinq autres
+    entrees du menu, l'etat visuel du menu apres le choix, et le contenu de l'attribut
+    propage.
 
     Falsification : retirer `commande('formatBlock', 'blockquote')` de l'entree du menu.
     """
@@ -284,12 +295,27 @@ def test_seule_la_barre_du_champ_actif_est_visible(
     de Playwright refuse le clic des qu'il en trouve deux. Une barre rendue en permanence en
     afficherait neuf sur le dossier patient et dix-huit sur la consultation.
 
-    Ce que ce test regarde : le **nombre de boutons `bold` visibles**, c'est-a-dire
-    exactement la quantite que le helper interroge, plus la barre qui les porte, adressee par
-    son role et son libelle. Ce qu'il laisserait passer : la position de la barre a l'ecran,
-    et le fait qu'elle appartienne visuellement au bon champ.
+    Ce que ce test regarde : le **nombre de boutons `bold` visibles** — exactement la
+    quantite que le helper interroge — et le **libelle de la barre effectivement visible**,
+    qui dit *laquelle* des deux est montree. Le second point n'est pas decoratif : compter
+    « une seule barre » passerait aussi si c'etait systematiquement la mauvaise.
 
-    Falsification : retirer `x-show="actif"` du fragment.
+    Le moteur de role de Playwright exclut deja de l'arbre d'accessibilite ce que
+    `visibility: hidden` masque : `get_by_role("toolbar")` ne rend donc que la barre
+    visible, et c'est pourquoi le compte y vaut zero avant toute prise de focus. Une
+    assertion `to_be_hidden()` sur ce locator serait **vide** — elle passerait sur zero
+    element ; ce sont le compte et le libelle qui portent la preuve.
+
+    Il mesure enfin que **rien ne saute** : la barre bascule sur `visibility` et non sur
+    `display`, donc elle garde sa place dans le flux et le contenu situe dessous ne bouge
+    pas d'un pixel a la prise de focus. Une barre retiree du flux decalerait tout l'ecran
+    de sa hauteur a chaque clic dans un champ, et `hallo` ne decalait jamais rien.
+
+    Ce qu'il laisserait passer : la position de la barre a l'ecran, et le fait qu'elle
+    appartienne visuellement au bon champ.
+
+    Falsification : retirer la liaison `:style` du fragment ; la remplacer par `x-show`
+    fait rougir la mesure de non-decalage, et elle seule.
     """
     page.goto(f"{live_server.url}/banc/texte-riche")
     page.wait_for_function("() => window.Alpine !== undefined")
@@ -300,12 +326,27 @@ def test_seule_la_barre_du_champ_actif_est_visible(
     expect(boutons).to_have_count(2)
     expect(visibles).to_have_count(0)
 
+    barres = page.get_by_role("toolbar")
+    expect(barres).to_have_count(0)
+
+    # Le premier element situe sous les deux composants : s'il bouge, tout l'ecran a bouge.
+    bouton_de_fin = page.locator("#fin-edition")
+    boite_avant = bouton_de_fin.bounding_box()
+
     page.get_by_test_id("zone-banc").click()
     expect(visibles).to_have_count(1)
-    expect(page.get_by_role("toolbar", name="Antecedents")).to_be_visible()
-    expect(page.get_by_role("toolbar", name="Traitement")).to_be_hidden()
+    expect(barres).to_have_count(1)
+    expect(barres).to_have_attribute("aria-label", "Antecedents")
 
     page.get_by_test_id("zone-banc-b").click()
     expect(visibles).to_have_count(1)
-    expect(page.get_by_role("toolbar", name="Traitement")).to_be_visible()
-    expect(page.get_by_role("toolbar", name="Antecedents")).to_be_hidden()
+    expect(barres).to_have_count(1)
+    expect(barres).to_have_attribute("aria-label", "Traitement")
+
+    boite_apres = bouton_de_fin.bounding_box()
+    assert boite_avant is not None and boite_apres is not None
+    assert boite_avant["y"] == boite_apres["y"], (
+        "le contenu sous les champs a saute a la prise de focus : la barre d'outils sort "
+        f"du flux au lieu de basculer sur `visibility` ({boite_avant['y']} puis "
+        f"{boite_apres['y']})"
+    )

@@ -27,9 +27,12 @@ le rendu de l'attribut, et non dans une ecriture JavaScript a l'initialisation :
 l'entree cachee au demarrage detruirait la propriete centrale du composant, qui est que
 personne n'y touche tant qu'aucune saisie n'a eu lieu.
 
-**Contrat d'appel** : la valeur passee est la valeur **stockee**, une chaine ordinaire.
-Ne jamais la marquer `mark_safe` — l'attribut se tronquerait alors au premier guillemet
-qu'elle porte, et tout paragraphe centre du produit en porte deux.
+**L'echappement est inconditionnel**, et c'est delibere : `escape` et non
+`conditional_escape`. Une valeur marquee `mark_safe` par un appelant traverserait
+`conditional_escape` sans etre echappee, et l'attribut `value` se tronquerait au premier
+guillemet qu'elle porte — tout paragraphe centre du produit en porte deux. Ce contrat ne
+doit pas dependre de la discipline de l'appelant : ici, la valeur est **toujours** une
+donnee, jamais du balisage, et il n'existe aucun cas legitime de valeur sure.
 """
 
 from __future__ import annotations
@@ -37,7 +40,7 @@ from __future__ import annotations
 from typing import Any
 
 from django import template
-from django.utils.html import conditional_escape
+from django.utils.html import escape
 from django.utils.safestring import SafeString, mark_safe
 
 register = template.Library()
@@ -52,4 +55,4 @@ def valeur_d_attribut(valeur: Any) -> SafeString:
     """
     if valeur is None:
         return mark_safe("")
-    return mark_safe(conditional_escape(valeur).replace("\r", "&#13;"))
+    return mark_safe(escape(valeur).replace("\r", "&#13;"))

@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.db import models as db_models
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from rest_framework.test import APIClient
 
 from libreosteoweb.api.texte_riche import (
@@ -449,6 +450,19 @@ class TestValeurDAttribut(SimpleTestCase):
         self.assertEqual(
             valeur_d_attribut('<P style="text-align: center;">x</P>'),
             "&lt;P style=&quot;text-align: center;&quot;&gt;x&lt;/P&gt;",
+        )
+
+    def test_une_valeur_marquee_sure_est_echappee_quand_meme(self) -> None:
+        """L'echappement est mecanique, pas contractuel.
+
+        Sous `conditional_escape`, une valeur marquee `mark_safe` traverserait sans etre
+        echappee et l'attribut `value` se tronquerait au premier guillemet — exactement le
+        defaut que le banc portait avant la revue. Aucune valeur de texte riche n'est
+        legitimement sure : elle est toujours une donnee, jamais du balisage.
+        """
+        self.assertEqual(
+            valeur_d_attribut(mark_safe('<div style="text-align: center;">')),
+            "&lt;div style=&quot;text-align: center;&quot;&gt;",
         )
 
     def test_une_valeur_nulle_ne_rend_rien(self) -> None:
