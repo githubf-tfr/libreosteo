@@ -38,7 +38,29 @@ Remplacer la ligne rendrait le serveur responsable de `data-testid="ligne-medeci
 qu'il ne connait pas — la reponse a un POST ne sait pas lequel des deux sites l'a emise, et
 l'ancre du filet disparaitrait silencieusement du dossier. Une seule autorite par element
 (patron hors-bande de D6d, `pages/fragments/comptabilite-echange.html`) : la ligne appartient
-a l'ecran qui l'inclut, le selecteur appartient a cette vue.
+a l'ecran qui l'inclut, le selecteur appartient a cette vue. **Les deux vues de ce module
+rendent donc le fragment d'edition, jamais la ligne** — `selecteur_medecin` comprise, dont le
+nom pourrait faire croire le contraire.
+
+**Trois pieges pour T12, mesures et certains** (revue T9) :
+
+- **Le `<select name="doctor">` est une seconde autorite pour le champ `doctor` du
+  formulaire de l'onglet « Infos generales »**, et il tire son option selectionnee de
+  `patient.doctor_id` (`medecin-selecteur-edition.html`), **jamais des donnees postees**. Un
+  refus de sauvegarde qui re-rendrait ce panneau ramenerait donc la valeur en base a la place
+  de la saisie du praticien, en silence. T12 doit soit lier la selection a `formulaire[...]`
+  sur le chemin de refus, soit ne pas re-rendre ce fragment dans une reponse de refus.
+- **Les deux identifiants de conteneur collisionneront**, ce n'est pas une hypothese : le
+  gabarit du dossier porte `#general` **et** `#current-examination` dans le meme document, et
+  les deux sites incluent ce fragment. Des qu'une consultation est en cours, il y a deux
+  `id="selecteur-medecin-<pid>"`, et l'echange hors-bande atteint le premier — celui du
+  dossier — meme si le praticien edite depuis la colonne de consultation. Le rattrapage est un
+  prefixe de contexte a poser sur les deux identifiants ; il n'est pas ecrit ici parce qu'il
+  serait invérifiable tant qu'aucun gabarit ne rend deux exemplaires.
+- **Le rattachement est immediat**, contrairement a AngularJS qui ne posait l'identifiant
+  dans le `$scope` que jusqu'au « Fin d'edition » (`doctor.js:99-105`). Le geste est borne a
+  une seule colonne (`update_fields=["doctor"]`), donc il n'ecrase aucune saisie en cours ;
+  `R-MED-01`, `R-MED-02` et le constat de `R-PAT-08` en portent la nuance.
 """
 
 from __future__ import annotations
@@ -46,8 +68,9 @@ from __future__ import annotations
 from typing import Any
 
 from django import forms
+from django.db import transaction
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
@@ -95,7 +118,12 @@ class FormulaireMedecin(forms.ModelForm):
         self.fields["city"].required = True
         # Le telephone, lui, reste facultatif : `doctor-modal-add.html:17` ne porte pas
         # `required`. Il l'est deja par le modele (`blank=True`), la ligne n'est pas ecrite.
-        self.fields["phone"].widget.attrs["pattern"] = MOTIF_TELEPHONE
+        # `type="tel"` est repris de `doctor-modal-add.html:17` : sur mobile, c'est lui qui
+        # fait apparaitre le pave numerique plutot que le clavier alphabetique. Django rend
+        # un `TextInput` par defaut pour un `CharField`, donc le type se pose a la main.
+        self.fields["phone"].widget.attrs.update(
+            {"type": "tel", "pattern": MOTIF_TELEPHONE}
+        )
 
     def clean_family_name(self) -> str:
         """La normalisation de `RegularDoctorSerializer.validate_family_name`.
@@ -137,16 +165,37 @@ def contexte_selecteur(patient: models.Patient, **extras: Any) -> dict[str, Any]
 
 
 def selecteur_medecin(request: HttpRequest, identifiant: str) -> HttpResponse:
-    """La ligne du medecin traitant en mode edition, seule.
+    """Le `<select>` du medecin traitant, seul, en mode edition.
 
     Sert a T12 pour rafraichir le selecteur sans re-rendre l'onglet entier.
+
+    **Rend le fragment d'edition, et non la ligne** (revue T9). Rendre la ligne ferait de
+    cette vue l'autorite de `data-testid="ligne-medecin-traitant"`, qu'elle ne connait pas :
+    l'appelant qui emploierait cette route sur le dossier perdrait l'ancre du filet en
+    silence — exactement le mode d'echec que l'en-tete de ce module dit eviter.
     """
     patient = get_object_or_404(models.Patient, pk=identifiant)
     return render(
         request,
-        "pages/fragments/medecin-selecteur.html",
+        "pages/fragments/medecin-selecteur-edition.html",
         contexte_selecteur(patient),
     )
+
+
+def _patient_de_la_requete(request: HttpRequest) -> models.Patient:
+    """Le patient designe par la requete, ou 404.
+
+    **La garde `\\d+` a disparu avec l'identifiant d'URL, et rien ne la remplacait** : sur
+    `/patient/<id>/doctor`, c'est le motif de la route qui refuse une valeur non numerique,
+    mais `/doctors/new` n'en porte aucun. Sans ce filtre, `?patient=abc` levait
+    `ValueError: Field 'id' expected a number` — un 500 la ou le produit doit rendre un 404
+    (mesure en revue T9).
+    """
+    donnees = request.POST if request.method == "POST" else request.GET
+    identifiant = donnees.get("patient", "")
+    if not identifiant.isdigit():
+        raise Http404("identifiant de patient invalide : %r" % identifiant)
+    return get_object_or_404(models.Patient, pk=identifiant)
 
 
 def medecin_nouveau(request: HttpRequest) -> HttpResponse:
@@ -156,10 +205,7 @@ def medecin_nouveau(request: HttpRequest) -> HttpResponse:
     a l'octet de la table d'etats (A2), et elle ne porte pas d'identifiant de patient. Le
     `GET` le lit dans la chaine de requete, le `POST` dans un champ cache de la modale.
     """
-    patient = get_object_or_404(
-        models.Patient,
-        pk=(request.POST if request.method == "POST" else request.GET).get("patient"),
-    )
+    patient = _patient_de_la_requete(request)
     if request.method != "POST":
         return render(
             request, "partials/modale.html", _modale(patient, FormulaireMedecin())
@@ -177,16 +223,20 @@ def medecin_nouveau(request: HttpRequest) -> HttpResponse:
             status=422,
         )
 
-    medecin = formulaire.save()
-    # **Le rattachement est ce qui rend l'option selectionnee.** Le fragment lit
-    # `patient.doctor_id` ; sans cette ecriture, la modale se refermerait sur un selecteur
-    # vide et le praticien croirait avoir perdu sa saisie.
-    patient.doctor = medecin
-    patient.set_user_operation(request.user)
-    # `update_fields` restreint l'ecriture a la seule colonne que cette vue gouverne : le
-    # dossier peut etre ouvert en edition ailleurs, et reecrire l'objet entier depuis une
-    # instance relue avant la saisie ecraserait ce que l'ecran n'a pas encore envoye.
-    patient.save(update_fields=["doctor"])
+    # Les deux ecritures sont **une seule operation**, comme dans `nouveau_patient.py` : un
+    # medecin cree mais non rattache serait une ligne orpheline dans la liste deroulante, que
+    # le praticien croirait avoir liee. Elles tombent donc ensemble ou pas du tout.
+    with transaction.atomic():
+        medecin = formulaire.save()
+        # **Le rattachement est ce qui rend l'option selectionnee.** Le fragment lit
+        # `patient.doctor_id` ; sans cette ecriture, la modale se refermerait sur un
+        # selecteur vide et le praticien croirait avoir perdu sa saisie.
+        patient.doctor = medecin
+        patient.set_user_operation(request.user)
+        # `update_fields` restreint l'ecriture a la seule colonne que cette vue gouverne : le
+        # dossier peut etre ouvert en edition ailleurs, et reecrire l'objet entier depuis une
+        # instance relue avant la saisie ecraserait ce que l'ecran n'a pas encore envoye.
+        patient.save(update_fields=["doctor"])
     return render(
         request,
         "pages/fragments/medecin-selecteur-edition.html",

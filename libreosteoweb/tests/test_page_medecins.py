@@ -33,7 +33,7 @@ from __future__ import annotations
 import re
 
 from django.template.loader import render_to_string
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from libreosteoweb.api.views.pages.medecins import FormulaireMedecin
@@ -127,6 +127,23 @@ class TestFragmentDeLecture(TestCase):
             "Médecin traitant : Lefevre - Limoges", _texte(self.rendu(patient))
         )
 
+    def test_un_medecin_sans_ville_affiche_non_renseigne(self) -> None:
+        """Ce que ce test regarde : le repli de la ville. `RegularDoctor.city` est
+        `blank=True`, donc la chaine vide est atteignable en base ; Angular posait le repli
+        par le `||` de `doctor-selector.html:6`, et sans filtre `default` la ligne
+        afficherait « Lefevre - », un tiret pendant dans le vide.
+
+        Ce qu'il laisserait passer : le nom de famille, que le modele n'autorise pas a etre
+        vide (`blank` non pose) et dont le repli d'Angular etait une ceinture de plus.
+        """
+        medecin = RegularDoctor.objects.create(family_name="Lefevre", city="")
+        with sans_receivers():
+            patient = cree_patient(doctor=medecin)
+
+        self.assertIn(
+            "Médecin traitant : Lefevre - non renseigné", _texte(self.rendu(patient))
+        )
+
     def test_seul_l_exemplaire_du_dossier_porte_l_ancre_du_filet(self) -> None:
         """Ce que ce test regarde : `data-testid="ligne-medecin-traitant"` est **gouverne
         par l'appelant**, parce que `test_medecins.py:41` documente que seul le selecteur de
@@ -175,6 +192,25 @@ class TestFragmentDEdition(SocleConnecte):
 
         self.assertIn('name="doctor"', corps)
         self.assertEqual(_libelles(corps), ["Girard - Limoges", "Lefevre - Limoges"])
+
+    def test_la_route_rend_le_selecteur_seul_et_jamais_la_ligne(self) -> None:
+        """Ce que ce test regarde : la reponse ne contient **pas** le conteneur de la ligne.
+
+        Rendre la ligne ferait de cette vue l'autorite de
+        `data-testid="ligne-medecin-traitant"`, qu'elle ne connait pas : un appelant qui
+        emploierait cette route sur le dossier perdrait l'ancre du filet en silence (revue
+        T9). L'assertion porte sur le conteneur `medecin-traitant-<id>` et non sur le
+        testid, parce que le testid est deja absent quand `avec_testid` n'est pas passe —
+        elle serait verte pour la mauvaise raison.
+
+        Ce qu'il laisserait passer : qu'un appelant re-rende la ligne de son propre chef.
+        """
+        corps = self.client.get(
+            reverse("medecin-selecteur", args=[self.patient.id])
+        ).content.decode("utf-8")
+
+        self.assertNotIn('id="medecin-traitant-', corps)
+        self.assertIn('id="selecteur-medecin-%d"' % self.patient.id, corps)
 
     def test_le_bouton_d_ajout_garde_le_titre_que_le_filet_clique(self) -> None:
         """Ce que ce test regarde : `button[title='Ajouter un médecin']`, l'ancre que
@@ -227,6 +263,23 @@ class TestModaleDAjout(SocleConnecte):
         corps = self.client.get(self.url()).content.decode("utf-8")
 
         self.assertIn('pattern="%s"' % MOTIF_TELEPHONE, corps)
+
+    def test_le_champ_telephone_garde_son_type_tel(self) -> None:
+        """Ce que ce test regarde : `type="tel"`, repris de `doctor-modal-add.html:17`.
+        C'est lui qui fait apparaitre le pave numerique sur mobile ; Django rend un
+        `TextInput` par defaut pour un `CharField`, donc le type se pose a la main et son
+        oubli ne se voit sur aucun ecran de bureau.
+
+        **Separe de l'assertion du motif** : groupees, une mutation qui retirerait le
+        `pattern` rougirait avant d'atteindre celle-ci.
+
+        Ce qu'il laisserait passer : le clavier reellement affiche, qui est l'affaire du
+        systeme mobile.
+        """
+        corps = self.client.get(self.url()).content.decode("utf-8")
+
+        self.assertIn('name="phone"', corps)
+        self.assertIn('type="tel"', corps)
 
 
 class TestCreation(SocleConnecte):
@@ -322,21 +375,56 @@ class TestCreation(SocleConnecte):
 
         self.assertEqual(reponse.status_code, 422)
 
-    def test_un_refus_ne_cree_aucun_medecin_et_ne_rattache_rien(self) -> None:
-        """Ce que ce test regarde : qu'**aucun** medecin n'entre en base et que le patient
-        reste sans medecin traitant — `doctor-modal-add.html:9` portait `required`, et un
-        `ModelForm` n'en herite pas.
+    def test_un_refus_ne_cree_aucun_medecin(self) -> None:
+        """Ce que ce test regarde : qu'**aucune ligne** n'entre dans la table des medecins —
+        `doctor-modal-add.html:9` portait `required`, et un `ModelForm` n'en herite pas.
 
         **Separe du code de retour a dessein** : une mutation qui rendrait `family_name`
         facultatif ferait repondre 200, donc rougir le test ci-dessus **avant** toute
         assertion sur la base. Groupees, ces deux assertions ne seraient jamais exercees
         ensemble.
+
+        Ce qu'il laisserait passer : l'etat du patient, qui est prouve juste en dessous —
+        et separement, pour la meme raison.
         """
         self.poste(family_name="")
 
         self.assertEqual(RegularDoctor.objects.count(), 0)
+
+    def test_un_refus_ne_rattache_aucun_medecin_au_patient(self) -> None:
+        """Ce que ce test regarde : la colonne `doctor` du patient, qui reste vide.
+
+        **Separe de l'assertion de comptage ci-dessus** (revue T9) : groupees, une mutation
+        qui rendrait `family_name` facultatif rougirait sur le comptage et n'exercerait
+        jamais celle-ci. C'est, en petit, le defaut que cette tache corrige ailleurs.
+
+        Ce qu'il laisserait passer : la creation d'un medecin non rattache, prouvee juste
+        au-dessus.
+        """
+        self.poste(family_name="")
+
         self.patient.refresh_from_db()
         self.assertIsNone(self.patient.doctor_id)
+
+    def test_un_identifiant_de_patient_non_numerique_rend_404(self) -> None:
+        """Ce que ce test regarde : `?patient=abc` rend **404 et non 500**. `/doctors/new`
+        ne porte aucun motif de capture, donc la garde `\\d+` qui protege
+        `/patient/<id>/doctor` n'existe pas ici : sans filtre explicite, l'ORM levait
+        `ValueError: Field 'id' expected a number`.
+
+        `raise_request_exception=False` est necessaire pour **exercer l'assertion** : sans
+        lui, le client de test relaie l'exception et le test rougirait avant de comparer
+        quoi que ce soit — le rouge dirait alors « ValueError », pas « 500 != 404 ».
+
+        Ce qu'il laisserait passer : un identifiant numerique inexistant, qui passe par
+        `get_object_or_404` et rend 404 par le meme chemin sans que ce test le distingue.
+        """
+        client = Client(raise_request_exception=False)
+        client.login(username="test", password="testpw")
+
+        reponse = client.get("%s?patient=abc" % reverse("medecin-nouveau"))
+
+        self.assertEqual(reponse.status_code, 404)
 
     def test_le_formulaire_exige_trois_champs_et_laisse_le_telephone_libre(
         self,

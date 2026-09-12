@@ -1700,6 +1700,16 @@ naissance vide n'est plus invisible — la ligne « Nom de naissance : non rense
 panneau (étape 1) s'affiche désormais en lecture sur toute fiche patient, y compris
 celles qui n'ont jamais eu ce champ renseigné.
 
+**Nuance depuis la migration du médecin traitant** : l'acquis de cette fiche est qu'**aucun
+geste d'édition ne fait repartir un enregistrement complet du patient**, et il tient. Mais
+un geste, et un seul, écrit en base pendant l'édition : l'ajout d'un médecin traitant
+(`R-MED-01`, `R-MED-02`) enregistre la colonne `doctor` dès la validation de la modale.
+Cette écriture est bornée à cette seule colonne — elle ne relit ni ne réécrit les autres
+champs, donc elle **ne peut pas** écraser les saisies du formulaire ouvert, qui est le
+défaut que cette fiche garde. Le formuler autrement serait faux dans les deux sens : dire
+que rien ne s'enregistre pendant l'édition ne l'est plus, et dire que l'acquis est perdu ne
+l'est pas.
+
 ### R-PAT-09 — Mise en forme du texte riche
 
 - **Domaine** : Patient
@@ -2414,7 +2424,10 @@ deux dates.
 4. Saisir `Lefevre` (Nom de famille), `Paul` (Prénom), `0555000001` (Téléphone),
    `Limoges` (Ville), cliquer « Ajouter ».
    Attendu : la fenêtre modale se ferme ; le menu déroulant « Médecin traitant »
-   affiche désormais `Lefevre - Limoges`.
+   affiche désormais `Lefevre - Limoges`. **Le rattachement est enregistré dès ce
+   clic**, et non plus au « Fin d'édition » : quitter l'édition sans enregistrer, ou
+   recharger la page ici, laisse le médecin rattaché. Avant migration, la sélection ne
+   vivait que dans le formulaire ouvert.
 5. Cliquer le bouton « Fin d'édition ».
    Attendu : la fiche repasse en lecture ; la ligne affiche
    « Médecin traitant : Lefevre - Limoges ».
@@ -2440,7 +2453,9 @@ deux dates.
 3. Saisir `Girard` (Nom de famille), `Sophie` (Prénom), `0555000002` (Téléphone),
    `Limoges` (Ville), cliquer « Ajouter ».
    Attendu : la fenêtre modale se ferme ; le menu déroulant affiche
-   `Girard - Limoges`.
+   `Girard - Limoges`. **Le rattachement est enregistré dès ce clic**, et non plus au
+   « Fin d'édition » — c'est pourquoi l'état E2 est à remonter après cette fiche même
+   si l'édition est abandonnée en cours de route.
 4. Cliquer le bouton « Fin d'édition ».
    Attendu : la fiche patient de Jean-Luc Picard affiche
    « Médecin traitant : Girard - Limoges ».

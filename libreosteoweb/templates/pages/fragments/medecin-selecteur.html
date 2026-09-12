@@ -10,6 +10,10 @@
 <div id="medecin-traitant-{{ patient.id }}"{% if avec_testid %} data-testid="ligne-medecin-traitant"{% endif %}>
   {% trans 'Regular doctor' %} :
   {% if editable %}{% include "pages/fragments/medecin-selecteur-edition.html" %}
-  {% elif patient.doctor %}{{ patient.doctor.family_name }} - {{ patient.doctor.city }}
+  {# `RegularDoctor.city` est `blank=True` : un medecin sans ville affichait « Lefevre - » #}
+  {# la ou Angular affichait « Lefevre - non renseigne » (`doctor-selector.html:6`, ou le #}
+  {# `||` posait le repli). Le filtre `default` reproduit ce `||` : il se declenche sur une #}
+  {# valeur fausse, donc sur la chaine vide. #}
+  {% elif patient.doctor %}{{ patient.doctor.family_name }} - {{ patient.doctor.city|default:_("not documented") }}
   {% else %}{% trans 'not documented' %} - {% trans 'not documented' %}{% endif %}
 </div>
