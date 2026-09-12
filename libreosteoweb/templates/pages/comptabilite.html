@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+{% load compress %}
+
+{% block titre %}{% trans 'Accounting' %}{% endblock %}
+
+{% block css_page %}
+{% compress css %}
+<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
+<link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
+{% endcompress %}
+{% endblock %}
+
+{% block contenu %}
+<div id="page-wrapper">
+    {# Pas de classe `page-header` : l'ecran d'avant (`invoice-list.html`) n'en portait #}
+    {# pas non plus sur son titre. #}
+    <h1 data-testid="titre-comptabilite">{% trans 'Accounting' %}</h1>
+
+    {# Deux `<input type="date">` **natifs**, localises par le navigateur : `base.html` ne #}
+    {# charge pas `webshim`, donc aucun champ polyfille et aucun des defauts de format que le #}
+    {# depot a deja payes (S3 defaut A). C'est un gain, ecrit comme tel (A13). #}
+    {# `hx-push-url` tient l'URL affichee a jour : sans elle, un rafraichissement ramenerait a #}
+    {# la periode par defaut (C7). #}
+    <form class="form-inline" hx-get="{% url 'comptabilite' %}"
+          hx-target="#liste-comptabilite" hx-swap="outerHTML" hx-push-url="true">
+      <div class="form-group">
+        <label for="debut">{% trans 'From' %}</label>
+        <input type="date" class="form-control" id="debut" name="debut" value="{{ debut|date:'Y-m-d' }}">
+      </div>
+      <div class="form-group">
+        <label for="fin">{% trans 'To' %}</label>
+        <input type="date" class="form-control" id="fin" name="fin" value="{{ fin|date:'Y-m-d' }}">
+      </div>
+      {% if utilisateurs|length > 1 %}
+      <div class="form-group">
+        <label for="therapeut">{% trans 'By' %}</label>
+        <select class="form-control" id="therapeut" name="therapeut">
+          <option value="">{% trans 'All' %}</option>
+          {% for utilisateur in utilisateurs %}
+          <option value="{{ utilisateur.id }}"{% if utilisateur.id == therapeut_id %} selected{% endif %}>{{ utilisateur.last_name }} {{ utilisateur.first_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <button class="btn btn-default" type="submit" data-testid="filtrer-periode">{% trans 'Search' %}</button>
+    </form>
+
+    {# Les trois plages predefinies, calculees par le serveur : le mois en cours, l'annee en #}
+    {# cours, l'annee precedente — les trois de `invoice.js:96-111`. Ce sont des liens htmx, #}
+    {# pas des entrees d'un greffon jQuery. #}
+    <div class="btn-group">
+      <a class="btn btn-default" href="?plage=mois" data-testid="plage-mois"
+         hx-get="{% url 'comptabilite' %}?plage=mois" hx-target="#liste-comptabilite"
+         hx-swap="outerHTML" hx-push-url="true">{{ libelle_mois }}</a>
+      <a class="btn btn-default" href="?plage=annee" data-testid="plage-annee"
+         hx-get="{% url 'comptabilite' %}?plage=annee" hx-target="#liste-comptabilite"
+         hx-swap="outerHTML" hx-push-url="true">{{ libelle_annee }}</a>
+      <a class="btn btn-default" href="?plage=annee-precedente" data-testid="plage-annee-precedente"
+         hx-get="{% url 'comptabilite' %}?plage=annee-precedente" hx-target="#liste-comptabilite"
+         hx-swap="outerHTML" hx-push-url="true">{{ libelle_annee_precedente }}</a>
+    </div>
+
+    {# Menu d'export : une seule entree possible (XLSX) — pas de menu deroulant pour un #}
+    {# choix unique. `<a href>` ordinaire (A13) : htmx ne sait pas declencher un #}
+    {# enregistrement de fichier. #}
+    <a class="btn btn-default" href="{{ url_export }}"><i class="fa fa-download fa-fw"></i> {% trans 'XLSX' %}</a>
+
+    {# Second selecteur facultatif : information seule. `request.officesettings` est fixe #}
+    {# par session (`OfficeSettingsMiddleware`), et le filtre de la liste ne le fait jamais #}
+    {# varier (A4) — reproduire ici un vrai changement de cabinet inventerait un filtre que #}
+    {# la vue ne consomme pas. #}
+    {% if cabinets|length > 1 %}
+    <p>{% trans 'Office' %}: {{ cabinet.office_name }}</p>
+    {% endif %}
+
+    {% include "pages/fragments/comptabilite-liste.html" %}
+</div>
+{% endblock %}

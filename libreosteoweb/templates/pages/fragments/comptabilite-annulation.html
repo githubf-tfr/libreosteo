@@ -1,0 +1,20 @@
+{% load i18n %}
+{# Corps de la modale de confirmation d'annulation. Le `<form>` porte l'identifiant que #}
+{# `partials/modale.html` recoit par `formulaire_confirmer` : c'est le bouton #}
+{# `#modal-btn-ok` du pied de modale qui le soumet, par l'attribut HTML5 `form` (E9). #}
+{# `hx-target="#modale"` : sur succes, la reponse ne porte que le fragment de liste #}
+{# hors-bande (`_contexte_liste`, `hors_bande=True`) — rien ne reste pour la cible #}
+{# principale, qui se vide donc (meme fermeture que `utilisateur_nouveau`, D6d T10). Sur #}
+{# refus (409), la reponse est vide aussi : la modale se vide de la meme facon, et le #}
+{# motif du refus s'affiche par la notification hors-bande (E14). #}
+{# Champs caches : la periode et le therapeute actuellement affiches, pour que la liste #}
+{# rafraichie apres l'annulation reste celle que l'utilisateur regardait. #}
+<form id="form-annulation" hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  <input type="hidden" name="debut" value="{{ debut|date:'Y-m-d' }}">
+  <input type="hidden" name="fin" value="{{ fin|date:'Y-m-d' }}">
+  <input type="hidden" name="therapeut" value="{{ therapeut_id|default_if_none:'' }}">
+  {# Meme libelle que l'ancienne confirmation AngularJS (`invoice.js:197`, catalogue JS), #}
+  {# repris dans le catalogue Python (D6d) : ce n'est plus `django.gettext` qui le rend. #}
+  <p>{% trans 'Are you sure to cancel this invoice ?' %}</p>
+</form>

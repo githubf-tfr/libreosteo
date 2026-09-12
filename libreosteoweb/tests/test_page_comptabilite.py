@@ -1,0 +1,257 @@
+# This file is part of LibreOsteo.
+#
+# LibreOsteo is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LibreOsteo is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
+"""La comptabilite : le total exact, son formatage, et l'annulation en place (D6d T11)."""
+
+from datetime import timedelta
+from decimal import Decimal
+
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from libreosteoweb.api.views.pages.comptabilite import formater_montant, total_de
+from libreosteoweb.models import Invoice, InvoiceStatus
+
+from .fixtures import (
+    cree_praticien,
+    cree_reglages_praticien,
+    regle_cabinet,
+    sans_receivers,
+)
+
+
+def _facture(numero: str, montant, **kwargs) -> Invoice:
+    """Une facture minimale : ce module n'eprouve que le montant, le numero, la date, le
+    statut, le type, `replace` et `therapeut_id` — les autres champs obligatoires du
+    modele prennent leur valeur par defaut, deja utilisee ainsi ailleurs dans la suite
+    (`test_exploitation.py`, `test_invoice.py`)."""
+    valeurs = {
+        "date": timezone.now(),
+        "amount": Decimal(str(montant)),
+        "number": numero,
+        "officesettings_id": 1,
+    }
+    valeurs.update(kwargs)
+    return Invoice.objects.create(**valeurs)
+
+
+class TestReglesDExclusionDuTotal(TestCase):
+    """La regle d'exclusion, sur trois cas nommes (C5)."""
+
+    def test_une_facture_remplacee_n_est_comptee_qu_une_fois(self):
+        """C'est le cas que le cout d'A4 designe : `replace` porte un numero et non une
+        clef etrangere, et une exclusion mal exprimee compterait deux fois une facture
+        corrigee."""
+        _facture("A1", "50.00")
+        _facture("A2", "60.00", replace="A1")
+
+        total = total_de(Invoice.objects.all())
+
+        self.assertEqual(Decimal("60.00"), total)
+
+    def test_un_avoir_compense_arithmetiquement(self):
+        """L'avoir **n'est pas** exclu : `Generator.cancel_invoice` ne pose `replace` sur
+        aucune des deux factures, et c'est le montant negatif de l'avoir qui compense."""
+        _facture("B1", "100.00", status=InvoiceStatus.CANCELED)
+        _facture("B2", "-100.00", type="creditnote")
+
+        total = total_de(Invoice.objects.all())
+
+        self.assertEqual(Decimal("0.00"), total)
+
+    def test_une_periode_vide_rend_zero_et_non_none(self):
+        """`Sum` rend `None` sur un queryset vide, et le gabarit afficherait « None »."""
+        total = total_de(Invoice.objects.none())
+
+        self.assertEqual(Decimal(0), total)
+
+    def test_l_exclusion_ne_porte_que_sur_la_periode_filtree(self):
+        """`invoice.js:85-88` calcule la liste des remplacees **depuis la liste
+        filtree**, et pas depuis toute la base : une facture corrective hors periode ne
+        retire pas sa remplacee de la periode courante."""
+        originale = _facture("C1", "50.00")
+        _facture("C2", "60.00", replace="C1")
+
+        total = total_de(Invoice.objects.filter(pk=originale.pk))
+
+        self.assertEqual(Decimal("50.00"), total)
+
+
+class TestFormatageDuMontant(TestCase):
+    def test_le_formatage_reproduit_l_affichage_actuel(self):
+        """Les sept cas de F6, dont le zero de queue et le negatif — les deux qui
+        auraient pu casser."""
+        cas = (
+            ("55.00", "55"),
+            ("55.55", "55.55"),
+            ("110.55", "110.55"),
+            ("110.00", "110"),
+            ("0.00", "0"),
+            ("0.10", "0.1"),
+            ("-55.55", "-55.55"),
+        )
+        for brut, attendu in cas:
+            with self.subTest(valeur=brut):
+                self.assertEqual(attendu, formater_montant(Decimal(brut)))
+
+
+class TestPageComptabilite(TestCase):
+    def setUp(self):
+        with sans_receivers():
+            self.praticien = cree_praticien()
+            cree_reglages_praticien(self.praticien)
+            self.cabinet = regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def test_la_liste_et_le_total_partent_du_meme_queryset(self):
+        """Une facture dans la periode, une hors : la reponse ne porte qu'une ligne, et
+        le total ne compte que celle-ci (A4)."""
+        _facture("D1", "55.00", therapeut_id=self.praticien.pk)
+        hors_periode = timezone.now() - timedelta(days=400)
+        _facture("D2", "60.00", date=hors_periode, therapeut_id=self.praticien.pk)
+
+        reponse = self.client.get(reverse("comptabilite"))
+
+        self.assertEqual(200, reponse.status_code)
+        corps = reponse.content.decode("utf-8")
+        corps_du_tableau = corps.split("<tbody>")[1].split("</tbody>")[0]
+        self.assertEqual(1, corps_du_tableau.count("<tr>"))
+        self.assertIn("D1", corps_du_tableau)
+        self.assertNotIn("D2", corps_du_tableau)
+        total = corps.split('data-testid="total-comptabilite"')[1]
+        self.assertIn("55", total.split("</div>")[0])
+
+    def test_l_annulation_en_mode_facture_corrective_est_refusee_et_le_dit(self):
+        """Le silence de P6, devenu message (E14) : `409`, et la severite dans le
+        corps."""
+        self.cabinet.cancel_invoice_credit_note = False
+        self.cabinet.save()
+        facture = _facture(
+            "D3",
+            "55.00",
+            status=InvoiceStatus.INVOICED_PAID,
+            therapeut_id=self.praticien.pk,
+        )
+
+        reponse = self.client.post(reverse("comptabilite-annuler", args=[facture.id]))
+
+        self.assertEqual(409, reponse.status_code)
+        self.assertIn('data-severite="erreur"', reponse.content.decode("utf-8"))
+        facture.refresh_from_db()
+        self.assertNotEqual(InvoiceStatus.CANCELED, facture.status)
+
+    def test_l_annulation_en_mode_avoir_emet_l_avoir(self):
+        """`200`, la facture passe a `CANCELED`, et `canceled_by` pointe l'avoir."""
+        facture = _facture(
+            "D4",
+            "55.00",
+            status=InvoiceStatus.INVOICED_PAID,
+            therapeut_id=self.praticien.pk,
+        )
+
+        reponse = self.client.post(reverse("comptabilite-annuler", args=[facture.id]))
+
+        self.assertEqual(200, reponse.status_code)
+        facture.refresh_from_db()
+        self.assertEqual(InvoiceStatus.CANCELED, facture.status)
+        self.assertIsNotNone(facture.canceled_by)
+        avoir = Invoice.objects.get(pk=facture.canceled_by_id)
+        self.assertEqual(Decimal("-55.00"), avoir.amount)
+
+    def test_l_ouverture_de_la_modale_d_annulation_rend_le_formulaire(self):
+        facture = _facture(
+            "D5",
+            "55.00",
+            status=InvoiceStatus.INVOICED_PAID,
+            therapeut_id=self.praticien.pk,
+        )
+
+        reponse = self.client.get(reverse("comptabilite-annuler", args=[facture.id]))
+
+        self.assertEqual(200, reponse.status_code)
+        self.assertIn('id="form-annulation"', reponse.content.decode("utf-8"))
+
+    def test_l_annulation_d_une_facture_deja_annulee_est_refusee_et_le_dit(self):
+        facture = _facture(
+            "D6",
+            "55.00",
+            status=InvoiceStatus.CANCELED,
+            therapeut_id=self.praticien.pk,
+        )
+
+        reponse = self.client.post(reverse("comptabilite-annuler", args=[facture.id]))
+
+        self.assertEqual(409, reponse.status_code)
+        self.assertIn('data-severite="erreur"', reponse.content.decode("utf-8"))
+
+    def test_les_trois_plages_predefinies_se_calculent_sur_le_serveur(self):
+        """Les trois plages de `invoice.js:96-111` (C7) : chacune rend `200` et n'echoue
+        pas sur une annee bissextile ou un changement d'annee."""
+        for plage in ("mois", "annee", "annee-precedente"):
+            with self.subTest(plage=plage):
+                reponse = self.client.get(reverse("comptabilite"), {"plage": plage})
+                self.assertEqual(200, reponse.status_code)
+
+    def test_le_filtre_par_therapeute_couvre_un_id_explicite_et_tous(self):
+        """`therapeut=` (vide, « Tous ») et `therapeut=<id>` (un praticien precis) sont
+        deux valeurs distinctes de l'absence du parametre (defaut : l'utilisateur
+        connecte)."""
+        _facture("D7", "55.00", therapeut_id=self.praticien.pk)
+
+        reponse_tous = self.client.get(reverse("comptabilite"), {"therapeut": ""})
+        self.assertEqual(200, reponse_tous.status_code)
+        self.assertIn("D7", reponse_tous.content.decode("utf-8"))
+
+        reponse_ciblee = self.client.get(
+            reverse("comptabilite"), {"therapeut": self.praticien.pk}
+        )
+        self.assertEqual(200, reponse_ciblee.status_code)
+        self.assertIn("D7", reponse_ciblee.content.decode("utf-8"))
+
+    def test_les_cinq_statuts_de_facture_sont_libelles(self):
+        """Reproduit les cinq etats de `invoice-list.html:70-74` (Draft, Not paid, Paid,
+        Credit note, Cancelled), un par facture."""
+        _facture("D8", "55.00", therapeut_id=self.praticien.pk)
+        _facture(
+            "D9",
+            "55.00",
+            status=InvoiceStatus.WAITING_FOR_PAIEMENT,
+            therapeut_id=self.praticien.pk,
+        )
+        _facture(
+            "D10",
+            "55.00",
+            status=InvoiceStatus.INVOICED_PAID,
+            therapeut_id=self.praticien.pk,
+        )
+        _facture(
+            "D11",
+            "-55.00",
+            status=InvoiceStatus.INVOICED_PAID,
+            type="creditnote",
+            therapeut_id=self.praticien.pk,
+        )
+        _facture(
+            "D12",
+            "55.00",
+            status=InvoiceStatus.CANCELED,
+            therapeut_id=self.praticien.pk,
+        )
+
+        corps = self.client.get(reverse("comptabilite")).content.decode("utf-8")
+
+        for libelle in ("Brouillon", "Non réglée", "Réglée", "Avoir", "Annulée"):
+            with self.subTest(libelle=libelle):
+                self.assertIn(libelle, corps)

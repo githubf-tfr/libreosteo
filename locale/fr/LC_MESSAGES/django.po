@@ -881,6 +881,12 @@ msgstr "CSV anonymisé"
 msgid "Total amount on selected period"
 msgstr "Montant total sur la période sélectionnée"
 
+msgid "From"
+msgstr "Du"
+
+msgid "To"
+msgstr "Au"
+
 msgid "Invoice nr"
 msgstr "N° de facture"
 
@@ -892,6 +898,9 @@ msgstr "Par"
 
 msgid "Actions"
 msgstr "Actions"
+
+msgid "Are you sure to cancel this invoice ?"
+msgstr "Êtes-vous sûr(e) d'annuler cette facture ?"
 
 msgid "multiple"
 msgstr "multiple"
@@ -948,6 +957,12 @@ msgstr "Avoir sur annulation"
 
 msgid "Corrective invoice on canceling"
 msgstr "Facture corrective sur annulation"
+
+msgid "This invoice is already canceled."
+msgstr "Cette facture est déjà annulée."
+
+msgid "This office cancels invoices by corrective invoice: cancel from the examination."
+msgstr "Ce cabinet annule les factures par facture corrective : annulez depuis la consultation."
 
 msgid "The start sequence must have composed only with numbers"
 msgstr "La séquence de démarrage doit être composée uniquement de chiffres"

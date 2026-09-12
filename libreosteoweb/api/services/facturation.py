@@ -22,6 +22,7 @@ from django.utils.translation import gettext
 
 from libreosteoweb import models
 
+from ..invoicing import generator as invoicing_generator
 from ..utils import _unicode, convert_to_long, maximum_numerique_des_numeros
 
 
@@ -151,3 +152,18 @@ def encaisser(
     facture.save()
     consultation.save()
     return ResultatEncaissement(facture_id=consultation.last_invoice.id, encaissee=True)
+
+
+def annuler_par_avoir(facture: models.Invoice, officesettings: models.OfficeSettings):
+    """Annule une facture en emettant son avoir, et rend l'avoir.
+
+    Extrait de `InvoiceViewSet.cancel` (branche `cancel_invoice_credit_note`) pour que la
+    vue de page de la Comptabilite et le point d'entree DRF disent **la meme chose** (C4).
+    `Generator.cancel_invoice` sauvegarde l'avoir lui-meme et convertit en 400 la collision
+    de numero : une seconde `save()` ici referait l'INSERT deja fait.
+    """
+    avoir = invoicing_generator.Generator(officesettings, None).cancel_invoice(facture)
+    facture.status = models.InvoiceStatus.CANCELED
+    facture.canceled_by = avoir
+    facture.save()
+    return avoir

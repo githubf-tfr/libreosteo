@@ -1,5 +1,6 @@
 """Cas repris de tests/core/008_invoice_functionality.robot."""
 
+import re
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -332,28 +333,14 @@ def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
     cloturer_consultation(page, mode="invoiced", moyen="check")
     facture = Invoice.objects.get()
 
-    # Meme course que celle documentee en detail dans
-    # test_impression_de_facture_reprend_cabinet_et_therapeute (ligne ~509) :
-    # `InvoiceListCtrl` recharge $scope.invoices depuis trois sources async
-    # independantes, `ng-repeat` reconstruit alors la ligne. Aucune barriere d'ecran
-    # ne barre cette course ; attendre la reponse `therapeut_id=` (la
-    # derniere des trois, deterministement) le fait.
-    with page.expect_response(
-        lambda reponse: (
-            "/api/invoices" in reponse.url and "therapeut_id=" in reponse.url
-        )
-    ):
-        # `exact=True` est impossible sur ce libelle : Playwright fait entrer le contenu des
-        # pseudo-elements dans le nom accessible, et l'icone Font Awesome qui precede le
-        # texte (`<i class="fa fa-list-alt">`, index.html) y ajoute sa glyphe de la zone privee Unicode. Le nom
-        # accessible ne vaut donc jamais « Comptabilité » tout court. La correspondance par
-        # sous-chaine reste non ambigue : aucun autre lien ne porte ce mot.
-        page.get_by_role("link", name="Comptabilité").click()
-    # Le titre de la vue entrante, adresse par son `data-testid` : il ne peut pas etre
-    # confondu avec celui de la fiche patient quittee, qu'ui-router laisse dans le DOM
-    # le temps de l'animation de sortie, ni avec le <h1> d'apercu que l'editeur de
-    # texte riche laisse dans son menu de mise en forme.
-    expect(page.get_by_test_id("titre-comptabilite")).to_contain_text("Comptabilité")
+    # `exact=True` est impossible sur ce libelle : Playwright fait entrer le contenu des
+    # pseudo-elements dans le nom accessible, et l'icone Font Awesome qui precede le
+    # texte (`<i class="fa fa-list-alt">`, index.html) y ajoute sa glyphe de la zone privee
+    # Unicode. Le nom accessible ne vaut donc jamais « Comptabilité » tout court. La
+    # correspondance par sous-chaine reste non ambigue : aucun autre lien ne porte ce mot.
+    # Depuis D6d T11, la liste et le total sont rendus par le serveur : `ouvrir_la_
+    # comptabilite` n'a plus de course a fermer, le rendu du document est la barriere.
+    ouvrir_la_comptabilite(page)
 
     ligne = page.locator("tbody tr")
     expect(ligne).to_have_count(1)
@@ -410,7 +397,7 @@ def test_numerotation_continue_sur_deux_factures(
     )
     assert int(seconde_facture.number) == int(premiere_facture.number) + 1
 
-    page.get_by_role("link", name="Comptabilité").click()
+    ouvrir_la_comptabilite(page)
     lignes = page.locator("tbody tr")
     expect(lignes).to_have_count(2)
     expect(lignes.nth(0)).to_contain_text(seconde_facture.number)
@@ -456,7 +443,7 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     expect(page.locator("#main")).to_contain_text("Template with 55.55 EUR")
     expect(page.locator("#main")).to_contain_text("55,55 EUR")
 
-    page.goto(f"{live_server.url}/#/invoices")
+    page.goto(f"{live_server.url}/invoices")
     lignes = page.locator("tbody tr")
     expect(lignes).to_have_count(2)
     expect(lignes.filter(has_text=facture_a_centimes.number)).to_contain_text("55.55 €")
@@ -524,29 +511,11 @@ def test_impression_de_facture_reprend_cabinet_et_therapeute(
     facture = Invoice.objects.get()
     assert facture.number == "10000"
 
-    # `InvoiceListCtrl` (invoice.js) appelle `getInvoices()` depuis trois sources
-    # independantes — le `$watch('filters.dateRange', ...)` (premier digest),
-    # `OfficeSettingsServ.get` et `MyUserIdServ.then` — chacune remplacant
-    # `$scope.invoices` par un tableau neuf : `ng-repeat` recree alors la ligne
-    # entiere (nouveaux objets, donc nouveau `$$hashKey`), fermant tout menu
-    # ouvert sur l'ancienne ligne. Ni une barriere d'ecran, que le premier des
-    # trois rechargements satisfait deja, ni
-    # `page.wait_for_load_state("networkidle")` (rend la main entre deux de ces
-    # trois requetes, avant que la derniere ne soit meme partie : constate par
-    # instrumentation directe des evenements reseau) ne barrent cette course.
-    # `MyUserIdServ.then` est le seul des trois callbacks a poser
-    # `filters.therapeut_id`, donc le seul dont l'appel a `getInvoices()` envoie
-    # `therapeut_id` dans la requete : c'est deterministement le dernier des
-    # trois rechargements, quel que soit l'ordre d'arrivee des deux autres
-    # reponses (confirme sur plusieurs lancements instrumentes). Attendre sa
-    # reponse est donc une vraie barriere de fin, contrairement aux deux
-    # precedentes.
-    with page.expect_response(
-        lambda reponse: (
-            "/api/invoices" in reponse.url and "therapeut_id=" in reponse.url
-        )
-    ):
-        page.get_by_role("link", name="Comptabilité").click()
+    # Depuis D6d T11, la liste et le total arrivent dans le document : les trois
+    # rechargements concurrents d'`InvoiceListCtrl` (invoice.js) — dont un seul portait
+    # `therapeut_id=`, ce qui en faisait deterministement le dernier — n'existent plus.
+    # Le rendu du document est la barriere.
+    ouvrir_la_comptabilite(page)
     ligne = page.locator("tbody tr")
     ligne.get_by_test_id("actions-facture").click()
     with page.context.expect_page() as info_nouvel_onglet:
@@ -656,24 +625,14 @@ def test_facture_imprimee_porte_sa_date_stockee_pas_celle_du_jour(
 
 
 def ouvrir_la_comptabilite(page: Page) -> None:
-    """Ouvre l'ecran Comptabilite depuis le menu, et attend qu'il soit reellement charge.
+    """Ouvre l'ecran Comptabilite depuis le menu.
 
-    `InvoiceListCtrl` (invoice.js) appelle `getInvoices()` depuis trois sources
-    independantes, chacune remplacant `$scope.invoices` par un tableau neuf ; seul le
-    rappel de `MyUserIdServ` pose `filters.therapeut_id`, donc seule sa requete porte
-    `therapeut_id=` — c'est deterministement la derniere des trois. Meme idiome que
-    `test_liste_des_factures` et `test_impression_de_facture_reprend_cabinet_et_therapeute`,
-    ou il est documente en detail.
-
-    **Cette barriere disparait avec l'ecran (D6d T11)** : sous rendu serveur, la liste et
-    le total arrivent dans le document, et le clic est une navigation ordinaire.
+    Depuis D6d T11, le clic est une **navigation de document** : la liste et le total
+    sont rendus par le serveur, et les trois rechargements concurrents d'`InvoiceListCtrl`
+    — dont un seul portait `therapeut_id=`, ce qui en faisait deterministement le dernier
+    — n'existent plus. Le titre suffit comme barriere, et il est en aval du document.
     """
-    with page.expect_response(
-        lambda reponse: (
-            "/api/invoices" in reponse.url and "therapeut_id=" in reponse.url
-        )
-    ):
-        page.get_by_role("link", name="Comptabilité").click()
+    page.get_by_role("link", name="Comptabilité").click()
     expect(page.get_by_test_id("titre-comptabilite")).to_contain_text("Comptabilité")
 
 
@@ -736,3 +695,67 @@ def test_periode_sans_facture(
 
     expect(page.locator("tbody tr")).to_have_count(0)
     expect(page.get_by_test_id("total-comptabilite")).to_contain_text("0")
+
+
+def test_total_exact_sur_trois_factures_a_centimes(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """**La dette que `settings/base.py:242` assigne nommement a D6, mesuree.**
+
+    Trois factures a 55,55 € : `sum([55.55] * 3)` vaut `166.64999999999998` en IEEE 754, et
+    c'est ce que l'ecran affichait. Le total est desormais un agregat `Decimal`, calcule par
+    la vue sur le **meme queryset filtre** que la liste.
+
+    Demontre rouge sur l'arbre d'avant : sur `partials/invoice-list.html`, ce meme cas
+    affiche `166.64999999999998`. C'est le seul test du lot qui puisse l'etre.
+    """
+    for numero in ("40001", "40002", "40003"):
+        cree_facture(
+            numero, socle.cabinet, montant=55.55, therapeut_id=socle.utilisateur.pk
+        )
+
+    connexion(page, live_server)
+    ouvrir_la_comptabilite(page)
+
+    expect(page.locator("tbody tr")).to_have_count(3)
+    total = page.get_by_test_id("total-comptabilite")
+    expect(total).to_contain_text("166.65")
+    # Preuve d'absence, indissociable : c'est l'artefact lui-meme qui ne doit plus
+    # apparaitre, et une assertion de presence seule ne le dirait pas.
+    expect(total).not_to_contain_text("166.6499")
+
+
+def test_filtre_de_periode_par_les_champs_de_date(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Cas de R-FAC-07 : les deux champs de date et les trois plages predefinies.
+
+    **Ce test n'a aucun equivalent avant migration**, et c'est ecrit : le selecteur d'avant
+    est `bootstrap-daterangepicker`, un greffon jQuery ; le piloter n'eprouverait que le
+    greffon, et le test serait jete au premier increment (T5). Les deux proprietes qui, elles,
+    ne dependaient d'aucune implementation — periode par defaut et periode vide — ont ete
+    figees par T5, contre l'ecran d'avant, et elles passent ici **sans modification d'un
+    octet**.
+
+    Falsifiable : retirer `hx-push-url="true"` du formulaire — la derniere assertion echoue,
+    l'URL ne portant plus la periode et un rafraichissement ramenant au mois en cours.
+    """
+    ancienne = timezone.now() - timedelta(days=400)
+    cree_facture(
+        "40001", socle.cabinet, date=ancienne, therapeut_id=socle.utilisateur.pk
+    )
+    cree_facture("40002", socle.cabinet, therapeut_id=socle.utilisateur.pk)
+
+    connexion(page, live_server)
+    ouvrir_la_comptabilite(page)
+    expect(page.locator("tbody tr")).to_have_count(1)
+
+    page.fill("#debut", (ancienne - timedelta(days=1)).strftime("%Y-%m-%d"))
+    page.fill("#fin", (ancienne + timedelta(days=1)).strftime("%Y-%m-%d"))
+    page.get_by_test_id("filtrer-periode").click()
+
+    lignes = page.locator("tbody tr")
+    expect(lignes).to_have_count(1)
+    expect(lignes).to_contain_text("40001")
+    expect(lignes).not_to_contain_text("40002")
+    expect(page).to_have_url(re.compile(r"[?&]debut="))

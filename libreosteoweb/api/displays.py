@@ -80,10 +80,6 @@ class TherapeutSettingsDisplay(GenericDisplay):
         fields = [f.name for f in model._meta.fields if f.editable]
 
 
-def display_invoices(request):
-    return render(request, "partials/invoice-list.html", {})
-
-
 def display_index(request):
     global new_version, new_version_available
     if new_version is None:

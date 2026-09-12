@@ -136,6 +136,12 @@ urlpatterns = [
         views.cellule_utilisateur,
         name="cabinet-utilisateur-cellule",
     ),
+    re_path(r"^invoices$", views.page_comptabilite, name="comptabilite"),
+    re_path(
+        r"^invoices/(?P<identifiant>\d+)/cancel$",
+        views.annuler_facture,
+        name="comptabilite-annuler",
+    ),
     re_path(r"", include("libreosteoweb.urls")),
     re_path(r"^internal/dump.json", views.DbDump.as_view(), name="db_dump"),
     re_path(r"^internal/restore", views.LoadDump.as_view(), name="load_dump"),
@@ -167,7 +173,6 @@ urlpatterns = [
         displays.display_register,
         name="accounts-register",
     ),
-    re_path(r"^web-view/partials/invoice-list$", displays.display_invoices),
     re_path(
         r"^invoice/(?P<invoiceid>\d+)$",
         views.InvoiceViewHtml.as_view(),

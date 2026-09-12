@@ -38,6 +38,7 @@ from .import_fichiers import FileImportViewSet
 from .installation import CreateAdminAccountView, InstallView, create_superuser
 from .pages import (
     analyser_import,
+    annuler_facture,
     cellule_utilisateur,
     enregistrer_affichage,
     enregistrer_cabinet,
@@ -47,6 +48,7 @@ from .pages import (
     mot_de_passe,
     mot_de_passe_utilisateur,
     page_cabinet,
+    page_comptabilite,
     page_import_export,
     page_profil,
     page_reindexation,
@@ -77,6 +79,7 @@ __all__ = [
     "PatientDocumentViewSet",
     "PatientViewSet",
     "analyser_import",
+    "annuler_facture",
     "cellule_utilisateur",
     "enregistrer_affichage",
     "enregistrer_cabinet",
@@ -86,6 +89,7 @@ __all__ = [
     "mot_de_passe",
     "mot_de_passe_utilisateur",
     "page_cabinet",
+    "page_comptabilite",
     "page_import_export",
     "page_profil",
     "page_reindexation",

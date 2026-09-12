@@ -28,6 +28,7 @@ from rest_framework.settings import api_settings
 from libreosteoweb import models
 from libreosteoweb.api import serializers as apiserializers
 from libreosteoweb.api.invoicing import generator as invoicing_generator
+from libreosteoweb.api.services import facturation as services_facturation
 
 from ..renderers import InvoiceXLSXRenderer
 
@@ -95,16 +96,12 @@ class InvoiceViewSet(XLSXFileMixin, viewsets.ReadOnlyModelViewSet):
         if self.get_object().status != models.InvoiceStatus.CANCELED:
             officesettings = request.officesettings
             if officesettings.cancel_invoice_credit_note:
-                # `Generator.cancel_invoice` sauvegarde desormais l'avoir lui-meme, et
-                # convertit en 400 la meme collision de numero qu'a l'emission (T10) :
-                # une deuxieme `save()` ici referait l'INSERT deja fait.
-                cancelation = invoicing_generator.Generator(
-                    officesettings, None
-                ).cancel_invoice(self.get_object())
-                canceled = self.get_object()
-                canceled.status = models.InvoiceStatus.CANCELED
-                canceled.canceled_by = cancelation
-                canceled.save()
+                # Extrait dans `services.facturation.annuler_par_avoir` (D6d T11) :
+                # la vue de page de la Comptabilite et ce point d'entree DRF disent
+                # desormais la meme chose (C4).
+                cancelation = services_facturation.annuler_par_avoir(
+                    self.get_object(), officesettings
+                )
                 response = {
                     "canceled": self.serializer_class(self.get_object()).data,
                     "credit_note": self.serializer_class(cancelation).data,
