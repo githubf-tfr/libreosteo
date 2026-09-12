@@ -820,7 +820,8 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 ## Terminé
 
 - **2026-09-12 — D6d Administration migrée : les cinq écrans en htmx, sans AngularJS**
-  (treize tâches ; spec `docs/superpowers/specs/2026-09-11-d6d-administration-design.md`).
+  (treize tâches ; spec `docs/superpowers/specs/2026-09-11-d6d-administration-design.md`,
+  plan supprimé une fois achevé).
   **Treize commits `cb91310..da50c5a`**, soit un par tâche plus `2827648`, un correctif
   isolé en commit séparé — la borne exacte de `valider_sequence_de_depart` n'était prouvée
   sur aucune des deux surfaces, et la prouver était plus honnête que de l'affirmer.
@@ -872,6 +873,14 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   (`libreosteoweb/templates/index.html:60`), ce que la sentinelle de
   `test_authentification.py` exige déjà en n'acceptant qu'un bundle JS chargé par le
   document authentifié. **Seule la mesure de clôture suit un `rm -rf static/CACHE`.**
+
+  **La clause des vingt lancements, jouée en session centrale, est verte du premier coup** :
+  vingt exécutions consécutives de `make test-functional` sur `4d4fc9e`, **`82 passed` à
+  chacune**, une par appel et jamais deux en parallèle. Durées de **433 à 551 s**, la plus
+  longue étant la première — celle qui reconstruit l'arbre servi. Aucun rouge, donc aucune
+  remise à zéro du compte. À comparer à la mesure d'avant D6c, qui donnait une intermittence
+  à **45 %** sous la charge de la suite complète : les cinq écrans migrés n'en réintroduisent
+  pas. C'est la seconde fois que la clause passe sans reprise.
 
   **La seconde mesure exigée par C9 n'est pas prise** : la durée d'une réindexation
   complète sur un parc réel se relève sur le parc de 100 patients de `R-IMP-01`, en jouant
