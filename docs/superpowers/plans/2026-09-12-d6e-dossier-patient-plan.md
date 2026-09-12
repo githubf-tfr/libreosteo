@@ -2217,8 +2217,8 @@ def texte_riche(request: HttpRequest) -> HttpResponse:
 
 Dans `tests/functional/banc/urls.py`, ajouter avant les routes du produit :
 
-```python
-(re_path(r"^banc/texte-riche$", vues.texte_riche, name="banc-texte-riche"),)
+```text
+    re_path(r"^banc/texte-riche$", vues.texte_riche, name="banc-texte-riche"),
 ```
 
 **`mark_safe` sur la valeur du banc** : le fragment applique `|safe`, mais le passage par
@@ -2786,14 +2786,12 @@ Créer `libreosteoweb/templates/pages/diagnostic-texte-riche.html` :
 
 Ajouter la route à `Libreosteo/urls.py`, **avant** `re_path(r"", include("libreosteoweb.urls"))** :
 
-```python
-(
+```text
     re_path(
         r"^office/rich-text-diagnostic$",
         views.page_diagnostic_texte_riche,
         name="diagnostic-texte-riche",
     ),
-)
 ```
 
 Ajouter les ré-exports à `libreosteoweb/api/views/pages/__init__.py` (import **et** `__all__`,
