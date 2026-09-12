@@ -172,6 +172,29 @@ class TestMarquageServeurDesOnglets(SimpleTestCase):
             [("un", "un", "Un", False), ("deux", "deux", "Deux", True)],
         )
 
+    def test_une_cle_vide_ne_marque_jamais_un_second_onglet(self) -> None:
+        """Le cas degenere, ferme plutot que nomme (revue de T7, point 4).
+
+        Une cle vide et un `actif_initial` vide sont **egaux**. Sans precaution, une vue
+        qui calculerait son `actif_initial` par un `… if onglets else ""` — le motif exact
+        d'`import_export.py:65`, celui que T12 risque de recopier — et qui construirait par
+        ailleurs un onglet de cle vide obtiendrait **deux** onglets marques : le premier par
+        le repli, celui de cle vide par l'egalite. C'est precisement l'etat que la clause
+        existe pour empecher.
+
+        La garde est le premier membre de la condition, `actif_initial and …` : l'egalite
+        n'est evaluee que si `actif_initial` porte reellement une cle.
+
+        Falsification : retirer cette garde rend deux onglets marques au lieu d'un.
+        """
+        self.assertEqual(
+            self._rendre(
+                [{"cle": "un", "libelle": "Un"}, {"cle": "", "libelle": "Vide"}],
+                actif_initial="",
+            ),
+            [("un", "un", "Un", True), ("", "", "Vide", False)],
+        )
+
     def test_un_actif_initial_inconnu_ne_marque_aucun_onglet(self) -> None:
         """Ce qui n'est **pas** garanti, et qui est ecrit ici pour ne pas etre suppose.
 

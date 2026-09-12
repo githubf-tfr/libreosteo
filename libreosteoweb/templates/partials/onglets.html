@@ -13,11 +13,11 @@
 {# porter dans l'URL serait un gain que personne n'a demande, et il changerait l'URL sous #}
 {# les six appels d'`ouvrir_import` du filet. #}
 {# #}
-{# `class="active"` est **aussi** rendu par le serveur sur le premier onglet, en plus de la #}
-{# liaison `:class` : Alpine est charge en `defer`, et sans cette classe la barre #}
-{# n'afficherait aucun onglet actif entre le rendu et le demarrage d'Alpine. La syntaxe #}
-{# objet de `:class` n'ajoute et ne retire que les classes qu'elle nomme : les autres #}
-{# survivent. #}
+{# `class="active"` est **aussi** rendu par le serveur, en plus de la liaison `:class` : #}
+{# Alpine est charge en `defer`, et sans cette classe la barre n'afficherait aucun onglet #}
+{# actif entre le rendu et le demarrage d'Alpine. L'onglet ainsi marque est celui #}
+{# qu'`actif_initial` nomme, ou le premier a defaut (cf. plus bas). La syntaxe objet de #}
+{# `:class` n'ajoute et ne retire que les classes qu'elle nomme : les autres survivent. #}
 {# #}
 {# **Deux proprietes ajoutees par D6e (A21), sans un seul {% if %} neuf dans la boucle** : #}
 {# 1. un **onglet conditionnel** est une entree que la vue **ne construit pas** — le #}
@@ -26,14 +26,41 @@
 {#    `actif`, depuis n'importe quel `@click`, `x-init` ou `hx-on::after-request`. #}
 {# Le composant est **etendu, jamais duplique** : un second composant d'onglets a cote du #}
 {# premier serait exactement la divergence que D6c existe pour empecher (F16). #}
+{# #}
+{# **`actif_initial`** : la `cle` de l'onglet que le **serveur** marque actif avant #}
+{# qu'Alpine ne demarre. Facultatif ; a defaut, c'est le premier onglet, ce qui rend aux #}
+{# trois consommateurs de D6d le comportement qu'ils avaient. Le dossier patient, lui, #}
+{# ouvre parfois sur « Consultations » ou « Consultation en cours » (D6e, A21). #}
+{# #}
+{# Quatre clauses, qui font partie du contrat autant que la variable elle-meme : #}
+{# #}
+{# 1. **`actif_initial` doit valoir le `actif` initial du `x-data`.** Les deux disent la #}
+{#    meme chose a deux etages — le serveur pour l'instant d'avant Alpine, Alpine pour #}
+{#    tout le reste — et les desaccorder fait clignoter la barre au chargement. #}
+{# 2. **Ne pas confondre avec `onglet_initial`.** `pages/import-export.html:21` porte une #}
+{#    variable de ce nom, qui vaut exactement ce qu'`actif_initial` attend et **ne la #}
+{#    transmet pas** au composant : celui-ci y retombe sur le premier onglet, sans #}
+{#    consequence **uniquement** parce qu'`import_export.py:65` vaut toujours #}
+{#    `onglets[0]["cle"]`. Defaut connu et verse, d'un lot anterieur. Ne pas le recopier #}
+{#    par mimetisme : un ecran qui ouvrirait ailleurs marquerait le mauvais onglet en #}
+{#    silence. #}
+{# 3. **La cle doit etre construite par la vue, jamais recue telle quelle d'une URL.** Un #}
+{#    `actif_initial` qui ne correspond a aucun onglet construit ne marque **rien** — pas #}
+{#    de repli sur le premier — et Alpine, portant la meme cle inconnue, n'affichera aucun #}
+{#    panneau : l'ecran serait blanc. La vue valide, puis nomme. #}
+{# 4. Le composant **ne gere pas les panneaux**. Patron a reprendre, celui du produit : un #}
+{#    `<div>` **nu** portant `x-show="actif === '<cle>'"` et, pour ceux qu'`actif_initial` #}
+{#    ne designe pas, un `style="display: none"` pose par le serveur — sans quoi tous les #}
+{#    panneaux sont visibles jusqu'au demarrage d'Alpine. **Pas de classe `tab-pane`** : #}
+{#    son `display:none` vient d'une feuille de style, qu'Alpine ne sait que **retirer** #}
+{#    et non reecrire (legs n° 1 de D6c, corrige dans `modale.html` par `dfb2473`). #}
+{# #}
+{# La garde `actif_initial and …` ci-dessous n'est pas redondante avec la branche de #}
+{# repli : sans elle, un `actif_initial` vide — le `… if onglets else ""` d'un calcul de #}
+{# vue — serait **egal** a la cle d'un onglet vide, et deux onglets seraient marques. #}
 <ul class="nav nav-tabs" role="tablist">
   {% for onglet in onglets %}
-  {# `actif_initial` : l'onglet que le serveur marque actif avant qu'Alpine ne demarre. #}
-  {# Par defaut le premier, ce qui reproduit a l'octet le comportement des trois #}
-  {# consommateurs de D6d ; le dossier patient, lui, ouvre parfois sur « Consultations » #}
-  {# ou « Consultation en cours » (D6e, A21). Sans cette ligne, deux onglets seraient #}
-  {# marques actifs entre le rendu et le demarrage d'Alpine, charge en `defer`. #}
-  <li role="presentation" class="{% if onglet.cle == actif_initial or not actif_initial and forloop.first %}active{% endif %}"
+  <li role="presentation" class="{% if actif_initial and onglet.cle == actif_initial or not actif_initial and forloop.first %}active{% endif %}"
       :class="{ 'active': actif === '{{ onglet.cle }}' }">
     {# Le libelle **est** l'adressage : `test_import_csv.py` clique #}
     {# `a:has-text("Importer d'un système externe")`, six fois. Les onglets restent donc #}
