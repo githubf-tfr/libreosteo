@@ -1711,7 +1711,11 @@ et elle seule, qui la vérifie.
   mise en forme de la liste, son ordre ou son nombre d'entrées — l'étape 2 ci-dessous est
   vérifiée à la main.)
 - **État requis** : E2. Suppose que la base des codes postaux a été importée
-  (`manage.py import_zipcodes`).
+  (`manage.py import_zipcodes`). Cette fiche modifie durablement **deux** choses : l'adresse
+  du patient Picard (étape 4) et le réglage d'affichage du thérapeute, que l'étape 6 laisse
+  **décoché** — une fiche jouée ensuite hériterait d'un profil coupé. Remonter l'état E2
+  (chapitre 1), ou au minimum rejouer l'étape 7, avant de jouer une autre fiche qui en
+  dépend.
 
 **Étapes**
 
@@ -1733,6 +1737,9 @@ et elle seule, qui la vérifie.
 6. Profil utilisateur, décocher « Auto-complétion via le code postal (France) »,
    « Enregistrer ». Revenir sur la fiche Picard, « Éditer », saisir `70190`.
    Attendu : **aucune suggestion n'apparaît**.
+7. Profil utilisateur, **recocher** « Auto-complétion via le code postal (France) »,
+   « Enregistrer » — l'étape 6 a coupé un réglage par défaut, cette étape le rend.
+   Attendu : la case est de nouveau cochée.
 
 ### Documents patient
 

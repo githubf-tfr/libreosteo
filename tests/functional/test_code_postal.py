@@ -9,6 +9,21 @@ liste, ni son ordre, ni le nombre de suggestions rendues.
 `\\d{5}`, la ou `e-typeahead-min-length="2"` declenche des deux frappes — entre deux et
 quatre chiffres l'appel part sur une URL qui ne resout pas, et rien n'apparait. Le composant
 qui remplace `uib-typeahead` reproduit cette borne (D6e, E5).
+
+**Ce par quoi ce filet tient encore a `uib-typeahead`** — a lire avant de le declarer
+« traverse sans retouche » (D6e, T12) :
+
+1. `page.fill` ne diffuse que `input` puis `change`. Un composant declenche sur `keyup`
+   rendrait le premier test rouge **sur un produit qui marche**.
+2. Le compteur de requetes suppose que la recherche part **synchronement** dans le digest
+   de l'evenement `input` (`typeahead-wait-ms` vaut 0, le gabarit ne la pose pas). Une
+   temporisation neuve — debounce, `hx-trigger="… delay:300ms"` — la ferait partir apres
+   la lecture du compteur : l'assertion deviendrait vacueuse **sans devenir rouge**.
+3. `page.goto(".../#/patient/<id>")` est une route `ui-router`, que D6e supprime au profit
+   de `/patient/<id>` sans `#`. Cette ligne-la **devra** etre reprise.
+4. `get_by_text(..., exact=True)` : un composant rendant deux fois le meme texte (option
+   masquee et ligne visible, annonce `aria-live`) declencherait une violation de mode
+   strict, que Playwright **ne rejoue pas** — rouge instantane sur un produit qui marche.
 """
 
 import re
@@ -31,13 +46,26 @@ from zipcode_lookup.models import ZipcodeMapping
 @pytest.fixture
 def communes() -> None:
     """Deux villes pour un meme code postal : une suggestion ne suffit pas a prouver
-    qu'un clic pose bien **la ville cliquee** et non la seule disponible."""
+    qu'un clic pose bien **la ville cliquee** et non la seule disponible.
+
+    **Dependance a l'ordre de rendu, assumee et non garantie** : `zipcode_lookup/views.py`
+    interroge sans `ORDER BY`, et l'ordre d'insertion met `Rioz` en **seconde** position.
+    C'est ce qui fait que ce test attrape aussi le composant fautif qui poserait toujours
+    la *premiere* suggestion au lieu de celle qu'on a cliquee. Si l'ordre s'inversait, le
+    test resterait vert en perdant cette vertu-la, **sans aucun signal** — il ne peut pas
+    asserter l'ordre, le filet s'interdit de le regarder (D6e, A18).
+    """
     ZipcodeMapping.objects.bulk_create(
         [
             ZipcodeMapping(zipcode="70190", city="La Barre"),
             ZipcodeMapping(zipcode="70190", city="Rioz"),
         ]
     )
+
+
+# URL de la requete sentinelle (cf. `_barriere_sentinelle`). Le marqueur de requete la rend
+# non ambigue : aucune autre requete de l'ecran ne peut la satisfaire par hasard.
+_URL_SENTINELLE = "/api/profiles/get_by_user?sentinelle-t3=1"
 
 
 @contextmanager
@@ -50,12 +78,15 @@ def _recherches_de_code_postal_observees(page: Page) -> Iterator[list[str]]:
     coupe, `zipcodeLookup()` (`patient.js:260`) rend `[]` sans jamais appeler
     `ZipCodeServ`, donc **aucune** requete ne part ; reglage actif, une requete part a
     chaque frappe qui atteint `typeahead-min-length`.
+
+    La methode est filtree, comme `helpers.enregistrements_patient_observes` filtre `PUT` :
+    seul le `GET` du service est une recherche.
     """
     emises: list[str] = []
     motif = re.compile(r"/zipcode_lookup/")
 
     def _capter(requete: Request) -> None:
-        if motif.search(requete.url) is not None:
+        if requete.method == "GET" and motif.search(requete.url) is not None:
             emises.append(requete.url)
 
     page.on("request", _capter)
@@ -63,6 +94,36 @@ def _recherches_de_code_postal_observees(page: Page) -> Iterator[list[str]]:
         yield emises
     finally:
         page.remove_listener("request", _capter)
+
+
+def _barriere_sentinelle(page: Page) -> None:
+    """Emet une requete depuis la page et attend **sa reponse**.
+
+    Raison d'etre, et pourquoi ce n'est pas `wait_for_load_state("networkidle")` : cette
+    derniere **ne barre rien ici**, et c'est lu dans le driver embarque, pas suppose.
+    `waitForLoadState` (`coreBundle.js:23131-23135`) rend la main immediatement si
+    `_firedLifecycleEvents` contient deja `networkidle` ; or le demarrage d'une requete
+    passe par `_inflightRequestStarted` (`:22817-22823`), qui appelle
+    `_stopNetworkIdleTimer()` — lequel ne fait qu'annuler le minuteur, **sans** appeler
+    `_recalculateNetworkIdle`. L'evenement, une fois tire pour le document courant, n'est
+    donc jamais retire hors navigation (seul `:23027` le retire). Consequence **inverse**
+    de l'intuition : plus la machine est calme ou lente a atteindre la frappe, plus
+    `networkidle` a eu le temps d'etre tire, et plus l'appel devient un no-op.
+
+    La barriere posee ici est causale, et c'est l'argument de
+    `helpers.enregistrements_patient_observes` : Playwright delivre les evenements de
+    protocole **dans l'ordre du reseau**. La sentinelle part apres la frappe, donc apres
+    toute recherche que la frappe aurait declenchee ; quand sa **reponse** est la,
+    l'evenement `request` de cette recherche a forcement deja ete delivre a l'ecouteur.
+
+    **Ce qu'elle ne garantit pas, et il ne faut pas le lui prefer** : elle ne prouve pas
+    qu'une liste de suggestions aurait eu le temps d'etre *rendue*. Les deux requetes sont
+    concurrentes et rien n'ordonne leurs reponses entre elles. Elle rend l'assertion sur
+    le **compteur** opposable ; les deux `to_have_count(0)` qui suivent restent, elles, un
+    controle secondaire.
+    """
+    with page.expect_response(lambda reponse: _URL_SENTINELLE in reponse.url):
+        page.evaluate(f"fetch({_URL_SENTINELLE!r})")
 
 
 def _ouvrir_le_dossier_en_edition(page: Page, live_server: LiveServer) -> Patient:
@@ -114,19 +175,19 @@ def test_le_reglage_desactive_supprime_les_suggestions(
     voyait la liste. Sur une machine chargee, les deux auraient passe et le test aurait
     ete vert sur un produit casse.
 
-    D'ou les deux barrieres posees avant les assertions, toutes deux **tolerantes** (elles
-    attendent un etat, elles ne parient pas sur un delai) : le reseau revenu au calme, et
-    le compteur de requetes, qui mesure la cause plutot que son effet visible.
+    **L'assertion qui porte ce test est donc celle sur le compteur de requetes**, rendue
+    opposable par une barriere causale (`_barriere_sentinelle`) : elle mesure la cause —
+    une recherche part, ou ne part pas — plutot que son effet visible. Les deux
+    `to_have_count(0)` restent un controle **secondaire**, et volontairement conserve : si
+    un composant futur servait les suggestions sans requete (cache, donnees dans le
+    document), le compteur deviendrait muet et elles seraient le seul filet restant.
     """
     TherapeutSettings.objects.update(zipcode_completion_enabled=False)
     _ouvrir_le_dossier_en_edition(page, live_server)
 
     with _recherches_de_code_postal_observees(page) as recherches:
         page.fill("input[name=zipcode]", "70190")
-        # Barriere tolerante : attend que le reseau se taise, aussi longtemps qu'il le
-        # faut. Une requete de recherche partie pendant la frappe est donc forcement
-        # revenue, et la liste qu'elle aurait nourrie forcement rendue, quand on sort d'ici.
-        page.wait_for_load_state("networkidle")
+        _barriere_sentinelle(page)
 
     assert recherches == [], (
         f"le reglage est coupe, aucune recherche de code postal ne doit partir : {recherches}"
