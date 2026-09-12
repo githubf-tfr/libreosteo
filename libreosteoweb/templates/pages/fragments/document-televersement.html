@@ -2,8 +2,14 @@
 {# Le bloc de televersement d'un compte rendu (D6e, T11), repris de `filemanager.html`. #}
 {# #}
 {# **Aucun ecran ne le rend encore** : c'est T12 qui l'inclura, par #}
-{# `{% include "pages/fragments/document-televersement.html" with patient=patient %}` — et #}
-{# qui devra fournir `formulaire` (un `FormulaireDocument` vide suffit). #}
+{# `{% include "pages/fragments/document-televersement.html" with patient=patient %}`. #}
+{# #}
+{# **Le contexte se compose par `documents.contexte_televersement(patient)`, et par rien #}
+{# d'autre.** Un `FormulaireDocument()` construit a la main retombe sur `auto_id="%s"` et #}
+{# rend `id="title"` et `id="document_date"` **nus**, qui collisionnent avec ceux d'une #}
+{# vignette ouverte en edition sur le meme ecran. Seule la fabrique pose #}
+{# `auto_id_de_televersement(patient)` — et aucun test unitaire ne mordrait sur un #}
+{# `render_to_string` direct de ce fragment. #}
 {# #}
 {# **`div.document_create` gouverne une barriere du filet.** `helpers.joindre_document` #}
 {# attend sa visibilite puis son **absence** (`to_have_count(0)`), et son docstring dit #}
