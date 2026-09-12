@@ -116,11 +116,16 @@ def test_la_modale_s_ouvre_se_ferme_et_pose_l_occultation(
     expect(modale).to_be_hidden()
 
 
-# Reprise a l'octet de `banc.vues.VALEUR_HOSTILE`. Ecrite en dur ici, et non importee : ce
-# que ces tests comparent est une **chaine litterale attendue**, pas la variable qui a servi
-# a produire la page. Les importer toutes deux du meme endroit ferait passer le test si la
-# valeur du banc changeait de sens.
-VALEUR_HOSTILE = "<P>x</P>"
+# Les octets que le serveur doit recevoir, sous la forme ou le banc les rend : le `repr()`
+# Python de `banc.vues.VALEUR_HOSTILE`. Ecrit en dur ici, et non calcule par `repr()` sur la
+# variable importee : ce que ces tests comparent est une **chaine litterale attendue**, pas
+# la valeur qui a servi a produire la page. Les tirer toutes deux du meme endroit ferait
+# passer le test si la valeur du banc changeait de sens.
+#
+# Les deux `\\r` et `\\n` ci-dessous sont donc **quatre caracteres imprimables** dans la
+# chaine attendue, pas deux octets de blanc : c'est precisement ce qui rend l'alteration des
+# fins de ligne visible a `to_have_text`, qui normalise les blancs reels.
+OCTETS_ATTENDUS = """'<P style="text-align: center;">x</P>\\r\\n'"""
 
 
 @pytest.fixture
@@ -145,15 +150,17 @@ def test_le_texte_riche_non_touche_soumet_la_valeur_a_l_octet(
     Ce que ce test regarde : **les octets recus par le serveur**, compares a une chaine
     litterale. Il ne regarde ni le rendu, ni une classe, ni du CSS. `<P>x</P>` n'est pas un
     point fixe de l'analyseur du navigateur : une implementation qui soumettrait
-    `innerHTML` inconditionnellement — c'est ce que fait `hallo` — rendrait `<p>x</p>`.
+    `innerHTML` inconditionnellement — c'est ce que fait `hallo` — rendrait `<p>`
+    minuscule. Le CRLF final et le guillemet de l'attribut `style` piquent deux autres
+    canaux d'alteration, decrits dans `banc/vues.py`.
 
     Ce qu'il laisserait passer : une implementation qui commettrait `innerHTML` a la
     premiere frappe **mais l'aurait deja abime au rendu** (un espace d'indentation autour
     de `{{ valeur|safe }}`, par exemple) resterait verte ici tant qu'aucune saisie n'a
     lieu ; c'est le test de la frappe qui la verrait.
 
-    Falsification : poser `@blur="commettre()"` sur la zone rend
-    `AssertionError: Locator expected to have text '<P>x</P>'`, le recu valant `<p>x</p>`.
+    Falsification : poser `@blur="commettre()"` sur la zone fait rougir cette assertion,
+    le recu valant la version normalisee par l'analyseur (`<p>` minuscule).
     """
     page.goto(f"{live_server.url}/banc/texte-riche")
     page.wait_for_function("() => window.Alpine !== undefined")
@@ -162,7 +169,7 @@ def test_le_texte_riche_non_touche_soumet_la_valeur_a_l_octet(
     page.get_by_test_id("zone-banc").click()
     page.get_by_test_id("zone-banc").blur()
     page.click("#fin-edition")
-    expect(page.get_by_test_id("valeur-recue")).to_have_text(VALEUR_HOSTILE)
+    expect(page.get_by_test_id("valeur-recue")).to_have_text(OCTETS_ATTENDUS)
 
 
 @pytest.mark.urls("tests.functional.banc.urls")
@@ -229,10 +236,10 @@ def test_le_texte_riche_commet_la_commande_de_barre_d_outils(
     page.wait_for_function("() => window.Alpine !== undefined")
     page.get_by_test_id("zone-banc").click()
     page.keyboard.press("Control+a")
-    page.get_by_title("bold", exact=True).click()
+    page.get_by_title("bold", exact=True).locator("visible=true").click()
     page.click("#fin-edition")
     recu = page.get_by_test_id("valeur-recue")
-    expect(recu).not_to_have_text(VALEUR_HOSTILE)
+    expect(recu).not_to_have_text(OCTETS_ATTENDUS)
     expect(recu).to_contain_text("x")
 
 
@@ -256,7 +263,49 @@ def test_le_texte_riche_applique_un_bloc_du_menu_de_bloc(
     page.wait_for_function("() => window.Alpine !== undefined")
     page.get_by_test_id("zone-banc").click()
     page.keyboard.press("Control+a")
-    page.get_by_title("block", exact=True).click()
-    page.get_by_role("button", name="blockquote", exact=True).click()
+    page.get_by_title("block", exact=True).locator("visible=true").click()
+    page.get_by_role("button", name="blockquote", exact=True).locator(
+        "visible=true"
+    ).click()
     page.click("#fin-edition")
-    expect(page.get_by_test_id("valeur-recue")).to_contain_text("<blockquote>")
+    expect(page.get_by_test_id("valeur-recue")).to_contain_text("<blockquote")
+
+
+@pytest.mark.urls("tests.functional.banc.urls")
+def test_seule_la_barre_du_champ_actif_est_visible(
+    page: Page, live_server: LiveServer, banc: None
+) -> None:
+    """La barre d'outils est celle du champ actif, et d'aucun autre.
+
+    `hallo` affiche une barre flottante unique, posee sur le champ actif et masquee a la
+    desactivation : mesure de T2, « quatre barres presentes a la fin, mais une seule visible
+    a tout instant ». Reproduire ce comportement n'est pas une coquetterie —
+    `helpers.appliquer_mise_en_forme` filtre les boutons par `visible=true` et le mode strict
+    de Playwright refuse le clic des qu'il en trouve deux. Une barre rendue en permanence en
+    afficherait neuf sur le dossier patient et dix-huit sur la consultation.
+
+    Ce que ce test regarde : le **nombre de boutons `bold` visibles**, c'est-a-dire
+    exactement la quantite que le helper interroge, plus la barre qui les porte, adressee par
+    son role et son libelle. Ce qu'il laisserait passer : la position de la barre a l'ecran,
+    et le fait qu'elle appartienne visuellement au bon champ.
+
+    Falsification : retirer `x-show="actif"` du fragment.
+    """
+    page.goto(f"{live_server.url}/banc/texte-riche")
+    page.wait_for_function("() => window.Alpine !== undefined")
+    boutons = page.get_by_title("bold", exact=True)
+    visibles = boutons.locator("visible=true")
+
+    # Les deux barres sont bien rendues — ce n'est pas un `{% if %}` serveur qui les cache.
+    expect(boutons).to_have_count(2)
+    expect(visibles).to_have_count(0)
+
+    page.get_by_test_id("zone-banc").click()
+    expect(visibles).to_have_count(1)
+    expect(page.get_by_role("toolbar", name="Antecedents")).to_be_visible()
+    expect(page.get_by_role("toolbar", name="Traitement")).to_be_hidden()
+
+    page.get_by_test_id("zone-banc-b").click()
+    expect(visibles).to_have_count(1)
+    expect(page.get_by_role("toolbar", name="Traitement")).to_be_visible()
+    expect(page.get_by_role("toolbar", name="Antecedents")).to_be_hidden()

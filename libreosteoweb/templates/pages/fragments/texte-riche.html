@@ -1,3 +1,4 @@
+{% load texte_riche %}
 {# Composant de texte riche (D6e, C6). Il remplace `hallo`, qui n'etait qu'un repartiteur #}
 {# `document.execCommand` sans modele de document — et qui **reecrivait la valeur a chaque #}
 {# sortie du mode edition**, meme sans saisie (`halloeditor.js:110-121`). #}
@@ -36,15 +37,27 @@
 {# exactement ce que `hallo` fait aujourd'hui (`$(element).on('hallodeactivated', read)`), #}
 {# et c'est le defaut que ce composant existe pour fermer. #}
 {# #}
+{# **La barre est celle du champ actif, et d'aucun autre.** `hallo` affiche une barre #}
+{# flottante unique, posee sur le champ actif et masquee a la desactivation #}
+{# (`halloToolbarFixed`) : une barre rendue sous le seul `{% if editable %}` en empilerait #}
+{# neuf en permanence sur le dossier patient et dix-huit sur la consultation, ce qui serait #}
+{# un ecart d'ecran, pas un detail de presentation. `@focusin` / `@focusout` sur #}
+{# l'enveloppe ne font que basculer un booleen — **ils n'ecrivent jamais dans l'entree #}
+{# cachee**, et la propriete centrale reste intacte. `x-show` part de `false` avec un #}
+{# `display:none` **en ligne** : Alpine retire la propriete au lieu d'y ecrire une valeur, #}
+{# et l'etat initial faux est le sens sur du legs de D6c (`dfb2473`). #}
+{# #}
 {# `@mousedown.prevent` sur chaque bouton de la barre : le focus quitte la zone au #}
 {# `mousedown`, pas au `click`, et une commande appliquee sans selection ne produit aucune #}
 {# balise. `hallo` reglait le meme probleme par une fenetre de protection de 300 ms qui #}
 {# **annulait le premier `blur`** (hallo.js:235-243) — au prix d'une mise en forme perdue #}
 {# en silence quand le champ n'etait quitte qu'une fois. Empecher le defaut du `mousedown` #}
 {# obtient le meme resultat sans aucun delai, et sans rien annuler. #}
-<div class="lo-texte-riche" x-data="texteRiche">
+<div class="lo-texte-riche" x-data="texteRiche"
+     @focusin="actif = true" @focusout="actif = false">
   {% if editable %}
-  <div class="btn-toolbar lo-barre-texte-riche" role="toolbar" aria-label="{{ libelle }}">
+  <div class="btn-toolbar lo-barre-texte-riche" role="toolbar" aria-label="{{ libelle }}"
+       x-show="actif" style="display: none;">
     <div class="btn-group">
       <button type="button" class="btn btn-default btn-xs" title="bold" @mousedown.prevent @click.prevent="commande('bold')"><b>B</b></button>
       <button type="button" class="btn btn-default btn-xs" title="italic" @mousedown.prevent @click.prevent="commande('italic')"><i>I</i></button>
@@ -92,6 +105,11 @@
        {% if editable %}contenteditable="true"{% endif %}
        x-ref="zone"
        @input="commettreDepuisLaFrappe()"
-       @paste="commettreDepuisLeCollage()">{{ valeur|safe }}</div>
-  <input type="hidden" name="{{ nom }}" x-ref="cachee" value="{{ valeur }}">
+       @paste="commettreDepuisLeCollage()">{{ valeur|default_if_none:""|safe }}</div>
+  {# `valeur_d_attribut` et non `{{ valeur }}` : Django n'echappe pas le retour chariot, et #}
+  {# l'analyseur HTML ramene CR et CRLF a LF dans les valeurs d'attribut. Une valeur #}
+  {# stockee en CRLF serait donc soumise **modifiee** sur un champ que personne n'a touche. #}
+  {# La protection vit dans le rendu et non dans une ecriture JavaScript a l'initialisation : #}
+  {# ecrire ici au demarrage detruirait la propriete centrale. #}
+  <input type="hidden" name="{{ nom }}" x-ref="cachee" value="{{ valeur|valeur_d_attribut }}">
 </div>

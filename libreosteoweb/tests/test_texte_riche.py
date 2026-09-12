@@ -17,6 +17,7 @@ from libreosteoweb.api.texte_riche import (
     valeurs_de_texte_riche,
 )
 from libreosteoweb.models import Document, Examination, Patient
+from libreosteoweb.templatetags.texte_riche import valeur_d_attribut
 from libreosteoweb.tests.fixtures import sans_receivers
 
 VALEUR_BORDEE = "  <p>Antécédents</p>  "
@@ -286,7 +287,17 @@ class TestAucunRognageParFormulaire(TestCase):
 #
 # Le balayage est **large** : tout module de `libreosteoweb` hors migrations et hors tests.
 # Un formulaire pose ailleurs que sous `api/views/pages/` est donc vu quand meme.
+# Le filtre porte sur des **paquets**, pas sur des prefixes de chaine : sans le point de
+# separation, un futur `libreosteoweb/tests_xyz.py` sortirait du balayage par accident.
 PAQUETS_HORS_BALAYAGE = ("libreosteoweb.migrations", "libreosteoweb.tests")
+
+
+def _hors_balayage(nom: str) -> bool:
+    return any(
+        nom == paquet or nom.startswith(paquet + ".")
+        for paquet in PAQUETS_HORS_BALAYAGE
+    )
+
 
 # Exemption close, et justifiee : `api/displays.py` declare six `ModelForm` batis sur
 # `[f.name for f in model._meta.fields if f.editable]`, donc portant les champs de texte
@@ -309,7 +320,7 @@ def formulaires_du_produit() -> list[type[forms.ModelForm]]:
         libreosteoweb.__path__, prefix="libreosteoweb."
     ):
         nom = information.name
-        if nom.startswith(PAQUETS_HORS_BALAYAGE) or nom in MODULES_EXEMPTES:
+        if _hors_balayage(nom) or nom in MODULES_EXEMPTES:
             continue
         module = importlib.import_module(nom)
         for objet in vars(module).values():
@@ -411,3 +422,71 @@ class TestCliquetDeMontage(SimpleTestCase):
             "(deposer `classes_de_champs(modele)` dans `Meta.field_classes`) :\n"
             + "\n".join(fautifs),
         )
+
+
+class TestValeurDAttribut(SimpleTestCase):
+    """Le filtre qui rend la valeur stockee dans l'attribut `value` de l'entree cachee.
+
+    Il existe pour **un** canal d'alteration, et il faut le nommer : Django n'echappe pas le
+    retour chariot, et l'analyseur HTML ramene CR et CRLF a LF **dans les valeurs
+    d'attribut**. Une valeur stockee en CRLF serait donc soumise modifiee sur un champ que
+    personne n'a touche — exactement le mode d'echec que le composant existe pour fermer.
+    La reference de caractere `&#13;` n'est pas soumise a cette normalisation.
+    """
+
+    def test_le_retour_chariot_devient_une_reference_de_caractere(self) -> None:
+        self.assertEqual(valeur_d_attribut("a\r\nb"), "a&#13;\nb")
+
+    def test_le_retour_chariot_seul_aussi(self) -> None:
+        self.assertEqual(valeur_d_attribut("e\rf"), "e&#13;f")
+
+    def test_les_caracteres_de_balisage_restent_echappes(self) -> None:
+        """Le filtre remplace `{{ valeur }}` : il doit echapper ce que Django echappait.
+
+        Sans cela, une valeur portant un guillemet — `<div style="text-align: center;">`,
+        soit tout paragraphe centre du produit — tronquerait l'attribut `value`.
+        """
+        self.assertEqual(
+            valeur_d_attribut('<P style="text-align: center;">x</P>'),
+            "&lt;P style=&quot;text-align: center;&quot;&gt;x&lt;/P&gt;",
+        )
+
+    def test_une_valeur_nulle_ne_rend_rien(self) -> None:
+        """`Document.notes` vaut `None` par defaut, et `{{ valeur }}` rendrait `None`.
+
+        Le texte « None » serait alors soumis, puis enregistre, sur un champ vide que
+        personne n'a touche.
+        """
+        self.assertEqual(valeur_d_attribut(None), "")
+
+
+class TestExemptionLeguee(SimpleTestCase):
+    """L'exemption de `MODULES_EXEMPTES` doit mourir avec sa raison d'etre.
+
+    Meme patron que `test_l_exception_leguee_existe_toujours` du cliquet de compression :
+    une exemption qui survit au code qu'elle excusait est un trou muet. D6e retire
+    `api/displays.py` (T13) ; ce test rougira alors, et l'entree devra partir dans le meme
+    geste.
+    """
+
+    def test_chaque_module_exempte_existe_et_serait_encore_fautif(self) -> None:
+        import importlib
+
+        for nom in sorted(MODULES_EXEMPTES):
+            with self.subTest(module=nom):
+                module = importlib.import_module(nom)
+                fautifs = [
+                    objet
+                    for objet in vars(module).values()
+                    if isinstance(objet, type)
+                    and issubclass(objet, forms.ModelForm)
+                    and objet is not forms.ModelForm
+                    and objet.__module__ == nom
+                    and champs_de_texte_riche_non_proteges(objet)
+                ]
+                self.assertTrue(
+                    fautifs,
+                    f"{nom} ne declare plus aucun `ModelForm` fautif : "
+                    "son entree dans `MODULES_EXEMPTES` a perdu sa raison d'etre "
+                    "et doit partir dans le meme commit",
+                )

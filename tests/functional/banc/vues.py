@@ -115,6 +115,11 @@ PAGE_TEXTE_RICHE = """
   <form id="formulaire-banc" hx-post="/banc/texte-riche" hx-target="#recu">
     {% csrf_token %}
     {% include "pages/fragments/texte-riche.html" with nom="champ" valeur=valeur libelle="Antecedents" editable=True testid="zone-banc" %}
+    {# Un **second** champ, et il n'est pas decoratif : sur le dossier patient il y en a #}
+    {# neuf, sur la consultation dix-huit. C'est le seul moyen de mesurer qu'une seule #}
+    {# barre d'outils est visible a la fois — la propriete dont depend #}
+    {# `helpers.appliquer_mise_en_forme`, qui filtre les boutons par `visible=true`. #}
+    {% include "pages/fragments/texte-riche.html" with nom="champ_b" valeur=valeur libelle="Traitement" editable=True testid="zone-banc-b" %}
     <button type="submit" id="fin-edition">Fin d'edition</button>
   </form>
   <div id="recu"></div>
@@ -127,28 +132,46 @@ PAGE_TEXTE_RICHE = """
 {% endblock %}
 """
 
-# `<P>x</P>` n'est **pas** un point fixe de l'analyseur du navigateur : reinjecte par
-# `innerHTML`, il ressort `<p>x</p>`. C'est exactement la valeur qui fait echouer `hallo`,
-# et c'est pour cela qu'elle est la valeur du banc (D6e, C6, clause 4).
-VALEUR_HOSTILE = "<P>x</P>"
+# La valeur du banc est **bordee** : chacun de ses trois traits pique un canal
+# d'alteration distinct, et aucun ne se voit sur une valeur anodine.
+#
+# 1. `<P>` majuscule n'est **pas** un point fixe de l'analyseur du navigateur : reinjecte
+#    par `innerHTML`, il ressort `<p>`. C'est la valeur qui fait echouer `hallo`.
+# 2. Le guillemet de l'attribut `style` pique l'echappement de l'entree cachee. Un
+#    `mark_safe` pose en amont tronquerait l'attribut `value` au premier guillemet — et
+#    `<div style="text-align: center;">` est exactement ce que le produit stocke quand on
+#    centre un paragraphe (mesure de T2).
+# 3. Le `\r\n` final pique la normalisation des fins de ligne. L'analyseur HTML ramene CR
+#    et CRLF a LF **dans les valeurs d'attribut**, donc une valeur stockee en CRLF serait
+#    soumise modifiee sur un champ que personne n'a touche. Le fragment s'en protege par la
+#    reference `&#13;`.
+VALEUR_HOSTILE = '<P style="text-align: center;">x</P>\r\n'
 
+# L'echo rend le `repr()` de ce qu'il a recu, et non les octets bruts : `to_have_text` de
+# Playwright **normalise les blancs**, donc un CR devenu LF y serait invisible. Sous
+# `repr()`, chaque octet de blanc devient deux caracteres imprimables et l'assertion les
+# voit. C'est la difference entre un banc qui mesure et un banc qui rassure.
 ECHO = """<pre id="recu" data-testid="valeur-recue">{{ recu }}</pre>"""
 
 
 def texte_riche(request: HttpRequest) -> HttpResponse:
     """Rend la page en GET, renvoie en POST les octets recus pour le champ `champ`.
 
-    `mark_safe` sur la valeur : le fragment applique `|safe`, mais le passage par
-    `from_string(...).render(...)` echapperait la variable en amont sans cette marque — et
-    le banc rendrait `&lt;P&gt;x&lt;/P&gt;` au lieu de `<P>x</P>`, ce qui ferait passer les
-    tests pour de mauvaises raisons.
+    **La valeur n'est pas marquee sure**, et c'est essentiel : le `|safe` du fragment suffit
+    a la rendre telle quelle dans le `contenteditable`, tandis que l'entree cachee, elle,
+    doit rester **echappee**. Une marque posee en amont desescaperait aussi l'attribut
+    `value`, qui se tronquerait au premier guillemet de la valeur — et le banc emprunterait
+    alors un chemin que la production n'emprunte jamais, sur la classe de valeur que le
+    produit stocke reellement (`<div style="text-align: center;">`).
     """
     if request.method == "POST":
         return HttpResponse(
-            engines["django"].from_string(ECHO).render({"recu": request.POST["champ"]})
+            engines["django"]
+            .from_string(ECHO)
+            .render({"recu": repr(request.POST["champ"])})
         )
     return HttpResponse(
         engines["django"]
         .from_string(PAGE_TEXTE_RICHE)
-        .render({"valeur": mark_safe(VALEUR_HOSTILE)}, request)
+        .render({"valeur": VALEUR_HOSTILE}, request)
     )

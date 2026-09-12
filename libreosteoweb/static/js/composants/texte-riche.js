@@ -37,6 +37,11 @@
  */
 document.addEventListener('alpine:init', () => {
   Alpine.data('texteRiche', () => ({
+    /* Le champ a-t-il le focus ? Pilote la seule visibilite de la barre d'outils, jamais
+     * une ecriture : `hallo` n'affiche lui aussi qu'une barre a la fois, et neuf barres
+     * empilees sur le dossier patient seraient un ecart d'ecran. */
+    actif: false,
+
     /* Recopie l'HTML rendu vers l'entree cachee — la seule qui soit soumise.
      * Appelee **uniquement** depuis les trois voies ci-dessous : tant qu'aucune n'a
      * tire, l'entree cachee garde, octet pour octet, la valeur rendue par le serveur. */

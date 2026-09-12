@@ -144,6 +144,7 @@ files = [
     "libreosteoweb/search_indexes.py",
     "libreosteoweb/templatetags/__init__.py",
     "libreosteoweb/templatetags/invoice_extras.py",
+    "libreosteoweb/templatetags/texte_riche.py",
     "libreosteoweb/tests/__init__.py",
     "libreosteoweb/tests/conftest.py",
     "libreosteoweb/tests/fixtures.py",

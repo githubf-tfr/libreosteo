@@ -107,3 +107,86 @@ def test_aucun_gabarit_ne_soumet_un_editable_au_flou() -> None:
     assert not signalements, "Attribut interdit dans un gabarit :\n" + "\n".join(
         signalements
     )
+
+
+# --- Second cliquet : le composant de texte riche n'est rien sans son script (D6e) ---
+#
+# Si un ecran pose l'`{% include %}` du fragment sans charger
+# `js/composants/texte-riche.js` dans son `{% block js_page %}`, `x-data="texteRiche"` reste
+# non resolu, `commettre()` n'est jamais appelee, et **le formulaire soumet l'ancienne
+# valeur sans la moindre erreur**. C'est le mode d'echec que le composant existe pour
+# fermer, et rien d'autre ne le signalerait : ni le navigateur, ni le serveur, ni l'oeil.
+# T10, T11 et T12 posent cet include sur les ecrans cliniques.
+FRAGMENT_TEXTE_RICHE = "pages/fragments/texte-riche.html"
+SCRIPT_TEXTE_RICHE = "js/composants/texte-riche.js"
+
+_INCLUSION = re.compile(
+    r"""{%\s*include\s+["']""" + re.escape(FRAGMENT_TEXTE_RICHE) + r"""["']"""
+)
+
+# Les gabarits du banc sont des chaines Python et non des fichiers `.html` : les omettre
+# rendrait ce cliquet vide aujourd'hui, puisqu'aucun ecran du produit n'inclut encore le
+# fragment. C'est ce qui le rend falsifiable des maintenant.
+SOURCES_HORS_GABARITS = (RACINE / "tests" / "functional" / "banc" / "vues.py",)
+
+
+def _sources_a_balayer() -> dict[str, str]:
+    sources = {
+        str(chemin.relative_to(RACINE)): chemin.read_text(encoding="utf-8")
+        for chemin in sorted(GABARITS.rglob("*.html"))
+    }
+    for chemin in SOURCES_HORS_GABARITS:
+        sources[str(chemin.relative_to(RACINE))] = chemin.read_text(encoding="utf-8")
+    return sources
+
+
+def inclusions_du_texte_riche(sources: dict[str, str]) -> list[str]:
+    """Les sources qui incluent le fragment de texte riche."""
+    return sorted(nom for nom, source in sources.items() if _INCLUSION.search(source))
+
+
+def inclusions_sans_le_script(sources: dict[str, str]) -> list[str]:
+    """Celles qui l'incluent **sans** referencer son script."""
+    return [
+        nom
+        for nom in inclusions_du_texte_riche(sources)
+        if SCRIPT_TEXTE_RICHE not in sources[nom]
+    ]
+
+
+def test_le_detecteur_signale_une_inclusion_sans_son_script() -> None:
+    """Le detecteur mord. Sans ceci, le cliquet ci-dessous serait vert par vacuite."""
+    faute = '{% include "' + FRAGMENT_TEXTE_RICHE + '" with nom="job" %}'
+    assert inclusions_sans_le_script({"faux.html": faute}) == ["faux.html"]
+
+
+def test_le_detecteur_ne_signale_pas_une_inclusion_qui_charge_son_script() -> None:
+    correct = (
+        '{% include "'
+        + FRAGMENT_TEXTE_RICHE
+        + '" with nom="job" %}<script src="{% static "'
+        + SCRIPT_TEXTE_RICHE
+        + '" %}"></script>'
+    )
+    assert inclusions_sans_le_script({"vrai.html": correct}) == []
+
+
+def test_tout_gabarit_qui_inclut_le_texte_riche_charge_son_script() -> None:
+    """Le cliquet lui-meme.
+
+    Ce qu'il regarde : la co-presence, dans **la meme source**, de l'inclusion et du chemin
+    du script. Ce qu'il laisserait passer : un gabarit qui heriterait le script d'un parent
+    par `{% block js_page %}` — aucun n'existe aujourd'hui, et le jour ou l'un naitra, ce
+    test le signalera a tort et devra apprendre l'heritage plutot que d'etre assoupli.
+    """
+    sources = _sources_a_balayer()
+    assert inclusions_du_texte_riche(sources), (
+        "aucune source n'inclut plus le fragment de texte riche : "
+        "le balayage est aveugle et ce cliquet ne prouve plus rien"
+    )
+    fautifs = inclusions_sans_le_script(sources)
+    assert not fautifs, (
+        "inclusion du composant de texte riche sans son script "
+        f"(`{SCRIPT_TEXTE_RICHE}` dans `{{% block js_page %}}`) :\n"
+        + "\n".join(fautifs)
+    )
