@@ -171,7 +171,14 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
 
 
 class UserOfficeSerializer(WithPkMixin, serializers.ModelSerializer):
-    def validate_family_name(self, value):
+    # `validate_last_name` et non `validate_family_name` : DRF ne convoque
+    # `validate_<champ>` que pour un champ declare dans `Meta.fields`, et ce serialiseur
+    # y declare `last_name`. Sous l'ancien nom la methode n'a jamais ete appelee — le
+    # prenom etait normalise, le nom ne l'etait pas, sur le meme serialiseur, alors que
+    # `UserInfoSerializer` (:39-48) fait les deux. Le comportement d'avant est fige par
+    # `TestContratUtilisateursDeCabinet` (D6d T2), et c'est la seule assertion de cette
+    # classe que ce commit fait basculer.
+    def validate_last_name(self, value):
         return get_name_filters().filter(value)
 
     def validate_first_name(self, value):

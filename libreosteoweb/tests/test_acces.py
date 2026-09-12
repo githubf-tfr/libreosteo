@@ -551,21 +551,21 @@ class TestContratUtilisateursDeCabinet(APITestCase):
         self.cible.refresh_from_db()
         self.assertEqual("Beverly", self.cible.first_name)
 
-    def test_la_casse_du_nom_n_est_pas_normalisee(self):
-        """**Fige un defaut, pas un comportement voulu** (D6d, P5).
+    def test_la_casse_du_nom_est_normalisee(self):
+        """**Assertion basculee par D6d T3**, et la seule de cette classe.
 
-        `UserOfficeSerializer.validate_family_name` nomme un champ absent de
-        `Meta.fields`, qui declare `last_name` : DRF ne convoque jamais cette methode, et
-        le nom traverse sans filtre. Son jumeau `UserInfoSerializer` (:39-48) declare
-        `validate_last_name` et normalise, sur le meme modele. **D6d T3 repare, et c'est
-        cette assertion-la, et elle seule, qui bascule.**
+        Avant : `validate_family_name` nommait un champ absent de `Meta.fields`, DRF ne
+        l'appelait jamais, et « picard » restait « picard ». Apres : la methode porte le
+        nom du champ declare, elle est convoquee, et `get_name_filters()` capitalise —
+        comme elle le fait deja pour le prenom juste au-dessus, et comme
+        `UserInfoSerializer` le fait pour les deux.
         """
         reponse = self.client.put(
             self.url, data=self.corps_complet(last_name="picard"), format="json"
         )
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         self.cible.refresh_from_db()
-        self.assertEqual("picard", self.cible.last_name)
+        self.assertEqual("Picard", self.cible.last_name)
 
     def test_un_non_personnel_ne_peut_pas_ecrire_sur_un_autre(self):
         self.client.logout()
