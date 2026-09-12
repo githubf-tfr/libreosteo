@@ -20,11 +20,12 @@ from libreosteoweb.models import Document, Patient, PatientDocument, RegularDoct
 
 from ..demonstration import get_demonstration_file
 from ..filter import get_firstname_filters, get_name_filters
+from ..texte_riche import SansRognageMixin
 from ..validators import UniqueTogetherIgnoreCaseValidator
 from .communs import WithPkMixin, check_birth_date
 
 
-class PatientSerializer(serializers.ModelSerializer):
+class PatientSerializer(SansRognageMixin):
     current_user_operation = None
     birth_date = serializers.DateField(
         label=_("Birth date"), validators=[check_birth_date]
@@ -99,13 +100,13 @@ class RegularDoctorSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class DocumentSerializer(WithPkMixin, serializers.ModelSerializer):
+class DocumentSerializer(WithPkMixin, SansRognageMixin):
     class Meta:
         model = Document
         fields = "__all__"
 
 
-class DocumentUpdateSerializer(WithPkMixin, serializers.ModelSerializer):
+class DocumentUpdateSerializer(WithPkMixin, SansRognageMixin):
     class Meta:
         fields = ["title", "notes", "document_date"]
         model = Document

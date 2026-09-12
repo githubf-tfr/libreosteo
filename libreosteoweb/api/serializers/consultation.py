@@ -19,6 +19,7 @@ from rest_framework import serializers
 
 from libreosteoweb.models import Examination, ExaminationComment, Patient
 
+from ..texte_riche import SansRognageMixin
 from .administration import OfficeDetailSerializer, UserInfoSerializer
 from .communs import WithPkMixin
 from .facturation import InvoiceSerializer
@@ -49,7 +50,7 @@ class ExaminationExtractSerializer(WithPkMixin, serializers.ModelSerializer):
         return ExaminationComment.objects.filter(examination__exact=obj.id).count()
 
 
-class ExaminationSerializer(serializers.ModelSerializer):
+class ExaminationSerializer(SansRognageMixin):
     invoice_number = serializers.CharField(
         source="get_invoice_number", required=False, allow_null=True, read_only=True
     )
