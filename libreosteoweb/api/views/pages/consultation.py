@@ -464,11 +464,17 @@ def enregistrer_consultation(request: HttpRequest, identifiant: str) -> HttpResp
     laisserait le praticien devant un ecran qui ne dit pas ce qui a ete retenu.
     """
     consultation = get_object_or_404(models.Examination, pk=identifiant)
+    # **Le prefixe se lit sur les trois chemins, pas seulement sur celui des modales.** Le
+    # dossier rend deux volets ; une reponse qui reprendrait le prefixe par defaut poserait
+    # `id="consultation-volet"` et des champs `consultation-*` dans une cible
+    # `#current-examination-volet`. Il voyage sur la chaine de requete a l'ouverture, puis
+    # dans le champ cache du formulaire d'edition.
+    prefixe = _prefixe_de(request)
     if request.method != "POST":
         return render(
             request,
             "pages/fragments/consultation-edition.html",
-            {"volet": _volet(request, consultation)},
+            {"volet": _volet(request, consultation, prefixe=prefixe)},
         )
 
     # **L'ancienne date se lit ici, et nulle part ailleurs.** `is_valid()` declenche
@@ -476,14 +482,21 @@ def enregistrer_consultation(request: HttpRequest, identifiant: str) -> HttpResp
     # ligne, la date d'avant la saisie n'existe plus nulle part. C'est exactement la raison
     # du commentaire d'`ExaminationViewSet.perform_update`.
     ancienne_date = consultation.date
-    formulaire = FormulaireConsultation(request.POST, instance=consultation)
+    # `auto_id` est pose ici et pas seulement dans `contexte_du_volet` : ce dernier ne
+    # construit les formulaires que lorsqu'on ne lui en donne pas, et le chemin de refus lui
+    # en donne. Sans cette ligne, les identifiants de champ perdraient leur prefixe sur le
+    # seul chemin ou deux volets peuvent se disputer le focus.
+    formulaire = FormulaireConsultation(
+        request.POST, instance=consultation, auto_id=f"{prefixe}-%s"
+    )
     formulaire_patient = FormulairePatientDeConsultation(
-        request.POST, instance=consultation.patient
+        request.POST, instance=consultation.patient, auto_id=f"{prefixe}-%s"
     )
     if not (formulaire.is_valid() and formulaire_patient.is_valid()):
         contexte = _volet(
             request,
             consultation,
+            prefixe=prefixe,
             formulaire=formulaire,
             formulaire_patient=formulaire_patient,
         )
@@ -501,7 +514,7 @@ def enregistrer_consultation(request: HttpRequest, identifiant: str) -> HttpResp
     return render(
         request,
         "pages/fragments/consultation.html",
-        {"volet": _volet(request, consultation)},
+        {"volet": _volet(request, consultation, prefixe=prefixe)},
     )
 
 

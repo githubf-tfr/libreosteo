@@ -758,6 +758,54 @@ class TestFragmentDEdition(_VoletRendu):
         self.assertEqual(18, len(_zones_de_texte_riche(html)))
         self.assertEqual(18, html.count('contenteditable="true"'))
 
+    def test_le_conteneur_enveloppe_le_formulaire_et_non_l_inverse(self) -> None:
+        """**La reimbrication reviendrait en silence** sans ce test.
+
+        La cible de l'echange est `#…-volet` : si elle vit *dans* le `<form>`, le
+        formulaire survit en enveloppe orpheline sur un succes, et la reponse de refus —
+        un `<form>` complet — s'insere dans le `<form>` existant. Les deux fragments
+        doivent donc avoir **la meme racine**.
+
+        Ce qu'il regarde : l'ordre d'apparition des deux balises, et que la racine du
+        fragment de lecture porte le meme identifiant. Ce qu'il ne regarde pas : ce que
+        htmx en fait — geste d'ecran, donc T12.
+        """
+        edition = self.rendu("pages/fragments/consultation-edition.html")
+        self.assertLess(
+            edition.index('id="consultation-volet"'),
+            edition.index("<form "),
+            "le conteneur d'echange doit envelopper le formulaire",
+        )
+        self.assertTrue(
+            edition.lstrip().startswith('<div id="consultation-volet"'),
+            "la racine du fragment d'edition n'est pas le conteneur d'echange",
+        )
+        self.assertTrue(
+            self.rendu().lstrip().startswith('<div id="consultation-volet"'),
+            "les deux fragments doivent avoir la meme racine",
+        )
+
+    def test_les_identifiants_de_champs_portent_le_prefixe_du_volet(self) -> None:
+        """Le point 7, tenu par un test plutot que par une lecture a la main.
+
+        Ce qu'il regarde : que chaque champ nomme porte `<prefixe>-<nom>` comme
+        identifiant, et que **rien** ne pose l'identifiant nu — c'est lui qui entrerait en
+        collision avec le second volet, et `#reason` avec la modale de facturation.
+
+        Ce qu'il laisserait passer : les deux ancres du filet volontairement nues,
+        `#examinationDate` et `#close-examination`, exclues nommement ci-dessous. Elles
+        etaient **deja** en double dans le produit AngularJS, et
+        `test_consultation.py:253-258` le documente et leve l'ambiguite par `:visible`.
+        """
+        html = self.rendu(
+            "pages/fragments/consultation-edition.html", prefixe="current-examination"
+        )
+        for nom in ("reason", "type", "laterality", "smoker"):
+            with self.subTest(champ=nom):
+                self.assertIn('id="current-examination-%s"' % nom, html)
+                self.assertNotIn('id="%s"' % nom, html)
+        self.assertIn('id="examinationDate"', html)
+
     def test_le_formulaire_poste_vers_la_route_d_edition(self) -> None:
         self.assertIn(
             'hx-post="%s"'
@@ -852,6 +900,44 @@ class TestModaleDeFacturation(_VoletRendu):
         html = reponse.content.decode()
         montant = html[html.index('id="amount"') : html.index('id="amount"') + 400]
         self.assertIn("disabled", montant)
+
+    def test_l_etat_initial_d_alpine_dit_la_meme_chose_que_le_html_rendu(self) -> None:
+        """**La casse la plus couteuse de ce lot, et elle etait invisible en unitaire.**
+
+        En facturation seule, la seule radio presente est `invoiced` et le serveur la rend
+        deja cochee. Un `mode` initial vide masquait alors le bloc de montant des le
+        demarrage d'Alpine, et **aucun clic ne pouvait le rouvrir** : il n'existe pas de
+        seconde radio pour emettre un `change`. Avec le `:disabled` des champs, l'ecran
+        devenait inutilisable — ni montant, ni moyen de paiement.
+
+        Ce que ce test regarde : **l'etat initial rendu par le serveur**, qui est la seule
+        moitie du probleme qu'un test unitaire atteigne. Ce qu'il ne regarde pas, et que
+        seul T12 prouvera : ce qu'Alpine en fait au demarrage.
+        """
+        reponse = self.client.get(
+            reverse("consultation-facturation", args=[self.consultation.id])
+        )
+        html = reponse.content.decode()
+        self.assertIn("x-data=\"{ mode: 'invoiced' }\"", html)
+        # La radio rendue cochee : c'est **elle** qui rend l'etat initial obligatoire,
+        # puisqu'aucun clic ne peut la re-cocher pour emettre un `change`.
+        radio = html[html.index('value="invoiced"') :][:120]
+        self.assertIn("checked", radio)
+        # Et le champ de montant n'est pas desactive a l'etat initial dans ce mode.
+        montant = html[html.index('id="amount"') :][:300]
+        self.assertNotIn(" disabled\n", montant)
+
+    def test_l_etat_initial_reste_vide_sur_une_cloture_ordinaire(self) -> None:
+        """L'autre sens : sur une cloture, aucune radio n'est cochee et `mode` est vide.
+
+        Ce qu'il laisserait passer : un `mode` fige a `invoiced` partout, qui cocherait
+        d'office la facturation sur une consultation que le praticien voulait dire non
+        facturee.
+        """
+        reponse = self.client.get(
+            reverse("consultation-cloture", args=[self.consultation.id])
+        )
+        self.assertIn("x-data=\"{ mode: '' }\"", reponse.content.decode())
 
     def test_la_facturation_seule_ne_propose_pas_non_facturee(self) -> None:
         """`ng-if="… && !invoice_only"` (`invoice-modal.html:7`)."""
@@ -1260,6 +1346,56 @@ class TestVuesDuVolet(_VoletRendu):
             {"status": "notinvoiced", "reason": "Confrere", "prefixe": "en-cours"},
         )
         self.assertIn('id="en-cours-volet"', reponse.content.decode())
+
+    def test_le_prefixe_poste_revient_dans_la_reponse_d_edition(self) -> None:
+        """**Le chemin d'edition lisait le prefixe nulle part**, et le champ cache du
+        formulaire etait donc mort.
+
+        Editer le second volet d'un dossier renvoyait `id="consultation-volet"` dans une
+        cible `#current-examination-volet` : l'echange n'aboutissait pas, et les
+        identifiants de champ reprenaient le prefixe par defaut.
+        """
+        reponse = self.client.post(
+            reverse("consultation-edition", args=[self.consultation.id]),
+            {
+                "date": timezone.localtime(self.consultation.date).strftime("%Y-%m-%d"),
+                "type": ExaminationType.NORMAL,
+                "reason": "Cervicalgie",
+                "prefixe": "current-examination",
+            },
+        )
+        self.assertEqual(200, reponse.status_code)
+        self.assertIn('id="current-examination-volet"', reponse.content.decode())
+
+    def test_le_prefixe_poste_revient_dans_le_refus_d_edition(self) -> None:
+        """Le chemin de refus, ou deux volets peuvent vraiment se disputer le focus.
+
+        Ce qu'il regarde : le conteneur **et** les identifiants de champ, qui viennent
+        d'`auto_id` et non du contexte — `contexte_du_volet` ne construit les formulaires
+        que lorsqu'on ne lui en donne pas, et ce chemin lui en donne.
+        """
+        demain = (fin_du_jour() + timedelta(days=1)).strftime("%Y-%m-%d")
+        reponse = self.client.post(
+            reverse("consultation-edition", args=[self.consultation.id]),
+            {
+                "date": demain,
+                "type": ExaminationType.NORMAL,
+                "reason": "Cervicalgie",
+                "prefixe": "current-examination",
+            },
+        )
+        self.assertEqual(422, reponse.status_code)
+        html = reponse.content.decode()
+        self.assertIn('id="current-examination-volet"', html)
+        self.assertIn('id="current-examination-reason"', html)
+        self.assertNotIn('id="consultation-volet"', html)
+
+    def test_l_ouverture_de_l_edition_reprend_le_prefixe_de_la_requete(self) -> None:
+        reponse = self.client.get(
+            reverse("consultation-edition", args=[self.consultation.id])
+            + "?prefixe=current-examination"
+        )
+        self.assertIn('id="current-examination-volet"', reponse.content.decode())
 
     def test_l_edition_ecrit_la_consultation_et_la_colonne_patient(self) -> None:
         hier = (fin_du_jour() - timedelta(days=1)).date()

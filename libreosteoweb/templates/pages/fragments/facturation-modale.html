@@ -21,7 +21,13 @@
 {# la modale entiere sur un refus 422. #}
 <form id="formulaire-facturation" method="post"
       hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML"
-      x-data="{ mode: '{{ donnees.status|default_if_none:"" }}' }">
+      {# **L'etat initial d'Alpine doit dire la meme chose que le HTML rendu.** En mode #}
+      {# facturation seule, la seule radio presente est `invoiced` et le serveur la rend #}
+      {# **deja cochee** : un `mode` vide masquerait alors le bloc de montant des le #}
+      {# demarrage d'Alpine, et **aucun clic ne pourrait le rouvrir** — il n'existe pas de #}
+      {# seconde radio pour emettre un `change`. Avec le `:disabled` des champs, l'ecran #}
+      {# devenait inutilisable : ni montant, ni moyen de paiement. #}
+      x-data="{ mode: '{% if facturation_seule %}invoiced{% else %}{{ donnees.status|default_if_none:"" }}{% endif %}' }">
   {% csrf_token %}
   {# Le prefixe du volet appelant, pour que la reponse hors-bande vise le bon des deux. #}
   <input type="hidden" name="prefixe" value="{{ prefixe }}">

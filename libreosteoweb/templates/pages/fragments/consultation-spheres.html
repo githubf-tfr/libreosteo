@@ -38,7 +38,10 @@
         <label class="btn btn-default" :class="ouvertes['{{ sphere.nom }}'] ? 'btn btn-default active' : 'btn btn-default'">
           <input type="checkbox" class="sr-only" value="{{ sphere.nom }}"
                  {% if sphere.ouverte %}checked{% endif %}
-                 @change="ouvertes['{{ sphere.nom }}'] = !ouvertes['{{ sphere.nom }}']">
+                 {# **Lire la case, ne pas basculer l'etat.** Une bascule suppose que les #}
+                 {# deux restent alignes ; elles le sont aujourd'hui, mais tout autre #}
+                 {# chemin qui toucherait `ouvertes` les desynchroniserait en silence. #}
+                 @change="ouvertes['{{ sphere.nom }}'] = $event.target.checked">
           {{ sphere.libelle }}
         </label>
       </div>
