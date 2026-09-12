@@ -38,15 +38,19 @@ from .import_fichiers import FileImportViewSet
 from .installation import CreateAdminAccountView, InstallView, create_superuser
 from .pages import (
     analyser_import,
+    cellule_utilisateur,
     enregistrer_affichage,
     enregistrer_cabinet,
     enregistrer_identite,
+    fragment_utilisateurs,
     integrer_import,
     mot_de_passe,
+    mot_de_passe_utilisateur,
     page_cabinet,
     page_import_export,
     page_profil,
     page_reindexation,
+    utilisateur_nouveau,
 )
 from .patient import (
     DocumentViewSet,
@@ -73,11 +77,14 @@ __all__ = [
     "PatientDocumentViewSet",
     "PatientViewSet",
     "analyser_import",
+    "cellule_utilisateur",
     "enregistrer_affichage",
     "enregistrer_cabinet",
     "enregistrer_identite",
+    "fragment_utilisateurs",
     "integrer_import",
     "mot_de_passe",
+    "mot_de_passe_utilisateur",
     "page_cabinet",
     "page_import_export",
     "page_profil",
@@ -91,4 +98,5 @@ __all__ = [
     "create_superuser",
     "recherche",
     "telecharger_fichier",
+    "utilisateur_nouveau",
 ]

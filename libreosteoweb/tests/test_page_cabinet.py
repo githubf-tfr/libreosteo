@@ -18,6 +18,7 @@ sequence (D6d T9)."""
 import re
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -269,3 +270,126 @@ class TestPageCabinet(TestCase):
         self.assertIsNotNone(trace)
         assert trace is not None
         self.assertIn("20000", trace.comment)
+
+
+def _ligne_de(corps: str, username: str) -> str:
+    """La `<tr>` portant ce nom d'utilisateur, ancree pour ne pas confondre deux lignes.
+
+    L'ancre est le nom d'utilisateur **rendu** (`>nom<`), et non la sous-chaine seule :
+    celle-ci apparaitrait deja dans l'attribut `data-testid` de la premiere ligne venue,
+    y compris la ligne d'en-tete (`data-testid="tri-username"` contient « test »).
+    """
+    trouve = re.search(
+        r"<tr>(?:(?!</tr>).)*?>%s<(?:(?!</tr>).)*?</tr>" % re.escape(username),
+        corps,
+        re.DOTALL,
+    )
+    assert trouve is not None, "ligne %s introuvable" % username
+    return trouve.group(0)
+
+
+class TestOngletUtilisateurs(TestCase):
+    """Le tableau `<table class="table">` qui remplace la grille `ui-grid`, et le patron
+    click-to-edit qu'il pose pour D6e."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.praticien = cree_praticien()
+            cree_reglages_praticien(self.praticien)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def test_les_six_colonnes_sont_dans_l_ordre_et_traduites(self):
+        """Preuve d'A20 : les huit libelles ecrits en dur dans le JavaScript
+        (`officesettings.js:105-112`) sont desormais dans le catalogue."""
+        corps = self.client.get(reverse("cabinet")).content.decode("utf-8")
+        # Ancres exactes : ">Nom<" ne doit pas se confondre avec ">Nom utilisateur<",
+        # sous-chaine qui le precede dans le document.
+        libelles = (
+            ">Nom utilisateur<",
+            ">Prénom<",
+            ">Nom<",
+            ">Administrateur<",
+            ">Actif<",
+            ">Mot de passe<",
+        )
+        indices = [corps.index(libelle) for libelle in libelles]
+        self.assertEqual(indices, sorted(indices))
+
+    def test_les_deux_colonnes_booleennes_rendent_oui_et_non(self):
+        with sans_receivers():
+            cree_praticien(username="riker", is_staff=True)
+        utilisateur = get_user_model().objects.get(username="riker")
+        utilisateur.is_active = False
+        utilisateur.save()
+        corps = self.client.get(reverse("cabinet")).content.decode("utf-8")
+        ligne = _ligne_de(corps, "riker")
+        self.assertIn(">oui<", ligne)
+        self.assertIn(">non<", ligne)
+
+    def test_seules_deux_colonnes_portent_l_affordance_d_edition(self):
+        corps = self.client.get(reverse("cabinet")).content.decode("utf-8")
+        ligne = _ligne_de(corps, "test")
+        self.assertRegex(ligne, r'<button[^>]*data-testid="cellule-test-first_name"')
+        self.assertRegex(ligne, r'<button[^>]*data-testid="cellule-test-last_name"')
+        self.assertRegex(ligne, r'<span[^>]*data-testid="cellule-test-username"')
+
+    def test_le_tri_ne_prend_que_les_colonnes_de_la_liste_close(self):
+        with sans_receivers():
+            cree_praticien(username="alpha")
+            cree_praticien(username="zeta")
+        corps = self.client.get(
+            reverse("cabinet-utilisateurs"), {"tri": "password"}
+        ).content.decode("utf-8")
+        # La liste close retombe sur `username` : l'ordre est alphabetique, jamais celui
+        # (arbitraire et instable) du hachage du mot de passe.
+        # Ancre sur le nom d'utilisateur rendu, et non la sous-chaine "test" seule, qui
+        # apparaitrait deja dans l'attribut `data-testid` de la premiere ligne venue.
+        self.assertLess(corps.index(">alpha<"), corps.index(">test<"))
+        self.assertLess(corps.index(">test<"), corps.index(">zeta<"))
+
+    def test_une_valeur_inchangee_n_ecrit_pas(self):
+        """C2 l'exige nommement : un compteur de requetes, deterministe, sans mock.
+
+        Un premier appel « d'echauffement » stabilise `LoggedInUser` (le middleware de
+        suivi de connexion n'ecrit qu'une fois par cle de session neuve) : sans lui, le
+        total de la premiere requete mesuree inclurait cette ecriture-la, et masquerait
+        celle, unique, que ce test veut isoler. Les deux POST mesures partagent alors
+        exactement le meme total de requetes — session, authentification,
+        `LoggedInUser`, `OfficeSettingsMiddleware`, la lecture de la cible — a une
+        exception pres : l'`UPDATE` de la valeur reellement changee.
+        """
+        self.praticien.first_name = "Beverly"
+        self.praticien.save()
+        url = reverse(
+            "cabinet-utilisateur-cellule", args=[self.praticien.pk, "first_name"]
+        )
+        self.client.get(url)
+        with self.assertNumQueries(9):
+            reponse_inchangee = self.client.post(url, data={"valeur": "Beverly"})
+        with self.assertNumQueries(10):
+            reponse_changee = self.client.post(url, data={"valeur": "Picard"})
+        self.assertEqual(200, reponse_inchangee.status_code)
+        self.assertEqual(200, reponse_changee.status_code)
+        self.praticien.refresh_from_db()
+        self.assertEqual("Picard", self.praticien.first_name)
+
+    def test_un_refus_de_cellule_rend_la_cellule_en_edition_et_n_ecrit_pas(self):
+        reponse = self.client.post(
+            reverse(
+                "cabinet-utilisateur-cellule",
+                args=[self.praticien.pk, "first_name"],
+            ),
+            data={"valeur": "x" * 200},
+        )
+        self.assertEqual(422, reponse.status_code)
+        self.assertIn("erreur-cellule", reponse.content.decode("utf-8"))
+        self.praticien.refresh_from_db()
+        self.assertEqual("", self.praticien.first_name)
+
+    def test_une_colonne_non_editable_est_une_404(self):
+        """La liste close est un garde-fou, pas une convention."""
+        reponse = self.client.get(
+            reverse("cabinet-utilisateur-cellule", args=[self.praticien.pk, "password"])
+        )
+        self.assertEqual(404, reponse.status_code)

@@ -2249,3 +2249,24 @@ msgstr "Les deux mots de passe ne correspondent pas."
 
 msgid "You do not have permission to perform this action."
 msgstr "Vous n'avez pas la permission d'effectuer cette action."
+
+msgid "Last name"
+msgstr "Nom"
+
+msgid "Administrator"
+msgstr "Administrateur"
+
+msgid "Active"
+msgstr "Actif"
+
+msgid "yes"
+msgstr "oui"
+
+msgid "no"
+msgstr "non"
+
+msgid "modify"
+msgstr "modifier"
+
+msgid "This value is too long."
+msgstr "Cette valeur est trop longue."

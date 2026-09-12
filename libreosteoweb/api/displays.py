@@ -80,12 +80,6 @@ class TherapeutSettingsDisplay(GenericDisplay):
         fields = [f.name for f in model._meta.fields if f.editable]
 
 
-class OfficeSettingsDisplay(GenericDisplay):
-    class Meta:
-        model = models.OfficeSettings
-        fields = [f.name for f in model._meta.fields if f.editable]
-
-
 def display_invoices(request):
     return render(request, "partials/invoice-list.html", {})
 
@@ -181,23 +175,6 @@ def display_invoicing(request):
 
 def display_send_invoice(request):
     return render(request, "partials/invoice-send-modal.html", {})
-
-
-def display_officesettings(request):
-    displayOfficeSettings = OfficeSettingsDisplay()
-    return render(
-        request,
-        "partials/office-settings.html",
-        {"officesettings": displayOfficeSettings.display_fields, "user": request.user},
-    )
-
-
-def display_adduser(request):
-    return render(request, "partials/add-user-modal.html", {})
-
-
-def display_setpassword(request):
-    return render(request, "partials/set-password-user-modal.html", {})
 
 
 def display_file_manager(request):

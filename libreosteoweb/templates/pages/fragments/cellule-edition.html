@@ -1,0 +1,21 @@
+{% load i18n %}
+{# Moitie « edition ». Le formulaire poste vers **la meme URL** que le `hx-get` de lecture, #}
+{# en `POST` et non en `PUT` : Django ne remplit `request.POST` que pour `POST`, et decoder #}
+{# `request.body` a la main reintroduirait l'indirection que ce chantier retire (E8). #}
+{# Le refus reaffiche la cellule **en edition**, avec son message : la valeur en lecture #}
+{# n'apparait nulle part dans cette reponse, donc rien ne laisse croire que la saisie a ete #}
+{# enregistree (P4, C2). #}
+<td id="cellule-{{ utilisateur.id }}-{{ champ }}">
+  <form hx-post="{% url 'cabinet-utilisateur-cellule' utilisateur.id champ %}"
+        hx-target="#cellule-{{ utilisateur.id }}-{{ champ }}"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <input type="text" name="valeur" class="form-control input-sm" value="{{ valeur }}"
+           autofocus data-testid="saisie-{{ utilisateur.username }}-{{ champ }}">
+    <button type="submit" class="btn btn-primary btn-xs"
+            data-testid="valider-{{ utilisateur.username }}-{{ champ }}">{% trans 'Validate' %}</button>
+    {% if erreur %}
+    <span class="help-block" role="alert" data-testid="erreur-cellule">{{ erreur }}</span>
+    {% endif %}
+  </form>
+</td>

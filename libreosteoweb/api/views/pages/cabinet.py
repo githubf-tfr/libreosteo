@@ -18,14 +18,18 @@ from __future__ import annotations
 
 from django import forms
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.contrib.auth import get_user_model
+from django.db.models import CharField
+from django.http import Http404, HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 
 from libreosteoweb import models
 from libreosteoweb.api.events.settings import settings_event_tracer
+from libreosteoweb.api.filter import get_name_filters
 from libreosteoweb.api.notifications import reponse_avec_notification
 from libreosteoweb.api.services import facturation as services_facturation
 from libreosteoweb.api.utils import NetworkHelper
@@ -204,7 +208,7 @@ def _contexte(
     request: HttpRequest, formulaire: FormulaireCabinet | None = None
 ) -> dict:
     cabinet = _cabinet_de(request)
-    return {
+    contexte = {
         "onglets": _onglets(request),
         "onglet_initial": "general",
         "formulaire": formulaire
@@ -215,6 +219,9 @@ def _contexte(
         "multiple_office": models.OfficeSettings.objects.count() > 1,
         "adresses_reseau": _adresses_reseau(request),
     }
+    if request.user.is_staff:
+        contexte.update(_contexte_utilisateurs(request))
+    return contexte
 
 
 def page_cabinet(request: HttpRequest) -> HttpResponse:
@@ -281,4 +288,238 @@ def enregistrer_general(request: HttpRequest) -> HttpResponse:
     )
     return reponse_avec_notification(
         request, corps, "succes", _("Settings was updated")
+    )
+
+
+# Liste close des colonnes triables et des colonnes editables. Le tri est **serveur** et
+# porte sur la table entiere, la ou `ui-grid` triait les lignes deja chargees (A9) : sur la
+# liste des utilisateurs d'un cabinet, sans pagination ni limite, les deux ensembles sont le
+# meme, donc le comportement observable est identique et la semantique plus simple.
+COLONNES_TRIABLES = ("username", "first_name", "last_name")
+COLONNES_EDITABLES = ("first_name", "last_name")
+
+
+def _tri_demande(request: HttpRequest) -> tuple[str, str]:
+    """Une liste close, et jamais la valeur brute du parametre.
+
+    `order_by(request.GET["tri"])` laisserait trier sur n'importe quel champ du modele
+    utilisateur, `password` compris.
+    """
+    tri = request.GET.get("tri", "username")
+    if tri not in COLONNES_TRIABLES:
+        tri = "username"
+    sens = "desc" if request.GET.get("sens") == "desc" else "asc"
+    return tri, sens
+
+
+def _contexte_utilisateurs(request: HttpRequest, hors_bande: bool = False) -> dict:
+    tri, sens = _tri_demande(request)
+    ordre = ("-" if sens == "desc" else "") + tri
+    return {
+        "utilisateurs": get_user_model().objects.all().order_by(ordre),
+        "tri": tri,
+        "sens": sens,
+        "colonnes_editables": COLONNES_EDITABLES,
+        "hors_bande": hors_bande,
+    }
+
+
+def fragment_utilisateurs(request: HttpRequest) -> HttpResponse:
+    """Le `<tbody>` seul : c'est la cible du tri (A9)."""
+    return render(
+        request,
+        "pages/fragments/cabinet-utilisateurs-corps.html",
+        _contexte_utilisateurs(request),
+    )
+
+
+def cellule(request: HttpRequest, identifiant: int, champ: str) -> HttpResponse:
+    """Click-to-edit : `GET` rend la cellule en edition, `POST` l'ecrit et la rend en
+    lecture.
+
+    **La reponse du serveur est desormais lue** (P4). Avant, `OfficeUsersServ.save(...)`
+    partait sans rappel : un refus etait invisible, la cellule gardait la valeur saisie, et
+    la grille divergeait de la base en silence. Ici, la cellule rendue apres ecriture porte
+    **la valeur relue de l'instance**, jamais celle qui a ete postee.
+    """
+    if champ not in COLONNES_EDITABLES:
+        raise Http404("colonne non editable")
+    utilisateur = get_object_or_404(get_user_model(), pk=identifiant)
+    if request.method == "GET":
+        return render(
+            request,
+            "pages/fragments/cellule-edition.html",
+            {
+                "utilisateur": utilisateur,
+                "champ": champ,
+                "valeur": getattr(utilisateur, champ),
+            },
+        )
+    if not request.user.is_staff:
+        return _cellule_refusee(
+            request,
+            utilisateur,
+            champ,
+            _("You do not have permission to perform this action."),
+            status=403,
+        )
+    # **La meme fonction de filtre que `UserOfficeSerializer`** (D6d T3) : une seule
+    # autorite pour la casse des noms, et les cinq assertions de
+    # `TestContratUtilisateursDeCabinet` restent vraies mot pour mot.
+    valeur = get_name_filters().filter(request.POST.get("valeur", ""))
+    # `get_field` rend `Field | ForeignObjectRel` : `max_length` n'existe que sur le
+    # premier. Les deux colonnes editables sont des `CharField` du modele utilisateur ;
+    # `isinstance` le fait constater a mypy plutot que de l'affirmer par un `# type: ignore`.
+    champ_modele = get_user_model()._meta.get_field(champ)
+    longueur_max = (
+        champ_modele.max_length if isinstance(champ_modele, CharField) else None
+    )
+    if longueur_max is not None and len(valeur) > longueur_max:
+        return _cellule_refusee(
+            request,
+            utilisateur,
+            champ,
+            _("This value is too long."),
+            status=422,
+            saisie=valeur,
+        )
+    # « Rien n'est envoye si la valeur n'a pas change » : la grille le faisait cote client
+    # (`if (newValue != oldValue)`), la vue le fait ici, et l'ecriture est evitee (C2).
+    if valeur != getattr(utilisateur, champ):
+        setattr(utilisateur, champ, valeur)
+        utilisateur.save()
+    return render(
+        request,
+        "pages/fragments/cellule-lecture.html",
+        {
+            "utilisateur": utilisateur,
+            "champ": champ,
+            "valeur": getattr(utilisateur, champ),
+            "editable": True,
+        },
+    )
+
+
+def _cellule_refusee(
+    request: HttpRequest,
+    utilisateur,
+    champ: str,
+    message: str,
+    status: int,
+    saisie: str | None = None,
+) -> HttpResponse:
+    """Un refus echange la cellule avec son message, et **la valeur affichee reste celle de
+    la base** — c'est la moitie de P4 qui compte."""
+    return render(
+        request,
+        "pages/fragments/cellule-edition.html",
+        {
+            "utilisateur": utilisateur,
+            "champ": champ,
+            # La saisie refusee est reaffichee pour que l'utilisateur la corrige ; la
+            # cellule en **lecture** n'existe pas dans cette reponse, donc rien n'affiche
+            # la valeur refusee comme si elle etait enregistree.
+            "valeur": saisie if saisie is not None else getattr(utilisateur, champ),
+            "erreur": message,
+        },
+        status=status,
+    )
+
+
+def utilisateur_nouveau(request: HttpRequest) -> HttpResponse:
+    """`GET` ouvre la modale d'ajout, `POST` cree l'utilisateur.
+
+    L'unicite du nom d'utilisateur etait verifiee **cote client** par `validateUsername`,
+    qui chargeait toute la liste et la parcourait ; c'est desormais la contrainte du
+    modele, et le refus est rendu dans la modale.
+    """
+    if request.method == "GET":
+        return render(request, "partials/modale.html", _modale_utilisateur(request))
+    if not request.user.is_staff:
+        return reponse_avec_notification(
+            request,
+            "",
+            "erreur",
+            _("You do not have permission to perform this action."),
+            status=403,
+        )
+    nom = request.POST.get("username", "").strip()
+    mot_de_passe = request.POST.get("password2", "")
+    erreur = None
+    if not nom:
+        erreur = _("Your login must not contain space")
+    elif get_user_model().objects.filter(username=nom).exists():
+        erreur = _("A user with that username already exists.")
+    elif not mot_de_passe or mot_de_passe != request.POST.get("password1", ""):
+        erreur = _("The two passwords do not match.")
+    if erreur is not None:
+        corps = render_to_string(
+            "partials/modale.html",
+            _modale_utilisateur(request, erreur=erreur, username=nom),
+            request=request,
+        )
+        return HttpResponse(corps, status=422)
+    get_user_model().objects.create_user(username=nom, password=mot_de_passe)
+    # La modale se vide, et le `<tbody>` est rafraichi **hors-bande** : c'est ce qui
+    # remplace le `$scope.users.push(data)` du client, et ce qui garantit que la ligne
+    # affichee est celle que le serveur a ecrite.
+    corps = render_to_string(
+        "pages/fragments/cabinet-utilisateurs-corps.html",
+        _contexte_utilisateurs(request, hors_bande=True),
+        request=request,
+    )
+    return reponse_avec_notification(
+        request, corps, "succes", _("Settings was updated")
+    )
+
+
+def _modale_utilisateur(
+    request: HttpRequest, erreur: str | None = None, username: str = ""
+) -> dict:
+    return {
+        "titre": _("Add user in the office"),
+        "gabarit_corps": "pages/fragments/utilisateur-nouveau.html",
+        "libelle_confirmer": _("Validate"),
+        "libelle_annuler": _("Cancel"),
+        "formulaire_confirmer": "form-utilisateur",
+        "action": reverse("cabinet-utilisateur-nouveau"),
+        "erreur": erreur,
+        "username": username,
+    }
+
+
+def mot_de_passe_utilisateur(request: HttpRequest, identifiant: int) -> HttpResponse:
+    """Le changement du mot de passe d'un tiers, depuis le tableau.
+
+    Meme corps de modale que le profil (`pages/fragments/mot-de-passe.html`, D6d T7) : un
+    seul gabarit pour les deux, la seule difference etant l'URL d'action.
+    """
+    utilisateur = get_object_or_404(get_user_model(), pk=identifiant)
+    contexte = {
+        "titre": _("Change password"),
+        "gabarit_corps": "pages/fragments/mot-de-passe.html",
+        "libelle_confirmer": _("Validate"),
+        "libelle_annuler": _("Cancel"),
+        "formulaire_confirmer": "form-mot-de-passe",
+        "action": reverse("cabinet-utilisateur-mot-de-passe", args=[identifiant]),
+    }
+    if request.method == "GET":
+        return render(request, "partials/modale.html", contexte)
+    if not request.user.is_staff:
+        return reponse_avec_notification(
+            request,
+            "",
+            "erreur",
+            _("You do not have permission to perform this action."),
+            status=403,
+        )
+    mot_de_passe = request.POST.get("password2", "")
+    if not mot_de_passe or mot_de_passe != request.POST.get("password1", ""):
+        contexte["erreur"] = _("The two passwords do not match.")
+        corps = render_to_string("partials/modale.html", contexte, request=request)
+        return HttpResponse(corps, status=422)
+    utilisateur.set_password(mot_de_passe)
+    utilisateur.save()
+    return reponse_avec_notification(
+        request, "", "succes", _("The password was changed.")
     )

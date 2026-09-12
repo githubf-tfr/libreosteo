@@ -1,0 +1,22 @@
+{% load i18n %}
+{# Corps de la modale d'ajout. Le `<form>` porte l'identifiant passe a `modale.html` par #}
+{# `formulaire_confirmer` : c'est `#modal-btn-ok` qui le soumet (E9). #}
+<form id="form-utilisateur" hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  {% if erreur %}
+  <div class="alert alert-danger" role="alert" data-testid="erreur-utilisateur">{{ erreur }}</div>
+  {% endif %}
+  <div class="form-group">
+    <label for="username">{% trans 'Username' %}</label>
+    <input type="text" class="form-control" required name="username" id="username"
+           value="{{ username }}" placeholder="{% trans 'Username' %}">
+  </div>
+  <div class="form-group">
+    <label for="password1">{% trans 'Password' %}</label>
+    <input type="password" class="form-control" required name="password1" id="password1">
+  </div>
+  <div class="form-group">
+    <label for="password2">{% trans 'Confirm the password' %}</label>
+    <input type="password" class="form-control" required name="password2" id="password2">
+  </div>
+</form>

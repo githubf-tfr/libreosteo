@@ -1,0 +1,39 @@
+{% load i18n %}
+{# Six colonnes, dans l'ordre actuel (C2) : identifiant, prenom, nom, administrateur, #}
+{# actif, mot de passe. Les trois premieres sont triables, comme `enableSorting: true` le #}
+{# posait sur la grille et le repetait sur ces trois colonnes-la. #}
+{# Ce que le tableau ne reproduit pas, et c'est ecrit : la navigation clavier de cellule en #}
+{# cellule (`ui-grid-cellnav`) devient l'ordre de tabulation naturel du document, et la #}
+{# hauteur fixe de 300 px avec sa barre de defilement interne disparait, la virtualisation #}
+{# n'ayant pas d'objet sur la liste des utilisateurs d'un cabinet. #}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-12">
+      <button class="btn btn-primary" type="button"
+              hx-get="{% url 'cabinet-utilisateur-nouveau' %}"
+              hx-target="#modale"
+              data-testid="ajouter-utilisateur">{% trans 'Add user' %}</button>
+    </div>
+    <div class="col-md-12">
+      <table class="table">
+        <thead>
+          <tr>
+            <th><a href="#" data-testid="tri-username"
+                   hx-get="{% url 'cabinet-utilisateurs' %}?tri=username&amp;sens={% if tri == 'username' and sens == 'asc' %}desc{% else %}asc{% endif %}"
+                   hx-target="#corps-utilisateurs" hx-swap="outerHTML">{% trans 'Username' %}</a></th>
+            <th><a href="#" data-testid="tri-first_name"
+                   hx-get="{% url 'cabinet-utilisateurs' %}?tri=first_name&amp;sens={% if tri == 'first_name' and sens == 'asc' %}desc{% else %}asc{% endif %}"
+                   hx-target="#corps-utilisateurs" hx-swap="outerHTML">{% trans 'Firstname' %}</a></th>
+            <th><a href="#" data-testid="tri-last_name"
+                   hx-get="{% url 'cabinet-utilisateurs' %}?tri=last_name&amp;sens={% if tri == 'last_name' and sens == 'asc' %}desc{% else %}asc{% endif %}"
+                   hx-target="#corps-utilisateurs" hx-swap="outerHTML">{% trans 'Last name' %}</a></th>
+            <th>{% trans 'Administrator' %}</th>
+            <th>{% trans 'Active' %}</th>
+            <th>{% trans 'Password' %}</th>
+          </tr>
+        </thead>
+        {% include "pages/fragments/cabinet-utilisateurs-corps.html" %}
+      </table>
+    </div>
+  </div>
+</div>

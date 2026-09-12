@@ -1,0 +1,22 @@
+{% load i18n %}
+{# Le `<tbody>` seul : cible du tri (`hx-swap="outerHTML"`) **et** fragment hors-bande #}
+{# apres un ajout d'utilisateur. Le meme gabarit sert aux deux, et `hors_bande` decide : #}
+{# un `hx-swap-oob` laisse dans une reponse d'echange ordinaire serait extrait de la cible #}
+{# principale par htmx, et le tri ne remplacerait plus rien. #}
+<tbody id="corps-utilisateurs"{% if hors_bande %} hx-swap-oob="true"{% endif %}>
+  {% for utilisateur in utilisateurs %}
+  <tr>
+    <td><span data-testid="cellule-{{ utilisateur.username }}-username">{{ utilisateur.username }}</span></td>
+    {% include "pages/fragments/cellule-lecture.html" with champ="first_name" valeur=utilisateur.first_name editable=True %}
+    {% include "pages/fragments/cellule-lecture.html" with champ="last_name" valeur=utilisateur.last_name editable=True %}
+    <td>{% if utilisateur.is_staff %}{% trans 'yes' %}{% else %}{% trans 'no' %}{% endif %}</td>
+    <td>{% if utilisateur.is_active %}{% trans 'yes' %}{% else %}{% trans 'no' %}{% endif %}</td>
+    <td>
+      <button type="button" class="btn btn-default btn-xs"
+              hx-get="{% url 'cabinet-utilisateur-mot-de-passe' utilisateur.id %}"
+              hx-target="#modale"
+              data-testid="mot-de-passe-{{ utilisateur.username }}">{% trans 'modify' %}</button>
+    </td>
+  </tr>
+  {% endfor %}
+</tbody>

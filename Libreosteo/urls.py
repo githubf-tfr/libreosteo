@@ -116,6 +116,26 @@ urlpatterns = [
         views.enregistrer_cabinet,
         name="cabinet-general",
     ),
+    re_path(
+        r"^office/settings/users$",
+        views.fragment_utilisateurs,
+        name="cabinet-utilisateurs",
+    ),
+    re_path(
+        r"^office/settings/users/new$",
+        views.utilisateur_nouveau,
+        name="cabinet-utilisateur-nouveau",
+    ),
+    re_path(
+        r"^office/settings/users/(?P<identifiant>\d+)/password$",
+        views.mot_de_passe_utilisateur,
+        name="cabinet-utilisateur-mot-de-passe",
+    ),
+    re_path(
+        r"^office/settings/users/(?P<identifiant>\d+)/edit/(?P<champ>[a-z_]+)$",
+        views.cellule_utilisateur,
+        name="cabinet-utilisateur-cellule",
+    ),
     re_path(r"", include("libreosteoweb.urls")),
     re_path(r"^internal/dump.json", views.DbDump.as_view(), name="db_dump"),
     re_path(r"^internal/restore", views.LoadDump.as_view(), name="load_dump"),
@@ -136,9 +156,6 @@ urlpatterns = [
     re_path(r"^web-view/partials/officeevent", displays.display_officeevent),
     re_path(r"^web-view/partials/invoice-modal", displays.display_invoicing),
     re_path(r"^web-view/partials/invoice-send-modal", displays.display_send_invoice),
-    re_path(r"^web-view/partials/add-user-modal", displays.display_adduser),
-    re_path(r"^web-view/partials/set-password-modal", displays.display_setpassword),
-    re_path(r"^web-view/partials/office-settings$", displays.display_officesettings),
     re_path(r"^web-view/partials/filemanager$", displays.display_file_manager),
     re_path(
         r"^web-view/partials/restore$",

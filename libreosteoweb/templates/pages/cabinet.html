@@ -34,9 +34,7 @@
         </div>
         {% if request.user.is_staff %}
         <div id="onglet-utilisateurs" x-show="actif === 'utilisateurs'" style="display: none">
-          {# Rempli par D6d T10. Entre les deux commits, l'onglet existe et ne fait rien : #}
-          {# aucune fiche de recette ne le decrit aujourd'hui (P3), et T10 suit #}
-          {# immediatement. #}
+          {% include "pages/fragments/cabinet-utilisateurs.html" %}
         </div>
         {% endif %}
       </div>

@@ -22,8 +22,14 @@ echange vivent sous `libreosteoweb/templates/pages/fragments/`. Les ecrans migre
 passent plus par DRF : ils postent vers ces vues, qui rendent des fragments (D6d, A3).
 """
 
+from .cabinet import cellule as cellule_utilisateur
 from .cabinet import enregistrer_general as enregistrer_cabinet
-from .cabinet import page_cabinet
+from .cabinet import (
+    fragment_utilisateurs,
+    mot_de_passe_utilisateur,
+    page_cabinet,
+    utilisateur_nouveau,
+)
 from .import_export import analyser as analyser_import
 from .import_export import integrer as integrer_import
 from .import_export import page_import_export
@@ -37,13 +43,17 @@ from .reindexation import page_reindexation
 
 __all__ = [
     "analyser_import",
+    "cellule_utilisateur",
     "enregistrer_affichage",
     "enregistrer_cabinet",
     "enregistrer_identite",
+    "fragment_utilisateurs",
     "integrer_import",
     "mot_de_passe",
+    "mot_de_passe_utilisateur",
     "page_cabinet",
     "page_import_export",
     "page_profil",
     "page_reindexation",
+    "utilisateur_nouveau",
 ]

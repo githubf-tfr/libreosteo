@@ -1,0 +1,21 @@
+{# Composant click-to-edit, moitie « lecture » (D6d, A10). La cible d'echange est le `<td>` #}
+{# lui-meme, par son identifiant : `hx-swap="outerHTML"` le remplace en entier, ce qui #}
+{# evite tout conteneur intermediaire dans un tableau. #}
+{# L'affordance d'edition n'est rendue que sur les deux colonnes editables (C2) ; ailleurs, #}
+{# un `<span>`. Un `<button>` et non un `hx-trigger="click"` sur la cellule : l'ordre de #}
+{# tabulation naturel du document remplace `ui-grid-cellnav`, et un bouton est ce qui rend #}
+{# la cellule atteignable au clavier (C2, ecart assume et ecrit). #}
+{# Le `data-testid` porte le **nom d'utilisateur**, unique : un testid par colonne seule #}
+{# serait ambigu des la deuxieme ligne, et une violation de mode strict n'est jamais #}
+{# rejouee par Playwright (legs de D6c). #}
+<td id="cellule-{{ utilisateur.id }}-{{ champ }}">
+  {% if editable %}
+  <button type="button" class="btn btn-link"
+          hx-get="{% url 'cabinet-utilisateur-cellule' utilisateur.id champ %}"
+          hx-target="#cellule-{{ utilisateur.id }}-{{ champ }}"
+          hx-swap="outerHTML"
+          data-testid="cellule-{{ utilisateur.username }}-{{ champ }}">{{ valeur }}</button>
+  {% else %}
+  <span data-testid="cellule-{{ utilisateur.username }}-{{ champ }}">{{ valeur }}</span>
+  {% endif %}
+</td>
