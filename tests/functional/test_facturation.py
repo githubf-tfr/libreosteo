@@ -460,7 +460,11 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     lignes = page.locator("tbody tr")
     expect(lignes).to_have_count(2)
     expect(lignes.filter(has_text=facture_a_centimes.number)).to_contain_text("55.55 €")
-    expect(page.locator("div.mb-3")).to_contain_text("110.55")
+    # `mb-3` est une classe d'espacement **Bootstrap 5**, sans effet dans un produit
+    # Bootstrap 3, et D6g la rendrait soudain vivante avec un espacement qu'elle n'a jamais
+    # eu : le filet ne s'y ancre plus (D6d, A21). La **ponctuation attendue ne bouge pas** —
+    # « 110.55 », avec un point — seul le selecteur change.
+    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("110.55")
 
     # (b) troisieme consultation, montant a trois decimales : refuse.
     numeros_avant = set(Invoice.objects.values_list("number", flat=True))
@@ -649,3 +653,86 @@ def test_facture_imprimee_porte_sa_date_stockee_pas_celle_du_jour(
     expect(onglet_facture.locator("#location-date")).to_contain_text(
         f"À Le Vigen, le {filtre_date_django(date_facture, 'd F Y')}"
     )
+
+
+def ouvrir_la_comptabilite(page: Page) -> None:
+    """Ouvre l'ecran Comptabilite depuis le menu, et attend qu'il soit reellement charge.
+
+    `InvoiceListCtrl` (invoice.js) appelle `getInvoices()` depuis trois sources
+    independantes, chacune remplacant `$scope.invoices` par un tableau neuf ; seul le
+    rappel de `MyUserIdServ` pose `filters.therapeut_id`, donc seule sa requete porte
+    `therapeut_id=` — c'est deterministement la derniere des trois. Meme idiome que
+    `test_liste_des_factures` et `test_impression_de_facture_reprend_cabinet_et_therapeute`,
+    ou il est documente en detail.
+
+    **Cette barriere disparait avec l'ecran (D6d T11)** : sous rendu serveur, la liste et
+    le total arrivent dans le document, et le clic est une navigation ordinaire.
+    """
+    with page.expect_response(
+        lambda reponse: (
+            "/api/invoices" in reponse.url and "therapeut_id=" in reponse.url
+        )
+    ):
+        page.get_by_role("link", name="Comptabilité").click()
+    expect(page.get_by_test_id("titre-comptabilite")).to_contain_text("Comptabilité")
+
+
+def test_periode_par_defaut_de_la_comptabilite(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Cas de R-FAC-07, premiere moitie : la periode par defaut est le mois en cours.
+
+    Deux factures, l'une datee du jour, l'autre d'il y a 400 jours — donc hors du mois en
+    cours **et** hors de l'annee en cours, quel que soit le jour ou le test tourne. L'ecran
+    n'en montre qu'une, et le total ne compte qu'elle.
+
+    Ecrit **contre l'ecran AngularJS**, et c'est sa seule chance de l'etre : apres D6d T11
+    il ne prouverait plus que ce que la migration vient d'ecrire (A7). Il doit rester vert
+    apres la migration **sans modification d'un octet**.
+
+    Falsifiable : retirer `date__gte` de `buildAPIFilter` (`invoice.js:73-78`) — les deux
+    lignes s'affichent, `to_have_count(1)` echoue franchement.
+    """
+    ancienne = timezone.now() - timedelta(days=400)
+    cree_facture(
+        "30000", socle.cabinet, date=ancienne, therapeut_id=socle.utilisateur.pk
+    )
+    cree_facture("30001", socle.cabinet, therapeut_id=socle.utilisateur.pk)
+
+    connexion(page, live_server)
+    ouvrir_la_comptabilite(page)
+
+    lignes = page.locator("tbody tr")
+    expect(lignes).to_have_count(1)
+    expect(lignes).to_contain_text("30001")
+    # Preuve de l'absence, indissociable de la preuve de presence : un ecran qui
+    # n'afficherait rien du tout passerait la seule assertion de compte.
+    expect(lignes).not_to_contain_text("30000")
+    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("55")
+
+
+def test_periode_sans_facture(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Cas de R-FAC-07, seconde moitie : une periode sans facture.
+
+    Le total vaut `0`, et non vide ni `None`. C'est la propriete qu'un agregat SQL peut
+    perdre en silence : `Sum("amount")` rend `None` sur un queryset vide, et le gabarit
+    afficherait alors « None » ou rien du tout (D6d, C5, premiere preuve).
+
+    Ecrit contre l'ecran AngularJS, ou le total vaut `[].reduce(..., 0)`, c'est-a-dire
+    `0` : la valeur attendue est donc la meme avant et apres, a l'octet.
+
+    Falsifiable : remplacer la valeur initiale du `reduce` (`invoice.js:88`) par `null` —
+    l'ecran affiche vide et l'assertion echoue.
+    """
+    ancienne = timezone.now() - timedelta(days=400)
+    cree_facture(
+        "30000", socle.cabinet, date=ancienne, therapeut_id=socle.utilisateur.pk
+    )
+
+    connexion(page, live_server)
+    ouvrir_la_comptabilite(page)
+
+    expect(page.locator("tbody tr")).to_have_count(0)
+    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("0")
