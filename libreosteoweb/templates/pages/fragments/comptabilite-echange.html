@@ -1,0 +1,14 @@
+{# La reponse d'un changement de periode — clic de plage predefinie ou soumission du #}
+{# formulaire de dates. Elle porte **les trois surfaces** que la periode gouverne, sans #}
+{# quoi l'ecran se contredit lui-meme : la liste et le total (la cible de l'echange), les #}
+{# deux champs de date, et l'URL de l'export. #}
+{# Les trois dernieres sont posees hors-bande plutot qu'englobees dans un fragment plus #}
+{# large : le formulaire, sa liste deroulante de therapeutes et les trois liens de plage #}
+{# ne sont pas remplaces, donc le lien qui vient d'etre clique garde le focus et la #}
+{# selection de therapeute n'est pas rejouee par un rendu qui ne la connait pas. #}
+{# Elles doivent rester **filles directes** de la reponse : htmx extrait les elements #}
+{# hors-bande du fragment avant de poser le reste sur la cible. #}
+{% include "pages/fragments/comptabilite-liste.html" %}
+{% include "pages/fragments/comptabilite-champ-date.html" with identifiant="debut" valeur=debut hors_bande=True %}
+{% include "pages/fragments/comptabilite-champ-date.html" with identifiant="fin" valeur=fin hors_bande=True %}
+{% include "pages/fragments/comptabilite-export.html" with hors_bande=True %}

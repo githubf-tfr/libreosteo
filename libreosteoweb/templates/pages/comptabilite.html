@@ -27,11 +27,11 @@
           hx-target="#liste-comptabilite" hx-swap="outerHTML" hx-push-url="true">
       <div class="form-group">
         <label for="debut">{% trans 'From' %}</label>
-        <input type="date" class="form-control" id="debut" name="debut" value="{{ debut|date:'Y-m-d' }}">
+        {% include "pages/fragments/comptabilite-champ-date.html" with identifiant="debut" valeur=debut %}
       </div>
       <div class="form-group">
         <label for="fin">{% trans 'To' %}</label>
-        <input type="date" class="form-control" id="fin" name="fin" value="{{ fin|date:'Y-m-d' }}">
+        {% include "pages/fragments/comptabilite-champ-date.html" with identifiant="fin" valeur=fin %}
       </div>
       {% if utilisateurs|length > 1 %}
       <div class="form-group">
@@ -62,10 +62,7 @@
          hx-swap="outerHTML" hx-push-url="true">{{ libelle_annee_precedente }}</a>
     </div>
 
-    {# Menu d'export : une seule entree possible (XLSX) — pas de menu deroulant pour un #}
-    {# choix unique. `<a href>` ordinaire (A13) : htmx ne sait pas declencher un #}
-    {# enregistrement de fichier. #}
-    <a class="btn btn-default" href="{{ url_export }}"><i class="fa fa-download fa-fw"></i> {% trans 'XLSX' %}</a>
+    {% include "pages/fragments/comptabilite-export.html" %}
 
     {# Second selecteur facultatif : information seule. `request.officesettings` est fixe #}
     {# par session (`OfficeSettingsMiddleware`), et le filtre de la liste ne le fait jamais #}

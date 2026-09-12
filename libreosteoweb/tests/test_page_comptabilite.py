@@ -14,6 +14,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 """La comptabilite : le total exact, son formatage, et l'annulation en place (D6d T11)."""
 
+import re
 from datetime import timedelta
 from decimal import Decimal
 
@@ -45,6 +46,25 @@ def _facture(numero: str, montant, **kwargs) -> Invoice:
     }
     valeurs.update(kwargs)
     return Invoice.objects.create(**valeurs)
+
+
+def _valeur_du_champ(corps: str, identifiant: str) -> str | None:
+    """La valeur portee par le champ de saisie d'identifiant donne, ou `None` s'il est
+    absent du corps. Lue par expression reguliere et non par decoupage de chaine : le
+    champ n'est pas necessairement au meme endroit dans le document et dans la reponse
+    d'echange, et c'est justement sa **valeur** qui est eprouvee, pas sa place."""
+    balise = re.search(r"<input[^>]*\bid=\"%s\"[^>]*>" % identifiant, corps)
+    if balise is None:
+        return None
+    valeur = re.search(r"\bvalue=\"([^\"]*)\"", balise.group(0))
+    return valeur.group(1) if valeur is not None else None
+
+
+def _url_d_export(corps: str) -> str:
+    """L'URL du lien d'export XLSX, reconnue par son parametre de format et non par une
+    classe de presentation ni par sa position."""
+    lien = re.search(r"href=\"([^\"]*format=xlsx[^\"]*)\"", corps)
+    return lien.group(1) if lien is not None else ""
 
 
 class TestReglesDExclusionDuTotal(TestCase):
@@ -255,3 +275,54 @@ class TestPageComptabilite(TestCase):
         for libelle in ("Brouillon", "Non réglée", "Réglée", "Avoir", "Annulée"):
             with self.subTest(libelle=libelle):
                 self.assertIn(libelle, corps)
+
+
+class TestCoherenceDeLaPeriodeApresEchange(TestCase):
+    """Le defaut de recette R-FAC-02 etape 4 : apres un changement de periode, l'echange
+    htmx ne rafraichissait que la liste, et l'ecran restait incoherent avec lui-meme.
+
+    Le lien d'export gardait son `href` d'origine — il retelechargeait la periode
+    precedente — et les deux champs de date restaient figes sur l'ancienne periode. Seul
+    un rechargement complet remettait les trois surfaces d'accord, ce que `hx-push-url`
+    rendait d'autant plus discret.
+
+    La preuve porte donc sur ce que la **reponse d'echange** doit ramener, et non sur la
+    liste : un test qui ne verifierait que le tableau passait deja avant le correctif.
+    """
+
+    def setUp(self):
+        with sans_receivers():
+            self.praticien = cree_praticien()
+            cree_reglages_praticien(self.praticien)
+            self.cabinet = regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def test_un_clic_de_plage_rafraichit_les_champs_de_date_et_l_url_d_export(self):
+        an_dernier = timezone.localdate().year - 1
+        debut_attendu = "%d-01-01" % an_dernier
+        fin_attendue = "%d-12-31" % an_dernier
+
+        reponse = self.client.get(
+            reverse("comptabilite"),
+            {"plage": "annee-precedente"},
+            headers={"HX-Request": "true"},
+        )
+
+        corps = reponse.content.decode("utf-8")
+        self.assertEqual(debut_attendu, _valeur_du_champ(corps, "debut"))
+        self.assertEqual(fin_attendue, _valeur_du_champ(corps, "fin"))
+        url_export = _url_d_export(corps)
+        self.assertIn("date__gte=%s" % debut_attendu, url_export)
+        self.assertIn("date__lte=%s" % fin_attendue, url_export)
+
+    def test_une_soumission_du_formulaire_rafraichit_l_url_d_export(self):
+        reponse = self.client.get(
+            reverse("comptabilite"),
+            {"debut": "2024-03-01", "fin": "2024-03-31", "therapeut": ""},
+            headers={"HX-Request": "true"},
+        )
+
+        corps = reponse.content.decode("utf-8")
+        url_export = _url_d_export(corps)
+        self.assertIn("date__gte=2024-03-01", url_export)
+        self.assertIn("date__lte=2024-03-31", url_export)

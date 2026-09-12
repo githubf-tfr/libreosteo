@@ -2194,9 +2194,11 @@ deux dates.
 - **Domaine** : Facturation
 - **Couverture auto** : oui — tests/functional/test_facturation.py::test_periode_par_defaut_de_la_comptabilite,
   ::test_periode_sans_facture, ::test_filtre_de_periode_par_les_champs_de_date,
-  ::test_total_exact_sur_trois_factures_a_centimes (la période par défaut, la période vide,
-  la saisie de deux dates et l'exactitude du total ; les trois plages prédéfinies n'ont pas
-  d'équivalent automatisé)
+  ::test_total_exact_sur_trois_factures_a_centimes,
+  ::test_changement_de_plage_rafraichit_les_dates_et_l_export (la période par défaut, la
+  période vide, la saisie de deux dates, l'exactitude du total, et — pour la seule plage
+  de l'année précédente — la cohérence des trois surfaces après le clic : tableau, champs
+  de date et lien d'export)
 - **État requis** : E1, complété par un patient et trois factures émises le jour du passage
   (étape 1). E1 ne porte aucun patient : créer d'abord celui de l'état E2 (chapitre 1,
   point E2.1 — `Picard` / `Jean-Luc` / `13`/`07`/`1935`, case de consentement cochée).
@@ -2217,7 +2219,10 @@ deux dates.
    navigateur.
 3. Cliquer la plage prédéfinie de l'année précédente.
    Attendu : le tableau ne liste aucune facture ; la ligne de total affiche
-   `Montant total sur la période sélectionnée: 0` — un zéro, jamais une valeur vide.
+   `Montant total sur la période sélectionnée: 0` — un zéro, jamais une valeur vide ; les
+   champs « Du » et « Au » **suivent le clic**, et affichent le premier et le dernier jour
+   de l'année précédente. Sans rechargement : l'écran ne se contredit jamais lui-même, et
+   le bouton « XLSX » exporte bien la période affichée (R-FAC-02, étape 4).
 4. Cliquer la plage prédéfinie de l'année en cours.
    Attendu : les trois factures sont de nouveau listées ; le total affiche `166.65`.
 5. Saisir dans le champ « Du » la date du jour, dans le champ « Au » la date du jour, puis

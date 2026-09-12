@@ -759,3 +759,38 @@ def test_filtre_de_periode_par_les_champs_de_date(
     expect(lignes).to_contain_text("40001")
     expect(lignes).not_to_contain_text("40002")
     expect(page).to_have_url(re.compile(r"[?&]debut="))
+
+
+def test_changement_de_plage_rafraichit_les_dates_et_l_export(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Le defaut de recette R-FAC-02 etape 4 : apres un clic de plage predefinie, l'ecran
+    se contredisait lui-meme.
+
+    Le tableau et le total passaient bien a la nouvelle periode, mais les deux champs de
+    date et le lien d'export restaient sur l'ancienne : l'export retelechargeait la
+    periode d'avant, et c'est un fichier faux remis a un comptable. `hx-push-url` tenait
+    l'URL a jour, donc un rechargement rattrapait tout — ce qui rendait le defaut discret.
+
+    Au navigateur, et pas seulement en unitaire : ce que le serveur renvoie hors-bande ne
+    prouve rien tant que htmx ne l'a pas repose dans le document.
+
+    Falsifiable : rendre a nouveau `pages/fragments/comptabilite-liste.html` seul sous
+    `HX-Request` (`views/pages/comptabilite.py`) — le tableau se vide toujours, mais les
+    trois dernieres assertions echouent.
+    """
+    cree_facture("40003", socle.cabinet, therapeut_id=socle.utilisateur.pk)
+    an_dernier = timezone.localdate().year - 1
+
+    connexion(page, live_server)
+    ouvrir_la_comptabilite(page)
+    expect(page.locator("tbody tr")).to_have_count(1)
+
+    page.get_by_test_id("plage-annee-precedente").click()
+
+    expect(page.locator("tbody tr")).to_have_count(0)
+    expect(page.locator("#debut")).to_have_value("%d-01-01" % an_dernier)
+    expect(page.locator("#fin")).to_have_value("%d-12-31" % an_dernier)
+    expect(page.get_by_role("link", name="XLSX")).to_have_attribute(
+        "href", re.compile(r"date__gte=%d-01-01" % an_dernier)
+    )

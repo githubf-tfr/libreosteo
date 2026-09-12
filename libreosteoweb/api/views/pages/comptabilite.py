@@ -254,8 +254,13 @@ def page_comptabilite(request: HttpRequest) -> HttpResponse:
         "libelle_annee": aujourd_hui.year,
         "libelle_annee_precedente": aujourd_hui.year - 1,
     }
+    # Sous `HX-Request`, la reponse n'est pas la seule liste : un changement de periode
+    # gouverne aussi les deux champs de date et l'URL de l'export, qui vivent hors de la
+    # cible de l'echange. Les laisser au rendu du document les figeait sur la periode
+    # d'avant — l'export retelechargeait la periode precedente — jusqu'au prochain
+    # rechargement (defaut de recette R-FAC-02 etape 4).
     gabarit = (
-        "pages/fragments/comptabilite-liste.html"
+        "pages/fragments/comptabilite-echange.html"
         if "HX-Request" in request.headers
         else "pages/comptabilite.html"
     )

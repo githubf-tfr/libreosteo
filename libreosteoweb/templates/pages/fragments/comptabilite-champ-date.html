@@ -1,0 +1,7 @@
+{# Un champ de date de la periode, **seule autorite** pour les deux endroits ou il est #}
+{# rendu : le document, et la reponse d'un changement de periode, qui le rafraichit #}
+{# hors-bande. Le dupliquer dans les deux gabarits laisserait diverger son `name` ou son #}
+{# format de valeur, et le formulaire cesserait de filtrer sans que rien ne le dise. #}
+{# `id` vaut `name` : c'est lui que `<label for>` designe, que la suite fonctionnelle #}
+{# adresse, et que `hx-swap-oob` retrouve dans le document. #}
+<input type="date" class="form-control" id="{{ identifiant }}" name="{{ identifiant }}" value="{{ valeur|date:'Y-m-d' }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}>
