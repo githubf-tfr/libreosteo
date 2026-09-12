@@ -1078,9 +1078,7 @@ def test_la_mise_en_forme_de_caractere_est_enregistree(
 
 def test_le_titre_est_enregistre(page: Page, live_server: LiveServer) -> None:
     """Famille `halloheadings` : titres 1, 2, 3. Temoin : le titre 1."""
-    patient = _saisir_puis_mettre_en_forme(
-        page, live_server, "hobbies", "Ski", "H1"
-    )
+    patient = _saisir_puis_mettre_en_forme(page, live_server, "hobbies", "Ski", "H1")
     assert "Ski" in patient.hobbies
     assert "<h1" in patient.hobbies.lower(), (
         f"aucune balise de titre dans la valeur enregistree : {patient.hobbies!r}"
@@ -1677,8 +1675,7 @@ def classes_de_champs(modele: type[db_models.Model]) -> dict[str, type[forms.Fie
     l'appelant ne teste pas, il depose.
     """
     return {
-        nom: ChampTexteRiche
-        for nom in CHAMPS_DE_TEXTE_RICHE.get(modele.__name__, ())
+        nom: ChampTexteRiche for nom in CHAMPS_DE_TEXTE_RICHE.get(modele.__name__, ())
     }
 
 
@@ -1845,7 +1842,9 @@ class TestAucunRognageParDRF(TestCase):
             "birth_date": "1935-07-13",
             "consent_check": True,
         }
-        charge.update({champ: VALEUR_BORDEE for champ in CHAMPS_DE_TEXTE_RICHE["Patient"]})
+        charge.update(
+            {champ: VALEUR_BORDEE for champ in CHAMPS_DE_TEXTE_RICHE["Patient"]}
+        )
         reponse = self.client_api.put(
             f"/api/patients/{self.patient.id}", charge, format="json"
         )
@@ -2219,7 +2218,7 @@ def texte_riche(request: HttpRequest) -> HttpResponse:
 Dans `tests/functional/banc/urls.py`, ajouter avant les routes du produit :
 
 ```python
-    re_path(r"^banc/texte-riche$", vues.texte_riche, name="banc-texte-riche"),
+(re_path(r"^banc/texte-riche$", vues.texte_riche, name="banc-texte-riche"),)
 ```
 
 **`mark_safe` sur la valeur du banc** : le fragment applique `|safe`, mais le passage par
@@ -2555,9 +2554,7 @@ def page_diagnostic_texte_riche(request: HttpRequest) -> HttpResponse:
         if valeur != valeur.strip():
             compte["bordes"] += 1
         inventaire.feed(valeur)
-        corpus.append(
-            {"m": nom_modele, "i": identifiant, "c": champ, "v": valeur}
-        )
+        corpus.append({"m": nom_modele, "i": identifiant, "c": champ, "v": valeur})
 
     for (nom_modele, champ), compte in compteurs.items():
         par_champ.append(
@@ -2656,9 +2653,7 @@ class TestDiagnosticTexteRiche(TestCase):
     def test_le_tableau_par_champ_compte_les_valeurs_bordees(self) -> None:
         self.client.force_login(self.staff)
         reponse = self.client.get(self.url)
-        par_champ = {
-            (ligne["champ"]): ligne for ligne in reponse.context["par_champ"]
-        }
+        par_champ = {(ligne["champ"]): ligne for ligne in reponse.context["par_champ"]}
         self.assertEqual(len(par_champ), 21)
         self.assertEqual(par_champ["job"]["non_vides"], 1)
         self.assertEqual(par_champ["job"]["bordes"], 1)
@@ -2792,11 +2787,13 @@ Créer `libreosteoweb/templates/pages/diagnostic-texte-riche.html` :
 Ajouter la route à `Libreosteo/urls.py`, **avant** `re_path(r"", include("libreosteoweb.urls"))** :
 
 ```python
+(
     re_path(
         r"^office/rich-text-diagnostic$",
         views.page_diagnostic_texte_riche,
         name="diagnostic-texte-riche",
     ),
+)
 ```
 
 Ajouter les ré-exports à `libreosteoweb/api/views/pages/__init__.py` (import **et** `__all__`,
@@ -3371,7 +3368,10 @@ class FormulaireNouveauPatient(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for nom in ("family_name", "original_name", "first_name"):
             self.fields[nom].widget.attrs.update(
-                {"class": "form-control input-lg", "placeholder": self.fields[nom].label}
+                {
+                    "class": "form-control input-lg",
+                    "placeholder": self.fields[nom].label,
+                }
             )
         self.fields["original_name"].required = False
         # `max` calcule a l'appel et non a l'import : la directive `maxToday`
@@ -3517,9 +3517,7 @@ def _refus(request: HttpRequest, formulaire: FormulaireNouveauPatient) -> HttpRe
         {"formulaire": formulaire},
         request=request,
     )
-    message = "; ".join(
-        str(m) for liste in formulaire.errors.values() for m in liste
-    )
+    message = "; ".join(str(m) for liste in formulaire.errors.values() for m in liste)
     return reponse_avec_notification(request, corps, "erreur", message, status=400)
 ```
 
