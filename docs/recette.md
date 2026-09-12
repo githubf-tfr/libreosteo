@@ -1648,6 +1648,54 @@ naissance vide n'est plus invisible — la ligne « Nom de naissance : non rense
 panneau (étape 1) s'affiche désormais en lecture sur toute fiche patient, y compris
 celles qui n'ont jamais eu ce champ renseigné.
 
+### R-PAT-09 — Mise en forme du texte riche
+
+- **Domaine** : Patient
+- **Couverture auto** : oui —
+  tests/functional/test_texte_riche.py::test_la_mise_en_forme_de_caractere_est_enregistree,
+  ::test_le_titre_est_enregistre, ::test_l_alignement_est_enregistre,
+  ::test_la_liste_est_enregistree (un test par famille de commande : chacun applique **une**
+  commande, enregistre, et relit la valeur en base pour y chercher la balise produite. Ces
+  quatre tests ne regardent **ni l'aspect du texte à l'écran, ni l'état du bouton**, et ne
+  couvrent pas les dix autres commandes — cette fiche les décrit une à une, et elles ne
+  sont vérifiées qu'à la main.)
+- **État requis** : E2. Cette fiche modifie durablement les loisirs du patient Picard :
+  remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Infos générales », cliquer « Éditer »,
+   cliquer dans la zone « Loisirs ».
+   Attendu : une barre d'outils apparaît au-dessus de la zone, portant **quatorze**
+   boutons dans cet ordre, avec ces info-bulles — elles sont en anglais, l'éditeur n'est
+   pas traduit et ne l'a jamais été : `bold`, `italic`, `underline`, `strikethrough`,
+   `p`, `h1`, `h2`, `h3`, `Left`, `Center`, `Right`, `OL`, `UL`, `block`.
+2. Saisir `Ski`, le sélectionner entièrement, cliquer le bouton `bold`.
+   Attendu : le texte s'affiche en gras.
+3. Répéter l'étape 2 pour `italic`, `underline` et `strikethrough`, sur des mots
+   distincts.
+   Attendu : chaque mot prend la mise en forme correspondante.
+4. Sélectionner un mot, cliquer `h1`, puis `h2`, puis `h3`, puis `p`.
+   Attendu : la taille du texte change à chaque clic, et `p` la ramène à celle du texte
+   courant.
+5. Sélectionner une ligne, cliquer `Center`, puis `Right`, puis `Left`.
+   Attendu : la ligne se déplace à chaque clic. **Il n'y a pas de bouton « justifier »** :
+   la barre n'en porte pas, et ce n'est pas un défaut à corriger.
+6. Placer le curseur sur une ligne, cliquer `UL`, puis `OL`.
+   Attendu : la ligne devient un élément de liste, à puce puis numéroté.
+7. Placer le curseur sur une ligne, cliquer `block`.
+   Attendu : un menu déroulant s'ouvre, proposant les six blocs que l'éditeur déclare —
+   `h1`, `h2`, `h3`, `p`, `pre`, `blockquote` ; en choisir un applique ce bloc à la ligne.
+   **Ce bouton n'est couvert par aucun test** : cette étape est la seule preuve qu'il ait.
+8. Cliquer « Fin d'édition », puis recharger complètement la page.
+   Attendu : toutes les mises en forme des étapes 2 à 7 sont toujours affichées — preuve
+   d'une persistance réelle.
+
+**Constat** : ce que les quatre tests prouvent, c'est que la commande écrit sa balise
+**dans la base** — `<b>…</b>`, `<h1>…</h1>`, `<div style="text-align: center;">…</div>`,
+`<ul><li>…</li></ul>`. Ils ne prouvent rien de l'apparence à l'écran : c'est cette fiche,
+et elle seule, qui la vérifie.
+
 ### Documents patient
 
 ### R-DOC-01 — Joindre un document au patient

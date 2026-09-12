@@ -345,6 +345,55 @@ def remplir_champ_de_texte_riche(page: Page, champ: Locator, valeur: str) -> Non
     champ.blur()
 
 
+def appliquer_mise_en_forme(page: Page, champ: Locator, libelle: str) -> None:
+    """Selectionne tout le contenu d'un champ de texte riche et lui applique une commande.
+
+    `libelle` est l'info-bulle du bouton de la barre d'outils, **relevee sur
+    l'implementation actuelle** (D6e T2, etape 1) et reproduite a l'octet par le composant
+    qui la remplace (D6e, E16) : ce helper traverse donc la migration sans que ses
+    appelants soient retouches, et c'est sa raison d'etre. Les quatorze info-bulles
+    mesurees sont, dans l'ordre de la barre : `bold`, `italic`, `underline`,
+    `strikethrough`, `p`, `h1`, `h2`, `h3`, `Left`, `Center`, `Right`, `OL`, `UL`,
+    `block`.
+
+    Le bouton est adresse par son info-bulle, jamais par une classe : le cliquet
+    d'adressage interdit `\\bhallo\\b`, et la barre d'outils n'a ni identifiant stable
+    (l'attribut `id` de chaque bouton est prefixe d'un UUID tire au hasard a chaque
+    activation) ni role propre. Le filtre `visible=true` est indispensable et non
+    decoratif : chaque champ active cree **sa propre** barre d'outils dans `<body>`, que la
+    desactivation se contente de masquer. Neuf champs de texte riche cohabitent sur le
+    dossier patient, donc autant de boutons `bold` masques des que plusieurs champs ont ete
+    touches ; sans ce filtre, le mode strict de Playwright refuse le clic.
+
+    La selection passe par `Control+a` **apres un clic dans le champ** : la barre d'outils
+    n'apparait qu'une fois le champ actif, et une commande appliquee sans selection ne
+    produit aucune balise.
+
+    Les **deux** `blur()` encadrant l'attente de focalisation sont le prix d'un mecanisme
+    mesure, pas une precaution : l'implementation actuelle protege le focus de sa barre
+    d'outils pendant 300 ms apres un `mousedown` dessus (`protectFocusFrom`, hallo.js:235).
+    Dans cette fenetre, un `blur` n'est pas honore — il est **annule**, et le focus est
+    rendu au champ 300 ms plus tard. Le premier `blur()` ne commet donc rien ; l'attente de
+    la refocalisation est la seule barriere d'etat qui prouve que la fenetre s'est refermee
+    (le drapeau interne, lui, tombe avant elle : son minuteur est arme en premier) ; le
+    second `blur()` est celui qui commet reellement la valeur vers le modele, exactement
+    comme `remplir_champ_de_texte_riche` le fait et pour la meme raison. Mesure directe :
+    sans cette barriere, la valeur mise en forme du **dernier** champ touche avant
+    l'enregistrement part en base sans sa balise (`'Traitement H2O'` au lieu de
+    `'<ul><li>Traitement H2O</li></ul>'`), silencieusement.
+
+    Un composant de remplacement qui ne protegerait pas le focus de sa barre d'outils ne
+    refocaliserait pas le champ : c'est alors cette attente — et elle seule — qui serait a
+    revoir dans ce helper, jamais les tests qui l'appellent.
+    """
+    champ.click()
+    page.keyboard.press("Control+a")
+    page.get_by_title(libelle, exact=True).locator("visible=true").click()
+    champ.blur()
+    expect(champ).to_be_focused()
+    champ.blur()
+
+
 def attendre_reponse(
     page: Page,
     geste: Callable[[], None],
