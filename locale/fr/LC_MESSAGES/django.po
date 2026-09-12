@@ -101,8 +101,14 @@ msgstr "Ce patient existe déjà"
 msgid "A patient with the same name already exists:"
 msgstr "Un patient de même nom existe déjà :"
 
+#. Le libelle est celui qui est affiche aujourd'hui, a l'octet (A22) : la borne de la
+#. date de consultation etait purement cliente, et `examination.js:383` rend « La date est
+#. invalide » en francais dans le source. Le msgstr precedent (« La date de consultation
+#. est invalide ») n'etait affiche nulle part — la validation du serialiseur qui l'aurait
+#. leve est commentee depuis le 2026-09-02. `tests/functional/test_consultation.py:287`
+#. attend le libelle affiche : c'est lui qui fait foi (D6e, T10).
 msgid "The examination date is not valid"
-msgstr "La date de consultation est invalide"
+msgstr "La date est invalide"
 
 msgid "Reason is mandatory when the examination is not invoiced"
 msgstr "La raison est obligatoire lorsque la consultation n'est pas facturée"

@@ -1,0 +1,22 @@
+{% load i18n %}
+{# Le corps de la modale d'envoi d'une facture par courriel (D6e, T10). #}
+{# #}
+{# `bind-html-compile` a disparu : le message est **du texte**, rendu par Django et echappe #}
+{# comme tout le reste. C'est ce qui prive `@components/angular-bind-html-compile` de son #}
+{# dernier consommateur — l'autre etait la modale de facturation. #}
+{# #}
+{# `#email` se conserve a l'octet. Le champ est pre-rempli avec l'adresse du patient, comme #}
+{# `resolve: { email: function () { return patient.email; } }` (`examination.js:225`). #}
+<form id="formulaire-envoi-facture" method="post"
+      hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  <p>{% trans 'Are you sure to send this invoice ?' %}</p>
+  {% if erreur %}<div class="alert alert-danger" role="alert">{{ erreur }}</div>{% endif %}
+  <div class="form-group">
+    <label class="sr-only" for="email">{% trans 'Destination email' %}</label>
+    <div class="input-group">
+      <input type="email" class="form-control" id="email" name="email"
+             placeholder="{% trans 'Email' %}" value="{{ courriel|default_if_none:'' }}">
+    </div>
+  </div>
+</form>

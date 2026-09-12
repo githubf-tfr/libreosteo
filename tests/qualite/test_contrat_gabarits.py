@@ -171,20 +171,134 @@ def test_le_detecteur_ne_signale_pas_une_inclusion_qui_charge_son_script() -> No
     assert inclusions_sans_le_script({"vrai.html": correct}) == []
 
 
+# --- L'heritage par inclusion, appris en T10 ---
+#
+# Le cliquet ci-dessus attendait la co-presence de l'inclusion et du script dans **la meme
+# source**, et son commentaire annoncait le jour ou un gabarit heriterait le script d'un
+# parent : « ce test le signalera a tort et devra apprendre l'heritage plutot que d'etre
+# assoupli ». Ce jour est T10. Les deux fragments du volet de consultation incluent le
+# composant ; le `{% block js_page %}` appartient au **document** qui les inclura (T12), et
+# le porter dans les fragments chargerait le script deux fois sur un dossier qui rend deux
+# volets — et hors de tout bloc.
+#
+# **La regle apprise** : un gabarit satisfait le cliquet s'il reference le script lui-meme,
+# ou si **toutes** les sources qui l'incluent, directement ou non, le referencent.
+#
+# **Ce que cette regle laisse passer, et c'est dit** : un fragment que *rien* n'inclut
+# encore. C'est l'etat de `pages/fragments/consultation*.html` entre T10 et T12 — aucun
+# document ne les rend, donc le mode d'echec que ce cliquet garde ne peut pas se produire.
+# Des que T12 les inclura dans le dossier patient, le cliquet mordra sur ce document.
+_INCLUSION_QUELCONQUE = re.compile(r"""{%\s*include\s+["']([^"']+)["']""")
+_COMMENTAIRE = re.compile(r"{#.*?#}", re.DOTALL)
+_PREFIXE_GABARITS = "libreosteoweb/templates/"
+
+
+def _nom_de_gabarit(cle: str) -> str | None:
+    """Le nom sous lequel `{% include %}` designe cette source, ou `None`."""
+    if cle.startswith(_PREFIXE_GABARITS):
+        return cle[len(_PREFIXE_GABARITS) :]
+    return None
+
+
+def inclus_par(sources: dict[str, str]) -> dict[str, list[str]]:
+    """Pour chaque source, la liste des sources qui l'incluent."""
+    par_nom = {nom: cle for cle in sources if (nom := _nom_de_gabarit(cle)) is not None}
+    parents: dict[str, list[str]] = {cle: [] for cle in sources}
+    for cle, source in sources.items():
+        # Les commentaires `{# … #}` sont retires avant le balayage : un gabarit qui
+        # documente son propre contrat d'inclusion (`consultation.html` le fait) passerait
+        # sinon pour son propre parent, et la chaine deviendrait un cycle.
+        for inclus in _INCLUSION_QUELCONQUE.findall(_COMMENTAIRE.sub("", source)):
+            enfant = par_nom.get(inclus)
+            if enfant is not None and cle not in parents[enfant]:
+                parents[enfant].append(cle)
+    return parents
+
+
+def _script_atteint(
+    sources: dict[str, str],
+    cle: str,
+    parents: dict[str, list[str]],
+    vus: frozenset[str],
+    depart: bool,
+) -> bool:
+    if SCRIPT_TEXTE_RICHE in sources[cle]:
+        return True
+    if cle in vus:
+        # Un cycle d'inclusion ne peut pas porter le script : on ne boucle pas dessus.
+        return False
+    ascendants = parents.get(cle, [])
+    if not ascendants:
+        # Une source sans parent est une racine de rendu. **L'exemption ne vaut que pour
+        # le fragment de depart** : si la racine est un ancetre, c'est elle le document qui
+        # rend le composant, et il lui faut le script.
+        return depart
+    return all(
+        _script_atteint(sources, parent, parents, vus | {cle}, False)
+        for parent in ascendants
+    )
+
+
+def sans_le_script_ni_porteur(sources: dict[str, str]) -> list[str]:
+    """Les sources qui incluent le composant sans qu'aucun porteur du script les rende."""
+    parents = inclus_par(sources)
+    return [
+        cle
+        for cle in inclusions_du_texte_riche(sources)
+        if not _script_atteint(sources, cle, parents, frozenset(), True)
+    ]
+
+
+def test_le_detecteur_suit_l_heritage_par_inclusion() -> None:
+    """Un document qui charge le script couvre le fragment qu'il inclut."""
+    fragment = _PREFIXE_GABARITS + "pages/fragments/volet.html"
+    document = _PREFIXE_GABARITS + "pages/dossier.html"
+    sources = {
+        fragment: '{% include "' + FRAGMENT_TEXTE_RICHE + '" with nom="job" %}',
+        document: '{% include "pages/fragments/volet.html" %}<script src="'
+        + SCRIPT_TEXTE_RICHE
+        + '"></script>',
+    }
+    assert sans_le_script_ni_porteur(sources) == []
+
+
+def test_le_detecteur_mord_quand_le_document_qui_rend_n_a_pas_le_script() -> None:
+    """Sans ceci, l'heritage appris serait une porte ouverte plutot qu'une regle."""
+    fragment = _PREFIXE_GABARITS + "pages/fragments/volet.html"
+    document = _PREFIXE_GABARITS + "pages/dossier.html"
+    sources = {
+        fragment: '{% include "' + FRAGMENT_TEXTE_RICHE + '" with nom="job" %}',
+        document: '{% include "pages/fragments/volet.html" %}',
+    }
+    assert sans_le_script_ni_porteur(sources) == [fragment]
+
+
+def test_le_detecteur_exempte_un_fragment_que_rien_ne_rend() -> None:
+    """**Le trou de la regle, ecrit noir sur blanc.**
+
+    Entre T10 et T12, les fragments du volet de consultation sont dans cet etat. Ce test
+    existe pour que l'exemption soit un choix visible et non un effet de bord.
+    """
+    fragment = _PREFIXE_GABARITS + "pages/fragments/volet.html"
+    sources = {fragment: '{% include "' + FRAGMENT_TEXTE_RICHE + '" with nom="job" %}'}
+    assert sans_le_script_ni_porteur(sources) == []
+
+
 def test_tout_gabarit_qui_inclut_le_texte_riche_charge_son_script() -> None:
     """Le cliquet lui-meme.
 
-    Ce qu'il regarde : la co-presence, dans **la meme source**, de l'inclusion et du chemin
-    du script. Ce qu'il laisserait passer : un gabarit qui heriterait le script d'un parent
-    par `{% block js_page %}` — aucun n'existe aujourd'hui, et le jour ou l'un naitra, ce
-    test le signalera a tort et devra apprendre l'heritage plutot que d'etre assoupli.
+    Ce qu'il regarde : que tout document qui **rend** le composant charge son script, en
+    suivant la chaine d'inclusion. Ce qu'il laisserait passer : un fragment qu'aucun
+    gabarit n'inclut mais qu'une **vue** rend en reponse a un echange htmx — le script est
+    alors celui du document qui a declenche l'echange, et aucune lecture statique ne peut
+    le savoir.
     """
     sources = _sources_a_balayer()
     assert inclusions_du_texte_riche(sources), (
         "aucune source n'inclut plus le fragment de texte riche : "
         "le balayage est aveugle et ce cliquet ne prouve plus rien"
     )
-    fautifs = inclusions_sans_le_script(sources)
+    fautifs = sans_le_script_ni_porteur(sources)
     assert not fautifs, (
         "inclusion du composant de texte riche sans son script "
         f"(`{SCRIPT_TEXTE_RICHE}` dans `{{% block js_page %}}`) :\n"

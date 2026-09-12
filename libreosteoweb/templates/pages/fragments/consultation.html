@@ -1,0 +1,225 @@
+{% load i18n %}
+{# Le volet de consultation, en **lecture** (D6e, T10). #}
+{# #}
+{# **Aucun ecran ne rend encore ce fragment** : `partials/examination.html` sert toujours, #}
+{# et c'est T12 qui branchera celui-ci. Il s'inclut par #}
+{# `{% include "pages/fragments/consultation.html" with volet=volet %}`, ou `volet` est le #}
+{# dictionnaire rendu par `pages.consultation.contexte_du_volet(...)`. Une variable et une #}
+{# seule, parce qu'un dossier peut rendre deux volets dans le meme document (l'onglet #}
+{# « Consultations » et le panneau « consultation en cours ») et que chacun doit porter son #}
+{# propre contexte. #}
+{# #}
+{# **Les identifiants sont prefixes** (`volet.prefixe`) : le dossier porte `#general` et #}
+{# `#current-examination` dans le meme document, et T12 y rendra donc deux volets. Aucun #}
+{# conteneur de ce fragment n'est nomme d'apres l'identifiant du patient ou de la #}
+{# consultation : le prefixe est le seul discriminant, et il appartient a l'appelant. #}
+{# La seule collision que ce fragment n'evite pas est celle du selecteur de medecin de T9, #}
+{# dont les identifiants sont poses dans son propre gabarit — elle reste a T12. #}
+{# #}
+{# Le troisieme defaut de balisage legue par D6b ne se reproduit pas (`KANBAN.md:1650`) : #}
+{# `examination.html:14` ferme sa balise sur un guillemet orphelin, qui rend l'attribut #}
+{# voisin inerte. Aucune balise de ce gabarit ne porte un nombre impair de guillemets, et #}
+{# `TestAncresDuGabaritDOrigine` le tient sur le rendu. #}
+<div id="{{ volet.prefixe }}-volet"
+     data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
+  <div class="row">
+    <div class="col-md-12">
+      {# `ng-show="!newExamination"` : on ne ferme pas un volet qu'on est en train de #}
+      {# saisir. La cible du lien est celle de l'onglet « Consultations » du dossier, que #}
+      {# seul l'appelant connait — d'ou `volet.url_liste`. #}
+      {% if not volet.en_cours %}
+      <a class="close pull-right" data-testid="fermer-le-volet"
+         href="{{ volet.url_liste }}" title="{% trans 'Close this panel' %}"
+        ><span aria-hidden="true">&times;</span><span class="sr-only">{% trans 'Close' %}</span></a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="row" style="margin-bottom: 15px">
+      <div class="col-md-12">
+        {# `#examinationDate` est ici un `<span>` et la` <input>` du fragment d'edition : #}
+        {# les deux ne coexistent jamais, la lecture et l'edition s'excluant. Le format #}
+        {# `j F Y` est celui que `helpers.libelle_date_longue` attend a l'octet. #}
+        <h4>{% trans 'Session of ' %} <span id="examinationDate">{{ volet.consultation.date|date:"j F Y" }}</span>
+          {% trans 'by' %} <span class="text-uppercase">{{ volet.consultation.therapeut.last_name }}</span>
+          {{ volet.consultation.therapeut.first_name }}</h4>
+        {% if volet.autre_cabinet %}
+        <p class="text-muted text-right">{% trans 'Performed at ' %} {{ volet.consultation.office.office_name }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% include "pages/fragments/consultation-facture.html" %}
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-primary">
+          <div class="panel-heading">
+            {{ volet.champs.reason_description.libelle }}
+            <div class="badge">
+              <i class="fa fa-check"></i>
+              <span>{{ volet.libelle_du_type|lower }}</span>
+            </div>
+          </div>
+          <div class="panel-body row" style="margin-left: 1px; margin-right: 1px;">
+            <div class="row">
+              <div class="col-md-12" style="padding-bottom:25px">
+                <div class="col-md-12"><strong>{{ volet.consultation.reason }}</strong></div>
+                <div class="col-md-12">&nbsp;</div>
+                <div class="col-md-12">
+                  {% include "pages/fragments/texte-riche.html" with nom="reason_description" valeur=volet.champs.reason_description.valeur libelle=volet.champs.reason_description.libelle editable=False %}
+                </div>
+              </div>
+              <div class="col-md-12">
+                <hr />
+                <div class="row">
+                  <div class="col-md-12 subtitle">{{ volet.champs.medical_examination.libelle }} :</div>
+                  <div class="col-md-12">
+                    {% include "pages/fragments/texte-riche.html" with nom="medical_examination" valeur=volet.champs.medical_examination.valeur libelle=volet.champs.medical_examination.libelle editable=False testid="examen-medical" %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Les spheres. **La condition vient de la vue** (`spheres_a_afficher`), jamais du #}
+    {# gabarit : la regle est plus subtile qu'elle n'en a l'air et elle se prouve seule. #}
+    {# L'accordeon d'`uib-accordion` devient un `<details>` natif : la classe `.collapse` #}
+    {# de Bootstrap 3 porte un `display:none` qu'aucun etat initial ne pourrait lever #}
+    {# proprement (legs de D6c, `dfb2473`). #}
+    {% if volet.spheres %}
+    <div class="row">
+      <div class="col-md-12">
+        <h4>{% trans 'Spheres' %}</h4>
+        {% for sphere in volet.spheres %}
+        <details open class="panel panel-primary panel-sphere">
+          <summary class="panel-heading">{{ sphere.libelle }}</summary>
+          <div class="panel-body">
+            {% include "pages/fragments/texte-riche.html" with nom=sphere.nom valeur=sphere.valeur libelle=sphere.libelle editable=False %}
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="row" style="padding-top:15px">
+      <div class="col-md-12">
+        <div class="panel panel-primary">
+          <div class="panel-heading">{{ volet.champs.diagnosis.libelle }}</div>
+          <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+            {% include "pages/fragments/texte-riche.html" with nom="diagnosis" valeur=volet.champs.diagnosis.valeur libelle=volet.champs.diagnosis.libelle editable=False %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-primary">
+          <div class="panel-heading">{{ volet.champs.treatments.libelle }}</div>
+          <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+            {% include "pages/fragments/texte-riche.html" with nom="treatments" valeur=volet.champs.treatments.valeur libelle=volet.champs.treatments.libelle editable=False %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-success inner-spaced">
+          <div class="panel-heading">{{ volet.champs.conclusion.libelle }}</div>
+          <div class="panel-body row">
+            {% include "pages/fragments/texte-riche.html" with nom="conclusion" valeur=volet.champs.conclusion.valeur libelle=volet.champs.conclusion.libelle editable=False %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-8"></div>
+      <div class="col-md-4">
+        {# `ng-show="model.status < 1"` : une consultation deja facturee ne se cloture pas #}
+        {# une seconde fois. #}
+        {% if volet.consultation.status < 1 %}
+        <button type="button" id="close-examination" class="btn btn-success pull-right"
+                hx-get="{{ volet.url_cloture }}" hx-target="#modale" hx-swap="innerHTML">{% trans 'Close' %}</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# La colonne de droite : sept champs de texte riche du patient, la lateralite, le #}
+  {# tabagisme et le medecin traitant. #}
+  <div class="col-md-5">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="panel panel-danger">
+          <div class="panel-heading">{{ volet.champs.important_info.libelle }}</div>
+          <div class="panel-body">
+            {% include "pages/fragments/texte-riche.html" with nom="important_info" valeur=volet.champs.important_info.valeur libelle=volet.champs.important_info.libelle editable=False %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="panel panel-info">
+          <div class="panel-heading">{{ volet.champs.current_treatment.libelle }}</div>
+          <div class="panel-body">
+            {% include "pages/fragments/texte-riche.html" with nom="current_treatment" valeur=volet.champs.current_treatment.valeur libelle=volet.champs.current_treatment.libelle editable=False %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-info inner-spaced">
+          <div class="panel-heading">{% trans 'Infos patient' %}</div>
+          <div class="panel-body row">
+            <div class="row">
+              <div class="col-md-3">{{ volet.champs.laterality.libelle }} :</div>
+              <div class="col-md-4">{{ volet.libelle_de_lateralite }}</div>
+              <div class="col-md-5 left-bordered-col">
+                {% if volet.patient.smoker %}{{ volet.champs.smoker.libelle }}{% else %}{% trans 'Not smoker' %}{% endif %}
+              </div>
+            </div>
+            <hr />
+            <div class="row">
+              <div class="col-md-12">
+                {{ volet.champs.hobbies.libelle }} :
+                {% include "pages/fragments/texte-riche.html" with nom="hobbies" valeur=volet.champs.hobbies.valeur libelle=volet.champs.hobbies.libelle editable=False %}
+              </div>
+            </div>
+            <hr />
+            <div class="row">
+              <div class="col-md-12">
+                {# `avec_testid` **absent** : `test_medecins.py:41` documente que seul #}
+                {# l'exemplaire du dossier porte `data-testid="ligne-medecin-traitant"`. #}
+                {% include "pages/fragments/medecin-selecteur.html" with patient=volet.patient editable=False %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% for champ in volet.antecedents %}
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-primary inner-spaced">
+          <div class="panel-heading">{{ champ.libelle }}</div>
+          <div class="panel-body row">
+            {% include "pages/fragments/texte-riche.html" with nom=champ.nom valeur=champ.valeur libelle=champ.libelle editable=False %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{# Le script du composant de texte riche appartient au `{% block js_page %}` du **document** #}
+{# qui inclut ce fragment, jamais au fragment lui-meme : l'inclure ici le chargerait deux #}
+{# fois sur un dossier qui rend deux volets, et hors de tout bloc. Le cliquet de #}
+{# `test_contrat_gabarits.py` suit desormais la chaine d'inclusion pour le verifier. #}

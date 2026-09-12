@@ -1,0 +1,190 @@
+{% load i18n %}
+{# Le volet de consultation, en **edition** (D6e, T10). Meme contenu que le fragment de #}
+{# lecture, dans un `<form hx-post>`, avec `editable=True` sur les dix-huit champs de texte #}
+{# riche. Il s'inclut de la meme facon, avec le meme `volet`. #}
+{# #}
+{# **Un seul formulaire pour les deux moities du volet**, et c'est ce qui ferme le maillon 4 #}
+{# par construction : le `<form>` porte les quatorze champs de la consultation **et** les #}
+{# dix champs du patient, la vue les repartit entre deux `ModelForm` a `fields` restreints, #}
+{# et aucune ecriture ne porte plus l'objet patient entier. #}
+{# #}
+{# Aucune balise ne porte un nombre impair de guillemets : le defaut de balisage #}
+{# d'`examination.html:14` ne se reproduit pas, et `TestAncresDuGabaritDOrigine` le tient. #}
+<form id="{{ volet.prefixe }}-formulaire"
+      hx-post="{{ volet.url_edition }}"
+      hx-target="#{{ volet.prefixe }}-volet"
+      hx-swap="outerHTML">
+  {% csrf_token %}
+  <div id="{{ volet.prefixe }}-volet"
+       data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
+    <div class="col-md-7">
+      <div class="row" style="margin-bottom: 15px">
+        <div class="col-md-12">
+          <div class="form-group">
+            <h4>{% trans 'Session of ' %}
+              {{ volet.formulaire.date }}
+              {# **Sous le champ**, comme D6d l'a fait pour la sequence de facturation : #}
+              {# c'est une erreur **du champ** `date`, jamais une erreur globale. #}
+              {{ volet.formulaire.date.errors }}
+              {% trans 'by' %} <span class="text-uppercase">{{ volet.consultation.therapeut.last_name }}</span>
+              {{ volet.consultation.therapeut.first_name }}</h4>
+          </div>
+        </div>
+      </div>
+
+      {% include "pages/fragments/consultation-facture.html" %}
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="panel panel-primary">
+            <div class="panel-heading">
+              {{ volet.champs.reason_description.libelle }}
+              <div class="badge">
+                <i class="fa fa-check"></i>
+                {{ volet.formulaire.type }}
+              </div>
+            </div>
+            <div class="panel-body row" style="margin-left: 1px; margin-right: 1px;">
+              <div class="row">
+                <div class="col-md-12" style="padding-bottom:25px">
+                  <div class="col-md-12">{{ volet.formulaire.reason }}{{ volet.formulaire.reason.errors }}</div>
+                  <div class="col-md-12">&nbsp;</div>
+                  <div class="col-md-12">
+                    {% include "pages/fragments/texte-riche.html" with nom="reason_description" valeur=volet.champs.reason_description.valeur libelle=volet.champs.reason_description.libelle editable=True %}
+                  </div>
+                </div>
+                <div class="col-md-12">
+                  <hr />
+                  <div class="row">
+                    <div class="col-md-12 subtitle">{{ volet.champs.medical_examination.libelle }} :</div>
+                    <div class="col-md-12">
+                      {% include "pages/fragments/texte-riche.html" with nom="medical_examination" valeur=volet.champs.medical_examination.valeur libelle=volet.champs.medical_examination.libelle editable=True testid="examen-medical" %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if volet.spheres %}
+      <div class="row">
+        <div class="col-md-12">
+          <h4>{% trans 'Spheres' %}</h4>
+          {% for sphere in volet.spheres %}
+          <details open class="panel panel-primary panel-sphere">
+            <summary class="panel-heading">{{ sphere.libelle }}</summary>
+            <div class="panel-body">
+              {% include "pages/fragments/texte-riche.html" with nom=sphere.nom valeur=sphere.valeur libelle=sphere.libelle editable=True %}
+            </div>
+          </details>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="row" style="padding-top:15px">
+        <div class="col-md-12">
+          <div class="panel panel-primary">
+            <div class="panel-heading">{{ volet.champs.diagnosis.libelle }}</div>
+            <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+              {% include "pages/fragments/texte-riche.html" with nom="diagnosis" valeur=volet.champs.diagnosis.valeur libelle=volet.champs.diagnosis.libelle editable=True %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="panel panel-primary">
+            <div class="panel-heading">{{ volet.champs.treatments.libelle }}</div>
+            <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+              {% include "pages/fragments/texte-riche.html" with nom="treatments" valeur=volet.champs.treatments.valeur libelle=volet.champs.treatments.libelle editable=True %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="panel panel-success inner-spaced">
+            <div class="panel-heading">{{ volet.champs.conclusion.libelle }}</div>
+            <div class="panel-body row">
+              {% include "pages/fragments/texte-riche.html" with nom="conclusion" valeur=volet.champs.conclusion.valeur libelle=volet.champs.conclusion.libelle editable=True %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-8"></div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary pull-right">{% trans "End of edition" %}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-5">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="panel panel-danger">
+            <div class="panel-heading">{{ volet.champs.important_info.libelle }}</div>
+            <div class="panel-body">
+              {% include "pages/fragments/texte-riche.html" with nom="important_info" valeur=volet.champs.important_info.valeur libelle=volet.champs.important_info.libelle editable=True %}
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="panel panel-info">
+            <div class="panel-heading">{{ volet.champs.current_treatment.libelle }}</div>
+            <div class="panel-body">
+              {% include "pages/fragments/texte-riche.html" with nom="current_treatment" valeur=volet.champs.current_treatment.valeur libelle=volet.champs.current_treatment.libelle editable=True %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <div class="panel panel-info inner-spaced">
+            <div class="panel-heading">{% trans 'Infos patient' %}</div>
+            <div class="panel-body row">
+              <div class="row">
+                <div class="col-md-3">{{ volet.champs.laterality.libelle }} :</div>
+                <div class="col-md-4">{{ volet.formulaire_patient.laterality }}</div>
+                <div class="col-md-5 left-bordered-col">
+                  <label>{{ volet.formulaire_patient.smoker }} {{ volet.champs.smoker.libelle }}</label>
+                </div>
+              </div>
+              <hr />
+              <div class="row">
+                <div class="col-md-12">
+                  {{ volet.champs.hobbies.libelle }} :
+                  {% include "pages/fragments/texte-riche.html" with nom="hobbies" valeur=volet.champs.hobbies.valeur libelle=volet.champs.hobbies.libelle editable=True %}
+                </div>
+              </div>
+              <hr />
+              <div class="row">
+                <div class="col-md-12">
+                  {% include "pages/fragments/medecin-selecteur.html" with patient=volet.patient medecins=volet.medecins editable=True %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% for champ in volet.antecedents %}
+      <div class="row">
+        <div class="col-md-12">
+          <div class="panel panel-primary inner-spaced">
+            <div class="panel-heading">{{ champ.libelle }}</div>
+            <div class="panel-body row">
+              {% include "pages/fragments/texte-riche.html" with nom=champ.nom valeur=champ.valeur libelle=champ.libelle editable=True %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</form>

@@ -153,6 +153,30 @@ urlpatterns = [
         views.selecteur_medecin,
         name="medecin-selecteur",
     ),
+    # Le volet de consultation (T10). **Aucun ecran ne rend encore ces quatre vues** :
+    # c'est T12 qui inclura les fragments dans le dossier patient. Les sous-ressources
+    # sont en anglais sous l'URL de leur ecran (A2) ; les noms de route sont en francais,
+    # comme tout identifiant Python du fork.
+    re_path(
+        r"^examination/(?P<identifiant>\d+)/edit$",
+        views.enregistrer_consultation,
+        name="consultation-edition",
+    ),
+    re_path(
+        r"^examination/(?P<identifiant>\d+)/close$",
+        views.cloturer_consultation,
+        name="consultation-cloture",
+    ),
+    re_path(
+        r"^examination/(?P<identifiant>\d+)/invoice$",
+        views.facturer_consultation,
+        name="consultation-facturation",
+    ),
+    re_path(
+        r"^invoices/(?P<identifiant>\d+)/send$",
+        views.envoyer_facture,
+        name="facture-envoi",
+    ),
     re_path(r"^invoices$", views.page_comptabilite, name="comptabilite"),
     re_path(
         r"^invoices/(?P<identifiant>\d+)/cancel$",

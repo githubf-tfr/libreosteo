@@ -31,6 +31,12 @@ from .cabinet import (
     utilisateur_nouveau,
 )
 from .comptabilite import annuler_facture, page_comptabilite
+from .consultation import (
+    cloturer_consultation,
+    enregistrer_consultation,
+    envoyer_facture,
+    facturer_consultation,
+)
 from .diagnostic_texte_riche import page_diagnostic_texte_riche
 from .import_export import analyser as analyser_import
 from .import_export import integrer as integrer_import
@@ -49,9 +55,13 @@ __all__ = [
     "analyser_import",
     "annuler_facture",
     "cellule_utilisateur",
+    "cloturer_consultation",
     "enregistrer_affichage",
     "enregistrer_cabinet",
+    "enregistrer_consultation",
     "enregistrer_identite",
+    "envoyer_facture",
+    "facturer_consultation",
     "fragment_utilisateurs",
     "integrer_import",
     "medecin_nouveau",
