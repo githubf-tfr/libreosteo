@@ -70,6 +70,9 @@ CHAMPS_DE_TEXTE_RICHE: dict[str, tuple[str, ...]] = {
     "Document": ("notes",),
 }
 
+# Nombre de lignes lues d'un coup par `valeurs_de_texte_riche` (cf. sa docstring).
+LOT_DE_LECTURE = 100
+
 MODELES: dict[str, type[db_models.Model]] = {
     "Patient": models.Patient,
     "Examination": models.Examination,
@@ -134,13 +137,22 @@ def valeurs_de_texte_riche() -> Iterator[tuple[str, int, str, str]]:
     Une valeur vide (`""`) ou nulle (`None`, defaut de `Document.notes`) ne rend rien.
     L'ordre des quadruplets n'est pas garanti : il suit celui des modeles dans la table
     close, puis celui du gestionnaire par defaut.
+
+    **Lu par lots, et c'est structurel** : un `.values(...)` nu remplit le cache de
+    resultats du queryset avant le premier `yield`, c'est-a-dire tout l'HTML des
+    consultations d'un cabinet charge en memoire du processus qui sert une page web.
+    `.iterator()` ne remplit jamais ce cache. Le lot est fixe a 100 et non laisse au
+    defaut de Django (2000) parce que la taille qui compte ici n'est pas le nombre de
+    lignes mais leur poids : 2000 valeurs de texte riche, ce sont deja plusieurs dizaines
+    de mega-octets.
     """
     for nom_modele, champs in CHAMPS_DE_TEXTE_RICHE.items():
         modele = MODELES[nom_modele]
         # `_default_manager` et non `objects` : c'est l'acces documente par Django au
         # gestionnaire d'un modele connu seulement par sa classe, et le seul que
         # `type[Model]` expose. `objects` n'est declare que sur les sous-classes.
-        for ligne in modele._default_manager.all().values("id", *champs):
+        lignes = modele._default_manager.all().values("id", *champs)
+        for ligne in lignes.iterator(chunk_size=LOT_DE_LECTURE):
             for champ in champs:
                 valeur = ligne[champ]
                 if valeur:

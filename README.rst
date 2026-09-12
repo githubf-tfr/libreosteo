@@ -464,6 +464,47 @@ To change the default port of the server, write a file server.cfg like this  (to
 .. _standalone : LibreOsteo/settings/standalone.py
 .. _CherryPy : https://cherrypy.org/
 
+Rich text diagnostic
+====================
+
+Nine fields of the patient record, eleven of the examination and the notes of a document
+hold rich text — HTML typed by the practitioner and stored as is. This page reports what
+your own instance actually contains. It is reached by its URL only, and by nothing else:
+it is deliberately absent from every menu ::
+
+    https://<your instance>/office/rich-text-diagnostic
+
+It is reserved to staff accounts. A non-staff account gets a plain ``404`` there, not a
+``403`` : a page that is not in the menu has no reason to confirm its own existence to
+someone who has no right to it.
+
+**The page never writes.** It reads, counts and displays. It converts nothing, repairs
+nothing, offers no correction, and accepts no form. Opening it on a production database is
+safe, and opening it twice changes nothing.
+
+It answers five questions :
+
+* how many records hold a non-empty value, model by model and field by field, and how long
+  the longest of them is ;
+* which tag names and which attribute names the whole corpus contains, and how often ;
+* how many values carry a leading or a trailing space ;
+* how many values carry a carriage return (``CR``, ``\r``) ;
+* how many values **the browser would rewrite** if they went through it — the last block
+  counts them live and lists the model, the identifier and the field of each one.
+
+That last measurement is the reason the page exists, and it cannot be made on the server :
+what a browser gives back is the serialisation of the tree *that browser* built, and no
+Python library reproduces it faithfully. The measurement therefore runs in the page, which
+means the page carries every rich text value of the database in a JSON block of its own
+source. **The screen shows only counters, tag names, attribute names and record
+identifiers — never a byte of a record's content**, but the source of the page is as
+sensitive as the data itself : do not save it to a file and do not share it.
+
+What it does **not** measure : the *values* of attributes (only their names), whether the
+markup is valid, and what any individual record says. The stability figure is the verdict
+of the browser you are using ; another browser may count differently, which is precisely
+why it is measured where the practitioner works.
+
 Development
 ===========
 

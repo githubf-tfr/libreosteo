@@ -31,6 +31,7 @@ from .cabinet import (
     utilisateur_nouveau,
 )
 from .comptabilite import annuler_facture, page_comptabilite
+from .diagnostic_texte_riche import page_diagnostic_texte_riche
 from .import_export import analyser as analyser_import
 from .import_export import integrer as integrer_import
 from .import_export import page_import_export
@@ -55,6 +56,7 @@ __all__ = [
     "mot_de_passe_utilisateur",
     "page_cabinet",
     "page_comptabilite",
+    "page_diagnostic_texte_riche",
     "page_import_export",
     "page_profil",
     "page_reindexation",

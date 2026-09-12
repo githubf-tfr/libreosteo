@@ -134,6 +134,12 @@ urlpatterns = [
         views.cellule_utilisateur,
         name="cabinet-utilisateur-cellule",
     ),
+    # Absente du menu, reservee a `is_staff`, atteignable par son URL seule (D6e, AR6).
+    re_path(
+        r"^office/rich-text-diagnostic$",
+        views.page_diagnostic_texte_riche,
+        name="diagnostic-texte-riche",
+    ),
     re_path(r"^invoices$", views.page_comptabilite, name="comptabilite"),
     re_path(
         r"^invoices/(?P<identifiant>\d+)/cancel$",

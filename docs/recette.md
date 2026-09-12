@@ -1275,6 +1275,46 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
    Attendu : connexion acceptée ; le menu utilisateur affiche `crusher`, et **l'entrée
    « Import/export » n'y figure pas** — l'utilisateur créé n'est pas administrateur.
 
+### R-CAB-06 — Outil de diagnostic du texte riche
+
+- **Domaine** : Cabinet
+- **Couverture auto** : oui —
+  tests/functional/test_diagnostic_texte_riche.py::test_le_diagnostic_mesure_la_stabilite_sans_rendre_le_contenu
+  (vérifie que les trois tableaux sont rendus, que la mesure de stabilité parcourt tout le
+  corpus, qu'elle compte une valeur volontairement non stable, et qu'aucun contenu clinique
+  n'apparaît dans le texte de la page. **Ne vérifie pas** l'inventaire détaillé du balisage,
+  le comptage des espaces de bord ni celui des retours chariot, qui sont couverts en
+  unitaire par libreosteoweb/tests/test_page_diagnostic_texte_riche.py mais **pas** par un
+  geste d'écran ; **ne vérifie pas non plus** le 404 rendu à un non-administrateur, couvert
+  en unitaire seulement.)
+- **État requis** : E2
+
+**Étapes**
+
+1. Ouvrir directement l'URL `<instance>/office/rich-text-diagnostic`.
+   Attendu : titre de page « Diagnostic du texte riche » ; un encart d'avertissement
+   rappelant que la page lit et compte, et n'écrit jamais. **Vérifier au passage qu'aucune
+   entrée de menu ne mène ici** : la page n'est atteignable que par son URL.
+2. Lire le premier tableau.
+   Attendu : 21 lignes, une par champ de texte riche, avec le nombre d'enregistrements non
+   vides, la longueur maximale, le nombre de valeurs portant un espace de tête ou de
+   queue, et le nombre de valeurs portant un retour chariot. **Relever le total des
+   espaces de bord et l'inscrire au `KANBAN.md`** : c'est le chiffre qu'AR3 attend.
+3. Relever le total « valeurs portant un retour chariot », et l'inscrire lui aussi.
+   Attendu : un nombre, éventuellement zéro. Ce chiffre dit rétrospectivement si le défaut
+   fermé par D6e T5 — une valeur stockée en CRLF ressoumise modifiée sur un champ que
+   personne n'avait touché — était joignable sur ce parc.
+4. Lire le second tableau.
+   Attendu : la liste des noms de balises et des noms d'attributs rencontrés dans le
+   corpus, avec leur nombre d'occurrences. **Relever la présence, ou l'absence, de `h1`,
+   `h2`, `h3` et `style`** : c'est le chiffre qu'AR2 attend.
+5. Lire le troisième bloc.
+   Attendu : le compteur « valeurs examinées » rejoint le total ; le compteur « valeurs que
+   le navigateur réécrirait » est affiché ; le tableau qui suit nomme, pour chacune, le
+   modèle, l'identifiant et le champ — **jamais son contenu**.
+6. Se déconnecter, se reconnecter avec un compte non administrateur, ouvrir la même URL.
+   Attendu : page « 404 ».
+
 ### Thérapeute
 
 ### R-THE-01 — Compléter le profil thérapeute

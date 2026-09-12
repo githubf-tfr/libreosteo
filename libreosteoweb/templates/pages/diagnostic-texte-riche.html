@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+{% load compress %}
+
+{% block titre %}{% trans 'Rich text diagnostic' %}{% endblock %}
+
+{% block css_page %}
+{% compress css %}
+<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
+<link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
+{% endcompress %}
+{% endblock %}
+
+{% block contenu %}
+<div id="page-wrapper">
+  <h1 class="page-header" data-testid="titre-diagnostic">{% trans 'Rich text diagnostic' %}</h1>
+
+  {# Ce que cette page est, et ce qu'elle n'est pas — en clair, en tete, comme C7 l'exige. #}
+  <div class="alert alert-info" role="note" data-testid="avertissement-diagnostic">
+    <p>{% trans "This page measures the rich text already stored in this instance. It reads and counts; it never writes, never converts and never repairs." %}</p>
+    <p>{% trans "It shows counters, tag names, attribute names and record identifiers — never the content of a record." %}</p>
+  </div>
+
+  <h2>{% trans 'Per field' %}</h2>
+  <table class="table" data-testid="tableau-par-champ">
+    <thead><tr>
+      <th>{% trans 'Model' %}</th><th>{% trans 'Field' %}</th>
+      <th>{% trans 'Non-empty records' %}</th><th>{% trans 'Longest value' %}</th>
+      <th>{% trans 'Values with leading or trailing spaces' %}</th>
+      <th>{% trans 'Values containing a carriage return' %}</th>
+    </tr></thead>
+    <tbody>
+      {% for ligne in par_champ %}
+      <tr>
+        <td>{{ ligne.modele }}</td><td>{{ ligne.champ }}</td>
+        <td>{{ ligne.non_vides }}</td><td>{{ ligne.longueur_max }}</td>
+        <td>{{ ligne.bordes }}</td>
+        <td>{{ ligne.retours_chariot }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p data-testid="total-bordes">{% trans 'Total values with leading or trailing spaces:' %} {{ total_bordes }}</p>
+  <p data-testid="total-retours-chariot">{% trans 'Total values containing a carriage return:' %} {{ total_retours_chariot }}</p>
+
+  <h2>{% trans 'Markup inventory' %}</h2>
+  <table class="table" data-testid="tableau-balisage">
+    <thead><tr><th>{% trans 'Tag' %}</th><th>{% trans 'Occurrences' %}</th></tr></thead>
+    <tbody>{% for nom, compte in balises %}<tr><td>{{ nom }}</td><td>{{ compte }}</td></tr>{% endfor %}</tbody>
+  </table>
+  <table class="table" data-testid="tableau-attributs">
+    <thead><tr><th>{% trans 'Attribute' %}</th><th>{% trans 'Occurrences' %}</th></tr></thead>
+    <tbody>{% for nom, compte in attributs %}<tr><td>{{ nom }}</td><td>{{ compte }}</td></tr>{% endfor %}</tbody>
+  </table>
+
+  <h2>{% trans 'Stability through the browser parser' %}</h2>
+  <p>{% trans 'Values examined:' %} <span data-testid="stabilite-examinees">0</span>
+     / <span data-testid="stabilite-total">{{ total_valeurs }}</span></p>
+  <p>{% trans 'Values the browser would rewrite:' %} <span data-testid="stabilite-instables">0</span></p>
+  <table class="table" data-testid="tableau-instables">
+    <thead><tr><th>{% trans 'Model' %}</th><th>{% trans 'Identifier' %}</th><th>{% trans 'Field' %}</th></tr></thead>
+    <tbody id="corps-instables"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block js_page %}
+{# Le corpus est transporte ici, et **nulle part ailleurs**. `json_script` echappe les #}
+{# caracteres qui pourraient fermer la balise ; aucun rendu n'interpole cette donnee. #}
+{{ corpus|json_script:"corpus-texte-riche" }}
+<script>
+  // La seule mesure que le serveur ne peut pas faire (F11) : `innerHTML` est la
+  // serialisation de l'arbre que **ce navigateur** a construit. Traitement par lots de
+  // 200 avec cumul, pour qu'un parc de plusieurs milliers de valeurs ne fige pas l'onglet.
+  (function () {
+    var corpus = JSON.parse(document.getElementById('corpus-texte-riche').textContent);
+    var sonde = document.createElement('div');
+    var examinees = document.querySelector('[data-testid="stabilite-examinees"]');
+    var instables = document.querySelector('[data-testid="stabilite-instables"]');
+    var corps = document.getElementById('corps-instables');
+    var i = 0, compte = 0;
+    function lot() {
+      var fin = Math.min(i + 200, corpus.length);
+      for (; i < fin; i++) {
+        sonde.innerHTML = corpus[i].v;
+        if (sonde.innerHTML !== corpus[i].v) {
+          compte++;
+          var tr = document.createElement('tr');
+          // Trois cellules, trois identifiants — **jamais la valeur**.
+          [corpus[i].m, corpus[i].i, corpus[i].c].forEach(function (t) {
+            var td = document.createElement('td');
+            td.textContent = t;
+            tr.appendChild(td);
+          });
+          corps.appendChild(tr);
+        }
+      }
+      examinees.textContent = String(i);
+      instables.textContent = String(compte);
+      if (i < corpus.length) { setTimeout(lot, 0); }
+    }
+    lot();
+  })();
+</script>
+{% endblock %}

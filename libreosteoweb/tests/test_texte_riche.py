@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import tracemalloc
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.db import models as db_models
@@ -22,6 +24,13 @@ from libreosteoweb.templatetags.texte_riche import valeur_d_attribut
 from libreosteoweb.tests.fixtures import sans_receivers
 
 VALEUR_BORDEE = "  <p>Antécédents</p>  "
+
+# Corpus temoin du test de pic memoire : 500 valeurs de 20 000 octets, soit 10 Mo.
+# Volontairement bien au-dessus du lot de lecture de `valeurs_de_texte_riche` (100), pour
+# que la difference entre « tout materialiser » et « lire par lots » soit d'un ordre de
+# grandeur, et non d'une marge de mesure.
+NOMBRE_DE_VALEURS = 500
+TAILLE_D_UNE_VALEUR = 20_000
 
 
 class TestTableClose(SimpleTestCase):
@@ -200,9 +209,10 @@ class TestAucunRognageParDRF(TestCase):
 class TestCorpusDeTexteRiche(TestCase):
     """L'iterateur que consomme la page de diagnostic (D6e, C7).
 
-    Ce que ce test regarde : la forme exacte des quadruplets rendus, et le fait qu'une
-    valeur vide, absente ou nulle n'en produise aucun. Ce qu'il ne regarde pas : l'ordre
-    des quadruplets, ni le comportement sur un corpus volumineux.
+    Ce que ces tests regardent : la forme exacte des quadruplets rendus, le fait qu'une
+    valeur vide, absente ou nulle n'en produise aucun, et le **pic de memoire** d'un
+    parcours complet sur un corpus volumineux. Ce qu'ils ne regardent pas : l'ordre des
+    quadruplets.
     """
 
     def test_ne_rend_que_les_valeurs_non_vides_des_trois_modeles(self) -> None:
@@ -234,6 +244,49 @@ class TestCorpusDeTexteRiche(TestCase):
                 ("Patient", patient.id, "job", "Capitaine"),
                 ("Examination", consultation.id, "conclusion", "  RAS  "),
             },
+        )
+
+    def test_le_parcours_complet_ne_tient_jamais_tout_le_corpus_en_memoire(
+        self,
+    ) -> None:
+        """Le seul consommateur est une **page web** : le corpus entier en RAM d'un bloc,
+        pour un cabinet charge, c'est tout l'HTML des consultations dans le processus qui
+        sert la requete.
+
+        Ce que ce test regarde : le pic d'allocation Python d'un parcours complet, mesure
+        par `tracemalloc`, compare a la taille du corpus. Ce qu'il ne regarde pas : la
+        memoire prise par l'appelant qui, lui, choisit de tout garder — la page de
+        diagnostic accumule bien tout le corpus, et c'est la contrepartie assumee d'AR6.
+        """
+        with sans_receivers():
+            Patient.objects.bulk_create(
+                [
+                    Patient(
+                        family_name=f"Patient {rang}",
+                        birth_date="1935-07-13",
+                        job="x" * TAILLE_D_UNE_VALEUR,
+                    )
+                    for rang in range(NOMBRE_DE_VALEURS)
+                ]
+            )
+        taille_du_corpus = NOMBRE_DE_VALEURS * TAILLE_D_UNE_VALEUR
+
+        tracemalloc.start()
+        try:
+            tracemalloc.reset_peak()
+            parcourus = 0
+            for _modele, _identifiant, _champ, valeur in valeurs_de_texte_riche():
+                parcourus += len(valeur)
+            _courant, pic = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+
+        self.assertEqual(parcourus, taille_du_corpus, "le parcours a perdu des valeurs")
+        self.assertLess(
+            pic,
+            taille_du_corpus // 2,
+            f"pic de {pic} octets pour un corpus de {taille_du_corpus} : "
+            "l'iterateur materialise le corpus entier",
         )
 
 

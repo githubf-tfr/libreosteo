@@ -2285,3 +2285,72 @@ msgstr "modifier"
 
 msgid "This value is too long."
 msgstr "Cette valeur est trop longue."
+
+# D6e T6 — l'outil de diagnostic du texte riche (page reservee, absente du menu).
+msgid "Rich text diagnostic"
+msgstr "Diagnostic du texte riche"
+
+msgid ""
+"This page measures the rich text already stored in this instance. It reads "
+"and counts; it never writes, never converts and never repairs."
+msgstr ""
+"Cette page mesure le texte riche déjà enregistré dans cette instance. Elle "
+"lit et compte ; elle n'écrit jamais, ne convertit jamais et ne répare jamais."
+
+msgid ""
+"It shows counters, tag names, attribute names and record identifiers — never "
+"the content of a record."
+msgstr ""
+"Elle affiche des compteurs, des noms de balises, des noms d'attributs et des "
+"identifiants d'enregistrement — jamais le contenu d'un enregistrement."
+
+msgid "Per field"
+msgstr "Par champ"
+
+msgid "Model"
+msgstr "Modèle"
+
+msgid "Field"
+msgstr "Champ"
+
+msgid "Non-empty records"
+msgstr "Enregistrements non vides"
+
+msgid "Longest value"
+msgstr "Valeur la plus longue"
+
+msgid "Values with leading or trailing spaces"
+msgstr "Valeurs portant un espace de tête ou de queue"
+
+msgid "Values containing a carriage return"
+msgstr "Valeurs portant un retour chariot"
+
+msgid "Total values with leading or trailing spaces:"
+msgstr "Total des valeurs portant un espace de tête ou de queue :"
+
+msgid "Total values containing a carriage return:"
+msgstr "Total des valeurs portant un retour chariot :"
+
+msgid "Markup inventory"
+msgstr "Inventaire du balisage"
+
+msgid "Tag"
+msgstr "Balise"
+
+msgid "Occurrences"
+msgstr "Occurrences"
+
+msgid "Attribute"
+msgstr "Attribut"
+
+msgid "Stability through the browser parser"
+msgstr "Stabilité au passage par l'analyseur du navigateur"
+
+msgid "Values examined:"
+msgstr "Valeurs examinées :"
+
+msgid "Values the browser would rewrite:"
+msgstr "Valeurs que le navigateur réécrirait :"
+
+msgid "Identifier"
+msgstr "Identifiant"
