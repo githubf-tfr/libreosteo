@@ -32,6 +32,7 @@ from tests.functional.helpers import (
     rechercher_patient,
     remplir_champ_de_texte_riche,
     saisir_consultation,
+    saisir_date,
 )
 
 CHEMIN_DOCUMENT = "tests/functional/resources/patients_1.csv"
@@ -56,12 +57,12 @@ def test_creation_patient_et_refus_du_doublon(
     expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
         "Nouveau patient"
     )
-    # Ces deux champs n'ont pas d'id, seulement un attribut `name` (add-patient.html).
+    # Ces deux champs portent desormais un `id` (le formulaire est monte par
+    # `ModelForm` avec `auto_id="%s"`), mais l'adressage par `name` ne bouge pas : c'est
+    # l'ancre du filet depuis D6b (D6e, table des ancres).
     page.fill("input[name=family_name]", "Picard")
     page.fill("input[name=first_name]", "Jean-Luc")
-    page.fill("input.dd", "13")
-    page.fill("input.mm", "07")
-    page.fill("input.yy", "1935")
+    saisir_date(page, "#birthdate", "1935-07-13")
     page.check("#consent")
     page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
     # Le doublon est exact : l'homonyme trouvé est le patient lui-même, donc la modale
@@ -72,6 +73,30 @@ def test_creation_patient_et_refus_du_doublon(
     confirmer_la_modale(page)
     expect(notifications_d_erreur(page)).to_contain_text("Ce patient existe déjà")
     assert Patient.objects.filter(family_name="Picard").count() == 1
+
+
+def test_le_bouton_reste_desactive_tant_que_le_formulaire_est_invalide(
+    page: Page, live_server: LiveServer
+) -> None:
+    """R-PAT-01 etape 1 : le bouton est desactive tant que le formulaire est invalide.
+
+    Ce que ce test regarde : l'etat `disabled` du bouton, avant et apres remplissage. Il ne
+    regarde ni le message de validation natif, ni la couleur d'un champ.
+
+    C'est la seule preuve de l'affordance Alpine (T8-D1) : `required` seul bloque la
+    soumission par une bulle, il ne desactive aucun bouton. Un `x-data` manquant, un
+    `:disabled` retire ou un `@input` oublie rendent ce test rouge, et rien d'autre ne le
+    verrait — le serveur refuserait toujours, silencieusement.
+    """
+    connexion(page, live_server)
+    page.click("a:has-text('Nouveau patient')")
+    bouton = page.get_by_role("button", name="Initialiser la fiche patient", exact=True)
+    expect(bouton).to_be_disabled()
+    page.fill("input[name=family_name]", "Picard")
+    page.fill("input[name=first_name]", "Jean-Luc")
+    saisir_date(page, "#birthdate", "1935-07-13")
+    page.check("#consent")
+    expect(bouton).to_be_enabled()
 
 
 def test_avertissement_d_homonyme_puis_creation(
@@ -91,9 +116,7 @@ def test_avertissement_d_homonyme_puis_creation(
     )
     page.fill("input[name=family_name]", "Picard")
     page.fill("input[name=first_name]", "Jean-Luc")
-    page.fill("input.dd", "01")
-    page.fill("input.mm", "01")
-    page.fill("input.yy", "1980")
+    saisir_date(page, "#birthdate", "1980-01-01")
     page.check("#consent")
     page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
 
@@ -123,9 +146,7 @@ def test_avertissement_d_homonyme_puis_creation(
     )
     page.fill("input[name=family_name]", "PICARD")
     page.fill("input[name=first_name]", "JEAN-LUC")
-    page.fill("input.dd", "13")
-    page.fill("input.mm", "07")
-    page.fill("input.yy", "1935")
+    saisir_date(page, "#birthdate", "1935-07-13")
     page.check("#consent")
     page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
 
@@ -149,16 +170,22 @@ def test_avertissement_d_homonyme_puis_creation(
 def test_charge_html_dans_nom_homonyme_reste_texte_litteral(
     page: Page, live_server: LiveServer
 ) -> None:
-    """Un nom d'homonyme charge de HTML et d'interpolation Angular ne s'execute pas.
+    """Un nom d'homonyme charge de HTML et d'interpolation ne s'execute pas.
 
-    La liste d'homonymes est construite par concatenation de chaines puis passee a
+    **Ce que ce test regarde** : que la charge saisie ressorte litteralement dans la
+    modale d'homonyme, et qu'aucun element ne naisse dans le DOM. Il ne regarde pas la
+    mise en forme de la liste.
+
+    Avant D6e T8, la liste etait construite par concatenation de chaines puis passee a
     `$sce.trustAsHtml`, compilee par `bind-html-compile` (patient.js:915-925,
-    confirmation.html:7) : une balise HTML deviendrait un vrai element du DOM, une
-    interpolation Angular serait evaluee par le compilateur. Les delimiteurs de ce
-    depot sont `{$ $}`, pas `{{ }}` (app.js, `$interpolateProvider`) : la charge
-    ci-dessous porte les deux voies avec ces delimiteurs-la. La balise
-    `<mark id="xss-marker">` prouve qu'aucun element n'est injecte, `{$ 7*7 $}` prouve
-    qu'aucune interpolation n'est evaluee (elle resterait litterale, jamais "49").
+    confirmation.html:7) : une balise HTML y devenait un vrai element du DOM, une
+    interpolation Angular y etait evaluee par le compilateur. Depuis T8, l'ecran est un
+    document Django : l'echappement est structurel, et l'ecran ne charge plus Angular du
+    tout. La charge garde ses deux voies — `<mark id="xss-marker">` prouve qu'aucun
+    element n'est injecte, `{$ 7*7 $}` (les delimiteurs de ce depot, app.js
+    `$interpolateProvider`) prouve qu'aucune interpolation n'est evaluee. La seconde est
+    desormais vraie par construction ; elle reste ecrite parce qu'elle redeviendrait
+    falsifiable le jour ou cette liste serait rendue depuis la coquille.
     """
     charge = 'Picard<mark id="xss-marker">X</mark>{$ 7*7 $}'
     with sans_receivers():
@@ -174,9 +201,7 @@ def test_charge_html_dans_nom_homonyme_reste_texte_litteral(
     )
     page.fill("input[name=family_name]", charge)
     page.fill("input[name=first_name]", "Jean-Luc")
-    page.fill("input.dd", "01")
-    page.fill("input.mm", "01")
-    page.fill("input.yy", "1980")
+    saisir_date(page, "#birthdate", "1980-01-01")
     page.check("#consent")
     page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
 
@@ -427,12 +452,13 @@ def test_aucun_enregistrement_sur_tabulation_en_edition(
 
     page.get_by_role("button", name="Éditer").click()
     with enregistrements_patient_observes(page, patient.id) as enregistrements:
-        # Scope sur l'onglet, pas la page entiere : `add-patient.html:20` porte un
-        # homonyme de `input[name=original_name]`, et aucun `page.goto` n'intercale
-        # entre `creer_patient` et ce clic — `ui-router` insere la vue entrante avant de
-        # faire sortir la sortante, donc les deux peuvent coexister brievement. Une
-        # violation de mode strict sur ce locator ne serait jamais rejouee par une
-        # attente (D8 T2, revue centrale).
+        # Scope sur l'onglet, pas la page entiere. Le motif d'origine — un homonyme
+        # de `input[name=original_name]` dans la vue « Nouveau patient », que `ui-router`
+        # laissait coexister brievement avec la vue entrante — a disparu avec D6e T8 :
+        # l'ecran est un document Django, et `creer_patient` le quitte par une
+        # redirection complete. Le scope reste, parce que le dossier patient porte lui
+        # aussi ce champ dans plusieurs panneaux (T12 le reprendra) et qu'une violation
+        # de mode strict ne serait jamais rejouee par une attente (D8 T2, revue centrale).
         onglet_infos_generales = page.get_by_test_id("onglet-infos-generales")
         onglet_infos_generales.locator("input[name=original_name]").press("Tab")
         # `fill` ne clique pas : la seule cause d'enregistrement candidate reste le Tab.
@@ -632,7 +658,8 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     `editable-date="patient.birth_date"`) est l'un des quatre champs ambigus que
     corrige `<html lang>` (`index.html:8`) : aucun test ne le traversait, la seule
     saisie de date de naissance couverte etant les trois cases non ambigues
-    d'`add-patient.html` (`creer_patient`, `input.dd|.mm|.yy`). Une corruption
+    de l'ecran « Nouveau patient » (`creer_patient`, trois cases `webshim` jusqu'a
+    D6e T8, un champ de date natif depuis). Une corruption
     silencieuse de ce champ precis serait une erreur de date de naissance dans un
     dossier medical.
 

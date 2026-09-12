@@ -31,7 +31,7 @@
   <div id="headerNavbar" class="navbar-collapse collapse" :class="{ 'in': barreDeployee }">
     <ul class="nav navbar-nav navbar-top-links navbar-left">
       <li>
-        <a href="/#/addPatient"><i class="fa fa-pencil-square-o navbar-link"></i> {% trans 'New patient' %}</a>
+        <a href="{% url 'nouveau-patient' %}"><i class="fa fa-pencil-square-o navbar-link"></i> {% trans 'New patient' %}</a>
       </li>
       <li>
         <a href="{% url 'comptabilite' %}"><i class="fa fa-list-alt"></i> {% trans 'Accounting' %}</a>

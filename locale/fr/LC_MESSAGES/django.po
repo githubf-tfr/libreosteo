@@ -94,6 +94,13 @@ msgstr "Consentement"
 msgid "This patient already exists"
 msgstr "Ce patient existe déjà"
 
+#. D6e T8 : la chaine vivait dans le seul catalogue `djangojs` (elle etait posee
+#. par `patient.js`). L'ecran migre la rend cote serveur, donc dans le domaine
+#. `django` : sans cette entree, la modale d'homonyme s'affiche en anglais.
+#. Le libelle est celui qui est affiche aujourd'hui, a l'octet (A22).
+msgid "A patient with the same name already exists:"
+msgstr "Un patient de même nom existe déjà :"
+
 msgid "The examination date is not valid"
 msgstr "La date de consultation est invalide"
 

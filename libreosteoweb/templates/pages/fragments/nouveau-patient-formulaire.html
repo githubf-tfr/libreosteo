@@ -1,0 +1,37 @@
+{% load i18n %}
+{# Le `<form>` seul : le document l'inclut, et le refus le reemet **hors-bande** dans son #}
+{# propre conteneur (`hors_bande`). Meme idiome que `cabinet-utilisateurs-corps.html` : un #}
+{# `hx-swap-oob` laisse dans un rendu de document serait un attribut mort, et htmx #}
+{# l'extrairait de la cible le jour ou ce fragment deviendrait une cible d'echange. #}
+{# #}
+{# T8-D1 : `required` porte l'autorite — le navigateur refuse la soumission, le serveur la #}
+{# refuse aussi — et trois attributs Alpine portent l'affordance visible du bouton. La #}
+{# validation native ne desactive aucun bouton : elle ouvre une bulle. #}
+<form id="formulaire-nouveau-patient"{% if hors_bande %} hx-swap-oob="true"{% endif %}
+      hx-post="{% url 'nouveau-patient' %}" hx-target="#modale" hx-swap="innerHTML"
+      x-data="{ valide: false }"
+      x-init="valide = $el.checkValidity()"
+      @input="valide = $el.checkValidity()">
+  {% csrf_token %}
+  <div class="row">
+    <div class="col-xs-6 col-sm-6 col-md-6">
+      <div class="form-group">{{ formulaire.family_name }}</div>
+    </div>
+    <div class="col-xs-6 col-sm-6 col-md-6">
+      <div class="form-group">{{ formulaire.original_name }}</div>
+    </div>
+  </div>
+  <div class="form-group">{{ formulaire.first_name }}</div>
+  <div class="form-group">
+    <label for="birthdate">{{ formulaire.birth_date.label }}</label>
+    {{ formulaire.birth_date }}
+  </div>
+  <div class="checkbox">
+    <label>
+      {{ formulaire.consent_check }}
+      {% trans 'Patient gives its consent to handle its personnal information in order to perform the good osteopathic care.' %}
+    </label>
+  </div>
+
+  <button type="submit" class="btn btn-primary" :disabled="!valide">{% trans 'Init the patient file' %}</button>
+</form>

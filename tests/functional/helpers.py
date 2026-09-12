@@ -196,6 +196,21 @@ def enregistrer_formulaire(page: Page, bouton: Locator) -> None:
     attendre_notification_de_succes(page, bouton.click)
 
 
+def saisir_date(page: Page, selecteur: str, jour: str) -> None:
+    """Remplit un `<input type="date">` natif, au format que le navigateur attend.
+
+    Remplace les sites `webshim` du filet (D6e, A14). Le widget `webshim` decoupait le
+    champ en trois cases `input.dd`, `input.mm`, `input.yy` ; un champ de date natif se
+    remplit d'une seule valeur ISO. **Aucun contrat neutre ne s'ajoute** : un
+    `<input type="date">` adresse par son identifiant ou son `name` ne porte aucun motif
+    de la liste close du cliquet d'adressage (A14).
+
+    `jour` est une date ISO (`"1935-07-13"`) : c'est la valeur que `input.value` porte,
+    quelle que soit la locale d'affichage.
+    """
+    page.fill(selecteur, jour)
+
+
 def creer_patient(
     page: Page,
     nom: str = "Picard",
@@ -208,12 +223,11 @@ def creer_patient(
     expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
         "Nouveau patient"
     )
-    # Ces deux champs n'ont pas d'id, seulement un attribut `name` (add-patient.html).
+    # La signature du helper ne change pas (six appelants) : les trois cases de `webshim`
+    # sont recomposees ici en la seule valeur ISO qu'un champ de date natif accepte.
     page.fill("input[name=family_name]", nom)
     page.fill("input[name=first_name]", prenom)
-    page.fill("input.dd", jour)
-    page.fill("input.mm", mois)
-    page.fill("input.yy", annee)
+    saisir_date(page, "#birthdate", f"{annee}-{mois}-{jour}")
     page.check("#consent")
     page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
     expect(page.get_by_test_id("titre-patient")).to_contain_text(nom)
@@ -572,13 +586,15 @@ def attendre_enregistrement_declenche(
 
 
 def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:
-    """Execute `geste` (un clic qui declenche le POST /api/patients de creation) et attend
+    """Execute `geste` (un clic qui declenche le POST /addPatient de creation) et attend
     sa reponse HTTP, avant de rendre la main.
 
-    `AddPatientCtrl.initPatient` (`static/js/app/patient.js`) n'appelle `PatientServ.add`
-    (action $resource `POST`, route enregistree avec `trailing_slash=False` : l'URL finale
-    est `api/patients`, sans slash) qu'apres acquittement de la modale d'homonyme
-    (`modalInstance.result.then(enregistrer)`). Une barriere posee juste apres le clic de
+    **L'URL observee a change avec D6e T8** : l'ecran ne poste plus vers le viewset DRF
+    (`POST /api/patients`) mais vers sa vue de page (`POST /addPatient`), et c'est la
+    modale d'homonyme elle-meme qui reposte, confirmation comprise. Une barriere restee
+    sur l'ancienne URL n'aurait plus jamais ete satisfaite : elle aurait expire, donc
+    signale — c'est le seul mode d'echec acceptable pour une barriere. Une barriere posee
+    juste apres le clic de
     confirmation de la modale (`confirmer_la_modale`) mais qui n'observe pas ce POST rend
     la main avant que la creation ne soit ecrite en base : sous `ATOMIC_REQUESTS` (un
     commit par requete au lieu d'un commit par instruction), ce POST repond parfois en
@@ -588,7 +604,7 @@ def attendre_creation_patient(page: Page, geste: Callable[[], None]) -> None:
     lui-meme est la seule barriere vraie : elle ne peut pas etre satisfaite avant que le
     serveur n'ait ecrit la ligne, quel que soit le contenu du nom soumis (charge HTML incluse).
     """
-    attendre_reponse(page, geste, methode="POST", motif_url=r"/api/patients$")
+    attendre_reponse(page, geste, methode="POST", motif_url=r"/addPatient$")
 
 
 def joindre_document(

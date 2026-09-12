@@ -103,13 +103,6 @@ def display_patient(request):
     )
 
 
-def display_newpatient(request):
-    display = PatientDisplay()
-    return render(
-        request, "partials/add-patient.html", {"patient": display.display_fields()}
-    )
-
-
 def display_doctor(request):
     display = RegularDoctorDisplay()
     return render(

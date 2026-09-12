@@ -35,6 +35,7 @@ from .diagnostic_texte_riche import page_diagnostic_texte_riche
 from .import_export import analyser as analyser_import
 from .import_export import integrer as integrer_import
 from .import_export import page_import_export
+from .nouveau_patient import page_nouveau_patient
 from .profil import (
     enregistrer_affichage,
     enregistrer_identite,
@@ -58,6 +59,7 @@ __all__ = [
     "page_comptabilite",
     "page_diagnostic_texte_riche",
     "page_import_export",
+    "page_nouveau_patient",
     "page_profil",
     "page_reindexation",
     "utilisateur_nouveau",

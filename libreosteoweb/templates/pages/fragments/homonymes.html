@@ -1,0 +1,22 @@
+{% load i18n %}
+{# Corps de la modale d'homonyme. Le `<form>` porte l'identifiant passe a `modale.html` par #}
+{# `formulaire_confirmer` : c'est `#modal-btn-ok` qui le soumet (E9). #}
+<form id="formulaire-homonymes" hx-post="{% url 'nouveau-patient' %}"
+      hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  {# La saisie est rejouee telle quelle : sans ces champs caches, la confirmation posterait #}
+  {# un formulaire vide. `csrfmiddlewaretoken` est repose par `{% csrf_token %}` ci-dessus, #}
+  {# et `confirme` est force a `1` ci-dessous : recopier l'un ou l'autre les doublerait. #}
+  {% for cle, valeur in donnees.items %}{% if cle != 'csrfmiddlewaretoken' and cle != 'confirme' %}
+  <input type="hidden" name="{{ cle }}" value="{{ valeur }}">
+  {% endif %}{% endfor %}
+  <input type="hidden" name="confirme" value="1">
+  <p>{% trans 'A patient with the same name already exists:' %}</p>
+  {# Les noms d'homonymes sont du **texte**, jamais du HTML concatene : Django les echappe #}
+  {# par construction, ce qui est plus fort que le `ng-repeat` d'hier (C5). #}
+  <ul>
+    {% for h in homonymes %}
+    <li>{{ h.family_name }} {{ h.first_name }} — {{ h.birth_date|date:"j F Y" }}</li>
+    {% endfor %}
+  </ul>
+</form>

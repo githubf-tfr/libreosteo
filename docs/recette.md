@@ -288,7 +288,7 @@ joint.
 |---|---|
 | Nom (premier champ) | `Picard` |
 | Prénom | `Jean-Luc` |
-| Date de naissance (trois cases jour/mois/année) | `13` / `07` / `1935` |
+| Date de naissance (un champ de date : jour/mois/année dans un seul champ) | `13/07/1935` |
 | Case à cocher (consentement RGPD) | cochée |
 
 Bouton « Initialiser la fiche patient ». La fiche patient de Jean-Luc Picard s'ouvre.
@@ -1428,7 +1428,10 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
 ### R-PAT-01 — Créer un patient nominal
 
 - **Domaine** : Patient
-- **Couverture auto** : oui — tests/functional/test_patient.py::test_creation_patient_et_refus_du_doublon
+- **Couverture auto** : oui — tests/functional/test_patient.py::test_creation_patient_et_refus_du_doublon,
+  ::test_le_bouton_reste_desactive_tant_que_le_formulaire_est_invalide (l'état `disabled`
+  du bouton avant et après remplissage — ni le message de validation natif, ni la
+  couleur d'un champ)
 - **État requis** : E1. Cette fiche crée durablement le patient Jean-Luc Picard :
   remonter l'état E1 (chapitre 1) avant de jouer une autre fiche qui en dépend.
 
@@ -1438,9 +1441,10 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
    Attendu : titre de page « Nouveau patient » ; formulaire avec un champ (placeholder
    « Nom de famille »), un champ (placeholder « Nom de naissance »), un champ
    (placeholder « Prénom »), un champ de date sous le libellé « Date de naissance »
-   (trois cases jour/mois/année), une case à cocher de consentement RGPD et un bouton
+   (un champ de date : jour/mois/année dans un seul champ), une case à cocher de
+   consentement RGPD et un bouton
    « Initialiser la fiche patient » désactivé (non cliquable).
-2. Saisir `Picard` (Nom de famille), `Jean-Luc` (Prénom), `13`/`07`/`1935` (date de
+2. Saisir `Picard` (Nom de famille), `Jean-Luc` (Prénom), `13/07/1935` (date de
    naissance), cocher la case de consentement.
    Attendu : le bouton « Initialiser la fiche patient » devient actif (cliquable).
 3. Cliquer « Initialiser la fiche patient ».

@@ -140,6 +140,9 @@ urlpatterns = [
         views.page_diagnostic_texte_riche,
         name="diagnostic-texte-riche",
     ),
+    # `addPatient` en camelCase : l'URL est reprise a l'octet de la table d'etats
+    # d'`app.js` (A1), pour que le menu fige de `404.html` continue d'y mener.
+    re_path(r"^addPatient$", views.page_nouveau_patient, name="nouveau-patient"),
     re_path(r"^invoices$", views.page_comptabilite, name="comptabilite"),
     re_path(
         r"^invoices/(?P<identifiant>\d+)/cancel$",
@@ -156,7 +159,6 @@ urlpatterns = [
     re_path(r"^web-view/partials/patient-detail", displays.display_patient),
     re_path(r"^web-view/partials/doctor-selector", displays.select_doctor),
     re_path(r"^web-view/partials/doctor-modal", displays.display_doctor),
-    re_path(r"^web-view/partials/add-patient", displays.display_newpatient),
     re_path(
         r"^web-view/partials/examinations-timeline",
         displays.display_examination_timeline,
