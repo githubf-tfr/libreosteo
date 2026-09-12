@@ -37,9 +37,12 @@ from .fichiers import telecharger_fichier
 from .import_fichiers import FileImportViewSet
 from .installation import CreateAdminAccountView, InstallView, create_superuser
 from .pages import (
+    analyser_import,
     enregistrer_affichage,
     enregistrer_identite,
+    integrer_import,
     mot_de_passe,
+    page_import_export,
     page_profil,
     page_reindexation,
 )
@@ -67,9 +70,12 @@ __all__ = [
     "PaimentMeanViewSet",
     "PatientDocumentViewSet",
     "PatientViewSet",
+    "analyser_import",
     "enregistrer_affichage",
     "enregistrer_identite",
+    "integrer_import",
     "mot_de_passe",
+    "page_import_export",
     "page_profil",
     "page_reindexation",
     "RebuildIndex",

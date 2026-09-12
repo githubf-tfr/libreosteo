@@ -53,7 +53,7 @@
           <li id="office-settings"><a ui-sref="office-settings" href="/#/office/settings"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
           </li>
           {% if request.user.is_staff %}
-          <li id="import-file"><a ui-sref="import-file" href="/#/office/import-file"><i class="fa fa-upload"></i> {% trans "Import/export" %}</a>
+          <li id="import-file"><a href="{% url 'import-export' %}"><i class="fa fa-upload"></i> {% trans "Import/export" %}</a>
           </li>
           {# `ui-sref` retire **en meme temps** que le `href` change : la directive #}
           {# reecrit l'attribut `href` de l'element qui la porte, donc un `href` absolu #}

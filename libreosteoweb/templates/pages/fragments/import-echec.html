@@ -1,0 +1,7 @@
+{# Le refus d'analyse, rendu **hors** de `#patient-file-analyze`. #}
+{# `test_csv_invalide_refuse_sans_import_partiel` lit `#patient-file-analyze` et exige que #}
+{# ni « invalide » ni « erreur » n'y figurent : un message pose a l'interieur ferait #}
+{# rougir un test que cette tache ne doit pas toucher. #}
+<div class="alert alert-danger" role="alert" data-testid="echec-analyse">
+  <p>{{ message }}</p>
+</div>

@@ -40,16 +40,24 @@ def ouvrir_import(page: Page) -> None:
     expect(page.get_by_test_id("titre-import")).to_contain_text(
         "Gestion de l'import/export"
     )
-    # Le socle cree un superutilisateur : `allow_data_dump` (api/displays.py) vaut donc
-    # True et l'onglet "Archive and restore database" s'affiche en premier — l'onglet
-    # d'import n'est jamais actif par defaut, il faut le cliquer.
+    # D6d T8 : meme garde qu'`ouvrir_profil_therapeute` (helpers.py), mesuree par T7 et
+    # heritee ici puisque cette page est elle aussi un document entierement rendu cote
+    # serveur. La barriere ci-dessus est satisfaite immediatement (contenu deja dans la
+    # reponse), elle ne laisse donc pas le temps au script Alpine `defer` de s'attacher :
+    # sans cette attente, le premier clic sur le composant d'onglets peut retomber sur la
+    # navigation par defaut de l'ancre (`href="#"`) au lieu de `@click.prevent`.
+    page.wait_for_function("() => window.Alpine !== undefined")
+    # Le socle cree un superutilisateur : `allow_data_dump` vaut donc True et l'onglet
+    # « Archiver la base de donnees » s'affiche en premier — l'onglet d'import n'est
+    # jamais actif par defaut, il faut le cliquer. (Inchange depuis D6d T8 : la liste des
+    # onglets est construite par la vue, et l'ordre est conserve.)
     page.click('a:has-text("Importer d\'un système externe")')
-    # Deviation du brief : `uib-tabset` (angular-ui-bootstrap) ne retire jamais du DOM le
-    # contenu des onglets inactifs, il se contente de masquer leur conteneur par CSS —
-    # confirme par lecture directe du DOM avant tout clic sur cet onglet : `note-import`
-    # y est deja present, avec son texte complet. `expect(...).to_contain_text(...)` lit
-    # le texte du noeud quelle que soit sa visibilite (constate par instrumentation
-    # directe) : seul `.to_be_visible()` prouve que l'onglet est reellement devenu actif.
+    # Depuis D6d T8, le panneau inactif porte un `display: none` rendu par le serveur et
+    # `x-show` le pilote : son contenu **est** dans le DOM, comme il l'etait sous
+    # `uib-tabset`. `to_contain_text` passerait donc toujours immediatement, et seul
+    # `.to_be_visible()` prouve que l'onglet est devenu actif. La regle est la meme
+    # qu'avant ; sa cause a change de nom, et c'est pourquoi ce commentaire est reecrit
+    # dans le commit qui migre l'ecran (A19).
     expect(page.get_by_test_id("note-import")).to_be_visible()
     expect(page.get_by_test_id("note-import")).to_contain_text("Note")
 
@@ -61,30 +69,23 @@ def test_import_des_patients(page: Page, live_server: LiveServer) -> None:
     page.click("button:has-text('Analyser')")
 
     expect(page.get_by_test_id("analyse-patients-ok")).to_be_visible()
-    # Meme deviation que `ouvrir_import` pour la note d'import : la table et son en-tete
-    # statique (« Nom de famille ») sont deja dans le DOM avant meme l'analyse (le
-    # panneau qui l'entoure n'est, lui aussi, que masque par `ng-show`) — seule sa
-    # visibilite prouve que l'extrait a bien ete affiche.
+    # Depuis D6d T8, la table d'extrait **n'existe pas** avant l'analyse : elle arrive par
+    # l'echange htmx, et la reponse *est* le panneau (C6). `to_be_visible()` reste donc la
+    # bonne barriere, et elle est desormais plus forte qu'avant — elle prouve l'arrivee du
+    # fragment, et non seulement le retrait d'une classe `ng-hide`.
     expect(page.locator("#patient-file-analyze table")).to_be_visible()
     expect(page.locator("#patient-file-analyze table")).to_contain_text(
         "Nom de famille"
     )
 
     page.get_by_role("button", name="Importer", exact=True).click()
-    # Deviation du brief : barriere par visibilite plutot que par contenu.
-    # `FileImportViewSet.integrate` (libreosteoweb/api/views.py)
-    # integre les 100 lignes de facon synchrone dans le corps de la requete POST — mesure
-    # directe (client API, hors Playwright, meme fichier reel) : ~57 s, chaque
-    # `Patient.save()` declenchant une reindexation Whoosh en temps reel
-    # (`HAYSTACK_SIGNAL_PROCESSOR`), soit largement au-dela du plafond par defaut de 15 s
-    # pose par `expect.set_options` (conftest.py) : toute barriere laissee a ce plafond
-    # expirerait avant que la reponse ne revienne. Le panneau
-    # de succes est lui aussi seulement masque par `ng-show` avant l'import (son
-    # texte statique « Importation réussie » est deja dans le DOM au chargement de la vue,
-    # constate par instrumentation directe) : `to_contain_text` seul y passerait
-    # immediatement, sans jamais attendre la fin reelle de l'import. `.to_be_visible()`,
-    # dont le plafond est releve comme l'autorise le brief, est la vraie barriere d'etat :
-    # elle ne passe qu'une fois les 100 patients ecrits en base par le serveur.
+    # L'integration des 100 lignes est **synchrone**, dans le corps de la requete : ~57 s
+    # mesurees, chaque `Patient.save()` declenchant une reindexation Whoosh en temps reel.
+    # Le plafond par defaut d'`expect` (15 s, conftest.py) expirerait avant la reponse ;
+    # celui-ci est releve en connaissance de cause, et le delai htmx de la requete est pose
+    # a 180 000 ms cote gabarit (D6d, A12). Depuis D6d T8, le panneau de succes n'existe
+    # pas avant la reponse : `to_be_visible()` ne peut plus etre satisfait par du texte
+    # statique deja present, ce qui etait le motif d'origine de cette deviation.
     expect(page.get_by_test_id("import-reussi-titre")).to_be_visible(timeout=120_000)
     expect(page.get_by_test_id("import-reussi-titre")).to_contain_text(
         "Importation réussie"
@@ -258,3 +259,31 @@ def test_le_titre_d_erreur_des_consultations_reste_masque_sans_erreur(
     expect(
         corps.get_by_text("Erreurs lors de l'importation des consultations")
     ).to_be_hidden()
+
+
+def test_analyse_en_echec_affiche_un_message(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Le silence de P6, referme : un fichier de consultations depose dans le champ patient.
+
+    `services_import.analyser` leve `FichierPatientManquant` — il a reconnu un fichier de
+    consultations la ou il attendait des patients, et aucun fichier de consultations n'est
+    fourni pour prendre sa place. **Avant D6d T8, cet echec etait invisible** :
+    `fileimport.js:46` recevait le 400 et se contentait d'un `console.log`, l'ecran ne
+    bougeait pas, et l'utilisateur n'avait aucun moyen de savoir que son import n'avait pas
+    eu lieu.
+
+    Demontre rouge sur l'arbre d'avant : sur `partials/import-file.html`, ce meme geste
+    laisse l'ecran inchange et `echec-analyse` n'existe nulle part.
+    """
+    connexion(page, live_server)
+    ouvrir_import(page)
+    page.set_input_files("#patient-file", FICHIER_CONSULTATIONS)
+    page.click("button:has-text('Analyser')")
+
+    message = page.get_by_test_id("echec-analyse")
+    expect(message).to_be_visible()
+    # Preuve d'absence, indissociable : l'echec ne doit pas produire un panneau d'analyse
+    # a moitie rempli, qui laisserait croire que le fichier a ete lu.
+    expect(page.locator("#patient-file-analyze")).to_have_count(0)
+    assert Patient.objects.count() == 0

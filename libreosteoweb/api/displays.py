@@ -200,18 +200,6 @@ def display_setpassword(request):
     return render(request, "partials/set-password-user-modal.html", {})
 
 
-def display_import_files(request):
-    return render(
-        request,
-        "partials/import-file.html",
-        {
-            "request": request,
-            "allow_data_dump": request.user.is_superuser
-            or request.user.has_perm("libreosteoweb.patient.data_dump"),
-        },
-    )
-
-
 def display_file_manager(request):
     return render(request, "partials/filemanager.html", {"request": request})
 

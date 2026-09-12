@@ -38,7 +38,6 @@ var libreosteoApp = angular.module('libreosteo', [
     'infinite-scroll',
     'loEditFormManager',
     'loHalloEditor',
-    'loFileImport',
     'ngFileUpload',
     'loFileManager',
     'angular-bind-html-compile'
@@ -113,12 +112,6 @@ libreosteoApp.config(['$stateProvider', '$urlRouterProvider',
                 templateUrl : 'web-view/partials/office-settings',
                 controller : 'OfficeSettingsCtrl'
             }).
-            state('import-file',
-                {
-                    url : '/office/import-file',
-                    templateUrl : 'web-view/partials/import-file',
-                    controller : 'ImportFileCtrl'
-                }).
             state('invoice-list',
             {
                 url : '/invoices',

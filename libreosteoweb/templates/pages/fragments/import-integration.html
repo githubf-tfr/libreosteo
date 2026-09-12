@@ -1,0 +1,38 @@
+{% load i18n %}
+{# **Un** panneau, choisi par la vue, la ou `import-file.html` en portait quatre, tous #}
+{# presents dans le DOM et masques par `ng-show` (C6). #}
+{% if avec_erreurs %}
+<div class="panel panel-warning">
+  <div class="panel-heading" data-testid="import-avec-erreurs-titre">{% trans 'Importing succeed but some errors' %}</div>
+  <div class="panel-body" data-testid="import-avec-erreurs-detail">
+    <p>{{ rapport.patient.imported }} {% trans 'lines imported from file patient' %}</p>
+    {% if erreurs_patient %}
+    <p>{% trans 'Errors when integrating patients' %}</p>
+    {% for erreur in erreurs_patient %}
+    <p>{% trans 'line : '%} {{ erreur.0 }}</p>
+    <ul>{% for cle, valeur in erreur.1.items %}<li>{{ valeur }}</li>{% endfor %}</ul>
+    {% endfor %}
+    {% endif %}
+    <p>{{ rapport.examination.imported }} {% trans 'lines imported from file examination' %}</p>
+    {# Le titre des erreurs de consultation ne s'affiche que s'il y en a. Il s'affichait #}
+    {# **systematiquement** tant que sa garde s'ecrivait `ng-rshow`, un attribut inconnu #}
+    {# d'AngularJS donc ignore ; `test_le_titre_d_erreur_des_consultations_reste_masque_ #}
+    {# sans_erreur` a ete ecrit pour ca, et il exige `to_be_hidden()` — qu'un element #}
+    {# absent du DOM satisfait. #}
+    {% if erreurs_examination %}
+    <p>{% trans 'Errors when integrating examinations' %}</p>
+    {% for erreur in erreurs_examination %}
+    <p>{% trans 'line : '%} {{ erreur.0 }}</p>
+    <ul>{% for cle, valeur in erreur.1.items %}<li>{{ valeur }}</li>{% endfor %}</ul>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="panel panel-success">
+  <div class="panel-heading" data-testid="import-reussi-titre">{% trans 'Importing succeed' %}</div>
+  <div class="panel-body" data-testid="import-reussi-detail">
+    <p>{{ rapport.patient.imported }} {% trans 'lines imported from file patient' %}</p>
+  </div>
+</div>
+{% endif %}

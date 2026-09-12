@@ -22,6 +22,9 @@ echange vivent sous `libreosteoweb/templates/pages/fragments/`. Les ecrans migre
 passent plus par DRF : ils postent vers ces vues, qui rendent des fragments (D6d, A3).
 """
 
+from .import_export import analyser as analyser_import
+from .import_export import integrer as integrer_import
+from .import_export import page_import_export
 from .profil import (
     enregistrer_affichage,
     enregistrer_identite,
@@ -31,9 +34,12 @@ from .profil import (
 from .reindexation import page_reindexation
 
 __all__ = [
+    "analyser_import",
     "enregistrer_affichage",
     "enregistrer_identite",
+    "integrer_import",
     "mot_de_passe",
+    "page_import_export",
     "page_profil",
     "page_reindexation",
 ]

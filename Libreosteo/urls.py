@@ -101,6 +101,15 @@ urlpatterns = [
         views.mot_de_passe,
         name="profil-mot-de-passe",
     ),
+    re_path(r"^office/import-file$", views.page_import_export, name="import-export"),
+    re_path(
+        r"^office/import-file/analyze$", views.analyser_import, name="import-analyse"
+    ),
+    re_path(
+        r"^office/import-file/(?P<identifiant>\d+)/integrate$",
+        views.integrer_import,
+        name="import-integration",
+    ),
     re_path(r"", include("libreosteoweb.urls")),
     re_path(r"^internal/dump.json", views.DbDump.as_view(), name="db_dump"),
     re_path(r"^internal/restore", views.LoadDump.as_view(), name="load_dump"),
@@ -124,7 +133,6 @@ urlpatterns = [
     re_path(r"^web-view/partials/add-user-modal", displays.display_adduser),
     re_path(r"^web-view/partials/set-password-modal", displays.display_setpassword),
     re_path(r"^web-view/partials/office-settings$", displays.display_officesettings),
-    re_path(r"^web-view/partials/import-file$", displays.display_import_files),
     re_path(r"^web-view/partials/filemanager$", displays.display_file_manager),
     re_path(
         r"^web-view/partials/restore$",

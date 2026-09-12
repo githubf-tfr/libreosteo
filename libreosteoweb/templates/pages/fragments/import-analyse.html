@@ -1,0 +1,130 @@
+{% load i18n %}
+{# Le panneau de resultat d'analyse. **La reponse est le panneau** : il n'existe pas avant #}
+{# l'analyse, la ou `ng-show` le laissait dans le DOM avec tout son texte (C6, F12). #}
+<div class="panel panel-default">
+  <div class="panel-heading">{% trans 'Analyze result' %}</div>
+  <div class="panel-body">
+
+    {% if patient %}
+    <div id="patient-file-analyze">
+      <p class="bg-info">{% trans 'Patient file' %}{% if patient.valide %}<span class="text-success" data-testid="analyse-patients-ok"> <i class="fa fa-check"></i></span>{% else %}<span class="text-danger" data-testid="analyse-patients-ko"> <i class="fa fa-close"></i></span>{% endif %}</p>
+      <div>
+        <p>{% blocktrans %}Please check that the file is correctly read by the software before to integrate the content. Here is an extract of some lines of the file.{% endblocktrans %}</p>
+        {% if not patient.vide %}
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>{% trans 'CSV line number' %}</th>
+              <th>{% trans 'Patient num. (internal use)' %}</th>
+              <th>{% trans 'Family name' %}</th>
+              <th>{% trans 'Original name' %}</th>
+              <th>{% trans 'Firstname' %}</th>
+              <th>{% trans 'Birth date (DD/MM/AAAA)' %}</th>
+              <th>{% trans 'Sex (M/F)' %}</th>
+              <th>{% trans 'Street' %}</th>
+              <th>{% trans 'Address complement' %}</th>
+              <th>{% trans 'Zipcode' %}</th>
+              <th>{% trans 'City' %}</th>
+              <th>{% trans 'Email' %}</th>
+              <th>{% trans 'Phone' %}</th>
+              <th>{% trans 'Mobile phone' %}</th>
+              <th>{% trans 'Job' %}</th>
+              <th>{% trans 'Hobbies' %}</th>
+              <th>{% trans 'Smoker (O/N)' %}</th>
+              <th>{% trans 'Laterality (G/D)' %}</th>
+              <th>{% trans 'Important note' %}</th>
+              <th>{% trans 'Current treatment' %}</th>
+              <th>{% trans 'Surgical history' %}</th>
+              <th>{% trans 'Medical history' %}</th>
+              <th>{% trans 'Family history' %}</th>
+              <th>{% trans 'Trauma history' %}</th>
+              <th>{% trans 'Medical reports' %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {# **Vingt-cinq `<td>` ecrits un par un, et non une boucle sur la ligne.** #}
+            {# `test_csv_invalide_refuse_sans_import_partiel` lit `td` 21 a 24 et les exige #}
+            {# vides : sur un CSV tronque a 20 colonnes, une boucle rendrait 21 cellules au #}
+            {# lieu de 25 et `nth(24)` n'existerait pas. Un indice hors bornes rend la #}
+            {# chaine vide (`string_if_invalid`), exactement comme `{$ row[23] $}` rendait #}
+            {# `undefined` en Angular. #}
+            {% for cle, ligne in extrait.patient.items %}
+            <tr>
+              <td>{{ cle }}</td>
+              <td>{{ ligne.0 }}</td><td>{{ ligne.1 }}</td><td>{{ ligne.2 }}</td><td>{{ ligne.3 }}</td>
+              <td>{{ ligne.4 }}</td><td>{{ ligne.5 }}</td><td>{{ ligne.6 }}</td><td>{{ ligne.7 }}</td>
+              <td>{{ ligne.8 }}</td><td>{{ ligne.9 }}</td><td>{{ ligne.10 }}</td><td>{{ ligne.11 }}</td>
+              <td>{{ ligne.12 }}</td><td>{{ ligne.13 }}</td><td>{{ ligne.14 }}</td><td>{{ ligne.15 }}</td>
+              <td>{{ ligne.16 }}</td><td>{{ ligne.17 }}</td><td>{{ ligne.18 }}</td><td>{{ ligne.19 }}</td>
+              <td>{{ ligne.20 }}</td><td>{{ ligne.21 }}</td><td>{{ ligne.22 }}</td><td>{{ ligne.23 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+      {% if patient.vide %}<p>{% trans 'Empty file' %}</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if examination and examination.type == 'examination' %}
+    <div id="examination-file-analyze">
+      <p class="bg-info">{% trans 'Examination file' %}{% if examination.valide %}<span class="text-success" data-testid="analyse-consultations-ok"> <i class="fa fa-check"></i></span>{% else %}<span class="text-danger" data-testid="analyse-consultations-ko"> <i class="fa fa-close"></i></span>{% endif %}</p>
+      <div>
+        <p>{% blocktrans %}Please check that the file is correctly read by the software before to integrate the content. Here is an extract of some lines of the file.{% endblocktrans %}</p>
+        {% if not examination.vide %}
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>{% trans 'CSV line number' %}</th>
+              <th>{% trans 'Patient num. (internal use)' %}</th>
+              <th>{% trans 'Date' %}</th>
+              <th>{% trans 'Reason' %}</th>
+              <th>{% trans 'Reason description/Context' %}</th>
+              <th>{% trans 'ORL Sphere' %}</th>
+              <th>{% trans 'Visceral Sphere' %}</th>
+              <th>{% trans 'Cardio-Pulmo Sphere' %}</th>
+              <th>{% trans 'Uro-gyneco Sphere' %}</th>
+              <th>{% trans 'Periphery Sphere' %}</th>
+              <th>{% trans 'General state' %}</th>
+              <th>{% trans 'Medical examination' %}</th>
+              <th>{% trans 'Diagnosis' %}</th>
+              <th>{% trans 'Treatments' %}</th>
+              <th>{% trans 'Conclusion' %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cle, ligne in extrait.examination.items %}
+            <tr>
+              <td>{{ cle }}</td>
+              <td>{{ ligne.0 }}</td><td>{{ ligne.1 }}</td><td>{{ ligne.2 }}</td><td>{{ ligne.3 }}</td>
+              <td>{{ ligne.4 }}</td><td>{{ ligne.5 }}</td><td>{{ ligne.6 }}</td><td>{{ ligne.7 }}</td>
+              <td>{{ ligne.8 }}</td><td>{{ ligne.9 }}</td><td>{{ ligne.10 }}</td><td>{{ ligne.11 }}</td>
+              <td>{{ ligne.12 }}</td><td>{{ ligne.13 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+      {% if examination.vide %}<p>{% trans 'Empty file' %}</p>{% endif %}
+    </div>
+    {% endif %}
+
+    <p>
+      {# Le bouton est rendu `disabled` par le serveur quand l'analyse a echoue : c'est la #}
+      {# meme decision que `ng-disabled` prenait dans le navigateur, prise la ou #}
+      {# l'information existe. `test_csv_invalide_refuse_sans_import_partiel` exige #}
+      {# `to_be_disabled()` **et** qu'aucune requete `/integrate` ne parte. #}
+      <button class="btn btn-success" type="button"
+              hx-post="{% url 'import-integration' fichier.id %}"
+              hx-target="#import-result"
+              hx-swap="innerHTML show:top"
+              hx-indicator="#import-en-cours"
+              hx-disabled-elt="this"
+              hx-request='{"timeout": 180000}'
+              {% if not importable %}disabled{% endif %}>{% trans 'Import' %}</button>
+      <span class="bg-success htmx-indicator" id="import-en-cours"><i class="fa fa-cog fa-spin fa-lg fa-fw"></i> {% trans 'Loading in progress'%}</span>
+    </p>
+  </div>
+</div>
