@@ -106,12 +106,6 @@ libreosteoApp.config(['$stateProvider', '$urlRouterProvider',
                 templateUrl : 'web-view/partials/add-patient',
                 controller : 'AddPatientCtrl'
             }).
-            state('office-settings',
-            {
-                url : '/office/settings',
-                templateUrl : 'web-view/partials/office-settings',
-                controller : 'OfficeSettingsCtrl'
-            }).
             state('invoice-list',
             {
                 url : '/invoices',

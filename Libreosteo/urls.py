@@ -110,6 +110,12 @@ urlpatterns = [
         views.integrer_import,
         name="import-integration",
     ),
+    re_path(r"^office/settings$", views.page_cabinet, name="cabinet"),
+    re_path(
+        r"^office/settings/general$",
+        views.enregistrer_cabinet,
+        name="cabinet-general",
+    ),
     re_path(r"", include("libreosteoweb.urls")),
     re_path(r"^internal/dump.json", views.DbDump.as_view(), name="db_dump"),
     re_path(r"^internal/restore", views.LoadDump.as_view(), name="load_dump"),

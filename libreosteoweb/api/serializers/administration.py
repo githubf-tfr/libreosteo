@@ -12,8 +12,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-import re
-
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
@@ -23,7 +21,6 @@ from rest_framework import serializers
 from libreosteoweb.models import (
     Examination,
     FileImport,
-    Invoice,
     OfficeEvent,
     OfficeSettings,
     Patient,
@@ -32,7 +29,8 @@ from libreosteoweb.models import (
 
 from ..file_integrator import Extractor
 from ..filter import get_name_filters
-from ..utils import NetworkHelper, _unicode, maximum_numerique_des_numeros
+from ..services import facturation as services_facturation
+from ..utils import NetworkHelper
 from .communs import WithPkMixin
 
 
@@ -105,40 +103,30 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
         except KeyError:
             input_invoice_prefix_seq = None
         if input_invoice_start_seq is None or len(input_invoice_start_seq) <= 0:
-            numeros = Invoice.objects.filter(
-                officesettings_id=self.instance.id
-            ).values_list("number", flat=True)
-            maximum = maximum_numerique_des_numeros(numeros)
-            if maximum is not None:
-                # Le successeur du maximum numerique, pas le maximum lui-meme :
-                # `invoice_start_sequence` est le PROCHAIN numero a emettre, pas
-                # le dernier emis (`invoicing/generator.py:84-90` le lit, l'emet,
-                # puis persiste la valeur suivante ; `invoicing/reprise.py:129-133`
-                # porte le meme invariant). Poser `maximum` echouerait toujours
-                # le garde-fou de `perform_update`, qui exige une valeur
-                # strictement superieure au maximum — les trois surfaces qui
-                # lisent ce maximum (ici, `get_invoice_min_sequence` et
-                # `perform_update`) doivent dire la meme chose.
-                data["invoice_start_sequence"] = _unicode(maximum + 1)
-            else:
-                data["invoice_start_sequence"] = _unicode(10000)
+            # Seuls la forme et le defaut relevent de cette etape (D6d, T9) : la borne
+            # reste au seul soin de `OfficeSettingsView.perform_update`, qui appelle la
+            # meme regle extraite sur la valeur finale. L'appeler ici aussi ferait
+            # basculer un refus de borne de `PermissionDenied` (403, garde par
+            # `TestMaximumDeSequenceSurLesTroisSurfaces::
+            # test_une_sequence_sous_un_numero_deja_emis_est_refusee`) en
+            # `ValidationError` (400) : deux etapes historiques, une seule regle, mais pas
+            # un seul point d'appel.
+            data["invoice_start_sequence"] = services_facturation.sequence_par_defaut(
+                self.instance.id
+            )
         elif not input_invoice_start_seq.isnumeric():
             raise serializers.ValidationError(
                 _("Invoice start sequence should only contain digits")
             )
         if input_invoice_prefix_seq is not None:
-            input_invoice_prefix_seq = input_invoice_prefix_seq.strip()
-            if len(input_invoice_prefix_seq) > 3:
-                raise serializers.ValidationError(
-                    _("Prefix for invoicing sequence should have 3 char length maximum")
+            try:
+                data["invoice_prefix_sequence"] = (
+                    services_facturation.valider_prefixe_de_sequence(
+                        input_invoice_prefix_seq
+                    )
                 )
-            if len(input_invoice_prefix_seq) == 0:
-                input_invoice_prefix_seq = None
-            elif not re.match("^[A-Za-z]{1,3}$", input_invoice_prefix_seq):
-                raise serializers.ValidationError(
-                    _("Prefix could only contains alpha characters")
-                )
-            data["invoice_prefix_sequence"] = input_invoice_prefix_seq
+            except services_facturation.SequenceInvalide as erreur:
+                raise serializers.ValidationError(str(erreur)) from erreur
         return data
 
     def get_network_list(self, obj):
@@ -152,17 +140,7 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
         return addresses
 
     def get_invoice_min_sequence(self, obj):
-        numeros = Invoice.objects.filter(officesettings_id=obj.id).values_list(
-            "number", flat=True
-        )
-        maximum = maximum_numerique_des_numeros(numeros)
-        # `1` en l'absence de facture convertible : valeur historique de cette
-        # borne, que le formulaire des reglages compare au champ saisi
-        # (officesettings.js:74). La changer elargirait ou restreindrait en
-        # silence ce que le navigateur accepte.
-        if maximum is None:
-            return 1
-        return maximum + 1
+        return services_facturation.borne_minimale_de_sequence(obj.id)
 
     def get_selected(self, obj):
         if hasattr(self.context["request"], "officesettings"):

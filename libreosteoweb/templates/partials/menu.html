@@ -50,7 +50,8 @@
           {# `helpers.ouvrir_profil_therapeute` le clique. #}
           <li id="user-profile"><a href="{% url 'profil' %}"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
           </li>
-          <li id="office-settings"><a ui-sref="office-settings" href="/#/office/settings"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
+          {# `tour.js:68` s'ancre sur `#office-settings` : l'identifiant ne bouge pas. #}
+          <li id="office-settings"><a href="{% url 'cabinet' %}"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
           </li>
           {% if request.user.is_staff %}
           <li id="import-file"><a href="{% url 'import-export' %}"><i class="fa fa-upload"></i> {% trans "Import/export" %}</a>

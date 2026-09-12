@@ -66,15 +66,24 @@ def ouvrir_reglages_cabinet(page: Page) -> None:
     expect(page.get_by_test_id("titre-cabinet")).to_contain_text(
         "Paramètres du cabinet"
     )
-    # Le titre de la page se pose avant la reponse du GET /api/settings : il ne prouve pas
-    # que le formulaire est rempli. `office_identifier` est rempli par cette reponse : une
-    # vraie barriere d'etat. Attendre une valeur non vide plutot que la valeur semee en dur
-    # par le socle — un test qui la reecrit (test_cabinet.py) puis rappellerait cette
-    # fonction ne resterait pas bloque jusqu'au plafond d'`expect`.
-    # Echeance : D6d T9. Sous rendu serveur, le titre et la valeur arrivent dans le meme
-    # document, et cette barriere devient immediatement satisfaite — elle reste juste, son
-    # motif devient faux. Elle est reecrite dans le commit qui migre cet ecran.
+    # Depuis D6d T9, ce clic est une **navigation de document** : le titre et les valeurs
+    # arrivent ensemble, et `GET /api/settings` n'est plus appele par cet ecran. Le motif
+    # d'origine — « le titre se pose avant la reponse de l'API » — est donc faux, et cette
+    # barriere est desormais **immediatement satisfaite**.
+    #
+    # Elle reste, et elle reste juste : elle continue de distinguer un document charge d'un
+    # document en cours de chargement, et `office_identifier` est la valeur la moins
+    # susceptible d'etre videe par un test (ceux qui declenchent la visite guidee vident
+    # `currency` et `professional_id`, jamais celle-ci).
     expect(page.locator("input[name=office_identifier]")).not_to_have_value("")
+    # Mesure sur D6d T7 (profil) et confirmee ici : contrairement a `connexion()`, dont la
+    # barriere attend un appel reseau asynchrone qui laisse le temps au script Alpine
+    # `defer` de s'executer, cette barriere-ci est satisfaite par du contenu rendu par le
+    # serveur des la reponse — elle n'attend pas Alpine. Le premier geste sur le composant
+    # d'onglets qui suit immediatement cette navigation peut alors arriver avant que
+    # `@click.prevent` ne soit attache, et retombe sur la navigation par defaut de l'ancre
+    # `href="#"`. Attendre `window.Alpine` ferme cette fenetre.
+    page.wait_for_function("() => window.Alpine !== undefined")
 
 
 def ouvrir_profil_therapeute(page: Page) -> None:
@@ -162,18 +171,21 @@ def attendre_notification_de_succes(page: Page, geste: Callable[[], None]) -> No
 def enregistrer_formulaire(page: Page, bouton: Locator) -> None:
     """Clique le bouton d'enregistrement et attend la confirmation de l'application.
 
-    La barriere est la notification, et non la reponse d'une requete nommee. Elle l'etait
-    parce que les deux ecrans concernes n'ecrivaient pas en une seule requete ; depuis
-    D6d T7 le profil ecrit en **une** requete (l'utilisateur et ses reglages, dans la meme
-    transaction), et « Mettre a jour » (cabinet) lance encore les reglages et un
-    enregistrement par moyen de paiement **en parallele**, ne confirmant qu'apres le
-    dernier — cette moitie-la du motif tombe en D6d T9.
+    La barriere est la notification, et non la reponse d'une requete nommee. Depuis
+    D6d T7 et T9, **les deux ecrans concernes ecrivent en une seule requete** — le profil
+    ecrit l'utilisateur et ses reglages dans la meme transaction, le cabinet ecrit les
+    reglages et tous les moyens de paiement dans la sienne — la ou « Mettre a jour »
+    lancait N+1 requetes en parallele et « Enregistrer » deux requetes enchainees.
 
-    Le choix de barriere, lui, ne change pas et n'a pas a changer : la notification reste le
-    seul signal en aval de *toutes* les ecritures, ce que l'arbitrage A1 de D6b exige quand
-    l'assertion qui suit porte sur la base. Elle vaut pour les deux implementations de
-    notification (`growl` et le composant de D6c), le contrat neutre acceptant les deux
-    pendant la cohabitation (D6d, A18).
+    Le choix de barriere ne change pas pour autant, et c'est ce qui compte : la
+    notification reste le seul signal **en aval de l'ecriture**, ce que l'arbitrage A1 de
+    D6b exige quand l'assertion qui suit porte sur la base. Une barriere d'ecran ne le
+    prouverait pas davantage sous htmx que sous Angular : l'echange de fragment a lieu
+    des la reponse, notification comprise.
+
+    Elle vaut pour les deux implementations de notification pendant la cohabitation
+    (`growl` pour les ecrans de D6e, le composant de D6c pour ceux de D6d), le contrat
+    neutre acceptant les deux (D6d, A18).
     """
     attendre_notification_de_succes(page, bouton.click)
 
