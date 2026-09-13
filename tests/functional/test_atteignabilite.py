@@ -8,14 +8,19 @@ chacun d'eux part d'un `goto` direct sur l'URL de son ecran.
 Ce test part de la page de connexion et n'emet **aucune** navigation par URL : le seul
 `goto` du fichier est celui de `helpers.connexion`, qui affiche le formulaire.
 
-**Trois ecrans sont exclus, et la raison est ici :**
+**Quatre ecrans sont exclus, et la raison est ici :**
 
 1. l'outil de diagnostic du texte riche (`/office/rich-text-diagnostic`) est **hors menu par
    construction**, reserve a `is_staff` et atteignable par son URL seule (D6e, AR6) ;
 2. la restauration (`web-view/partials/restore`) et l'inscription
    (`web-view/partials/register`) sont des URL de maintenance, gardees par
    `maintenance_available` ;
-3. l'installeur (`/install/`) ne s'atteint que sur une base vierge, sans session.
+3. l'installeur (`/install/`) ne s'atteint que sur une base vierge, sans session ;
+4. « Changer de cabinet » (`partials/menu.html`, sous `{% if request.has_multiple_office %}`)
+   n'apparait au menu que si plus d'une fiche cabinet existe en base, et son URL est le
+   **defaut connu et verse** du 2026-09-13 (`KANBAN.md`) : `reverse("officesettings-reset")`
+   rend un slash encode, `/%2F`. L'inclure ferait rougir ce filet sur un defaut deja
+   instruit et hors perimetre de D6f.
 
 **Ce que ce test ne voit pas** : un lien recouvert par un autre element. Playwright clique
 par le centre de la boite ; un `z-index` fautif qui rend le lien inutilisable a la souris
@@ -27,6 +32,7 @@ from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from tests.functional.helpers import (
+    attendre_reponse,
     cloturer_consultation,
     connexion,
     creer_patient,
@@ -73,21 +79,37 @@ def test_chaque_ecran_est_joignable_au_clic(
     expect(page.get_by_test_id("titre-patient")).to_contain_text("Picard")
     _attendre_alpine(page)
 
-    # 3. Les cinq onglets du dossier. Le cinquieme, « Consultation en cours », n'existe
-    #    qu'une fois une consultation ouverte : il est verifie plus bas.
-    for identifiant, ancre in (
-        ("#history", "onglet-antecedents"),
-        ("#medicalreports", "onglet-comptes-rendus"),
-        ("#examinations", "onglet-consultations"),
-        ("#general", "onglet-infos-generales"),
-    ):
-        page.click(identifiant)
-        expect(page.get_by_test_id(ancre)).to_be_visible()
+    # 3. Quatre des cinq onglets du dossier. L'entree de barre porte `#<cle>` et son panneau
+    #    `#panneau-<cle>` : c'est l'ancrage que le produit declare
+    #    (`fragments/dossier-corps.html`, `partials/onglets.html`) et que le filet clique
+    #    deja. Le cinquieme, « Consultation en cours », n'existe qu'une fois une
+    #    consultation ouverte : il est clique au point 4.
+    for cle in ("history", "medicalreports", "examinations", "general"):
+        page.click(f"#{cle}")
+        expect(page.locator(f"#panneau-{cle}")).to_be_visible()
 
-    # 4. Consultation — depuis le dossier, sans URL.
+    # 4. Consultation — depuis le dossier, sans URL. L'ouverture bascule d'elle-meme sur le
+    #    cinquieme onglet, et le volet nait **en edition** : la saisie vient donc avant le
+    #    detour qui prouve le lien de l'onglet.
     ouvrir_nouvelle_consultation(page)
-    expect(page.get_by_test_id("onglet-consultation-en-cours")).to_be_visible()
+    expect(page.locator("#panneau-current-examination")).to_be_visible()
     saisir_consultation(page)
+
+    # Le cinquieme onglet est **clique**, comme les quatre autres : mesurer sa presence ne
+    # prouverait pas son lien. Le detour passe par « Consultations », dont le changement
+    # d'onglet declenche l'enregistrement implicite (`quitterEdition()`, AR5) ; la barriere
+    # attend cette ecriture, sans quoi la cloture qui suit courrait contre elle.
+    attendre_reponse(
+        page,
+        lambda: page.click("#examinations"),
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
+    )
+    expect(page.locator("#panneau-examinations")).to_be_visible()
+    expect(page.locator("#panneau-current-examination")).to_be_hidden()
+    page.click("#current-examination")
+    expect(page.locator("#panneau-current-examination")).to_be_visible()
+
     cloturer_consultation(page, mode="invoiced", moyen="check")
 
     # 5. Recherche — le formulaire de la barre de menu. L'ancre de la page de resultats est
