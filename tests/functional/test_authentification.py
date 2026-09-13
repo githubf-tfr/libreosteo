@@ -110,4 +110,6 @@ def test_la_page_sert_les_bundles_compresses(
     )
     motif = re.compile(r"^/static/CACHE/css/output\.[0-9a-f]{12}\.css$")
     assert len([source for source in sources if motif.match(source)]) == 2, sources
-    assert [source for source in sources if "/static/css/sb-admin-2.css" in source] == []
+    assert [
+        source for source in sources if "/static/css/sb-admin-2.css" in source
+    ] == []

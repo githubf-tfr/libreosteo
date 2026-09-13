@@ -51,6 +51,11 @@ def ouvrir_menu_utilisateur(page: Page) -> None:
     """
     menu = page.get_by_test_id("menu-utilisateur")
     if not menu.is_visible():
+        # `#user-toggle` porte `@click.prevent` Alpine (`partials/menu.html`) : sans cette
+        # attente, un clic tire avant qu'Alpine n'ait pris la main tomberait sur un
+        # gestionnaire qui n'existe pas encore (D6f, intermittence mesuree). Meme motif
+        # que `ouvrir_reglages_cabinet`, pas un troisieme.
+        page.wait_for_function("() => window.Alpine !== undefined")
         page.click("#user-toggle")
     expect(menu).to_be_visible()
 

@@ -664,6 +664,24 @@ class TestPage(TestCase):
         self.assertEqual(9, corps.count("<polyline"))
         self.assertNotIn("sparkline.min.js", corps)
 
+    def test_seul_le_graphe_de_la_semaine_est_visible_a_l_etat_initial(self) -> None:
+        """C2, une seule autorite : le serveur ecrit l'etat initial, Alpine ne prend le
+        relais qu'a son amorcage. Les neuf `<svg>` sont attaches sans condition
+        (`x-show`), donc **avant** qu'Alpine ne s'execute, seul l'attribut `style` du
+        serveur decide ce qui est visible. Un mutant qui inverse la condition
+        (`{% if trace.actif %}` au lieu de `{% if not trace.actif %}`) masquerait la
+        semaine et afficherait mois et annee sans qu'aucun autre test ne le voie."""
+        corps = self.client.get("/").content.decode()
+
+        motifs = re.findall(r"<svg[^>]*x-show=\"actif === '(\w+)'\"([^>]*)>", corps)
+        self.assertEqual(9, len(motifs))
+        for periode, reste in motifs:
+            with self.subTest(periode=periode):
+                if periode == "week":
+                    self.assertNotIn("display: none", reste)
+                else:
+                    self.assertIn("display: none", reste)
+
     def test_statistiques_coupees_ne_rendent_pas_les_tuiles(self) -> None:
         """C3 : une valeur fausse ne masque pas, elle ne rend pas."""
         self.reglages.stats_enabled = False
