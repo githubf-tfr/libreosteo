@@ -105,6 +105,23 @@ class TestPaginationDuJournal(SocleDuJournal):
         self.assertEqual(2, corps.count('data-testid="evenement-cabinet"'))
         self.assertEqual(0, corps.count('hx-trigger="revealed"'))
 
+    def test_une_page_pleine_sans_suite_ne_porte_aucun_declencheur(self):
+        """Le total est un **multiple exact** de la limite : la premiere page est pleine et
+        pourtant il n'y a rien apres elle.
+
+        C'est le seul cas qui distingue la garde `journal[...].exists()` de la substitution
+        `len(page) == limite`, que le cahier des charges interdit nommement : sous cette
+        substitution, la page pleine porterait un declencheur vers une page **vide**, que
+        htmx irait chercher — et qui, vide, n'en porterait plus. Une requete de trop a
+        chaque fois que le journal compte dix, vingt ou trente evenements.
+        """
+        self._seme(10)
+
+        corps = self.client.get(URL).content.decode()
+
+        self.assertEqual(10, corps.count('data-testid="evenement-cabinet"'))
+        self.assertEqual(0, corps.count('hx-trigger="revealed"'))
+
     def test_un_offset_non_numerique_retombe_sur_la_premiere_page(self):
         """Une `ValueError` non gardee serait une 500 sur un parametre d'URL public."""
         self._seme(12)
@@ -152,6 +169,28 @@ class TestRegroupementParJour(SocleDuJournal):
 
         self.assertEqual(0, corps.count('data-testid="jour-evenements"'))
         self.assertEqual(2, corps.count('data-testid="evenement-cabinet"'))
+
+    def test_une_page_suivante_qui_change_de_jour_porte_son_entete(self):
+        """Le second sens de la regle : l'en-tete ne doit se taire que sur le jour **deja
+        ouvert** par la page precedente.
+
+        Dix evenements le jour J remplissent la premiere page ; la suivante commence la
+        veille, un jour que personne n'a encore annonce. Sans la comparaison a
+        `jour_precedent`, la page qui arrive perdrait silencieusement sa date, et le
+        deroule rangerait trois evenements de la veille sous l'en-tete du jour J.
+        """
+        maintenant = timezone.now()
+        self._seme(10, jour=maintenant)
+        self._seme(3, jour=maintenant - timedelta(days=1))
+
+        corps = self.client.get(URL, {"offset": 10}).content.decode()
+
+        self.assertEqual(3, corps.count('data-testid="evenement-cabinet"'))
+        self.assertEqual(1, corps.count('data-testid="jour-evenements"'))
+        self.assertIn(
+            date_format(timezone.localdate(maintenant) - timedelta(days=1), "l j F Y"),
+            corps,
+        )
 
     def test_un_groupe_inconnu_retombe_sur_le_regroupement_par_jour(self):
         """Un parametre d'URL public inconnu ne doit pas rendre une liste sans en-tete."""
