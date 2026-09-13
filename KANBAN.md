@@ -565,6 +565,28 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
+- **La commande de recompilation du catalogue détruit des traductions, et rien ne le voit.**
+  `msgfmt` est absent de la machine ; le dépôt recompile `locale/fr/LC_MESSAGES/django.mo` par
+  le `msgfmt.py` d'exemple de CPython. **Ce script ne remet le drapeau `fuzzy` à zéro que sur
+  une ligne de commentaire** : toute entrée qui suit un bloc `#, fuzzy` sans commentaire
+  intercalaire hérite du drapeau et **disparaît du `.mo`**.
+
+  **Mesuré le 2026-09-13**, sur le catalogue tel qu'il était au commit `b026fbc` : recompiler
+  le `.po` **sans l'avoir modifié** faisait passer le `.mo` de **366 à 356 entrées**. Les dix
+  perdues : « Active », « Administrator », « Last name », « The password was changed. »,
+  « The two passwords do not match. », « This value is too long. », « You do not have
+  permission to perform this action. », « modify », « no », « yes ». Autrement dit, « oui » et
+  « non » repassaient en anglais à l'écran.
+
+  **Aucun cliquet ne lit le `.mo`.** `tests/qualite/test_contrat_traductions.py` lit le `.po`,
+  qui est la source versionnée, et reste vert pendant que le catalogue compilé se vide — c'est
+  écrit noir sur blanc dans ses propres limites (« un `.mo` périmé »).
+
+  **État au 2026-09-13** : le trou est bouché par une note de commentaire posée dans le `.po`
+  (D6f T5), et la recompilation ne perd plus rien — mesuré, 373 entrées des deux côtés. **Mais
+  le compilateur reste faux**, et le correctif tient à la présence d'une ligne de commentaire au
+  bon endroit. À trancher hors lot : installer un vrai `msgfmt`, ou poser le cliquet qui
+  compare le `.mo` au `.po`.
 - **`api/events` répond 500 dès qu'un événement du journal désigne un patient supprimé.**
   `libreosteoweb/api/serializers/administration.py:66` fait un `.get()` **nu** sur la branche
   `Patient`, là où la branche `Examination` est gardée. Et `OfficeEvent.reference` est un
