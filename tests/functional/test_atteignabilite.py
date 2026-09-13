@@ -32,6 +32,7 @@ from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from tests.functional.helpers import (
+    attendre_alpine_initialise,
     attendre_reponse,
     cloturer_consultation,
     connexion,
@@ -40,24 +41,6 @@ from tests.functional.helpers import (
     ouvrir_nouvelle_consultation,
     saisir_consultation,
 )
-
-
-def _attendre_alpine(page: Page) -> None:
-    """Barriere de fin de navigation, avant tout geste sur un controle pilote par Alpine.
-
-    Motif deja mesure et documente deux fois dans `helpers.py` (`ouvrir_profil_therapeute`,
-    `ouvrir_reglages_cabinet`) : une navigation de document se termine sur une barriere
-    satisfaite par du contenu **rendu par le serveur** — ici un titre — qui n'attend donc
-    pas le script `defer` d'Alpine. Le premier geste sur un `@click` Alpine qui suit peut
-    arriver avant que le gestionnaire ne soit attache ; le clic retombe alors sur la
-    navigation par defaut de l'ancre `href="#"`, le panneau garde le `display: none` pose
-    par le serveur, et l'attente suivante expire au bout de 30 s. Constate une fois sur ce
-    test meme, au point 7.
-
-    A n'appeler que sur une page de `base.html` : le tableau de bord est encore rendu par
-    la coquille, qui ne charge pas Alpine — l'attente n'y serait jamais satisfaite.
-    """
-    page.wait_for_function("() => window.Alpine !== undefined")
 
 
 def test_chaque_ecran_est_joignable_au_clic(
@@ -77,7 +60,7 @@ def test_chaque_ecran_est_joignable_au_clic(
     #    « Nouveau patient » : le chemin du point 1 est donc traverse deux fois, sans effet.
     creer_patient(page)
     expect(page.get_by_test_id("titre-patient")).to_contain_text("Picard")
-    _attendre_alpine(page)
+    attendre_alpine_initialise(page)
 
     # 3. Quatre des cinq onglets du dossier. L'entree de barre porte `#<cle>` et son panneau
     #    `#panneau-<cle>` : c'est l'ancrage que le produit declare
@@ -122,7 +105,7 @@ def test_chaque_ecran_est_joignable_au_clic(
     # 6. Comptabilite — entree du menu du haut.
     page.get_by_role("link", name="Comptabilité").click()
     expect(page.get_by_test_id("titre-comptabilite")).to_contain_text("Comptabilité")
-    _attendre_alpine(page)
+    attendre_alpine_initialise(page)
 
     # 7. Facture — depuis la comptabilite, le lien « Imprimer » ouvre un onglet.
     page.get_by_test_id("actions-facture").first.click()
@@ -139,7 +122,7 @@ def test_chaque_ecran_est_joignable_au_clic(
     ouvrir_menu_utilisateur(page)
     page.click("#user-profile")
     expect(page.get_by_test_id("titre-profil")).to_contain_text("Profil utilisateur")
-    _attendre_alpine(page)
+    attendre_alpine_initialise(page)
 
     # 9. Parametres du cabinet — menu utilisateur.
     ouvrir_menu_utilisateur(page)
@@ -147,20 +130,20 @@ def test_chaque_ecran_est_joignable_au_clic(
     expect(page.get_by_test_id("titre-cabinet")).to_contain_text(
         "Paramètres du cabinet"
     )
-    _attendre_alpine(page)
+    attendre_alpine_initialise(page)
 
     # 10. Import/export — menu utilisateur, reserve a `is_staff` (le socle l'est). L'ancre du
     #     titre de cet ecran s'appelle `titre-import`.
     ouvrir_menu_utilisateur(page)
     page.click("#import-file")
     expect(page.get_by_test_id("titre-import")).to_be_visible()
-    _attendre_alpine(page)
+    attendre_alpine_initialise(page)
 
     # 11. Reindexation — menu utilisateur.
     ouvrir_menu_utilisateur(page)
     page.click("#rebuild-index")
     expect(page.get_by_test_id("titre-reindexation")).to_be_visible()
-    _attendre_alpine(page)
+    attendre_alpine_initialise(page)
 
     # 12. Retour au tableau de bord par le logo, qui est la seule voie de retour.
     page.get_by_role("link", name="LibreOsteo").first.click()

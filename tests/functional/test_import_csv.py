@@ -12,6 +12,7 @@ from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import Examination, Patient
 from tests.functional.helpers import (
+    attendre_alpine_initialise,
     connexion,
     ouvrir_menu_utilisateur,
 )
@@ -46,7 +47,7 @@ def ouvrir_import(page: Page) -> None:
     # reponse), elle ne laisse donc pas le temps au script Alpine `defer` de s'attacher :
     # sans cette attente, le premier clic sur le composant d'onglets peut retomber sur la
     # navigation par defaut de l'ancre (`href="#"`) au lieu de `@click.prevent`.
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     # Le socle cree un superutilisateur : `allow_data_dump` vaut donc True et l'onglet
     # « Archiver la base de donnees » s'affiche en premier — l'onglet d'import n'est
     # jamais actif par defaut, il faut le cliquer. (Inchange depuis D6d T8 : la liste des

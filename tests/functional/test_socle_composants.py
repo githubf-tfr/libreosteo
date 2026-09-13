@@ -35,6 +35,8 @@ import pytest
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
+from tests.functional.helpers import attendre_alpine_initialise
+
 SEVERITES = ["succes", "erreur", "info", "avertissement"]
 
 
@@ -253,7 +255,7 @@ def test_le_texte_riche_non_touche_soumet_la_valeur_a_l_octet(
     le recu valant la version normalisee par l'analyseur (`<p>` minuscule).
     """
     page.goto(f"{live_server.url}/banc/texte-riche")
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     # On ouvre le champ et on le quitte **sans rien saisir** : c'est le geste que `R-PAT-10`
     # decrit, et celui que `hallo` ne survit pas.
     page.get_by_test_id("zone-banc").click()
@@ -276,7 +278,7 @@ def test_le_texte_riche_commet_la_frappe(
     `AssertionError: Locator expected to contain text 'frappe'`.
     """
     page.goto(f"{live_server.url}/banc/texte-riche")
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     page.get_by_test_id("zone-banc").click()
     page.keyboard.press("End")
     page.keyboard.type("frappe")
@@ -300,7 +302,7 @@ def test_le_texte_riche_commet_le_collage(
     Falsification : retirer `@paste` du fragment.
     """
     page.goto(f"{live_server.url}/banc/texte-riche")
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     page.get_by_test_id("zone-banc").click()
     page.keyboard.press("End")
     page.evaluate("() => navigator.clipboard.writeText('colle')")
@@ -323,7 +325,7 @@ def test_le_texte_riche_commet_la_commande_de_barre_d_outils(
     Falsification : retirer `this.commettre()` de `commande(...)`.
     """
     page.goto(f"{live_server.url}/banc/texte-riche")
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     page.get_by_test_id("zone-banc").click()
     page.keyboard.press("Control+a")
     page.get_by_title("bold", exact=True).locator("visible=true").click()
@@ -354,7 +356,7 @@ def test_le_texte_riche_applique_un_bloc_du_menu_de_bloc(
     Falsification : retirer `commande('formatBlock', 'blockquote')` de l'entree du menu.
     """
     page.goto(f"{live_server.url}/banc/texte-riche")
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     page.get_by_test_id("zone-banc").click()
     page.keyboard.press("Control+a")
     page.get_by_title("block", exact=True).locator("visible=true").click()
@@ -401,7 +403,7 @@ def test_seule_la_barre_du_champ_actif_est_visible(
     fait rougir la mesure de non-decalage, et elle seule.
     """
     page.goto(f"{live_server.url}/banc/texte-riche")
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     boutons = page.get_by_title("bold", exact=True)
     visibles = boutons.locator("visible=true")
 
@@ -460,7 +462,7 @@ def test_l_onglet_conditionnel_et_l_activation_programmatique(
     """
     # 1. L'onglet conditionnel n'existe pas quand la vue ne le construit pas.
     page.goto(f"{live_server.url}/banc/onglets")
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     expect(page.get_by_role("tab", name="Trois")).to_have_count(0)
     # Le temoin du compte : sans lui, une barre entierement vide satisferait l'assertion
     # ci-dessus. Les deux onglets que la vue construit, eux, sont bien la.
@@ -470,7 +472,7 @@ def test_l_onglet_conditionnel_et_l_activation_programmatique(
     # 2. Il existe des que la vue le construit — sans qu'un seul `{% if %}` n'ait ete
     # ajoute au composant : seule la liste construite par la vue a change.
     page.goto(f"{live_server.url}/banc/onglets?conditionnel=1")
-    page.wait_for_function("() => window.Alpine !== undefined")
+    attendre_alpine_initialise(page)
     expect(page.get_by_role("tab", name="Trois")).to_have_count(1)
     expect(page.get_by_role("tab")).to_have_count(3)
 

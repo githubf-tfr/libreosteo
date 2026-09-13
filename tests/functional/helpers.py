@@ -18,6 +18,21 @@ from pytest_django.live_server_helper import LiveServer
 DELAI_PROTECTION_BARRE_D_OUTILS_MS = 300
 
 
+def attendre_alpine_initialise(page: Page) -> None:
+    """Attend que `alpine:initialized` ait ete emis sur le document courant (D6f).
+
+    `window.Alpine !== undefined` etait une **barriere inerte** : mesure directe du
+    bundle (`cdn.min.js`), `window.Alpine=hr;queueMicrotask(()=>{hr.start()})` pose la
+    reference globale **avant** que `start()` ne parcoure l'arbre et ne lie les
+    directives (`@click.prevent` compris) — le predicat passait donc avant que le
+    gestionnaire n'existe, et l'intermittence mesuree sur `ouvrir_menu_utilisateur` et
+    `ouvrir_reglages_cabinet` en decoule. Le drapeau lu ici est pose par la fixture
+    `_drapeau_alpine_initialise` (conftest.py) via `page.add_init_script`, donc **avant**
+    tout script de la page — aucune course possible entre l'ecoute et l'evenement.
+    """
+    page.wait_for_function("() => window.__alpineInitialise === true")
+
+
 def connexion(
     page: Page,
     serveur: LiveServer,
@@ -52,10 +67,9 @@ def ouvrir_menu_utilisateur(page: Page) -> None:
     menu = page.get_by_test_id("menu-utilisateur")
     if not menu.is_visible():
         # `#user-toggle` porte `@click.prevent` Alpine (`partials/menu.html`) : sans cette
-        # attente, un clic tire avant qu'Alpine n'ait pris la main tomberait sur un
-        # gestionnaire qui n'existe pas encore (D6f, intermittence mesuree). Meme motif
-        # que `ouvrir_reglages_cabinet`, pas un troisieme.
-        page.wait_for_function("() => window.Alpine !== undefined")
+        # attente, un clic tire avant qu'Alpine n'ait lie ses directives tomberait sur un
+        # gestionnaire qui n'existe pas encore (D6f, intermittence mesuree).
+        attendre_alpine_initialise(page)
         page.click("#user-toggle")
     expect(menu).to_be_visible()
 
@@ -82,8 +96,9 @@ def ouvrir_reglages_cabinet(page: Page) -> None:
     # serveur des la reponse — elle n'attend pas Alpine. Le premier geste sur le composant
     # d'onglets qui suit immediatement cette navigation peut alors arriver avant que
     # `@click.prevent` ne soit attache, et retombe sur la navigation par defaut de l'ancre
-    # `href="#"`. Attendre `window.Alpine` ferme cette fenetre.
-    page.wait_for_function("() => window.Alpine !== undefined")
+    # `href="#"`. `window.Alpine !== undefined` etait une barriere inerte (D6f, mesure sur
+    # `ouvrir_menu_utilisateur`) : `attendre_alpine_initialise` la ferme reellement.
+    attendre_alpine_initialise(page)
 
 
 def ouvrir_profil_therapeute(page: Page) -> None:
@@ -108,10 +123,10 @@ def ouvrir_profil_therapeute(page: Page) -> None:
     # elle ne coute rien, donc elle n'attend pas Alpine non plus. Le premier geste sur le
     # composant d'onglets (T7) qui suit immediatement cette navigation peut alors arriver
     # avant que `@click.prevent` ne soit attache, et retombe sur la navigation par defaut
-    # de l'ancre `href="#"` (constate : l'URL de la page porte alors un `#` final). Attendre
-    # `window.Alpine` — assigne par le module a la fin de son execution synchrone, avant
-    # que Playwright ne puisse a nouveau interroger la page — ferme cette fenetre.
-    page.wait_for_function("() => window.Alpine !== undefined")
+    # de l'ancre `href="#"` (constate : l'URL de la page porte alors un `#` final).
+    # `window.Alpine !== undefined` etait une barriere inerte (D6f, mesure sur
+    # `ouvrir_menu_utilisateur`) : `attendre_alpine_initialise` la ferme reellement.
+    attendre_alpine_initialise(page)
 
 
 def notifications_de_succes(page: Page) -> Locator:

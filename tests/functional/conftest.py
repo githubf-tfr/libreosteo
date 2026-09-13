@@ -19,7 +19,7 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.staticfiles import finders
 from django.db.backends.sqlite3.base import DatabaseWrapper as SqliteDatabaseWrapper
 from haystack import connections as connexions_recherche
-from playwright.sync_api import expect
+from playwright.sync_api import Page, expect
 
 from libreosteoweb.models import OfficeSettings, PaimentMean, TherapeutSettings
 
@@ -150,6 +150,33 @@ def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
     connexions_recherche.reload("default")
     yield
     connexions_recherche.reload("default")
+
+
+# `window.Alpine` est pose **avant** que `start()` ne lie les directives
+# (`cdn.min.js`, mesure directe : `window.Alpine=hr;queueMicrotask(()=>{hr.start()})`) :
+# `window.Alpine !== undefined` est une barriere inerte, satisfaite avant tout `@click.*`.
+# `alpine:initialized` est l'evenement public qu'Alpine emet lui-meme sur `document`,
+# **apres** avoir parcouru l'arbre et lie chaque directive (mesure directe du bundle :
+# c'est le dernier appel avant le `setTimeout` de fin de `start()`). Prefere aux proprietes
+# internes (`_x_dataStack`, `_x_bindings`) : celles-ci existent dans le bundle mais sont un
+# detail d'implementation prive, jamais documente ni garanti d'une version a l'autre.
+_SCRIPT_DRAPEAU_ALPINE = """
+window.__alpineInitialise = false;
+document.addEventListener('alpine:initialized', () => { window.__alpineInitialise = true; });
+"""
+
+
+@pytest.fixture(autouse=True)
+def _drapeau_alpine_initialise(page: Page) -> None:
+    """Pose le drapeau **avant** toute navigation (D6f).
+
+    `page.add_init_script` s'execute avant le premier script de **chaque** navigation
+    ulterieure de cette page, y compris le tout premier `page.goto` de `connexion()` :
+    aucune course n'est possible entre l'ecoute et l'evenement. Il se repose (et se
+    remet a `false`) a chaque nouvelle navigation, donc reste correct a travers les
+    changements de document complets (`ouvrir_reglages_cabinet`, `ouvrir_profil_therapeute`).
+    """
+    page.add_init_script(_SCRIPT_DRAPEAU_ALPINE)
 
 
 @pytest.fixture(autouse=True)
