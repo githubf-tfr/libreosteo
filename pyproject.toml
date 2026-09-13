@@ -227,6 +227,7 @@ files = [
     "tests/qualite/test_contrat_adressage.py",
     "tests/qualite/test_contrat_compression.py",
     "tests/qualite/test_contrat_gabarits.py",
+    "tests/qualite/test_contrat_traductions.py",
     "winserver.py",
     "zipcode_lookup/__init__.py",
     "zipcode_lookup/management/commands/__init__.py",

@@ -101,6 +101,25 @@ def _attributs_de(html: str, motif: str) -> str:
     return ""
 
 
+_LABEL = re.compile(r"<label\b([^>]*)>(.*?)</label>", re.DOTALL)
+_CIBLE_DU_LABEL = re.compile(r"""\bfor\s*=\s*["']([^"']*)["']""")
+
+
+def _libelles_de(html: str) -> list[tuple[str, str]]:
+    """Les `<label>` du document rendu : (valeur de `for`, texte du libelle).
+
+    Rendre la liste plutot qu'un booleen est ce qui permet d'asserter l'**unicite** : une
+    recherche de sous-chaine ne distingue pas un libelle de deux.
+    """
+    return [
+        (
+            trouve.group(1) if (trouve := _CIBLE_DU_LABEL.search(attributs)) else "",
+            _texte(interieur),
+        )
+        for attributs, interieur in _LABEL.findall(html)
+    ]
+
+
 class _SocleDuDossier(TestCase):
     """Un praticien connecte, un cabinet regle, un patient."""
 
@@ -531,6 +550,52 @@ class TestVueDeLIdentite(_SocleDuDossier):
                     1,
                 )
 
+    def _identite_rendue(self, patient: models.Patient) -> str:
+        return render_to_string(
+            "pages/fragments/dossier-identite.html",
+            {"identite": dossier_patient.contexte_identite(patient, self._requete())},
+        )
+
+    def test_une_lateralite_absente_s_affiche_non_renseignee(self) -> None:
+        """Defaut n° 2 de la recette D6e : « Lateralite : None » a l'ecran.
+
+        `Patient.laterality` est `null=True` (`models.py:84-90`), donc
+        `get_laterality_display()` rend `None` — que Django imprime « None », la chaine
+        litterale. Ses six voisins du meme fragment portaient deja
+        `|default:_("not documented")` ; seule la lateralite l'avait perdu.
+
+        **Ce que ce test regarde : le texte rendu avec une valeur nulle**, pas la presence
+        du filtre dans la source du gabarit. Une assertion qui epinglerait la forme
+        (`"|default:" in source`) serait verte sur un `default` pose sur le mauvais champ,
+        et rouge sur un repli obtenu autrement — un `{% if %}`, ou un defaut pose par la
+        vue. Le premier `assertIsNone` n'est pas decoratif : il tient l'hypothese du
+        defaut, et rougirait le jour ou le modele rendrait la chaine vide, ce qui rendrait
+        cette preuve sans objet.
+
+        Ce qu'il laisserait passer : la **place** de la ligne dans le panneau, et le fait
+        qu'un ecran rende ce fragment.
+        """
+        self.assertIsNone(self.patient.laterality)
+        self.assertIsNone(self.patient.get_laterality_display())
+
+        self.assertIn(
+            "Latéralité : non renseigné", _texte(self._identite_rendue(self.patient))
+        )
+
+    def test_une_lateralite_renseignee_s_affiche_telle_quelle(self) -> None:
+        """Le repli ne mange pas la valeur quand il y en a une.
+
+        Sans cette seconde preuve, `{{ ... }}` remplace par la constante
+        `{% trans "not documented" %}` resterait vert, et le panneau afficherait « non
+        renseigne » sur un patient droitier.
+        """
+        self.patient.laterality = "R"
+        self.patient.save(update_fields=["laterality"])
+
+        self.assertIn(
+            "Latéralité : Droitier", _texte(self._identite_rendue(self.patient))
+        )
+
 
 class TestVueDesAntecedents(_SocleDuDossier):
     def test_l_enregistrement_ecrit_les_quatre_antecedents(self) -> None:
@@ -595,6 +660,44 @@ class TestVueDesComptesRendus(_SocleDuDossier):
         ).content.decode("utf-8")
         self.assertIn('id="document-televersement-%d-title"' % self.patient.pk, html)
         self.assertNotIn('id="title"', html)
+
+    def test_le_choix_de_fichiers_n_a_qu_un_seul_libelle(self) -> None:
+        """Defaut n° 3 de la recette D6e : « Ajouter des documents » rendu deux fois.
+
+        `dossier-corps.html:71` posait le libelle **puis** incluait
+        `document-televersement.html`, qui le pose deja (`:58`). Le praticien lisait deux
+        fois la meme phrase, et le document portait **deux `<label for>` sur le meme
+        identifiant** — HTML invalide, que les technologies d'assistance restituent comme
+        deux etiquettes concurrentes pour un seul champ.
+
+        **Ce que ce test regarde : l'unicite**, pas la presence. Une assertion de presence
+        (`assertIn('for="addDocumentMedicalReport"', html)`) serait restee verte sur le
+        doublon, et c'est exactement ce que la suite avait : `test_page_documents.py:759`
+        n'assure que l'existence de l'`id`. Le comptage porte sur les `<label>` parses et
+        non sur la sous-chaine : le texte d'aide traduit commence par « Ajouter des
+        documents en tant que rapport medicaux… », donc `html.count("Ajouter des
+        documents")` vaut **2 meme une fois le defaut corrige** — une assertion de
+        sous-chaine aurait mesure autre chose que ce qu'elle croit.
+
+        Ce qu'il laisserait passer : un libelle correctement unique mais pose **hors** du
+        bloc de televersement, et ce que le navigateur fait du couple `for`/`id`.
+        """
+        html = self.client.get(
+            reverse("dossier-patient", args=[self.patient.pk])
+        ).content.decode("utf-8")
+
+        self.assertEqual(
+            ["Ajouter des documents"],
+            [
+                texte
+                for cible, texte in _libelles_de(html)
+                if cible == "addDocumentMedicalReport"
+            ],
+        )
+        # La cible du `for` reste unique elle aussi : deux `id` identiques rendraient
+        # l'unicite du libelle sans valeur, et `helpers.joindre_document` deposerait le
+        # fichier sur le premier des deux.
+        self.assertEqual(1, html.count('id="addDocumentMedicalReport"'))
 
 
 class TestConsentement(_SocleDuDossier):

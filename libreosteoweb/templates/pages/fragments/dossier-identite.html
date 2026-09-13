@@ -61,7 +61,7 @@
         <div class="row">
           <div class="col-md-7">
             {{ identite.libelles.laterality }} :
-            <span>{{ identite.patient.get_laterality_display }}</span>
+            <span>{{ identite.patient.get_laterality_display|default:_("not documented") }}</span>
           </div>
           <div class="col-md-5 left-bordered-col">
             <span>{% if identite.patient.smoker %}{{ identite.libelles.smoker }}{% else %}{% trans 'Not smoker' %}{% endif %}</span>

@@ -68,7 +68,6 @@
           {# traverses, pas seulement l'etat final. #}
           {% include "pages/fragments/dossier-comptes-rendus.html" with comptes_rendus=comptes_rendus %}
           <div class="form-group">
-            <label for="addDocumentMedicalReport">{% trans 'Add document' %}</label>
             {% include "pages/fragments/document-televersement.html" with patient=televersement.patient formulaire=televersement.formulaire choisi=televersement.choisi hors_bande=False %}
           </div>
           {% include "pages/fragments/documents-liste.html" with patient=documents.patient documents=documents.documents hors_bande=False %}
