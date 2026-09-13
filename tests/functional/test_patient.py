@@ -1024,3 +1024,43 @@ def test_la_garde_de_sortie_s_arme_sur_un_champ_de_texte_riche(
 
     remplir_champ_de_texte_riche(page, champ, "Antecedent chirurgical")
     expect(garde).to_have_count(1)
+
+
+def test_abandonner_l_edition_d_une_vignette_desarme_la_garde(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Saisir dans une vignette de document, **abandonner**, et quitter sans avertissement.
+
+    **Ce que ce test regarde** : le marqueur que `beforeunload` interroge, après une saisie
+    puis un abandon. Il ne déclenche jamais la boîte de dialogue.
+
+    **Le défaut qu'il ferme, et c'est la seconde fois qu'un resserrement de la garde ouvre
+    un trou à l'autre bout.** Le désarmement suit les **écritures** — un `GET` est une
+    lecture, et entrer en édition ne doit rien désarmer. Or le bouton « Annuler » d'une
+    vignette est un `hx-get` : il fait disparaître le formulaire **sans rien enregistrer**,
+    et la garde restait armée sur une page où il n'y avait plus rien à perdre. C'est le
+    **seul** abandon en `GET` du dossier ; les quatre autres surfaces n'en ont pas.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    page.click("#medicalreports")
+    joindre_document(
+        page,
+        CHEMIN_DOCUMENT,
+        "Radiographie lombaire",
+        "01/01/2024",
+        "Document de recette",
+    )
+    garde = page.locator("[data-modifications-non-enregistrees]")
+    expect(garde).to_have_count(0)
+
+    page.click("button.document-edit")
+    champ = page.locator("li.documenttile input[placeholder*='Titre']")
+    expect(champ).to_have_count(1)
+    champ.fill("Titre jamais enregistre")
+    expect(garde).to_have_count(1)
+
+    page.click("button.document-edit-cancel")
+    # La vignette est revenue en lecture : le formulaire n'existe plus.
+    expect(page.locator("li.documenttile input[placeholder*='Titre']")).to_have_count(0)
+    expect(garde).to_have_count(0)

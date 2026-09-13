@@ -1001,10 +1001,23 @@ class TestGardeDeSortie(_SocleDuDossier):
                     "%s ne pose pas le marqueur : la saisie s'y perdrait en silence"
                     % url,
                 )
-        # **Les trois surfaces hors panneau se verifient sur la source du gabarit**, et c'est
-        # equivalent : elles posent le marqueur en dur, sans aucun `{% if %}`. Les rendre
-        # demanderait un `Document` ecrit sur le disque pour trois attributs statiques, et
-        # `test_page_documents.py` eprouve deja leur rendu.
+        # **Le bloc de televersement est verifie sur son rendu**, par la fabrique qui est sa
+        # seule voie de contexte (contrat T11) : un marqueur pose sur le mauvais element, ou
+        # un fragment que plus rien ne rend, resteraient verts sur une lecture de source.
+        self.assertTrue(
+            _porte_le_marqueur_de_saisie(
+                render_to_string(
+                    "pages/fragments/document-televersement.html",
+                    page_documents.contexte_televersement(self.patient),
+                )
+            )
+        )
+        # **Les deux autres se verifient sur la source du gabarit**, et la moitie faible est
+        # dite : elles posent le marqueur en dur, sans aucun `{% if %}`, donc source et rendu
+        # coincident — mais un fragment que rien n'inclurait resterait vert. La vignette est
+        # couverte a l'ecran par
+        # `test_abandonner_l_edition_d_une_vignette_desarme_la_garde`, qui y saisit vraiment ;
+        # le volet de commentaires, lui, n'est couvert que par cette lecture.
         for fragment in (
             "document-televersement.html",
             "document-edition.html",
@@ -1021,6 +1034,28 @@ class TestGardeDeSortie(_SocleDuDossier):
                     "%s ne pose pas le marqueur : une saisie s'y perdrait en silence"
                     % fragment,
                 )
+
+    def test_le_seul_abandon_en_get_desarme_la_garde(self) -> None:
+        """Le bouton « Annuler » d'une vignette fait disparaitre un formulaire **sans rien
+        enregistrer**, et c'est le **seul** abandon en `GET` du dossier.
+
+        Le desarmement general suit les **ecritures** — un `GET` est une lecture, et entrer
+        en edition ne doit rien desarmer. Ce bouton-ci est l'exception, et elle est posee la
+        ou elle se lit plutot que generalisee : les quatre autres surfaces n'ont aucun
+        abandon en `GET`.
+
+        Ce que ce test regarde : que le bouton porte la remise a zero. Ce qu'il laisserait
+        passer : ce qu'Alpine en fait — c'est
+        `test_abandonner_l_edition_d_une_vignette_desarme_la_garde` qui le voit.
+        """
+        source = (
+            RACINE_DU_DEPOT
+            / "libreosteoweb/templates/pages/fragments/document-edition.html"
+        ).read_text(encoding="utf-8")
+        annulation = source[source.index("document-edit-cancel") :]
+        annulation = annulation[: annulation.index("</button>")]
+        self.assertIn('@click="modifie = false"', annulation)
+        self.assertIn("hx-get=", annulation)
 
     def test_les_fragments_de_lecture_ne_portent_pas_le_marqueur(self) -> None:
         """L'autre sens : un marqueur pose en lecture armerait la garde sur un panneau que

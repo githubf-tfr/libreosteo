@@ -27,8 +27,16 @@
       {% csrf_token %}
       <button type="submit" class="close document-close document-edit document-edit-ok"
               aria-label="Close"><i class="fa fa-1 fa-check"></i></button>
+      {# **`modifie = false` : ce bouton est le seul abandon de saisie en `GET` du dossier** #}
+      {# (3e revue T12). Le desarmement de la garde de sortie suit les **ecritures** — un #}
+      {# `GET` est une lecture, et entrer en edition ou chercher un code postal ne doit rien #}
+      {# desarmer. Or celui-ci fait disparaitre un formulaire **sans rien enregistrer** : #}
+      {# sans cette remise a zero, saisir un titre puis cliquer « Annuler » laissait le #}
+      {# dossier averti a la sortie alors qu'il n'y avait plus rien a perdre. Les quatre #}
+      {# autres surfaces de saisie n'ont aucun abandon en `GET`, et c'est pourquoi la regle #}
+      {# est posee ici plutot que generalisee. #}
       <button type="button" class="close document-close document-edit document-edit-cancel"
-              aria-label="Close"
+              aria-label="Close" @click="modifie = false"
               hx-get="{{ entree.url_vignette }}"
               hx-target="#document-vignette-{{ entree.document.id }}"
               hx-swap="outerHTML"><i class="fa fa-1 fa-close"></i></button>
