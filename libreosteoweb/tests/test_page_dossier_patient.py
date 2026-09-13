@@ -31,11 +31,12 @@ from decimal import Decimal
 from typing import Any
 
 from django.template.loader import render_to_string
-from django.test import Client, TestCase
+from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from libreosteoweb import models
+from libreosteoweb.api.views.pages import documents as page_documents
 from libreosteoweb.api.views.pages import dossier_patient
 from libreosteoweb.api.views.pages.dossier_patient import (
     ALIAS_DE_NOM,
@@ -44,6 +45,7 @@ from libreosteoweb.api.views.pages.dossier_patient import (
     FormulaireIdentite,
     FormulaireTitre,
 )
+from zipcode_lookup.models import ZipcodeMapping
 
 from .fixtures import (
     cree_consultation,
@@ -60,6 +62,17 @@ _BALISE = re.compile(r"<[^>]+>")
 def _texte(html: str) -> str:
     """Le texte rendu, espaces normalises — la meme normalisation que `to_contain_text`."""
     return " ".join(_BALISE.sub(" ", html).split())
+
+
+def _classe_de_l_onglet(html: str, cle: str) -> str:
+    """La valeur de `class` **rendue par le serveur** sur l'entree de barre `cle`.
+
+    Elle lit l'attribut, pas la balise : `:class` porte le mot « active » dans les cinq
+    entrees, et une recherche de sous-chaine y serait satisfaite en permanence.
+    """
+    balise = _attributs_de(html, 'id="%s"' % cle)
+    trouve = re.search(r'\sclass="([^"]*)"', balise)
+    return trouve.group(1) if trouve else ""
 
 
 def _attributs_de(html: str, motif: str) -> str:
@@ -402,8 +415,6 @@ class TestVueDeLIdentite(_SocleDuDossier):
         self.assertEqual(self.patient.job, "Navigateur")
 
     def _requete(self) -> Any:
-        from django.test import RequestFactory
-
         requete = RequestFactory().post("/patient/%d/general" % self.patient.pk)
         setattr(requete, "user", self.praticien)
         return requete
@@ -643,8 +654,6 @@ class TestCodePostal(_SocleDuDossier):
 
     def setUp(self) -> None:
         super().setUp()
-        from zipcode_lookup.models import ZipcodeMapping
-
         ZipcodeMapping.objects.bulk_create(
             [
                 ZipcodeMapping(zipcode="70190", city="La Barre"),
@@ -661,8 +670,6 @@ class TestCodePostal(_SocleDuDossier):
         table n'ayant simplement aucune ligne a quatre chiffres — et desserrer la borne
         laissait le test vert. Mesure faite : la premiere ecriture de ce test etait creuse.
         """
-        from zipcode_lookup.models import ZipcodeMapping
-
         ZipcodeMapping.objects.create(zipcode="7019", city="Quatre-Chiffres")
         reponse = self.client.get(reverse("zipcode-suggestions"), {"zipcode": "7019"})
         self.assertNotContains(reponse, "Quatre-Chiffres")
@@ -769,10 +776,8 @@ class TestConsultations(_SocleDuDossier):
         """T11 ecrivait cette URL en clair, faute de route. Elle en a une maintenant."""
         with sans_receivers():
             consultation = cree_consultation(self.patient, therapeut=self.praticien)
-        from libreosteoweb.api.views.pages import documents
-
         self.assertEqual(
-            documents.url_de_seance(self.patient, consultation),
+            page_documents.url_de_seance(self.patient, consultation),
             reverse(
                 "dossier-patient-consultation",
                 args=[self.patient.pk, consultation.pk],
@@ -877,8 +882,18 @@ class TestEtatInitialDAlpine(_SocleDuDossier):
         ).content.decode("utf-8")
         self.assertIn("actif: 'examinations'", html)
         # Clause 1 du contrat de `partials/onglets.html` : `actif_initial` vaut le `actif`
-        # initial du `x-data`, sinon la barre clignote au chargement.
-        self.assertIn("active", _attributs_de(html, "actif === 'examinations'"))
+        # initial du `x-data`, sinon la barre clignote entre le rendu et le demarrage
+        # d'Alpine.
+        #
+        # **L'assertion porte sur l'attribut `class` de l'entree, et sur lui seul.** Une
+        # premiere ecriture cherchait la chaine `active` dans la balise entiere : or chaque
+        # `<li>` porte `:class="{ 'active': actif === '…' }"`, donc le mot y figure
+        # **quoi qu'il arrive** — mesure faite, l'assertion passait sur l'onglet `general`.
+        # C'est la quinzieme preuve creuse de ce lot, et elle a ete trouvee en revue.
+        self.assertEqual(_classe_de_l_onglet(html, "examinations"), "active")
+        for autre in ("general", "history", "medicalreports"):
+            with self.subTest(onglet=autre):
+                self.assertEqual(_classe_de_l_onglet(html, autre), "")
 
     def test_le_volet_en_cours_pose_l_etat_d_edition(self) -> None:
         """Sans lui, le titre resterait ouvrable pendant la saisie d'une consultation —
@@ -928,11 +943,11 @@ class TestContexteExpose(_SocleDuDossier):
             contexte["chronologie"]["url_nouvelle_consultation"],
             reverse("consultation-nouvelle", args=[self.patient.pk]),
         )
-        self.assertTrue(contexte["chronologie"]["cible_nouvelle_consultation"])
+        self.assertEqual(
+            contexte["chronologie"]["cible_nouvelle_consultation"], "#dossier-corps"
+        )
 
     def _requete(self) -> Any:
-        from django.test import RequestFactory
-
         requete = RequestFactory().get("/patient/%d" % self.patient.pk)
         # `setattr` et non une affectation directe : `HttpRequest` ne declare ni `user` ni
         # `officesettings`, que le middleware pose a l'execution.
@@ -987,7 +1002,6 @@ class TestOuvertureDesPanneauxEnEdition(_SocleDuDossier):
                 # 422 doit rouvrir le bandeau sur « Fin d'edition », et non laisser croire
                 # que l'enregistrement a abouti.
                 self.assertIn("x-init=\"edition = '", html)
-                self.assertIn("data-edition-en-cours", html)
 
     def test_un_refus_de_cellule_de_titre_rend_422_et_garde_la_saisie(self) -> None:
         """La cellule reste **en edition** avec la saisie du praticien et le motif du refus :
@@ -1018,12 +1032,10 @@ class TestOuvertureDesPanneauxEnEdition(_SocleDuDossier):
             ("dossier-comptes-rendus", "medical_reports"),
         ):
             with self.subTest(route=route):
-                self.assertTrue(
-                    self.client.post(
-                        reverse(route, args=[self.patient.pk]), {champ: ""}
-                    ).status_code
-                    == 200
+                reponse = self.client.post(
+                    reverse(route, args=[self.patient.pk]), {champ: ""}
                 )
+                self.assertEqual(reponse.status_code, 200)
 
 
 class TestCorpsRafraichi(_SocleDuDossier):
@@ -1077,6 +1089,92 @@ class TestCorpsRafraichi(_SocleDuDossier):
             ),
             html,
         )
+
+
+class TestDeuxVoletsDansLeMemeDocument(_SocleDuDossier):
+    """Les deux volets coexistent, et **chacun peut passer en edition** (revue T12).
+
+    Mon rapport rangeait ce cas en « non atteignable », au motif qu'`edition` vaut deja
+    `'current-examination'` des qu'une consultation est ouverte. **C'est faux passe le
+    premier rendu** : un changement d'onglet appelle `quitterEdition()`, qui remet `edition`
+    a `null`, et « Editer » redevient visible alors que le volet en cours est toujours rendu.
+    Un prefixe errone enverrait alors la reponse sur le mauvais volet — le defaut exact que
+    T10 avait nomme.
+    """
+
+    def _dossier_a_deux_volets(self) -> str:
+        with sans_receivers():
+            cree_consultation(self.patient, therapeut=self.praticien)
+            anterieure = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+            )
+        return self.client.get(
+            reverse(
+                "dossier-patient-consultation",
+                args=[self.patient.pk, anterieure.pk],
+            )
+        ).content.decode("utf-8")
+
+    def test_chaque_panneau_declenche_l_edition_de_son_propre_volet(self) -> None:
+        """Ce que ce test regarde : que les deux declencheurs visent **deux** cibles et
+        portent **deux** prefixes. Ce qu'il laisserait passer : ce qu'htmx fait de la
+        reponse dans un vrai DOM."""
+        html = self._dossier_a_deux_volets()
+        for cle in ("examinations", "current-examination"):
+            with self.subTest(panneau=cle):
+                panneau = _attributs_de(html, 'id="panneau-%s"' % cle)
+                self.assertIn("?prefixe=%s" % cle, panneau)
+                self.assertIn('hx-target="#%s-volet"' % cle, panneau)
+                self.assertIn('hx-trigger="dossier-editer-%s from:body"' % cle, panneau)
+
+    def test_les_deux_volets_portent_des_racines_distinctes(self) -> None:
+        html = self._dossier_a_deux_volets()
+        self.assertEqual(html.count('id="examinations-volet"'), 1)
+        self.assertEqual(html.count('id="current-examination-volet"'), 1)
+
+
+class TestAncreDuVoletEnregistre(_SocleDuDossier):
+    """`data-testid` suit le **statut**, pas l'humeur de l'appelant (revue T12)."""
+
+    def test_une_consultation_en_cours_enregistree_garde_son_ancre(self) -> None:
+        """Ce que ce test regarde : l'ancre du volet re-rendu apres un enregistrement,
+        alors que la consultation est **toujours ouverte**.
+
+        Le defaut : `en_cours` valait `False` par defaut, si bien qu'un volet enregistre
+        pendant qu'il etait encore en cours se rendait sous `consultation-anterieure`.
+        `helpers.saisir_consultation` ne l'aurait plus trouve, et la seconde barriere de
+        `cloturer_consultation` — qui attend `#examinationDate` **dans le volet anterieur** —
+        aurait pu etre satisfaite par le mauvais volet, donc verte sans rien prouver.
+        """
+        with sans_receivers():
+            consultation = cree_consultation(self.patient, therapeut=self.praticien)
+        html = self.client.post(
+            reverse("consultation-edition", args=[consultation.pk]),
+            {
+                "prefixe": "current-examination",
+                "date": timezone.localdate().isoformat(),
+                "type": str(models.ExaminationType.NORMAL),
+                "reason": "Motif",
+            },
+        ).content.decode("utf-8")
+        self.assertIn('data-testid="consultation-en-cours"', html)
+        self.assertNotIn('data-testid="consultation-anterieure"', html)
+
+    def test_une_consultation_close_porte_l_ancre_anterieure(self) -> None:
+        """L'autre sens : sans lui, une ancre figee a « en cours » passerait ce cliquet."""
+        with sans_receivers():
+            consultation = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+            )
+        html = self.client.get(
+            reverse("consultation-edition", args=[consultation.pk])
+        ).content.decode("utf-8")
+        self.assertIn('data-testid="consultation-anterieure"', html)
+        self.assertNotIn('data-testid="consultation-en-cours"', html)
 
 
 class TestClotureDepuisLEdition(_SocleDuDossier):

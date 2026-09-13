@@ -2,7 +2,7 @@
 {# L'onglet « Historique » en **edition**. Meme racine que le fragment de lecture. #}
 {# `hx-trigger="submit, dossier-fin-edition from:body"` : le bandeau d'actions vit hors de ce #}
 {# formulaire et le soumet par un evenement, faute de pouvoir le viser par un `form=`. #}
-<div id="history-corps" data-edition-en-cours x-init="edition = 'history'">
+<div id="history-corps" x-init="edition = 'history'">
   <form id="history-formulaire"
         hx-post="{{ antecedents.url_enregistrement }}"
         hx-target="#history-corps" hx-swap="outerHTML"

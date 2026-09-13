@@ -589,7 +589,10 @@ class TestFragmentDeLecture(_VoletRendu):
         self.assertNotIn("contenteditable", self.rendu())
 
     def test_les_ancres_du_filet_sont_conservees(self) -> None:
-        html = self.rendu()
+        """`en_cours=False` est **explicite** depuis la revue de T12 : la consultation du
+        socle est en cours (statut 0), et `contexte_du_volet` deduit desormais `en_cours`
+        du statut quand l'appelant se tait. C'est le volet **anterieur** qu'on rend ici."""
+        html = self.rendu(en_cours=False)
         for ancre in (
             'data-testid="consultation-anterieure"',
             'data-testid="examen-medical"',

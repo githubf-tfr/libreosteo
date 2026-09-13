@@ -57,6 +57,7 @@ Le prefixe passe en parametre depuis D6e T12 ferme le cas general.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Any
 
@@ -78,6 +79,7 @@ from libreosteoweb.api.serializers.patient import PatientSerializer
 from libreosteoweb.api.services import facturation as services_facturation
 from libreosteoweb.api.texte_riche import classes_de_champs
 from libreosteoweb.api.validators import UniqueTogetherIgnoreCaseValidator
+from zipcode_lookup.models import ZipcodeMapping
 
 from . import consultation as page_consultation
 from . import documents as page_documents
@@ -386,8 +388,6 @@ def _texte_nu(valeur: str | None) -> str:
     le titre n'en affiche que le texte."""
     if not valeur:
         return ""
-    import re
-
     return re.sub(r"<[^>]+>", "", valeur).strip()
 
 
@@ -930,8 +930,6 @@ def suggestions_de_code_postal(request: HttpRequest) -> HttpResponse:
     `typeahead-min-length` valait 2, n'affichait donc jamais rien en deca — entre deux et
     quatre chiffres l'appel partait sur une URL qui ne resolvait pas (mesure de T3, E5).
     """
-    from zipcode_lookup.models import ZipcodeMapping
-
     code = request.GET.get("zipcode", "").strip()
     suggestions: list[ZipcodeMapping] = []
     if (

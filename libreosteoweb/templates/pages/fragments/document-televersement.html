@@ -50,12 +50,12 @@
         hx-swap="outerHTML"
         hx-encoding="multipart/form-data"
         enctype="multipart/form-data"
-        x-data="{ choisi: {{ choisi|yesno:'true,false' }} }">
+        x-data="{ choisi: {{ choisi|yesno:'true,false' }}, nom: '' }">
     {% csrf_token %}
     <div class="form-group">
       <label for="addDocumentMedicalReport">{% trans 'Add document' %}</label>
       <input type="file" id="addDocumentMedicalReport" name="fichiers" multiple
-             @change="choisi = $el.files.length > 0">
+             @change="choisi = $el.files.length > 0; nom = $el.files.length ? $el.files[0].name : ''">
       <p class="help-block" x-show="!choisi">{% trans 'Add document as medical report. Could be image, pdf, text file, ...' %}</p>
     </div>
     {% if formulaire.errors %}
@@ -65,6 +65,12 @@
     {% endif %}
     <template x-if="choisi">
       <div class="form-group document_create">
+        {# **Le nom du fichier choisi**, repris de `filemanager.html:5` #}
+        {# (`<label for="titleDoc">{$ f.file.name $}</label>`). `R-DOC-01` etape 2 l'attend #}
+        {# en toutes lettres, et `test_patient.py` le lit : il ne vient d'aucune reponse #}
+        {# serveur — un `<input type="file">` ne transmet que le fichier — donc c'est le #}
+        {# navigateur qui le porte, et Alpine qui le rend. #}
+        <label for="{{ formulaire.title.id_for_label }}" x-text="nom"></label>
         <button type="submit" class="btn label label-info"
                 hx-indicator="#televersement-en-cours-{{ patient.id }}">{% trans 'Click to send' %}</button>
         <span id="televersement-en-cours-{{ patient.id }}" class="htmx-indicator label label-warning">{% trans 'in progress...' %}</span>

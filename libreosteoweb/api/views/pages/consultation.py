@@ -352,7 +352,7 @@ def contexte_du_volet(
     consultation: models.Examination,
     patient: models.Patient,
     reglages: models.TherapeutSettings,
-    en_cours: bool = False,
+    en_cours: bool | None = None,
     formulaire: FormulaireConsultation | None = None,
     formulaire_patient: FormulairePatientDeConsultation | None = None,
     prefixe: str = "consultation",
@@ -373,7 +373,18 @@ def contexte_du_volet(
 
     `url_liste` et `prefixe` appartiennent a l'appelant : le fragment ne sait pas sous quel
     onglet il est rendu, et c'est precisement ce qui lui permet d'y etre rendu deux fois.
+
+    **`en_cours` se deduit du statut quand l'appelant ne le dit pas** (revue T12). Il
+    gouverne `data-testid` — `consultation-en-cours` ou `consultation-anterieure`, deux
+    ancres du filet — et le bouton de fermeture du volet. Le laisser a `False` par defaut
+    faisait qu'un volet **enregistre** pendant qu'il etait encore ouvert se rendait sous
+    l'ancre de la consultation **anterieure** : `helpers.saisir_consultation` ne l'aurait
+    plus trouve, et la seconde barriere de `cloturer_consultation` aurait pu etre satisfaite
+    par le mauvais volet. Une consultation en cours **est** celle dont le statut le dit ;
+    l'appelant ne garde la main que pour les cas ou il en sait plus.
     """
+    if en_cours is None:
+        en_cours = consultation.status == models.ExaminationStatus.IN_PROGRESS
     formulaire = formulaire or FormulaireConsultation(
         instance=consultation, auto_id=f"{prefixe}-%s"
     )

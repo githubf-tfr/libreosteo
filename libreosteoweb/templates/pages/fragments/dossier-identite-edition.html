@@ -1,8 +1,6 @@
 {% load i18n %}
 {# L'onglet « Infos generales » en **edition**. Meme racine que le fragment de lecture. #}
 {# #}
-{# **`data-edition-en-cours`** arme la garde `beforeunload` du document (A11) : elle ne #}
-{# demande confirmation que s'il y a vraiment un formulaire ouvert. #}
 {# **`x-init="edition = 'general'"`** repose l'etat Alpine que « Fin d'edition » vient de #}
 {# remettre a `null` : sur un refus 422, le bandeau doit redire « Fin d'edition » plutot que #}
 {# de laisser croire que l'enregistrement a abouti (regle 1 du lot). #}
@@ -10,7 +8,7 @@
 {# **Les quatre alias de `name` sont rendus par `add_prefix()`**, pas ecrits ici : #}
 {# `input[name=street]`, `[name=zipcode]`, `[name=city]` et `[name=mobile]` sont des ancres #}
 {# du filet conservees a l'octet (A16). #}
-<div id="general-corps" class="row" data-edition-en-cours x-init="edition = 'general'">
+<div id="general-corps" class="row" x-init="edition = 'general'">
   <form id="general-formulaire"
         hx-post="{{ identite.url_enregistrement }}"
         hx-target="#general-corps" hx-swap="outerHTML"

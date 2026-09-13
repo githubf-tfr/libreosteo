@@ -19,6 +19,7 @@ from tests.functional.helpers import (
     attendre_creation_patient,
     attendre_enregistrement_declenche,
     attendre_enregistrement_patient,
+    attendre_reponse,
     bouton_de_confirmation,
     cloturer_consultation,
     confirmer_la_modale,
@@ -316,7 +317,10 @@ def test_edition_du_dossier_patient(
         lambda: page.get_by_role("button", name="Fin d'édition").click(),
     )
     page.set_input_files("#addDocumentMedicalReport", CHEMIN_DOCUMENT)
-    expect(page.locator("div.document_create")).to_be_visible()
+    # **Le nom du fichier choisi**, et non la seule visibilite du bloc : c'est la seule
+    # assertion du filet qui garde ce que `filemanager.html:5` affichait, et `R-DOC-01`
+    # etape 2 l'attend en toutes lettres. Il ne vient d'aucune reponse serveur.
+    expect(page.locator("div.document_create")).to_contain_text("patients_1.csv")
     page.fill("input[placeholder*='Titre']", "Licence LibreOsteo")
     # **Champ de date natif depuis D6e T12** : `webshim` ne polyfille plus rien, et la
     # valeur se saisit au format ISO. L'assertion plus bas lit toujours le 10 janvier 2012.
@@ -885,3 +889,104 @@ def test_le_dossier_preserve_le_texte_riche_a_l_octet(
     assert patient.job == VALEUR_NON_POINT_FIXE, (
         f"le dossier a reecrit le texte riche : {patient.job!r}"
     )
+    # **Le second champ est relu, et il n'est pas decoratif** : `surgical_history` vit dans
+    # l'onglet « Historique », que ce parcours n'ouvre **jamais**. C'est donc la preuve que
+    # l'enregistrement du panneau « Infos generales » ne touche pas les colonnes d'un autre
+    # panneau — le maillon 4, mesure a l'ecran. `R-PAT-10` annonce les deux champs ; sans
+    # cette ligne, elle sur-declarait sa couverture (revue T12).
+    assert patient.surgical_history == VALEUR_NON_POINT_FIXE, (
+        f"un panneau non ouvert a ete reecrit : {patient.surgical_history!r}"
+    )
+
+
+def test_une_consultation_en_cours_se_reprend_en_edition(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Reprendre la saisie d'une consultation en cours apres l'avoir enregistree.
+
+    **Ce que ce test regarde** : que « Éditer » rouvre le volet de la consultation en cours
+    **apres** un premier enregistrement, et que la seconde saisie arrive en base. Il ne
+    regarde ni la mise en forme du volet, ni son contenu au-dela des deux champs relus.
+
+    **Le chemin qu'aucun test ne traversait, et le defaut qu'il a trouve** (revue T12) : le
+    volet en cours nait en edition, mais « Fin d'edition » — ou un simple changement
+    d'onglet, qui soumet par `quitterEdition()` — le rend **en lecture**. Le panneau
+    `#panneau-current-examination` ne portait alors aucun declencheur d'edition, la ou les
+    quatre autres en portent un : « Éditer » reapparaissait, **le clic ne chargeait rien**,
+    et « Fin d'edition » ne soumettait rien. Le praticien pouvait encore cloturer, mais plus
+    saisir — sur une surface clinique.
+
+    Le filet ne le voyait pas parce qu'il enchaine toujours saisie puis cloture, sans jamais
+    enregistrer au milieu.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+
+    volet = page.locator('[data-testid="consultation-en-cours"]')
+    attendre_reponse(
+        page,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
+    )
+    consultation = Examination.objects.get(patient=patient)
+    assert consultation.reason == "Motif de consultation"
+    # Le volet est repasse en lecture : le champ de saisie du motif n'existe plus.
+    expect(volet.locator("input[placeholder='Motif']")).to_have_count(0)
+
+    # Et c'est ici que la boucle etait morte.
+    page.get_by_role("button", name="Éditer").click()
+    expect(volet.locator("input[placeholder='Motif']")).to_have_count(1)
+    volet.locator("input[placeholder='Motif']").fill("Motif repris")
+    remplir_champ_de_texte_riche(
+        page, volet.get_by_test_id("examen-medical"), "Examen repris"
+    )
+    attendre_reponse(
+        page,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
+    )
+
+    consultation.refresh_from_db()
+    assert consultation.reason == "Motif repris"
+    assert consultation.medical_examination == "Examen repris"
+
+
+def test_la_garde_de_sortie_ne_s_arme_qu_apres_une_saisie(
+    page: Page, live_server: LiveServer
+) -> None:
+    """La garde « modifications non enregistrées » suit une **saisie**, pas un formulaire.
+
+    **Ce que ce test regarde** : la presence du marqueur que `beforeunload` interroge, aux
+    quatre instants qui comptent. Il ne declenche jamais la boite de dialogue — Playwright
+    la rejetterait, et c'est le navigateur qui la dessine.
+
+    **Le defaut qu'il ferme** (revue T12) : une premiere ecriture armait la garde sur la
+    **presence** d'un fragment d'edition. Or le volet d'une consultation en cours est rendu
+    en edition a chaque chargement : le dossier demandait confirmation avant meme que le
+    praticien ait touche quoi que ce soit. L'ancienne garde d'AngularJS lisait `.ng-dirty`,
+    c'est-a-dire une saisie.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    garde = page.locator("[data-modifications-non-enregistrees]")
+
+    expect(garde).to_have_count(0)
+    page.get_by_role("button", name="Éditer").click()
+    # Entrer en edition n'est pas une modification : la garde reste desarmee.
+    expect(page.locator("input[name=city]")).to_have_count(1)
+    expect(garde).to_have_count(0)
+
+    page.fill("input[name=city]", "La Barre")
+    expect(garde).to_have_count(1)
+
+    attendre_enregistrement_declenche(
+        page,
+        Patient.objects.get(family_name="Picard").id,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+    )
+    expect(garde).to_have_count(0)

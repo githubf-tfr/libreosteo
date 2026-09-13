@@ -48,12 +48,16 @@
 <div x-data="{
        actif: '{{ onglet_actif }}',
        edition: {% if consultation_en_cours %}'current-examination'{% else %}null{% endif %},
+       modifie: false,
        quitterEdition() {
          if (this.edition === null) { return; }
          this.$dispatch('dossier-fin-edition');
          this.edition = null;
        }
-     }">
+     }"
+     @input="modifie = true" @change="modifie = true"
+     @htmx:after-request="if ($event.detail.successful && $event.detail.requestConfig.verb !== 'get') { modifie = false; }"
+     :data-modifications-non-enregistrees="modifie ? '1' : null">
   {% if request.user.is_authenticated %}{% include "partials/menu.html" with gabarit_actions="pages/fragments/actions-dossier.html" %}{% endif %}
   <div id="page-wrapper">
     {% include "pages/fragments/dossier-consentement.html" %}
@@ -70,6 +74,15 @@
 {# `ui-router`, clic hors formulaire, perte de focus) disparaissent avec le routage client ; #}
 {# il ne reste que la sortie de document, que seul cet evenement voit. #}
 {# #}
+{# **Elle s'arme sur une modification, jamais sur la presence d'un formulaire** (revue T12). #}
+{# Une premiere ecriture testait la presence d'un fragment d'edition dans le DOM : or le #}
+{# volet d'une consultation en cours est rendu **en edition a chaque chargement**, si bien #}
+{# que le dossier demandait confirmation avant meme que le praticien ait touche quoi que ce #}
+{# soit. L'ancienne garde lisait `.ng-dirty`, c'est-a-dire une **saisie**. Le drapeau #}
+{# `modifie` est pose par `@input` / `@change` — tous deux remontent jusqu'a cette racine, #}
+{# le champ de texte riche compris — et retombe a la premiere **ecriture** reussie, `GET` #}
+{# exclu : entrer en edition et chercher un code postal sont des lectures. #}
+{# #}
 {# **Le message n'est pas interpole ici, et c'est mesure** : #}
 {# `gettext("There are unsaved changes. Do you really want to leave this page ?")` vit dans #}
 {# le domaine **`djangojs`** (`djangojs.po:21`), que `patient.js` consomme jusqu'a T13 ; un #}
@@ -81,7 +94,7 @@
 {# l'avertissement natif. #}
 <script>
   window.addEventListener('beforeunload', function (evenement) {
-    if (!document.querySelector('[data-edition-en-cours]')) { return; }
+    if (!document.querySelector('[data-modifications-non-enregistrees]')) { return; }
     evenement.preventDefault();
     evenement.returnValue = '';
   });

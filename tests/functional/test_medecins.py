@@ -18,18 +18,19 @@ def ajouter_medecin_traitant(
     La modale vit dans `#modale`, hors du formulaire du dossier : l'attendre par son titre
     (« Ajouter un médecin »), jamais par une position — primitive nommee par le plan.
 
-    Les quatre `page.fill` ne sont **pas** ambigus, et ce n'est pas un hasard :
-    `#modale` precede `{% block contenu %}` dans `base.html`, donc les champs de la modale
-    sont les **premiers** du document. `page.fill` n'est pas strict et prend le premier,
-    la ou `input[name=phone]` et `input[name=city]` existent aussi dans le panneau ouvert
-    en edition.
+    **Les quatre champs sont scopes au corps de la modale**, et ce n'est pas decoratif :
+    `input[name=phone]` et `input[name=city]` existent **aussi** dans le panneau « Infos
+    generales » ouvert en edition. Sans le scope, la levee d'ambiguite reposerait sur le
+    mode non strict de `page.fill` et sur l'ordre du document — `#modale` precede
+    `{% block contenu %}` dans `base.html` —, deux proprietes qu'aucun test ne garde.
     """
     page.click("button[title='Ajouter un médecin']")
     expect(page.get_by_test_id("titre-modale")).to_have_text("Ajouter un médecin")
-    page.fill("input[name=family_name]", nom)
-    page.fill("input[name=first_name]", prenom)
-    page.fill("input[name=phone]", telephone)
-    page.fill("input[name=city]", ville)
+    modale = page.get_by_test_id("corps-modale")
+    modale.locator("input[name=family_name]").fill(nom)
+    modale.locator("input[name=first_name]").fill(prenom)
+    modale.locator("input[name=phone]").fill(telephone)
+    modale.locator("input[name=city]").fill(ville)
     page.get_by_role("button", name="Ajouter", exact=True).click()
     expect(page.get_by_test_id("titre-modale")).to_have_count(0)
 

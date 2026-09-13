@@ -307,9 +307,13 @@ Montant se pré-remplit à `55`, valeur du cabinet — ne pas le modifier), moye
 
 **3. Seconde consultation, non facturée** — la clôture de la première consultation laisse
 affiché son détail, **au-dessus** de la chronologie (onglet « Consultations » déjà actif).
-Le bouton « Démarrer une consultation » est donc déjà disponible : le cliquer directement.
-Fermer d'abord le volet par le « × » en haut à droite (info-bulle « Fermer ce volet »)
-reste possible et mène au même endroit — c'était obligatoire avant D6e, ça ne l'est plus.
+
+**C'est le second geste que la migration change hors de la liste du plan**, avec `R-CON-01`
+étape 3, et il se lit dans les deux sens : le bouton « Démarrer une consultation » est
+désormais **déjà disponible**, puisque la chronologie n'est plus remplacée par le volet — le
+cliquer directement. Fermer d'abord le volet par le « × » en haut à droite (info-bulle
+« Fermer ce volet ») reste possible et mène au même endroit ; c'était **obligatoire** avant
+D6e, et ce ne l'est plus.
 
 | Champ | Valeur |
 |---|---|
@@ -334,8 +338,14 @@ statistiques-du-jour (chapitre « Recherche, index, tableau de bord »).
 | Date | `01/01/2024` |
 | Notes | `Document de recette` |
 
-Cliquer le bouton d'envoi (libellé « Cliquer pour envoyer », devient « Chargé » une fois
-terminé).
+Cliquer le bouton d'envoi (libellé « Cliquer pour envoyer », qui passe par « en cours... »
+pendant l'envoi puis disparaît avec tout le bloc de saisie).
+
+**Le libellé « Chargé » n'existe plus, et il n'a jamais pu s'afficher** : `filemanager.html`
+le rendait au statut 2, alors que le bloc entier portait `ng-if="f.status != 2"` — il
+disparaissait à l'instant même où le libellé aurait changé. Le libellé « Erreur » (statut 5),
+lui, était atteignable ; un refus d'envoi affiche désormais le bloc **rouvert**, avec le
+motif du refus au-dessus des champs.
 
 ## Chapitre 2 — Schéma de fiche
 
@@ -2333,10 +2343,17 @@ la marge nécessaire pour redater vers l'avant tout en restant dans le passé).
    (mêmes gestes que R-CON-03, étapes 1 et 2), choisir « Facturée », saisir cette
    fois `55.555` — trois décimales — puis choisir le moyen de paiement « Espèces »,
    et cliquer « Valider ».
-   Attendu : la fenêtre « Facturation » se ferme, mais une bannière rouge s'affiche,
-   portant la ligne `amount :` puis, en puce, le message `Assurez-vous qu'il n'y a
-   pas plus de 2 chiffres après la virgule.` ; la consultation reste ouverte dans
-   l'onglet « Consultation en cours », sans encart « Facture ».
+   Attendu : **la fenêtre « Facturation » ne se ferme pas** et la saisie `55.555` y
+   reste ; le navigateur signale lui-même le champ Montant comme invalide (info-bulle
+   « Le montant est invalide »). La consultation reste ouverte dans l'onglet
+   « Consultation en cours », sans encart « Facture ».
+
+   **Le refus a changé de surface avec D6e, pas de fond.** Il venait du serveur — une
+   bannière rouge portant `amount :` puis `Assurez-vous qu'il n'y a pas plus de 2
+   chiffres après la virgule.` — parce que le champ n'avait aucune contrainte cliente.
+   Il porte désormais `pattern="[0-9]+([.][0-9]{1,2})?"`, la **même** borne de deux
+   décimales côté navigateur, et la soumission ne part pas. L'acquis de la fiche est
+   intact : aucun numéro consommé, aucun arrondi silencieux.
 5. Rouvrir le menu « Comptabilité ».
    Attendu : toujours les deux mêmes lignes qu'à l'étape 3, `10001` et `10000` — le
    montant à trois décimales est refusé, jamais arrondi en silence, et n'a consommé

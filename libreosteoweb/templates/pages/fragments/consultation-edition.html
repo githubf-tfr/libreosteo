@@ -15,14 +15,13 @@
 {# survivait en enveloppe orpheline autour du volet en lecture, et sur refus la reponse — #}
 {# un `<form>` complet — s'inserait dans le `<form>` existant. Les deux fragments ont donc #}
 {# **la meme racine**, `#…-volet`, et l'echange la remplace en entier. #}
-{# **`data-edition-en-cours` et `x-init`** (D6e T12) : le premier arme la garde #}
-{# `beforeunload` du dossier, le second repose l'etat Alpine `edition` que « Fin d'edition » #}
-{# vient de remettre a `null` — sur un refus 422, le bandeau doit redire « Fin d'edition » #}
-{# plutot que de laisser croire que l'enregistrement a abouti (regle 1 du lot). Le prefixe #}
-{# **est** la clef d'onglet du dossier (`examinations`, `current-examination`). #}
+{# **`x-init`** (D6e T12) repose l'etat Alpine `edition` que « Fin d'edition » vient de #}
+{# remettre a `null` : sur un refus 422, le bandeau doit redire « Fin d'edition » plutot que #}
+{# de laisser croire que l'enregistrement a abouti (regle 1 du lot). Le prefixe **est** la #}
+{# clef d'onglet du dossier (`examinations`, `current-examination`). #}
 {# `hx-trigger` ajoute l'evenement du bandeau d'actions, qui vit hors de ce formulaire et ne #}
 {# peut donc pas le viser par un attribut `form=`. #}
-<div id="{{ volet.prefixe }}-volet" data-edition-en-cours
+<div id="{{ volet.prefixe }}-volet"
      x-init="edition = '{{ volet.prefixe }}'"
      data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
   {# **`class="row"` sur le formulaire, et ce n'est pas de la decoration** (D6e T12) : ses #}
