@@ -161,9 +161,3 @@ class InvoiceViewSet(XLSXFileMixin, viewsets.ReadOnlyModelViewSet):
         mod = importlib.import_module(mod_name)
         func = getattr(mod, func_name)
         return func(request, pk)
-
-
-class PaimentMeanViewSet(viewsets.ModelViewSet):
-    model = models.PaimentMean
-    serializer_class = apiserializers.PaimentMeanSerializer
-    queryset = models.PaimentMean.objects.all()

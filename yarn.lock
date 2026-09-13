@@ -13,10 +13,6 @@
   version "1.5.11"
   resolved "https://codeload.github.com/angular/bower-angular-animate/tar.gz/ac17971fdc62d7ea816a079401084e6da2af3e3e"
 
-"@components/angular-bind-html-compile@git+https://github.com/incuna/angular-bind-html-compile.git#151a13da353246709afd7692c4405577103bc954":
-  version "1.1.0"
-  resolved "git+https://github.com/incuna/angular-bind-html-compile.git#151a13da353246709afd7692c4405577103bc954"
-
 "@components/angular-bootstrap@angular-ui/bootstrap-bower#752d6a79f500391a7efb06d80f37405c920a6f2b":
   version "2.5.0"
   resolved "https://codeload.github.com/angular-ui/bootstrap-bower/tar.gz/752d6a79f500391a7efb06d80f37405c920a6f2b"
@@ -41,10 +37,6 @@
   version "1.5.11"
   resolved "https://codeload.github.com/angular/bower-angular-resource/tar.gz/9c261ab3b6afb7d6ac5b09d0d2191ed7d6c77f80"
 
-"@components/angular-sanitize@angular/bower-angular-sanitize#84df06c4ec4f1eef7f9d0b849b9fdf5433c2669c":
-  version "1.5.11"
-  resolved "https://codeload.github.com/angular/bower-angular-sanitize/tar.gz/84df06c4ec4f1eef7f9d0b849b9fdf5433c2669c"
-
 "@components/angular-scroll@oblador/angular-scroll#ce0b3e6bfd0d7fff98702cdb8dc83998ed32861a":
   version "1.0.2"
   resolved "https://codeload.github.com/oblador/angular-scroll/tar.gz/ce0b3e6bfd0d7fff98702cdb8dc83998ed32861a"
@@ -59,16 +51,6 @@
   dependencies:
     "@uirouter/core" "6.0.8"
 
-"@components/angular-ui-validate@angular-ui/ui-validate#0d982055360032be2421b969fa1c83bf053e735a":
-  version "1.2.3"
-  resolved "https://codeload.github.com/angular-ui/ui-validate/tar.gz/0d982055360032be2421b969fa1c83bf053e735a"
-
-"@components/angular-xeditable@vitalets/angular-xeditable#23a9364fc018d78b7a7fe316e4ca10a4bbef7d99":
-  version "0.10.2"
-  resolved "https://codeload.github.com/vitalets/angular-xeditable/tar.gz/23a9364fc018d78b7a7fe316e4ca10a4bbef7d99"
-  dependencies:
-    angular "~1.x"
-
 "@components/angular@angular/bower-angular#0f57428c3ffe2f486264ab7fbee3968dccc7b720":
   version "1.5.11"
   resolved "https://codeload.github.com/angular/bower-angular/tar.gz/0f57428c3ffe2f486264ab7fbee3968dccc7b720"
@@ -80,46 +62,18 @@
     bootstrap "~3"
     jquery ">=1.8"
 
-"@components/hallo@git+https://github.com/bergie/hallo.git#fa144fb844517c1f54e54a93ab9f28fa07f5eedc":
-  version "1.1.1"
-  resolved "git+https://github.com/bergie/hallo.git#fa144fb844517c1f54e54a93ab9f28fa07f5eedc"
-
 "@components/htmx@npm:htmx.org@2.0.10":
   version "2.0.10"
   resolved "https://registry.yarnpkg.com/htmx.org/-/htmx.org-2.0.10.tgz#62442b0e2952a885ae2e50a7654b8b20d0981134"
   integrity sha512-kdeJe7ZVwaS6QMz/ebBIVtZdpwen6L0OQ5GOhPV9MKBb196TCZeZu4yA7ZIQsaLKv7EpXz+So7KSXNuHXhj7Cw==
 
-"@components/jquery-ui-bootstrap@git+https://github.com/gustavohenke/jquery-ui-bootstrap.git#acde257309de8a8fba35d527fc40c162591afa90":
-  version "0.0.0"
-  resolved "git+https://github.com/gustavohenke/jquery-ui-bootstrap.git#acde257309de8a8fba35d527fc40c162591afa90"
-
-"@components/jquery-ui@git+https://github.com/components/jqueryui.git#b68f1ee8749c90b2dfc5f2cb33c76fd0308bd356":
-  version "1.10.4"
-  resolved "git+https://github.com/components/jqueryui.git#b68f1ee8749c90b2dfc5f2cb33c76fd0308bd356"
-
 "@components/jquery@git+https://github.com/jquery/jquery-dist.git#5e89585e0121e72ff47de177c5ef604f3089a53d":
   version "1.12.4"
   resolved "git+https://github.com/jquery/jquery-dist.git#5e89585e0121e72ff47de177c5ef604f3089a53d"
 
-"@components/moment@moment/moment#485d9a7d709bd5f3869a7ad24630cf0746d072dc":
-  version "2.30.1"
-  resolved "https://codeload.github.com/moment/moment/tar.gz/485d9a7d709bd5f3869a7ad24630cf0746d072dc"
-
-"@components/ng-file-upload@danialfarid/angular-file-upload-bower#4ba3e7eb34c3ced628699e3e20bfca32ea5be1f5":
-  version "0.0.0"
-  resolved "https://codeload.github.com/danialfarid/angular-file-upload-bower/tar.gz/4ba3e7eb34c3ced628699e3e20bfca32ea5be1f5"
-
 "@components/ng-infinite-scroll@ng-infinite-scroll/ng-infinite-scroll-bower#e689fd22738e743091e58929061ec4a135325af1":
   version "0.0.0"
   resolved "https://codeload.github.com/ng-infinite-scroll/ng-infinite-scroll-bower/tar.gz/e689fd22738e743091e58929061ec4a135325af1"
-
-"@components/rangy@git+https://github.com/timdown/rangy-release.git#4c1dda47a6b063fa463f7c5c58378bcd2ecc1b94":
-  version "0.0.0"
-  resolved "git+https://github.com/timdown/rangy-release.git#4c1dda47a6b063fa463f7c5c58378bcd2ecc1b94"
-
-"@components/webshim@aFarkas/webshim#1600cc692854ac06bf128681bb0f7dd3ccf6b35d":
-  version "1.16.0"
-  resolved "https://codeload.github.com/aFarkas/webshim/tar.gz/1600cc692854ac06bf128681bb0f7dd3ccf6b35d"
 
 "@uirouter/core@6.0.8":
   version "6.0.8"
@@ -137,11 +91,6 @@
   version "3.5.42"
   resolved "https://registry.yarnpkg.com/@vue/shared/-/shared-3.5.42.tgz#a413cf21262502662354cda3b65ab31bca979202"
   integrity sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==
-
-angular@~1.x:
-  version "1.8.3"
-  resolved "https://registry.yarnpkg.com/angular/-/angular-1.8.3.tgz#851ad75d5163c105a7e329555ef70c90aa706894"
-  integrity sha512-5qjkWIQQVsHj4Sb5TcEs4WZWpFeVFHXwxEBHUhrny41D8UrBAd6T/6nPPAsLngJCReIOqi95W3mxdveveutpZw==
 
 bootstrap@~3:
   version "3.4.1"

@@ -29,9 +29,7 @@ admin.autodiscover()
 # Routers provide an easy way of automatically determining the URL conf
 router = routers.SimpleRouter(trailing_slash=False)
 router.register(r"patients", views.PatientViewSet)
-router.register(r"doctors", views.RegularDoctorViewSet)
 router.register(r"examinations", views.ExaminationViewSet)
-router.register(r"documents", views.DocumentViewSet)
 router.register(r"events", views.OfficeEventViewSet)
 router.register(r"invoices", views.InvoiceViewSet)
 router.register(r"settings", views.OfficeSettingsView)
@@ -39,7 +37,6 @@ router.register(r"profiles", views.TherapeutSettingsViewSet)
 router.register(r"comments", views.ExaminationCommentViewSet)
 router.register(r"file-import", views.FileImportViewSet)
 router.register(r"patient-documents", views.PatientDocumentViewSet, "PatientDocuments")
-router.register(r"paiment-mean", views.PaimentMeanViewSet, "PaimentMean")
 
 urlpatterns = [
     # Examples:

@@ -116,6 +116,12 @@ class TestAucunRognageParDRF(TestCase):
     tests regardent : la valeur stockee par une mise a jour, champ par champ. Ce qu'ils ne
     regardent pas : le rendu, la reponse HTTP autre que son code, les champs qui ne sont
     pas de texte riche, et la surface de creation.
+
+    **`Document.notes` n'y figure plus depuis D6e T13** : la ressource `api/documents` est
+    partie avec le nettoyage, faute de consommateur. La propriete reste prouvee sur la
+    surface qui lui succede, par `test_l_enregistrement_ne_rogne_pas_les_notes`
+    (`test_page_documents.py`), qui relit lui aussi la valeur par l'ORM. Restent donc ici
+    les vingt champs de `Patient` et d'`Examination`.
     """
 
     def setUp(self) -> None:
@@ -185,25 +191,6 @@ class TestAucunRognageParDRF(TestCase):
                     VALEUR_BORDEE,
                     f"Examination.{champ} a ete rogne a l'enregistrement",
                 )
-
-    def test_les_notes_d_un_document_ne_sont_pas_rognees(self) -> None:
-        document = Document.objects.create(
-            document_file="documents/ordonnance.pdf",
-            title="Ordonnance",
-            internal_date=timezone.now(),
-        )
-        reponse = self.client_api.put(
-            f"/api/documents/{document.id}",
-            {"title": "Ordonnance", "notes": VALEUR_BORDEE},
-            format="json",
-        )
-        self.assertEqual(reponse.status_code, 200, reponse.data)
-        document.refresh_from_db()
-        self.assertEqual(
-            document.notes,
-            VALEUR_BORDEE,
-            "Document.notes a ete rogne a l'enregistrement",
-        )
 
 
 class TestCorpusDeTexteRiche(TestCase):

@@ -15,7 +15,7 @@
     You should have received a copy of the GNU General Public License
     along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 */
-var officeEvent = angular.module('loOfficeEvent', ['loPatient']);
+var officeEvent = angular.module('loOfficeEvent', []);
 
 officeEvent.factory('OfficeEventServ', ['$http', '$filter', function ($http, $filter){
     var OfficeEventLoader = function() {

@@ -17,13 +17,9 @@
 */
 var libreosteoApp = angular.module('libreosteo', [
     'ngCookies',
-    'xeditable',
     'ui.bootstrap',
-    'loPatient',
-    'loTimeline',
     'loDashboard',
     'loOfficeEvent',
-    'loInvoice',
     'yaru22.angular-timeago',
     'ngAnimate',
     'duScroll',
@@ -32,23 +28,13 @@ var libreosteoApp = angular.module('libreosteo', [
     'angular-loading-bar',
     'ui.router',
     'angular-toArrayFilter',
-    'ui.validate',
     'loOfficeSettings',
-    'infinite-scroll',
-    'loEditFormManager',
-    'loHalloEditor',
-    'ngFileUpload',
-    'loFileManager',
-    'angular-bind-html-compile'
+    'infinite-scroll'
 ]);
 
 libreosteoApp.config(function ($interpolateProvider) {
   $interpolateProvider.startSymbol('{$');
   $interpolateProvider.endSymbol('$}');
-});
-
-libreosteoApp.run(function (editableOptions) {
-  editableOptions.theme = 'bs3'; // bootstrap3 theme. Can be also 'bs2', 'default'
 });
 
 libreosteoApp.run(['$http', '$cookies', function ($http, $cookies) {
@@ -95,36 +81,3 @@ libreosteoApp.config(['$stateProvider', '$urlRouterProvider',
             });
     }
 ]);
-
-webshim.setOptions('forms-ext', {
-    replaceUI: 'auto',
-    types: 'date',
-    date: {nopicker: false}
-});
-
-// WEBShim configuration
-webshim.polyfill('forms forms-ext');
-
-libreosteoApp.controller('MainController', ['$scope', 'loEditFormManager', function($scope, loEditFormManager) {
-  $scope.editFormManager = loEditFormManager;
-}]);
-
-libreosteoApp.filter('htmlToPlaintext', function() {
-    return function(text) {
-      return  text ? String(text).replace(/<br[^>]*>/gm, ' ').replace(/<[^>]+>/gm, '') : '';
-    };
-  }
-);
-
-libreosteoApp.filter('mimeTypeToClass', function() {
-    return function(text) {
-        if (text) {
-            if (text.includes('application/pdf')){
-                return 'fa-file-pdf-o';
-            } else if (text.includes('image/')) {
-                return 'fa-file-image-o';
-            }
-        }
-        return 'fa-file-text-o';
-    }
-});

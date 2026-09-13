@@ -30,7 +30,7 @@ from .administration import (
     recherche,
 )
 from .consultation import ExaminationCommentViewSet, ExaminationViewSet
-from .facturation import InvoiceViewHtml, InvoiceViewSet, PaimentMeanViewSet
+from .facturation import InvoiceViewHtml, InvoiceViewSet
 from .fichiers import telecharger_fichier
 from .import_fichiers import FileImportViewSet
 from .installation import CreateAdminAccountView, InstallView, create_superuser
@@ -81,12 +81,7 @@ from .pages import (
     suggestions_de_code_postal,
     utilisateur_nouveau,
 )
-from .patient import (
-    DocumentViewSet,
-    PatientDocumentViewSet,
-    PatientViewSet,
-    RegularDoctorViewSet,
-)
+from .patient import PatientDocumentViewSet, PatientViewSet
 
 __all__ = [
     "analyser_import",
@@ -104,7 +99,6 @@ __all__ = [
     "document_suppression",
     "document_vignette",
     "documents_du_patient",
-    "DocumentViewSet",
     "dossier_antecedents",
     "dossier_comptes_rendus",
     "dossier_consentement",
@@ -143,13 +137,11 @@ __all__ = [
     "page_nouveau_patient",
     "page_profil",
     "page_reindexation",
-    "PaimentMeanViewSet",
     "PatientDocumentViewSet",
     "PatientViewSet",
     "RebuildIndex",
     "recherche",
     "redirection_de_consultation",
-    "RegularDoctorViewSet",
     "regulariser_consultation",
     "selecteur_medecin",
     "StatisticsView",

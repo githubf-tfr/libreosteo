@@ -24,11 +24,21 @@ from django.urls import reverse
 from Libreosteo.urls import router
 
 # Releve sur main le 2026-09-01 : prefixe d'URL, nom de la classe de vue, basename DRF.
+#
+# **Douze ressources jusqu'a D6e T13, neuf depuis.** Le nettoyage du lot a retire les trois
+# dont plus rien ne lisait l'URL : `doctors` (aucun consommateur), `documents` (le seul etait
+# un test unitaire, dont la propriete est prouvee sur la surface htmx qui lui succede) et
+# `paiment-mean` (sa seule trace etait une fabrique AngularJS que personne n'injecte).
+#
+# **`comments` et `patient-documents` restent, et c'est instruit** : dix-neuf tests de
+# `test_dossier_patient.py` les consomment par `reverse()`, dont seize ne prouvent pas la
+# ressource mais le service des fichiers (`telecharger_fichier`, qui survit) et un le
+# remplacement du contenu en mode demonstration, que la voie htmx ne reproduit pas. Les
+# retirer ici supprimerait des preuves sans successeur : le geste appartient au lot qui
+# portera ces preuves sur la surface htmx.
 REGISTRE_ATTENDU = [
     ("patients", "PatientViewSet", "patient"),
-    ("doctors", "RegularDoctorViewSet", "regulardoctor"),
     ("examinations", "ExaminationViewSet", "examination"),
-    ("documents", "DocumentViewSet", "document"),
     ("events", "OfficeEventViewSet", "officeevent"),
     ("invoices", "InvoiceViewSet", "invoice"),
     ("settings", "OfficeSettingsView", "officesettings"),
@@ -36,7 +46,6 @@ REGISTRE_ATTENDU = [
     ("comments", "ExaminationCommentViewSet", "examinationcomment"),
     ("file-import", "FileImportViewSet", "fileimport"),
     ("patient-documents", "PatientDocumentViewSet", "PatientDocuments"),
-    ("paiment-mean", "PaimentMeanViewSet", "PaimentMean"),
 ]
 
 # Vues hors routeur, declarees une a une dans Libreosteo/urls.py.
@@ -50,7 +59,7 @@ NOMS_HORS_ROUTEUR = [
 
 
 class TestRoutage(SimpleTestCase):
-    def test_le_routeur_enregistre_les_memes_douze_ressources(self):
+    def test_le_routeur_enregistre_les_memes_neuf_ressources(self):
         registre = [(p, v.__name__, b) for p, v, b in router.registry]
         self.assertEqual(registre, REGISTRE_ATTENDU)
 

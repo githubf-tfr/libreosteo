@@ -17,7 +17,6 @@ import logging
 from django.conf import settings
 from django.db import IntegrityError, connection, transaction
 from django.http import Http404
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from drf_excel.mixins import XLSXFileMixin
 from drf_excel.renderers import XLSXRenderer
@@ -195,30 +194,6 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         models.PatientDocument.objects.filter(patient=instance.id).delete()
         instance.set_request(self.request)
         return super(PatientViewSet, self).perform_destroy(instance)
-
-
-class RegularDoctorViewSet(viewsets.ModelViewSet):
-    model = models.RegularDoctor
-    queryset = models.RegularDoctor.objects.all()
-    serializer_class = apiserializers.RegularDoctorSerializer
-
-
-class DocumentViewSet(viewsets.ModelViewSet):
-    model = models.Document
-    queryset = models.Document.objects.all()
-
-    def perform_create(self, serializer):
-        if not self.request.user.is_authenticated:
-            raise Http404()
-        serializer.save(
-            user=self.request.user, internal_date=timezone.now(), request=self.request
-        )
-
-    def get_serializer_class(self):
-        if self.request.method == "PUT":
-            return apiserializers.DocumentUpdateSerializer
-        else:
-            return apiserializers.DocumentSerializer
 
 
 class PatientDocumentViewSet(viewsets.ModelViewSet):
