@@ -595,13 +595,14 @@ décrits à l'entrée de clôture, pas ici.
   exclure la séance en cours de la chronologie, comme `ng-if="previousExamination.data ==
   null"` le faisait par un autre chemin.
 - **La règle « apparier tout attribut serveur à son état Alpine » n'est tenue que là où on
-  l'a nommée.** Trois sites la rompent : `actions-dossier.html:39` et
+  l'a nommée.** **Quatre** sites la rompent : `actions-dossier.html:39` et
   `dossier-titre-cellule.html:28` portent `x-show="edition === null"` sans le
   `style="display: none"` correspondant — or `edition` naît à `'current-examination'` dès
   qu'une consultation est ouverte, donc les deux éléments sont rendus visibles puis masqués
   par Alpine ; `nouveau-patient-formulaire.html:36` porte `:disabled="!valide"` sans
-  l'attribut `disabled` rendu, alors que `valide` naît faux. S'y ajoute
-  `document-televersement.html:61`, sur le seul chemin de refus. Effets **cosmétiques** — un
+  l'attribut `disabled` rendu, alors que `valide` naît faux ; et
+  `document-televersement.html:61` porte `x-show="!choisi"` sans son `style`, sur le seul
+  chemin de refus — où `choisi` naît vrai. Effets **cosmétiques** — un
   scintillement à chaque ouverture d'un dossier portant une consultation en cours, et un
   bouton « Initialiser la fiche patient » brièvement actif. La revue de branche les a
   mesurés ; aucun n'a de conséquence fonctionnelle, et les corriger touche quatre gabarits
@@ -984,7 +985,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   rétabli, le resserrement à `is_staff` déclaré, la page de diagnostic rendue inerte.**
   Dernier geste de code du lot, après la revue de branche — celle qui cherche ce qu'aucune
   revue de tâche ne peut voir : les interactions entre tâches et les incohérences
-  d'ensemble. `make check` passe de **`745` à `757 passed`**, couverture de 94,30 % à
+  d'ensemble. `make check` passe de **`745` à `758 passed`**, couverture de 94,30 % à
   **94,31 %**, périmètre `mypy` **161** inchangé (aucun module Python créé) ; suite
   fonctionnelle de **110 à 112**, deux tests d'écran neufs. `fail_under = 90`,
   `ruff` `ignore = []`, zéro `noqa`,
@@ -1014,12 +1015,25 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `hx-swap-oob`, sans quoi le bouton pointerait sur une séance détruite ou manquerait sur
   une séance qui vient de naître. Deux preuves gardent chacun des deux sens.
 
-  **La suppression efface les commentaires d'abord**, et l'ordre n'est pas cosmétique :
-  `ExaminationComment.examination` est `on_delete=PROTECT`. Les **traces de journal
-  restent** — `ExaminationViewSet.destroy` ne les touchait pas, et le journal de
-  l'exploitant dit ce qui s'est passé, y compris sur une séance détruite. La barrière de
-  statut est **dans la vue** (`409`) et pas seulement sur le bouton, comme pour
+  **La suppression efface les traces de journal, puis les commentaires, puis la séance** —
+  l'ordre de `_purger_le_dossier`, appliqué à une séance. Aucune des deux étapes n'est
+  cosmétique : `ExaminationComment.examination` est `on_delete=PROTECT`, et
+  `OfficeEvent.reference` est un **entier nu, sans contrainte**. La barrière de statut est
+  **dans la vue** (`409`) et pas seulement sur le bouton, comme pour
   `nouvelle_consultation`.
+
+  **La première écriture de cette vague laissait un orphelin au journal, et le justifiait
+  par une citation creuse** — la forme même que sa correction n° 2 prétendait fermer. La
+  docstring affirmait « `ExaminationViewSet.destroy` ne les touchait pas » ; le code cité
+  (`views/consultation.py:130-132`) les **efface**. Conséquence mesurée en base : un
+  `OfficeEvent` `clazz="Examination"` par séance supprimée, pointant sur une ligne détruite
+  — `OfficeEventSerializer.get_patient_name` attrape `ObjectDoesNotExist` et rend `""`,
+  donc l'entrée s'affichait au tableau de bord **sans nom de patient**, cliquable
+  (`officeevent.js:114`) vers une URL qui rend `404`. **Réparé dans le même commit**, sur le
+  patron de `_purger_le_dossier`, avec sa preuve — vue rouge `1 != 0` ligne retirée, et
+  rouge aussi quand l'effacement cesse d'être borné à la séance supprimée. **Ce n'est donc
+  pas un huitième changement de produit** : c'est une casse de la vague, réparée avant
+  livraison.
 
   **La page de diagnostic écrivait du HTML hostile dans le document vivant.** `sonde` était
   créé par `document.createElement`, donc rattaché au document actif : un

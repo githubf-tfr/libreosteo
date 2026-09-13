@@ -831,6 +831,42 @@ class TestSuppressionDeConsultation(_SocleDuDossier):
         self.assertEqual(models.ExaminationComment.objects.count(), 0)
         self.assertTrue(models.Patient.objects.filter(pk=self.patient.pk).exists())
 
+    def test_la_suppression_efface_les_traces_de_journal_de_la_seance(self) -> None:
+        """`ExaminationViewSet.perform_destroy` **effacait** ces traces
+        (`views/consultation.py:130-132`), et `_purger_le_dossier` les efface aussi, seance
+        par seance. Les laisser produisait un orphelin definitif par suppression :
+        `receiver_examination` ecrit un `OfficeEvent` a la creation, `reference` est un
+        entier nu sans contrainte, et `OfficeEventSerializer.get_patient_name` attrape
+        `ObjectDoesNotExist` — l'entree s'affichait au tableau de bord **sans nom de
+        patient**, cliquable vers une URL qui rend `404`.
+
+        La seance est creee **par la route du produit** : sans cela il n'y aurait aucune
+        trace a effacer, et la preuve serait creuse. La trace d'une **autre** seance est
+        semee pour que l'effacement reste borne a la seance supprimee.
+        """
+        with sans_receivers():
+            autre = cree_patient(family_name="Crusher", first_name="Beverly")
+        voisine = models.OfficeEvent.objects.create(
+            clazz=models.Examination.__name__,
+            reference=self.seance.pk,
+            comment="Voisine",
+            user=self.praticien,
+            date=timezone.now(),
+            type=models.ExaminationType.NORMAL,
+        )
+
+        self.client.post(reverse("consultation-nouvelle", args=[autre.pk]))
+        creee = models.Examination.objects.get(patient=autre)
+        traces = models.OfficeEvent.objects.filter(
+            reference=creee.pk, clazz=models.Examination.__name__
+        )
+        self.assertEqual(traces.count(), 1, "aucune trace a effacer : preuve creuse")
+
+        self.client.post(reverse("consultation-suppression", args=[creee.pk]))
+
+        self.assertEqual(traces.count(), 0)
+        self.assertTrue(models.OfficeEvent.objects.filter(pk=voisine.pk).exists())
+
     def test_la_suppression_notifie_le_succes(self) -> None:
         """« Consultation supprimée » — l'une des **deux** seules notifications de succes du
         perimetre (AR7), a son libelle exact : `patient.js:504` rendait

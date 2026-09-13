@@ -959,11 +959,19 @@ def supprimer_consultation(request: HttpRequest, identifiant: str) -> HttpRespon
     remet pas a une affordance, exactement comme `nouvelle_consultation`. Une seance
     facturee porte des factures, et la detruire emporterait la piece comptable.
 
-    **Les commentaires partent d'abord** : `ExaminationComment.examination` est
-    `on_delete=PROTECT`, donc l'ordre n'est pas cosmetique — c'est celui de
-    `_purger_le_dossier`, applique a une seule seance. Les traces de journal, elles,
-    **restent** : `ExaminationViewSet.destroy` ne les touchait pas, et le journal de
-    l'exploitant dit ce qui s'est passe, y compris sur une seance detruite.
+    **L'ordre est celui de `_purger_le_dossier`, applique a une seule seance**, et aucune
+    de ses deux etapes n'est cosmetique :
+
+    - **les traces de journal d'abord.** `ExaminationViewSet.perform_destroy`
+      (`views/consultation.py:130-132`) les effacait, et `_purger_le_dossier` les efface
+      aussi. `OfficeEvent.reference` est un **entier nu**, sans contrainte : une trace
+      laissee derriere pointe sur une seance qui n'existe plus, `get_patient_name` attrape
+      `ObjectDoesNotExist` et rend `""`, et l'entree s'affiche au tableau de bord **sans
+      nom de patient**, cliquable vers une URL qui rend `404`. Un orphelin definitif par
+      suppression ;
+    - **les commentaires ensuite** : `ExaminationComment.examination` est
+      `on_delete=PROTECT`, donc les effacer avant la seance n'est pas une precaution, c'est
+      la condition pour que la suppression aboutisse.
     """
     consultation = get_object_or_404(models.Examination, pk=identifiant)
     if consultation.status != models.ExaminationStatus.IN_PROGRESS:
@@ -980,6 +988,9 @@ def supprimer_consultation(request: HttpRequest, identifiant: str) -> HttpRespon
             },
         )
     patient = consultation.patient
+    models.OfficeEvent.objects.filter(
+        reference=consultation.pk, clazz=models.Examination.__name__
+    ).delete()
     models.ExaminationComment.objects.filter(examination=consultation).delete()
     consultation.delete()
     return HttpResponse(
