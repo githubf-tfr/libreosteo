@@ -310,7 +310,10 @@ Tenu à la main.
     chargé qu'en deux points, `install.html:64` (que D6c emporte) et `index.html:170` (que D6f
     emporte). Le *JavaScript* de Bootstrap 3 meurt avec, puisqu'il l'exige (`bootstrap.js:7`).
     **D6g se réduit au socle visuel** — feuille de style et classes de balisage. 27 des 28
-    paquets sortent de `package.json` à la clôture de D6f.
+    paquets sortent de `package.json` à la clôture de D6f. ⚠️ **Chiffre périmé, corrigé le
+    2026-09-13 par le cadrage de D6f (F1) : ce sont quatorze paquets sur seize, D6e en ayant
+    emporté douze depuis. À la clôture, `package.json` porte deux dépendances, `htmx` et
+    `alpinejs`.**
   - **D6d et D6e ne s'exécutent plus en parallèle : D6d d'abord, puis D6e.** Motif : ils partagent
     six helpers de `tests/functional/helpers.py` et un test qui traverse les deux lots,
     `test_montant_a_centimes`. Deux chantiers concurrents sur les mêmes fichiers produisent des
@@ -328,7 +331,10 @@ Tenu à la main.
     « aspect », « mise en page », « couleur », « alignement », « responsive », « largeur »).
   - **La visite guidée est conservée et réécrite**, pas supprimée. Elle ne peut pas rester en
     l'état, plus aucun document ne chargera jQuery dont `bootstrap-tour` dépend. La retirer serait
-    un changement de produit non demandé.
+    un changement de produit non demandé. **Forme arbitrée le 2026-09-13 (D6f, AR2) : parité
+    ancrée, avec un repli centré écrit d'avance pour la cible absente.** ⚠️ **Le cadrage a
+    mesuré que l'`orphan: true` de `bootstrap-tour` est inerte : les encarts sont bel et bien
+    **ancrés** à leur élément aujourd'hui, et non centrés comme le dépôt le laissait croire.**
   - **Le corpus de preuve du texte riche de D6e sera conservateur** — préservation octet pour
     octet quel que soit le contenu — et un outil de diagnostic en lecture seule sera versé au
     produit. Motif : la production de l'utilisateur ne tourne pas sur le déploiement de référence,
@@ -1233,7 +1239,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   **modifie sans le supprimer**. `partials/` entier en rendait 442. Le chiffre de 459 qu'a
   porté le plan n'est atteint par aucun de ces découpages ; il n'a pas été repris.
   `menu.html` porte encore ses 3 occurrences aujourd'hui — deux `ui-sref` réels, qui vivent
-  jusqu'à D6f, et un faux positif. Sur `templates/pages/`, qui remplace les dix autres, la
+  jusqu'à D6f, et un faux positif. ⚠️ **Périmé, mesuré le 2026-09-13 par le cadrage de D6f
+  (F2) : les correctifs de la passe de recette les ont retirés. Les six occurrences du motif
+  sont désormais toutes inertes — les deux `ui-sref` sont dans des commentaires `{# … #}`
+  qui expliquent leur retrait. `menu.html` n'a plus d'AngularJS à retirer.** Sur `templates/pages/`, qui remplace les dix autres, la
   même recherche rend **65 occurrences réparties sur 60 lignes, dont 54 sont des
   commentaires Django** citant le code d'avant pour dire ce qui a été transposé, et **6 sont
   des faux positifs** (`ng-` à l'intérieur de `padding-bottom`). **Zéro directive
@@ -1365,8 +1374,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
   **Constats sans emport, pour les lots suivants** : `@components/angular-bootstrap` et
   `@components/angular-animate` perdent leur dernier consommateur à D6e mais leur unique
-  trace résiduelle est la coquille — **D6f** ; `css/typeahead.css` est un fichier du dépôt
-  devenu sans consommateur — D6f/D6g, **et le thème DataTables
+  trace résiduelle est la coquille — **D6f** ; `css/typeahead.css` était réputé sans
+  consommateur — ⚠️ **faux, mesuré le 2026-09-13 par le cadrage de D6f (F4) : `404.html:28`
+  le charge, et `404.html:22` charge de même le thème metisMenu. Les supprimer casserait une
+  page qu'aucun test ne regarde sous cet angle** —, **et le thème DataTables
   (`css/plugins/dataTables.bootstrap.css`, `css/plugins/dataTables/`) est dans le même cas,
   sans l'être devenu** : aucun gabarit ne l'a jamais chargé sur toute l'histoire du fork,
   ni au point de fork ni aujourd'hui. Relevé par la relecture de `README.rst` à la clôture,
@@ -1695,7 +1706,8 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
      **docstring** de la vue neuve qui explique le garde-fou levé (cf. plus bas) ; elle
      rendait onze lignes de code avant le lot. **Exception délibérée** :
      `partials/menu.html` conserve ses **quatre** `ui-sref`, additifs et doublés d'un
-     `href` réel, qui vivent jusqu'à D6f.
+     `href` réel, qui vivent jusqu'à D6f. ⚠️ **Périmé : il n'en porte plus aucun d'actif,
+     mesuré le 2026-09-13 (cadrage D6f, F2).**
   2. **htmx et Alpine sont dans l'arbre servi, par la voie des autres dépendances**, et
      **aucune ligne de chaîne de construction n'a changé** :
      `git diff --name-only afeb02f..HEAD -- Docker/ .github/ Makefile` ne rend **rien**,
@@ -2174,7 +2186,9 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     A15 de D6c interdisait à ce lot de toucher `helpers.py` sur un second point.
   - **Quinze sites dépendent du routage par hash** : douze `page.goto(…/#/…)` et trois
     `to_have_url`. Le motif `#/` figure dans la liste close mais `goto` et `to_have_url` ne sont
-    pas des méthodes de sélection : **il est inerte**. **Pour D6f.**
+    pas des méthodes de sélection : **il est inerte**. **Pour D6f.** ⚠️ **Chiffre périmé,
+    corrigé le 2026-09-13 par le cadrage de D6f : il en reste sept, les huit autres étant
+    tombés avec les écrans migrés par D6d et D6e.**
   - **`statut-facture-annulee` est devenu orphelin** dans `invoice-list.html:74`, et la
     nomenclature est inversée : la valeur générique désigne la Comptabilité, la valeur qualifiée
     la consultation. ~~À renommer en D6c.~~ **Fait le 2026-09-11 (D6c, T10)** :
