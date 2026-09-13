@@ -964,6 +964,12 @@ class TestGardeDeSortie(_SocleDuDossier):
         self.assertIn(
             ":data-modifications-non-enregistrees=\"modifie ? '1' : null\"", html
         )
+        # **Le desarmement lit le statut, jamais `$event.detail.successful`** : sur un refus
+        # 422, htmx rend `successful: true` — mesure — parce que le mot veut dire « la
+        # requete a abouti ». La garde se desarmait donc sur un refus, et le praticien
+        # quittait sans avertissement une page ou sa saisie etait toujours affichee.
+        self.assertIn("$event.detail.xhr.status < 400", html)
+        self.assertNotIn("$event.detail.successful", html)
 
     def test_les_huit_surfaces_de_saisie_portent_le_marqueur(self) -> None:
         """Une surface qui oublierait le marqueur ne pourrait **jamais** armer la garde : la
@@ -1041,7 +1047,7 @@ class TestGardeDeSortie(_SocleDuDossier):
 
         Le desarmement general suit les **ecritures** — un `GET` est une lecture, et entrer
         en edition ne doit rien desarmer. Ce bouton-ci est l'exception, et elle est posee la
-        ou elle se lit plutot que generalisee : les quatre autres surfaces n'ont aucun
+        ou elle se lit plutot que generalisee : les **sept** autres surfaces n'ont aucun
         abandon en `GET`.
 
         Ce que ce test regarde : que le bouton porte la remise a zero. Ce qu'il laisserait

@@ -62,7 +62,7 @@
        }
      }"
      @input="siSaisieDeFormulaire($event)" @change="siSaisieDeFormulaire($event)"
-     @htmx:after-request="if ($event.detail.successful && $event.detail.requestConfig.verb !== 'get') { modifie = false; }"
+     @htmx:after-request="if ($event.detail.xhr.status < 400 && $event.detail.requestConfig.verb !== 'get') { modifie = false; }"
      :data-modifications-non-enregistrees="modifie ? '1' : null">
   {% if request.user.is_authenticated %}{% include "partials/menu.html" with gabarit_actions="pages/fragments/actions-dossier.html" %}{% endif %}
   <div id="page-wrapper">
@@ -88,6 +88,13 @@
 {# `modifie` est pose par `@input` / `@change` — tous deux remontent jusqu'a cette racine, #}
 {# le champ de texte riche compris — et retombe a la premiere **ecriture** reussie, `GET` #}
 {# exclu : entrer en edition et chercher un code postal sont des lectures. #}
+{# #}
+{# **`xhr.status < 400` et non `$event.detail.successful`**, et c'est **mesure** (4e revue #}
+{# T12). Sur un refus 422, htmx rend `successful: true` et `failed: false` — le mot veut #}
+{# dire « la requete a abouti », pas « la reponse etait un succes ». La garde se desarmait #}
+{# donc **sur un refus** : le praticien quittait sans avertissement une page ou sa saisie #}
+{# etait toujours la, affichee, et refusee. Le statut, lui, ne laisse aucune place a #}
+{# l'interpretation. #}
 {# #}
 {# **Deux conditions, et chacune ferme un faux positif mesure** (re-revue T12) : #}
 {# 1. le controle doit porter un attribut `name`, donc etre **soumis**. Les six cases a #}

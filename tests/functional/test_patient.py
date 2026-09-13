@@ -984,6 +984,19 @@ def test_la_garde_de_sortie_ne_s_arme_qu_apres_une_saisie(
     page.fill("input[name=city]", "La Barre")
     expect(garde).to_have_count(1)
 
+    # **Une lecture ne désarme pas**, et c'est la troisième symétrie de cette famille —
+    # trouvée en appliquant la règle « armement et désarmement dans le même test » à ma
+    # propre campagne. Saisir un code postal déclenche un `hx-get` de suggestions : si le
+    # désarmement ne filtrait pas le verbe, la réponse de cette **lecture** effacerait la
+    # garde alors que la saisie est toujours en attente.
+    attendre_reponse(
+        page,
+        lambda: page.fill("input[name=zipcode]", "70190"),
+        methode="GET",
+        motif_url=r"/zipcode-suggestions",
+    )
+    expect(garde).to_have_count(1)
+
     attendre_enregistrement_declenche(
         page,
         Patient.objects.get(family_name="Picard").id,
@@ -1025,6 +1038,18 @@ def test_la_garde_de_sortie_s_arme_sur_un_champ_de_texte_riche(
     remplir_champ_de_texte_riche(page, champ, "Antecedent chirurgical")
     expect(garde).to_have_count(1)
 
+    # **Le desarmement, dans le meme parcours** : c'est la regle que les deux casses de
+    # cette tache ont apprise — une garde se prouve par son armement **et** son
+    # desarmement, sans quoi on ne prouve que la moitie qu'on vient de regarder. Cette
+    # preuve-ci s'arretait a l'armement, sur la seule famille de champs — le texte riche —
+    # ou la garde avait deja ete inerte une fois.
+    attendre_enregistrement_declenche(
+        page,
+        Patient.objects.get(family_name="Picard").id,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+    )
+    expect(garde).to_have_count(0)
+
 
 def test_abandonner_l_edition_d_une_vignette_desarme_la_garde(
     page: Page, live_server: LiveServer
@@ -1039,7 +1064,7 @@ def test_abandonner_l_edition_d_une_vignette_desarme_la_garde(
     lecture, et entrer en édition ne doit rien désarmer. Or le bouton « Annuler » d'une
     vignette est un `hx-get` : il fait disparaître le formulaire **sans rien enregistrer**,
     et la garde restait armée sur une page où il n'y avait plus rien à perdre. C'est le
-    **seul** abandon en `GET` du dossier ; les quatre autres surfaces n'en ont pas.
+    **seul** abandon en `GET` du dossier ; les **sept** autres surfaces n'en ont pas.
     """
     connexion(page, live_server)
     creer_patient(page)
@@ -1064,3 +1089,52 @@ def test_abandonner_l_edition_d_une_vignette_desarme_la_garde(
     # La vignette est revenue en lecture : le formulaire n'existe plus.
     expect(page.locator("li.documenttile input[placeholder*='Titre']")).to_have_count(0)
     expect(garde).to_have_count(0)
+
+
+def test_un_refus_serveur_laisse_la_garde_armee(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Un enregistrement **refusé** ne désarme pas la garde de sortie.
+
+    **Ce que ce test regarde** : le marqueur que `beforeunload` interroge, après une
+    soumission que le serveur refuse. Il ne déclenche jamais la boîte de dialogue.
+
+    **La moitié de l'expression de désarmement qui n'avait jamais été éprouvée.** La garde
+    retombe à la première **écriture réussie** ; `$event.detail.successful` porte le mot
+    « réussie », et rien ne le tenait — ni assertion, ni parcours. Or c'est la symétrie de
+    la classe qui a déjà coûté trois casses à cette tâche : si un refus désarmait, le
+    praticien quitterait sans avertissement une page où sa saisie est **toujours** là, et
+    refusée.
+
+    `isError` vaut vrai pour un 4xx par la configuration `responseHandling` de
+    `base.html:16`, donc `successful` vaut faux : ce test tient **à la fois** la condition
+    du désarmement et le réglage htmx dont elle dépend.
+
+    Le refus choisi est le seul que l'écran atteigne sans être bloqué en amont par une
+    contrainte HTML5 : renommer un patient vers un homonyme exact — même prénom, même date
+    de naissance —, que `UniqueTogetherIgnoreCaseValidator` refuse.
+    """
+    with sans_receivers():
+        Patient.objects.create(
+            family_name="Kirk", first_name="Jean-Luc", birth_date=date(1935, 7, 13)
+        )
+    connexion(page, live_server)
+    creer_patient(page)
+    garde = page.locator("[data-modifications-non-enregistrees]")
+
+    titre = page.get_by_test_id("titre-patient")
+    titre.get_by_test_id("nom-de-famille").click()
+    champ = titre.locator("input")
+    expect(champ).to_have_count(1)
+    champ.fill("Kirk")
+    expect(garde).to_have_count(1)
+
+    titre.locator("button[type=submit]").click()
+    # Le refus est rendu dans la cellule, qui reste en saisie avec la valeur du praticien.
+    expect(titre.get_by_test_id("erreur-family_name")).to_contain_text("existe déjà")
+    expect(titre.locator("input")).to_have_value("Kirk")
+    # **Et la garde reste armée** : la saisie est toujours là, et toujours pas enregistrée.
+    expect(garde).to_have_count(1)
+    # Et le refus est réel : le renommage n'a pas été écrit.
+    assert Patient.objects.filter(family_name="Picard").count() == 1
+    assert Patient.objects.filter(family_name="Kirk").count() == 1
