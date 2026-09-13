@@ -3197,8 +3197,12 @@ la borne.
 - **Domaine** : Navigation
 - **Couverture auto** : oui —
   tests/functional/test_atteignabilite.py::test_chaque_ecran_est_joignable_au_clic
-  (le test clique les mêmes chemins ; il ne voit pas un lien recouvert par un autre
-  élément, ce que seule la passe manuelle constate)
+  (ce qu'il couvre : les quinze étapes ci-dessous, dans cet ordre, l'aller-retour d'onglets
+  de l'étape 5 compris. Ce qu'il laisse de côté, et qui n'est donc constaté que par cette
+  passe manuelle : un lien **recouvert** par un autre élément — Playwright clique par le
+  centre de la boîte, un `z-index` fautif le laisse vert ; l'**aspect**, sur lequel rien
+  n'est asserté ; les quatre écrans déclarés hors matrice en fin de fiche ; et tout
+  navigateur autre que Chromium. Ne sauter aucune étape au motif qu'elle serait automatisée)
 - **État requis** : E1. La fiche crée durablement un patient, une consultation et une
   facture — remonter E1 avant de jouer une autre fiche qui en dépend.
 
@@ -3211,30 +3215,47 @@ la borne.
 3. Cliquer successivement les onglets « Antécédents », « Compte-rendus médicaux »,
    « Consultations », « Infos générales ».
    Attendu : chaque onglet s'ouvre et affiche son panneau.
-4. Bouton « Démarrer une consultation », saisir un motif, clôturer avec facturation
-   (moyen « Chèque »).
-   Attendu : l'onglet « Consultation en cours » apparaît puis la facture est émise.
-5. Saisir le nom du patient dans le champ de recherche du menu et valider.
+4. Bouton « Démarrer une consultation », puis saisir un motif.
+   Attendu : un cinquième onglet « Consultation en cours » apparaît dans la barre, s'ouvre
+   de lui-même, et son panneau est en saisie.
+5. Cliquer l'onglet « Consultations », puis **revenir** en cliquant l'onglet « Consultation
+   en cours ».
+   Attendu : le panneau « Consultations » s'affiche et celui de la consultation en cours se
+   masque ; le retour au clic le réaffiche, motif conservé — le changement d'onglet l'a
+   enregistré au passage. C'est ce retour qui prouve que le cinquième onglet est un lien et
+   pas seulement un libellé.
+6. Clôturer la consultation avec facturation (moyen « Chèque »).
+   Attendu : l'onglet « Consultation en cours » disparaît, la séance rejoint la chronologie
+   et la facture est émise.
+7. Saisir le nom du patient dans le champ de recherche du menu et valider.
    Attendu : la page de résultats affiche le patient.
-6. Lien « Comptabilité » (menu du haut).
+8. Lien « Comptabilité » (menu du haut).
    Attendu : titre de page « Comptabilité » ; la facture figure dans la liste.
-7. Menu « Actions » de la facture, entrée « Imprimer ».
+9. Menu « Actions » de la facture, entrée « Imprimer ».
    Attendu : un nouvel onglet s'ouvre sur la facture.
-8. Menu utilisateur (nom d'utilisateur, en haut à droite), entrée « Profil utilisateur ».
-   Attendu : titre de page « Profil utilisateur ».
-9. Menu utilisateur, entrée « Paramètres ».
-   Attendu : titre de page « Paramètres du cabinet ».
-10. Menu utilisateur, entrée « Import/export ».
+10. Menu utilisateur (nom d'utilisateur, en haut à droite), entrée « Profil utilisateur ».
+    Attendu : titre de page « Profil utilisateur ».
+11. Menu utilisateur, entrée « Paramètres ».
+    Attendu : titre de page « Paramètres du cabinet ».
+12. Menu utilisateur, entrée « Import/export ».
     Attendu : la page d'import/export s'affiche.
-11. Menu utilisateur, entrée « Réindexer ».
+13. Menu utilisateur, entrée « Réindexer ».
     Attendu : la page de réindexation s'affiche.
-12. Cliquer le logo « LibreOsteo » (en haut à gauche).
+14. Cliquer le logo « LibreOsteo » (en haut à gauche).
     Attendu : titre de page « Tableau de bord ».
-13. Menu utilisateur, entrée « Déconnexion ».
+15. Menu utilisateur, entrée « Déconnexion ».
     Attendu : le formulaire d'identification s'affiche.
 
-**Hors matrice, et c'est délibéré** : l'outil de diagnostic du texte riche (hors menu par
-construction), la restauration et l'inscription (URL de maintenance), l'installeur.
+**Hors matrice, et c'est délibéré** — quatre écrans, les mêmes que ceux qu'énumère le
+docstring du test :
+
+1. l'outil de diagnostic du texte riche, hors menu par construction ;
+2. la restauration et l'inscription, qui sont des URL de maintenance ;
+3. l'installeur, qui ne s'atteint que sur une base vierge, sans session ;
+4. « Changer de cabinet », qui n'apparaît au menu que si plus d'une fiche cabinet existe en
+   base, et dont l'URL est le défaut connu et versé au `KANBAN.md` le 2026-09-13 : un slash
+   encodé, `/%2F`. L'inclure ferait échouer la fiche sur un défaut déjà instruit, hors
+   périmètre.
 
 ### Pages d'erreur
 
