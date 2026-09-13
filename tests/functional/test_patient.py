@@ -743,7 +743,7 @@ def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
     page.click("#agreeGdpr")
     expect(bouton_de_confirmation(page)).to_be_enabled()
     confirmer_la_modale(page)
-    expect(page).to_have_url(f"{live_server.url}/#/")
+    expect(page).to_have_url(f"{live_server.url}/")
 
     # Ce que l'interface ne montre pas : la purge est complete cote base. Le cas Robot
     # d'origine attendait un evenement de journal survivant (type 4) ; ce n'est plus le

@@ -44,6 +44,14 @@ METHODES_DE_SELECTION = frozenset(
         "get_by_alt_text",
         "to_have_class",
         "to_have_attribute",
+        # `goto` et `to_have_url` ne **selectionnent** rien : elles sont entrees dans cette
+        # liste a la mort de la coquille (D6f, C9), pour le seul motif `#/`. Tant qu'`ui-router`
+        # resolvait le fragment, `/#/` et `/` etaient deux ecrans differents ; depuis, ils sont
+        # le meme, et un test vert sur `/#/` ne prouve plus rien. Les autres motifs de la liste
+        # close ne peuvent pas apparaitre dans une URL sans la casser : les faire balayer ici ne
+        # coute rien.
+        "goto",
+        "to_have_url",
     ]
 )
 
@@ -60,6 +68,10 @@ MOTIFS_INTERDITS: dict[str, str] = {
     "bootstrap-onglet": r"\.(?:tab-pane|tab-content|active)\b",
     "bootstrap-divers": r"\.(?:well|badge|close|thumbnail|breadcrumb|pagination|progress[a-z-]*|list-group[a-z-]*|table[a-z-]*)\b",
     "bootstrap-texte": r"\.(?:text-[a-z]+|bg-[a-z]+)\b",
+    # `bootstrap-tour` n'est plus charge nulle part (D6f) : seules restent des mentions dans
+    # des commentaires Django, hors d'atteinte de ce balayage puisqu'il ne lit que des
+    # constantes de l'AST — un commentaire n'en produit aucune.
+    "bootstrap-tour": r"\.tour(?:-[a-z]+)?\b",
     "font-awesome": r"\.(?:fa|fa-[a-z0-9-]+|glyphicon[a-z-]*)\b",
     "sb-admin": r"\.(?:huge|timeline[a-z-]*|chat-panel|sidebar|side-nav)\b",
     "angular-directive": r"\bng-[a-z-]+",
