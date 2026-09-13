@@ -557,12 +557,61 @@ décrits à l'entrée de clôture, pas ici.
   comportement de codes réels sur des écrans livrés, et cela mérite sa propre décision.
   C'est ce défaut qui a coûté un tour de revue à T12, et c'est pourquoi la garde de sortie
   lit le **statut** et non `$event.detail.successful`.
-- **Le second site de désarmement de la garde de sortie est inconditionnel.**
-  `@click="modifie = false"` sur le bouton d'abandon d'une vignette de document tombe au
-  **clic**, pas au résultat : si son `hx-get` échoue, le formulaire reste à l'écran avec la
-  saisie et la garde est désarmée. C'est le seul endroit du dossier où la règle « seul un
-  résultat réel désarme » n'est pas appliquée. **Rangé plutôt que corrigé** : l'abandon est
-  demandé par le praticien, la perte est son geste. Décrit à `R-PAT-12` étape 5.
+- **La garde de sortie se désarme sur trois chemins qui ne sont pas des enregistrements, et
+  l'inventaire écrit ici en annonçait un.** La revue de branche a mesuré les trois ; la
+  phrase « c'est le seul endroit du dossier où la règle *seul un résultat réel désarme*
+  n'est pas appliquée » était fausse et se présentait comme exhaustive. **Les trois
+  mécanismes sont volontaires et prouvés ; c'est l'inventaire qui était incomplet.**
+  1. `@click="modifie = false"` sur le bouton d'abandon d'une vignette de document tombe au
+     **clic**, pas au résultat : si son `hx-get` échoue, le formulaire reste à l'écran avec
+     la saisie et la garde est désarmée. L'abandon est demandé par le praticien, la perte
+     est son geste. Décrit à `R-PAT-12` étape 5.
+  2. `dossier-corps.html:30` désarme aussi, par un `x-init` posé dans la réponse d'un
+     **`GET`** — le corps rafraîchi repose `modifie = false` en même temps que l'onglet
+     actif. C'est voulu (une clôture ne doit pas laisser la garde armée) et `test_page_
+     dossier_patient.py::test_le_corps_rafraichi_desarme_la_garde` le fige.
+  3. **Le troisième chemin est une perte, pas seulement un désarmement** : `#dossier-corps`
+     échangé en `outerHTML` **détruit** toute saisie en attente dans le bloc de
+     téléversement, une vignette en édition ou un volet de commentaires — et désarme la
+     garde **dans le même geste**. Le praticien ne voit ni avertissement ni trace.
+  **Rangés plutôt que corrigés** : un drapeau par surface est la refonte déjà versée à
+  l'entrée de clôture de D6e, et elle seule fermerait le troisième chemin.
+- **La chronologie alterne ses panneaux gauche/droite, et elle ne l'avait jamais fait.**
+  `chronologie.html:30` pose `timeline-inverted` une ligne sur deux ; `timeline.html:9`
+  écrivait `ng-class="{'timeline-inverted': examination.order %2 == 0 }"`, et **`order`
+  n'existe pas** dans le sérialiseur — l'expression valait `NaN == 0`, donc `false`, depuis
+  toujours. Tous les panneaux étaient à gauche. **Le lot a « réparé » ce qui ressemblait à
+  un défaut** ; l'alternance est l'intention visible de `timeline.css`, qui porte la règle
+  `.timeline > li.timeline-inverted` depuis le point de fork. **Retenu**, et versé comme
+  sixième changement de produit à l'entrée de clôture plutôt qu'annulé : revenir à la
+  colonne unique serait figer une expression morte comme si elle était une décision.
+- **Le dossier ouvert sur la consultation en cours rend deux fois la même séance.**
+  `contexte_chronologie` liste **toutes** les séances, celle en cours comprise, et son
+  entrée ouvre le volet dans l'onglet « Consultations » pendant que
+  `#current-examination-volet` rend la même séance en édition. Le document porte alors deux
+  `#close-examination`, deux `#examinationDate` et deux copies divergentes du même
+  formulaire. Sans conséquence mesurée — les deux volets sont préfixés et chacun reçoit sa
+  propre réponse —, mais c'est un doublon d'autorité sur une donnée clinique. À trancher :
+  exclure la séance en cours de la chronologie, comme `ng-if="previousExamination.data ==
+  null"` le faisait par un autre chemin.
+- **La règle « apparier tout attribut serveur à son état Alpine » n'est tenue que là où on
+  l'a nommée.** Trois sites la rompent : `actions-dossier.html:39` et
+  `dossier-titre-cellule.html:28` portent `x-show="edition === null"` sans le
+  `style="display: none"` correspondant — or `edition` naît à `'current-examination'` dès
+  qu'une consultation est ouverte, donc les deux éléments sont rendus visibles puis masqués
+  par Alpine ; `nouveau-patient-formulaire.html:36` porte `:disabled="!valide"` sans
+  l'attribut `disabled` rendu, alors que `valide` naît faux. S'y ajoute
+  `document-televersement.html:61`, sur le seul chemin de refus. Effets **cosmétiques** — un
+  scintillement à chaque ouverture d'un dossier portant une consultation en cours, et un
+  bouton « Initialiser la fiche patient » brièvement actif. La revue de branche les a
+  mesurés ; aucun n'a de conséquence fonctionnelle, et les corriger touche quatre gabarits
+  livrés.
+- **Deux inexactitudes de documentation, relevées et non corrigées.**
+  `tests/functional/helpers.py:185` affirme encore que le contrat neutre de notification
+  accepte `growl` « pendant la cohabitation » : c'est faux depuis T12, qui a retiré `growl`
+  du dossier patient. `libreosteoweb/tests/test_socle_gabarit_actions.py:29` cite
+  `base.html:39` pour un `{% include %}` qui est à `base.html:44`. Aucune des deux ne change
+  un comportement ; les deux mentent à qui les lit.
 - **Le dépôt n'a pas de `.gitattributes`.** Trois normalisations de fins de ligne ont dû
   être réparées à la main pendant le lot — un script de falsification qui réécrit un
   fichier avec `open(p, "w")` transforme ses CRLF en LF et produit des centaines de lignes
@@ -931,6 +980,77 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-13 — D6e, vague de correction finale : le geste « supprimer une consultation »
+  rétabli, le resserrement à `is_staff` déclaré, la page de diagnostic rendue inerte.**
+  Dernier geste de code du lot, après la revue de branche — celle qui cherche ce qu'aucune
+  revue de tâche ne peut voir : les interactions entre tâches et les incohérences
+  d'ensemble. `make check` passe de **`745` à `757 passed`**, couverture de 94,30 % à
+  **94,31 %**, périmètre `mypy` **161** inchangé (aucun module Python créé) ; suite
+  fonctionnelle de **110 à 112**, deux tests d'écran neufs. `fail_under = 90`,
+  `ruff` `ignore = []`, zéro `noqa`,
+  zéro `# type: ignore`, zéro `skip` neufs.
+
+  **Le geste perdu, et pourquoi il l'était.** C2 est explicite : « le bouton *Supprimer*
+  n'apparaît que là où il apparaît aujourd'hui : sur le dossier patient, **et sur une
+  consultation dont le statut vaut 0** ». Le plan avait déposé `{% if suppression_possible
+  %}` dans le bandeau d'actions **sans reprendre la condition de statut**, et aucune des
+  quatorze tâches ne possédait ce geste : il n'existait plus nulle part, aucune route ne le
+  servait, et `gettext("Examination deleted")` restait au catalogue **sans émetteur**.
+  **Ce n'est pas une faute d'implémentation, c'est un trou de plan** — et il a traversé
+  quatorze revues de tâche parce que chacune ne regardait que son propre périmètre.
+
+  **Ce que le bouton unique faisait vraiment**, mesuré par la revue : sur « Infos
+  générales » il supprimait le patient, comme avant ; sur « Historique » et « Comptes
+  rendus » il supprimait le patient **là où l'écran d'avant n'affichait aucun bouton** ; sur
+  « Consultations » et « Consultation en cours » il supprimait le patient **là où l'écran
+  d'avant supprimait la séance**. `loEditFormManager.action_available('delete')` retenait
+  l'action du formulaire **visible** ; c'est cette dépendance à l'onglet actif qui a été
+  perdue, et elle est rétablie par trois boutons bornés chacun par un `x-show`.
+
+  **Le bandeau vit hors de `#dossier-corps`, et c'est ce qui coûte le plus.** Ouvrir une
+  consultation, la clôturer ou la supprimer change l'ensemble des suppressions possibles ;
+  le bandeau étant rendu dans le menu, il ne peut revenir que **hors-bande**. Les trois
+  réponses qui recomposent le corps rendent donc aussi `actions-dossier.html` marqué
+  `hx-swap-oob`, sans quoi le bouton pointerait sur une séance détruite ou manquerait sur
+  une séance qui vient de naître. Deux preuves gardent chacun des deux sens.
+
+  **La suppression efface les commentaires d'abord**, et l'ordre n'est pas cosmétique :
+  `ExaminationComment.examination` est `on_delete=PROTECT`. Les **traces de journal
+  restent** — `ExaminationViewSet.destroy` ne les touchait pas, et le journal de
+  l'exploitant dit ce qui s'est passé, y compris sur une séance détruite. La barrière de
+  statut est **dans la vue** (`409`) et pas seulement sur le bouton, comme pour
+  `nouvelle_consultation`.
+
+  **La page de diagnostic écrivait du HTML hostile dans le document vivant.** `sonde` était
+  créé par `document.createElement`, donc rattaché au document actif : un
+  `<img src=… onerror=…>` du corpus y **déclenchait le chargement de la ressource et
+  l'exécution du gestionnaire** — sur 21 champs sans assainissement, sur tout le parc, en
+  session administrateur, et sur une page qui affiche en tête « elle lit et compte, elle
+  n'écrit jamais ». Correctif d'une ligne :
+  `document.implementation.createHTMLDocument()`, document **sans contexte de navigation**,
+  même analyseur et mêmes modes d'insertion — donc `innerHTML` identique et **mesure
+  inchangée**. `<template>` n'était pas le bon repli : son contenu s'analyse en mode « in
+  template », qui diverge sur les balises de tableau. Le test fonctionnel a été vu rouge
+  deux fois, sur les deux symptômes séparément : la requête partie **et** le titre du
+  document réécrit par le gestionnaire.
+
+  **Une preuve citait une exigence qu'elle avait inventée.** La docstring de
+  `test_la_suppression_est_refusee_sans_le_droit` disait « `R-DOC-04` : seul un compte
+  `is_staff` supprime un dossier » — **la fiche ne disait pas cela**, et ne mentionnait
+  aucun droit. Cinquième forme de preuve creuse du lot, sur son dernier commit : la
+  **citation** creuse, celle qui emprunte son autorité à un document qui ne la porte pas.
+  Réparée par les deux bouts — la fiche gagne son étape, la docstring cite l'étape.
+
+  **Cahier de recette** : une fiche neuve, `R-CON-06` (supprimer une consultation en cours,
+  geste qu'**aucune fiche ne décrivait** — la passe manuelle ne l'aurait donc pas rattrapé),
+  et `R-DOC-04` reprise pour porter le droit exigé.
+
+  **Cinq constats versés sans être corrigés**, à la section « Défauts versés par D6e » :
+  l'inventaire incomplet des désarmements de la garde de sortie — **et son troisième chemin,
+  qui est une perte de saisie et non un simple désarmement** —, la séance en cours rendue
+  deux fois, la règle d'appariement serveur/Alpine rompue sur quatre sites cosmétiques, et
+  deux inexactitudes de documentation.
+
 - **2026-09-13 — D6e Dossier patient migré : le dossier, la consultation, les documents et
   le médecin traitant en htmx, sans AngularJS** (quatorze tâches ; spec
   `docs/superpowers/specs/2026-09-12-d6e-dossier-patient-design.md`).
@@ -970,8 +1090,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   plus `hallo`, `rangy`, `jquery-ui`, `xeditable`, `ng-file-upload`, `bind-html-compile`,
   `ui-validate`, `moment` ni `webshim`.
 
-  **Quatre changements de produit assumés, et il faut les lire comme tels : l'engagement du
-  lot était « mêmes écrans, mêmes gestes », ces quatre-là y dérogent délibérément.**
+  **Sept changements de produit assumés, et il faut les lire comme tels : l'engagement du
+  lot était « mêmes écrans, mêmes gestes », ceux-là y dérogent délibérément.** Les quatre
+  premiers étaient instruits pendant le lot ; **les trois derniers ne l'étaient nulle part —
+  ni spec, ni plan, ni journal** — et c'est la revue de branche qui les a mesurés, le
+  2026-09-13. Ils sont retenus, pas annulés, et déclarés ici.
 
   1. **Le produit cesse de rogner les espaces de bord des 21 champs de texte riche.**
      Arbitrage de l'utilisateur du 2026-09-12 (AR3), le seul du lot qui change le produit
@@ -998,6 +1121,29 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
      aurait demandé d'inventer un geste. Contrepartie heureuse : le bouton « Démarrer une
      consultation » est désormais atteignable sans fermer le volet, ce qui emporte le défaut
      du 2026-09-04. `R-CON-01` étape 3 et le montage E2 du chapitre 1 sont repris.
+  5. **Supprimer un dossier patient exige désormais `is_staff`.** **Avant** :
+     `IsDataAccessAllowed` (`api/permissions.py:46-54`) rendait `True` pour **tout
+     utilisateur authentifié** dès que l'action n'était pas `list`, et `updateDeleteTrigger`
+     (`patient.js:353-363`) n'exigeait que `patient.id != null` — n'importe quel praticien
+     pouvait purger un dossier. **Après** : `dossier_suppression` lève `PermissionDenied`
+     sans ce droit, et le bouton n'est pas rendu. **Motif** : la purge RGPD est irréversible
+     et emporte les séances, les commentaires et les documents ; restaurer la capacité
+     ouverte serait le mauvais sens. `R-DOC-04` gagne son étape 2, et
+     `test_page_dossier_patient.py` porte les deux preuves (la barrière et l'affordance).
+  6. **La chronologie alterne ses panneaux gauche/droite.** **Avant** :
+     `timeline.html:9` écrivait `examination.order %2 == 0`, or `order` n'existe pas dans
+     le sérialiseur — l'expression valait `false` depuis toujours et **tous** les panneaux
+     étaient à gauche. **Après** : `chronologie.html:30` alterne réellement, par
+     `forloop.counter|divisibleby:2`. **Motif** : l'alternance est l'intention visible de
+     `timeline.css`, qui porte `.timeline > li.timeline-inverted` depuis le point de fork ;
+     figer une expression morte reviendrait à la prendre pour une décision. Purement
+     visuel, aucune fiche ne le décrit.
+  7. **Supprimer une consultation demande maintenant confirmation.** **Avant** :
+     `examination.js:290` appelait `ExaminationServ.delete` **au clic**, sans rien demander.
+     **Après** : une modale « Êtes-vous sûr(e) de supprimer cette consultation ? », sur le
+     patron de la suppression d'un document. **Motif** : le geste détruit une séance
+     clinique sans retour, et le bouton vit dans la barre du haut, à un pixel de
+     « Éditer ». Décidé à la vague finale, décrit par `R-CON-06`.
 
   **Deux défauts fermés au passage, hors du périmètre du lot, et c'est assumé.**
   - **La fuite de `modal-open`.** Fermer une modale en vidant `#modale` — le geste de

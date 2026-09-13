@@ -17,7 +17,10 @@
 {# **L'identifiant de la seance regardee voyage sur l'URL de rafraichissement**, posee au #}
 {# rendu **precedent** : c'est ce qui fait qu'apres une cloture le volet de la seance qu'on #}
 {# vient de fermer reste affiche, comme `reloadExaminations` le faisait. #}
-<div id="dossier-corps"
+{# **`corps_hors_bande`** : la suppression d'une seance cible `#modale` pour que la modale se #}
+{# referme, et rend donc ce bloc hors-bande. Les deux autres appelants — le rafraichissement #}
+{# et l'ouverture d'une consultation — l'ont en cible principale et ne posent pas le drapeau. #}
+<div id="dossier-corps"{% if corps_hors_bande %} hx-swap-oob="outerHTML"{% endif %}
      hx-get="{{ url_corps }}" hx-trigger="consultation-modifiee from:body"
      hx-target="#dossier-corps" hx-swap="outerHTML">
   {% if bascule %}

@@ -12,8 +12,10 @@ from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
     attendre_reponse,
     cloturer_consultation,
+    confirmer_la_modale,
     connexion,
     libelle_date_longue,
+    notifications_de_succes,
     ouvrir_nouvelle_consultation,
     rechercher_patient,
     remplir_champ_de_texte_riche,
@@ -567,3 +569,47 @@ def test_la_consultation_preserve_le_texte_riche_a_l_octet(
     assert consultation.conclusion == VALEUR_NON_POINT_FIXE, (
         f"la consultation a reecrit le texte riche : {consultation.conclusion!r}"
     )
+
+
+def test_une_consultation_en_cours_se_supprime_depuis_son_onglet(
+    page: Page, live_server: LiveServer, patient_existant: Patient
+) -> None:
+    """Le geste que le lot avait perdu, joue de bout en bout (C2, AR7, `R-CON-06`).
+
+    **Ce que ce test regarde** : que « Supprimer » n'existe que sur l'onglet de la
+    consultation — l'onglet « Historique » n'en a jamais porte —, que la confirmation
+    s'ouvre, que la seance disparait de la base, et que la notification exacte s'affiche.
+    Rien de tout cela n'est visible d'un test unitaire : la borne d'onglet est un `x-show`,
+    la recomposition du bandeau un echange hors-bande, et la notification une region que
+    seul htmx remplit.
+
+    **Ce qu'il ne regarde pas** : la suppression depuis l'onglet « Consultations » d'une
+    seance anterieure de statut 0 — l'ecran n'y mene pas sans un second dossier en cours —,
+    ni le refus oppose a une seance close, que le test unitaire couvre.
+    """
+    connexion(page, live_server)
+    rechercher_patient(page, "Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+
+    # **La borne d'onglet, mesuree dans le navigateur.** Le selecteur de role ne retient
+    # que les boutons rendus : les deux autres exemplaires sont masques par le serveur ou
+    # par Alpine, et n'y figurent pas.
+    expect(page.get_by_role("button", name="Supprimer")).to_have_count(1)
+    page.click("#history")
+    expect(page.get_by_role("button", name="Supprimer")).to_have_count(0)
+    page.click("#current-examination")
+    expect(page.get_by_role("button", name="Supprimer")).to_have_count(1)
+
+    page.get_by_role("button", name="Supprimer").click()
+    expect(page.get_by_test_id("corps-modale")).to_contain_text(
+        "Êtes-vous sûr(e) de supprimer cette consultation ?"
+    )
+    confirmer_la_modale(page)
+
+    expect(notifications_de_succes(page)).to_contain_text("Consultation supprimée")
+    # L'onglet de la consultation en cours disparait avec elle, et la chronologie redevient
+    # vide : les deux viennent du corps recompose par la meme reponse.
+    expect(page.locator("#current-examination")).to_have_count(0)
+    expect(page.get_by_test_id("titre-seance")).to_have_count(0)
+    assert not Examination.objects.filter(patient=patient_existant).exists()

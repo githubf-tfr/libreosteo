@@ -79,6 +79,7 @@ from .pages import (
     regulariser_consultation,
     selecteur_medecin,
     suggestions_de_code_postal,
+    supprimer_consultation,
     utilisateur_nouveau,
 )
 from .patient import PatientDocumentViewSet, PatientViewSet
@@ -145,6 +146,7 @@ __all__ = [
     "selecteur_medecin",
     "StatisticsView",
     "suggestions_de_code_postal",
+    "supprimer_consultation",
     "telecharger_fichier",
     "TherapeutSettingsViewSet",
     "utilisateur_nouveau",

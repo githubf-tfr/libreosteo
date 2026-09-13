@@ -645,6 +645,18 @@ msgstr "Êtes-vous sûr(e) de supprimer ce document ?"
 msgid "Update success"
 msgstr "Mise à jour effectuée"
 
+#. La notification de suppression d'une seance vient elle aussi de `djangojs.po` (:116),
+#. ou `patient.js:504` la lisait. Le geste est rendu par Django depuis la vague finale de
+#. D6e : la traduction est reprise **a l'octet**.
+msgid "Examination deleted"
+msgstr "Consultation supprimée"
+
+#. Libelle **neuf** : `examination.js:290` supprimait la seance au clic, sans confirmation.
+#. La modale est une addition assumee de la vague finale de D6e, versee au `KANBAN.md` ;
+#. sa phrase decalque celle de la suppression d'un document.
+msgid "Are you sure to delete this examination ?"
+msgstr "Êtes-vous sûr(e) de supprimer cette consultation ?"
+
 msgid "Ok"
 msgstr "Ok"
 

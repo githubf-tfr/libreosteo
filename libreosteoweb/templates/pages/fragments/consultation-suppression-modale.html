@@ -1,0 +1,19 @@
+{% load i18n %}
+{# Le corps de la modale de suppression d'une seance (D6e, vague finale), rendu par #}
+{# `partials/modale.html`. Meme patron que `document-suppression-modale.html` : le bouton #}
+{# « Ok » de la modale soumet ce formulaire par son attribut HTML5 `form`, et rien n'est #}
+{# poste par du JavaScript. #}
+{# #}
+{# **`hx-target="#modale"`, et non le corps du dossier.** La reponse de succes n'a pas de #}
+{# corps principal : `#modale` recoit du vide, la modale se referme, et `partials/modale.html` #}
+{# retire lui-meme `modal-open` du `<body>`. Le corps du dossier, le bandeau d'actions et la #}
+{# notification reviennent hors-bande, chacun seule autorite de son propre element. #}
+{# #}
+{# **La confirmation est une addition assumee**, versee au `KANBAN.md` : `examination.js:290` #}
+{# supprimait la seance **au clic**, sans rien demander. Un dossier ne se purge pas sans #}
+{# confirmation depuis toujours ; une seance clinique, si. #}
+<form id="formulaire-suppression-consultation" method="post"
+      hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  <p>{% trans 'Are you sure to delete this examination ?' %}</p>
+</form>

@@ -20,15 +20,37 @@
 {# **`edition = null` est pose au clic, et repose par la reponse en cas de refus** : chaque #}
 {# fragment d'edition porte `x-init="edition = '<cle>'"`, si bien qu'un 422 rouvre le #}
 {# bandeau sur « Fin d'edition » au lieu de mentir. #}
-<ul class="nav navbar-top-links navbar-right">
+{# #}
+{# **« Supprimer » n'est pas un bouton, c'en est jusqu'a trois, et chacun est borne a son #}
+{# onglet** (C2, vague finale). `loEditFormManager.action_available('delete')` retenait #}
+{# l'action du formulaire **visible** : le dossier sur « Infos generales », la seance sur #}
+{# « Consultations » et sur « Consultation en cours », **rien** sur « Historique » et #}
+{# « Comptes rendus ». Un bouton unique rendait le geste faux sur quatre onglets sur cinq. #}
+{# L'onglet actif est un etat client, donc la borne est un `x-show` ; l'attribut `style` #}
+{# pose par le serveur dit la meme chose que lui au premier rendu (regle 1). #}
+{# #}
+{# **Le bandeau vit hors de `#dossier-corps`, donc il se recompose hors-bande.** Ouvrir une #}
+{# consultation, la cloturer ou la supprimer change l'ensemble des suppressions possibles ; #}
+{# les trois reponses qui rendent le corps rendent donc aussi ce fragment, marque #}
+{# `hx-swap-oob`. Sans cela le bouton pointerait sur une seance detruite, ou manquerait sur #}
+{# une seance qui vient de naitre. #}
+<ul class="nav navbar-top-links navbar-right" id="actions-dossier"{% if actions_hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
   <li>
     <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition === null"
             @click="edition = actif; $dispatch('dossier-editer-' + actif)"><i class="fa fa-edit"></i> {% trans 'Edit' %}</button>
     <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition !== null" style="display: none"
             @click="$dispatch('dossier-fin-edition'); edition = null"><i class="fa fa-thumbs-o-up"></i> {% trans 'End of editing' %}</button>
     {% if suppression_possible %}
-    <button type="button" class="btn btn-danger btn-xs navbar-btn"
+    <button type="button" class="btn btn-danger btn-xs navbar-btn" x-show="actif === 'general'"{% if onglet_actif != 'general' %} style="display: none"{% endif %}
             hx-get="{% url 'dossier-suppression' patient.id %}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-trash"></i> {% trans 'Delete' %}</button>
+    {% endif %}
+    {% if url_suppression_selectionnee %}
+    <button type="button" class="btn btn-danger btn-xs navbar-btn" x-show="actif === 'examinations'"{% if onglet_actif != 'examinations' %} style="display: none"{% endif %}
+            hx-get="{{ url_suppression_selectionnee }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-trash"></i> {% trans 'Delete' %}</button>
+    {% endif %}
+    {% if url_suppression_en_cours %}
+    <button type="button" class="btn btn-danger btn-xs navbar-btn" x-show="actif === 'current-examination'"{% if onglet_actif != 'current-examination' %} style="display: none"{% endif %}
+            hx-get="{{ url_suppression_en_cours }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-trash"></i> {% trans 'Delete' %}</button>
     {% endif %}
   </li>
 </ul>

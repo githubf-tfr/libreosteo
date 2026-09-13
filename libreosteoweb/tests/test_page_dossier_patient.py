@@ -658,13 +658,219 @@ class TestSuppressionRgpd(_SocleDuDossier):
         self.assertEqual(models.Examination.objects.count(), 0)
 
     def test_la_suppression_est_refusee_sans_le_droit(self) -> None:
-        """`R-DOC-04` : seul un compte `is_staff` supprime un dossier."""
+        """`R-DOC-04` etape 2 : un compte non administrateur n'efface pas un dossier.
+
+        **La barriere est un resserrement du produit**, verse au `KANBAN.md` comme tel :
+        avant D6e, `IsDataAccessAllowed` rendait vrai pour tout compte authentifie des lors
+        que l'action n'etait pas `list`, et n'importe quel praticien pouvait purger un
+        dossier. Une precedente ecriture de cette docstring citait `R-DOC-04` pour une
+        exigence que la fiche ne portait pas ; la fiche la porte desormais, et c'est elle
+        que ce test fige.
+        """
         simple = cree_praticien(username="simple", is_staff=False)
         client = Client()
         client.force_login(simple)
         reponse = client.post(reverse("dossier-suppression", args=[self.patient.pk]))
         self.assertEqual(reponse.status_code, 403)
         self.assertTrue(models.Patient.objects.filter(pk=self.patient.pk).exists())
+
+    def test_sans_le_droit_le_dossier_ne_porte_aucun_bouton_de_suppression(
+        self,
+    ) -> None:
+        """L'autre moitie du resserrement : l'affordance suit la barriere.
+
+        Ce que ce test regarde : l'absence de l'URL de purge dans le document rendu a un
+        compte non administrateur. Ce qu'il laisserait passer : ce qu'Alpine fait du bouton
+        quand il est rendu — `test_chaque_bouton_de_suppression_est_borne_a_un_onglet` s'en
+        charge.
+        """
+        simple = cree_praticien(username="simple", is_staff=False)
+        client = Client()
+        client.force_login(simple)
+        html = client.get(
+            reverse("dossier-patient", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertNotIn(reverse("dossier-suppression", args=[self.patient.pk]), html)
+        # Falsifiable dans l'autre sens : l'administrateur, lui, le voit.
+        html = self.client.get(
+            reverse("dossier-patient", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertIn(reverse("dossier-suppression", args=[self.patient.pk]), html)
+
+
+# Les trois seuls onglets ou une action « Supprimer » existe (C2). « Historique » et
+# « Comptes rendus » n'en ont jamais porte : `loEditFormManager.action_available('delete')`
+# ne retenait que l'action du formulaire **visible**, et ces deux panneaux n'en declaraient
+# aucune.
+ONGLETS_AVEC_SUPPRESSION = {"general", "examinations", "current-examination"}
+
+
+def _condition_alpine(balise: str) -> str:
+    """La valeur de `x-show` portee par `balise`, ou une chaine vide."""
+    trouve = re.search(r'\sx-show="([^"]*)"', balise)
+    return trouve.group(1) if trouve else ""
+
+
+def _balises_avec(html: str, motif: str) -> list[str]:
+    """**Toutes** les balises qui portent `motif`, et non la premiere.
+
+    Une seance en cours qu'on regarde aussi sous « Consultations » rend **deux** boutons de
+    suppression sur la meme URL : `_attributs_de` n'en verrait qu'un, et la preuve
+    laisserait passer une condition fausse sur l'autre.
+    """
+    return [balise for balise in _BALISE.findall(html) if motif in balise]
+
+
+class TestSuppressionDeConsultation(_SocleDuDossier):
+    """Le geste que le plan avait laisse tomber : supprimer une seance de statut 0.
+
+    **C2 est explicite** : « le bouton Supprimer n'apparait que la ou il apparait
+    aujourd'hui : sur le dossier patient, et sur une consultation dont le statut vaut 0 »
+    (`examination.js:184-198`). Le plan avait depose `{% if suppression_possible %}` sans
+    reprendre la condition de statut, et aucune tache ne possedait ce geste : il n'existait
+    plus nulle part, et `gettext("Examination deleted")` — l'une des **deux** seules
+    notifications de succes du perimetre (AR7) — restait au catalogue sans emetteur.
+
+    Ce que ces preuves regardent : le contrat serveur — quelle route, quel bouton sous quel
+    onglet, ce que la reponse recompose. Ce qu'elles laissent passer : le rendu de la modale
+    dans un navigateur, que `R-CON-06` decrit a la main.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        with sans_receivers():
+            self.seance = cree_consultation(self.patient, therapeut=self.praticien)
+        self.url_seance = reverse("consultation-suppression", args=[self.seance.pk])
+        self.url_dossier = reverse("dossier-suppression", args=[self.patient.pk])
+
+    def _document(self, route: str = "dossier-patient", *args: Any) -> str:
+        return self.client.get(
+            reverse(route, args=list(args) or [self.patient.pk])
+        ).content.decode("utf-8")
+
+    def test_le_bandeau_porte_la_suppression_de_la_consultation_en_cours(self) -> None:
+        bouton = _attributs_de(self._document(), 'hx-get="%s"' % self.url_seance)
+        self.assertEqual(_condition_alpine(bouton), "actif === 'current-examination'")
+
+    def test_chaque_bouton_de_suppression_est_borne_a_un_onglet(self) -> None:
+        """**Ce que la revue a mesure** : le bouton par defaut supprimait le *patient* sur
+        les quatre onglets, « Historique » et « Comptes rendus » compris, ou l'ecran d'avant
+        n'en affichait aucun.
+
+        Le test lit la condition Alpine **entiere** : une condition absente rendrait une
+        chaine vide, et un simple `assertNotIn('history', …)` y serait satisfait. Il porte
+        sur le document ouvert **sur la seance en cours**, seul etat ou les trois boutons
+        coexistent — une premiere ecriture regardait `/patient/<id>`, ou le bouton de
+        l'onglet « Consultations » n'est pas rendu, et la falsification l'a trouvee creuse.
+        """
+        html = self._document(
+            "dossier-patient-consultation", self.patient.pk, self.seance.pk
+        )
+        boutons = _balises_avec(html, 'hx-get="%s"' % self.url_dossier) + _balises_avec(
+            html, 'hx-get="%s"' % self.url_seance
+        )
+        self.assertEqual(len(boutons), 3, boutons)
+        onglets = set()
+        for bouton in boutons:
+            condition = _condition_alpine(bouton)
+            trouve = re.fullmatch(r"actif === '([a-z-]+)'", condition)
+            self.assertIsNotNone(trouve, condition)
+            assert trouve is not None
+            onglets.add(trouve.group(1))
+        self.assertEqual(onglets, ONGLETS_AVEC_SUPPRESSION)
+
+    def test_le_bouton_de_l_onglet_ouvert_n_est_pas_masque_par_le_serveur(self) -> None:
+        """Regle 1 du lot : l'attribut pose par le serveur et l'etat initial d'Alpine disent
+        la meme chose. Sans elle, les deux boutons clignotent a chaque ouverture."""
+        html = self._document()
+        self.assertNotIn(
+            "display: none", _attributs_de(html, 'hx-get="%s"' % self.url_dossier)
+        )
+        self.assertIn(
+            "display: none", _attributs_de(html, 'hx-get="%s"' % self.url_seance)
+        )
+
+    def test_une_seance_close_n_offre_aucune_suppression(self) -> None:
+        with sans_receivers():
+            close = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+            )
+        html = self._document("dossier-patient-consultation", self.patient.pk, close.pk)
+        self.assertNotIn(reverse("consultation-suppression", args=[close.pk]), html)
+
+    def test_supprimer_une_seance_close_est_refuse(self) -> None:
+        """Le serveur ne s'en remet pas a l'affordance, comme `nouvelle_consultation`."""
+        with sans_receivers():
+            close = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+            )
+        reponse = self.client.post(reverse("consultation-suppression", args=[close.pk]))
+        self.assertEqual(reponse.status_code, 409)
+        self.assertTrue(models.Examination.objects.filter(pk=close.pk).exists())
+
+    def test_la_modale_de_confirmation_porte_son_formulaire(self) -> None:
+        html = self.client.get(self.url_seance).content.decode("utf-8")
+        self.assertIn('id="formulaire-suppression-consultation"', html)
+        self.assertIn(
+            "Êtes-vous sûr(e) de supprimer cette consultation ?", _texte(html)
+        )
+
+    def test_la_suppression_efface_la_seance_et_ses_commentaires(self) -> None:
+        """`ExaminationComment.examination` est `on_delete=PROTECT` : sans l'effacement
+        prealable des commentaires, la suppression leve `ProtectedError`. C'est l'ordre de
+        `_purger_le_dossier`, applique a une seule seance."""
+        models.ExaminationComment.objects.create(
+            examination=self.seance, comment="Revient dans un mois", user=self.praticien
+        )
+        self.client.post(self.url_seance)
+        self.assertFalse(models.Examination.objects.filter(pk=self.seance.pk).exists())
+        self.assertEqual(models.ExaminationComment.objects.count(), 0)
+        self.assertTrue(models.Patient.objects.filter(pk=self.patient.pk).exists())
+
+    def test_la_suppression_notifie_le_succes(self) -> None:
+        """« Consultation supprimée » — l'une des **deux** seules notifications de succes du
+        perimetre (AR7), a son libelle exact : `patient.js:504` rendait
+        `growl.addSuccessMessage(gettext("Examination deleted"))`."""
+        html = self.client.post(self.url_seance).content.decode("utf-8")
+        self.assertIn("Consultation supprimée", _texte(html))
+
+    def test_la_suppression_recompose_le_corps_et_le_bandeau_hors_bande(self) -> None:
+        """La cible principale est `#modale`, qui recoit du vide et se referme : tout le
+        reste revient hors-bande, y compris le bandeau — qui vit **hors** de `#dossier-corps`
+        et resterait sinon perime, son bouton pointant sur une seance detruite."""
+        html = self.client.post(self.url_seance).content.decode("utf-8")
+        self.assertIn("hx-swap-oob", _attributs_de(html, 'id="dossier-corps"'))
+        self.assertIn("hx-swap-oob", _attributs_de(html, 'id="actions-dossier"'))
+        self.assertNotIn(self.url_seance, html)
+
+    def test_le_corps_rafraichi_recompose_le_bandeau(self) -> None:
+        """Une cloture change le statut de la seance : le bouton doit disparaitre du bandeau
+        dans le meme geste que le corps, sans quoi il pointe sur une seance qu'on ne peut
+        plus supprimer."""
+        html = self.client.get(
+            reverse("dossier-corps", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertIn("hx-swap-oob", _attributs_de(html, 'id="actions-dossier"'))
+
+    def test_ouvrir_une_consultation_recompose_le_bandeau(self) -> None:
+        """Le chemin inverse : la seance naît apres le rendu du document, et le bandeau ne
+        connait pas encore son URL de suppression."""
+        with sans_receivers():
+            autre = cree_patient(family_name="Crusher", first_name="Beverly")
+        html = self.client.post(
+            reverse("consultation-nouvelle", args=[autre.pk])
+        ).content.decode("utf-8")
+        creee = models.Examination.objects.get(patient=autre)
+        bandeau = _attributs_de(html, 'id="actions-dossier"')
+        self.assertIn("hx-swap-oob", bandeau)
+        self.assertIn(
+            reverse("consultation-suppression", args=[creee.pk]),
+            html,
+        )
 
 
 class TestCodePostal(_SocleDuDossier):

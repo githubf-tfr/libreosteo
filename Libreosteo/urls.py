@@ -249,6 +249,13 @@ urlpatterns = [
         views.regulariser_consultation,
         name="consultation-regularisation",
     ),
+    # La suppression d'une seance de statut 0 (C2). Meme forme que les quatre
+    # sous-ressources ci-dessus, et meme suffixe `/delete` que la purge d'un dossier.
+    re_path(
+        r"^examination/(?P<identifiant>\d+)/delete$",
+        views.supprimer_consultation,
+        name="consultation-suppression",
+    ),
     re_path(
         r"^invoices/(?P<identifiant>\d+)/send$",
         views.envoyer_facture,

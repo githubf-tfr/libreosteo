@@ -75,7 +75,17 @@
   // 200 avec cumul, pour qu'un parc de plusieurs milliers de valeurs ne fige pas l'onglet.
   (function () {
     var corpus = JSON.parse(document.getElementById('corpus-texte-riche').textContent);
-    var sonde = document.createElement('div');
+    // **La sonde n'appartient pas au document vivant**, et c'est ce qui tient la phrase
+    // affichee en tete : « elle lit et compte, elle n'ecrit jamais ». Un
+    // `document.createElement` la rattachait au document actif, ou un
+    // `<img src=… onerror=…>` du corpus faisait partir la requete de l'image **et**
+    // executer le gestionnaire — sur 21 champs sans assainissement, en session
+    // administrateur. `createHTMLDocument()` rend un document **sans contexte de
+    // navigation** : ni ressource chargee, ni gestionnaire compile.
+    // **La mesure ne bouge pas** : meme analyseur, meme mode d'insertion « in body »,
+    // donc meme `innerHTML` en sortie. `<template>` ne conviendrait pas — son contenu
+    // s'analyse en mode « in template », qui diverge sur les balises de tableau.
+    var sonde = document.implementation.createHTMLDocument('').createElement('div');
     var examinees = document.querySelector('[data-testid="stabilite-examinees"]');
     var instables = document.querySelector('[data-testid="stabilite-instables"]');
     var corps = document.getElementById('corps-instables');

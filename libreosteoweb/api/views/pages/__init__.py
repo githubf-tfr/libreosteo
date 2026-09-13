@@ -62,6 +62,7 @@ from .dossier_patient import (
     page_dossier_patient,
     redirection_de_consultation,
     suggestions_de_code_postal,
+    supprimer_consultation,
 )
 from .import_export import analyser as analyser_import
 from .import_export import integrer as integrer_import
@@ -121,5 +122,6 @@ __all__ = [
     "regulariser_consultation",
     "selecteur_medecin",
     "suggestions_de_code_postal",
+    "supprimer_consultation",
     "utilisateur_nouveau",
 ]

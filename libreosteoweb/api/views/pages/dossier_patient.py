@@ -74,6 +74,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from libreosteoweb import models
 from libreosteoweb.api.filter import get_firstname_filters, get_name_filters
+from libreosteoweb.api.notifications import fragment_de_notifications
 from libreosteoweb.api.serializers.communs import check_birth_date
 from libreosteoweb.api.serializers.patient import PatientSerializer
 from libreosteoweb.api.services import facturation as services_facturation
@@ -558,9 +559,49 @@ def contexte_du_dossier(
         ),
         "documents": page_documents.contexte_documents(patient),
         "televersement": page_documents.contexte_televersement(patient),
+        # **Le resserrement a `is_staff`**, verse au `KANBAN.md` comme cinquieme changement
+        # de produit du lot : `IsDataAccessAllowed` rendait vrai pour tout compte
+        # authentifie des lors que l'action n'etait pas `list`, et n'importe quel praticien
+        # pouvait purger un dossier. `dossier_suppression` porte la meme barriere ; cette
+        # clef n'est que l'affordance.
         "suppression_possible": request.user.is_staff,
+        # **Les deux suppressions de seance**, chacune bornee a son onglet (C2). La seance
+        # en cours est en statut 0 par construction (`_consultation_en_cours` le filtre) ;
+        # la seance regardee sous « Consultations » ne l'est que si son statut le dit.
+        "url_suppression_selectionnee": reverse(
+            "consultation-suppression", args=[selectionnee.pk]
+        )
+        if selectionnee is not None
+        and selectionnee.status == models.ExaminationStatus.IN_PROGRESS
+        else "",
+        "url_suppression_en_cours": reverse(
+            "consultation-suppression", args=[en_cours.pk]
+        )
+        if en_cours is not None
+        else "",
         "url_corps": url_corps,
     }
+
+
+def _corps_et_bandeau(
+    request: HttpRequest, contexte: dict[str, Any], corps_hors_bande: bool = False
+) -> str:
+    """Le corps du dossier **et** le bandeau d'actions, qui vit hors de lui.
+
+    Les trois reponses qui recomposent le corps changent aussi l'ensemble des suppressions
+    possibles : ouvrir une consultation en cree une, la cloturer la fige, la supprimer la
+    detruit. Le bandeau etant rendu dans le menu — donc hors de `#dossier-corps` —, il ne
+    peut revenir que hors-bande, et il revient **avec** le corps ou il resterait perime.
+    """
+    return _rendu(
+        request,
+        "pages/fragments/dossier-corps.html",
+        dict(contexte, corps_hors_bande=corps_hors_bande),
+    ) + _rendu(
+        request,
+        "pages/fragments/actions-dossier.html",
+        dict(contexte, actions_hors_bande=True),
+    )
 
 
 def _document(
@@ -614,12 +655,13 @@ def corps_du_dossier(request: HttpRequest, identifiant: str) -> HttpResponse:
     """
     patient = _patient(identifiant)
     consultation = _consultation_choisie(patient, request.GET.get("consultation"))
-    return render(
-        request,
-        "pages/fragments/dossier-corps.html",
-        contexte_du_dossier(
-            request, patient, "examinations", consultation, bascule=True
-        ),
+    return HttpResponse(
+        _corps_et_bandeau(
+            request,
+            contexte_du_dossier(
+                request, patient, "examinations", consultation, bascule=True
+            ),
+        )
     )
 
 
@@ -902,7 +944,57 @@ def nouvelle_consultation(request: HttpRequest, identifiant: str) -> HttpRespons
         request, patient, "current-examination", bascule=True
     )
     contexte["consultation_ouverte"] = consultation
-    return render(request, "pages/fragments/dossier-corps.html", contexte)
+    return HttpResponse(_corps_et_bandeau(request, contexte))
+
+
+def supprimer_consultation(request: HttpRequest, identifiant: str) -> HttpResponse:
+    """`GET` ouvre la confirmation, `POST` efface la seance (C2, AR7).
+
+    **Le geste existait, et le lot l'avait perdu** : `examination.js:184-198` n'offrait
+    « Supprimer » que sur une seance de statut 0, et `patient.js:502-504` notifiait
+    `gettext("Examination deleted")`. Le plan avait depose `{% if suppression_possible %}`
+    sans reprendre la condition de statut, et aucune tache ne possedait le geste.
+
+    **La barriere de statut est ici, pas seulement sur le bouton** : le serveur ne s'en
+    remet pas a une affordance, exactement comme `nouvelle_consultation`. Une seance
+    facturee porte des factures, et la detruire emporterait la piece comptable.
+
+    **Les commentaires partent d'abord** : `ExaminationComment.examination` est
+    `on_delete=PROTECT`, donc l'ordre n'est pas cosmetique — c'est celui de
+    `_purger_le_dossier`, applique a une seule seance. Les traces de journal, elles,
+    **restent** : `ExaminationViewSet.destroy` ne les touchait pas, et le journal de
+    l'exploitant dit ce qui s'est passe, y compris sur une seance detruite.
+    """
+    consultation = get_object_or_404(models.Examination, pk=identifiant)
+    if consultation.status != models.ExaminationStatus.IN_PROGRESS:
+        return HttpResponse(status=409)
+    if request.method != "POST":
+        return render(
+            request,
+            "partials/modale.html",
+            {
+                "titre": _("Confirm"),
+                "gabarit_corps": "pages/fragments/consultation-suppression-modale.html",
+                "formulaire_confirmer": "formulaire-suppression-consultation",
+                "action": reverse("consultation-suppression", args=[consultation.pk]),
+            },
+        )
+    patient = consultation.patient
+    models.ExaminationComment.objects.filter(examination=consultation).delete()
+    consultation.delete()
+    return HttpResponse(
+        _corps_et_bandeau(
+            request,
+            contexte_du_dossier(request, patient, "examinations", bascule=True),
+            corps_hors_bande=True,
+        )
+        + fragment_de_notifications(
+            request,
+            # Le libelle exact de `patient.js:504`, l'une des **deux** seules notifications
+            # de succes du perimetre (AR7).
+            [("succes", gettext("Examination deleted"))],
+        )
+    )
 
 
 def redirection_de_consultation(

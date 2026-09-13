@@ -1298,7 +1298,11 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
   unitaire par libreosteoweb/tests/test_page_diagnostic_texte_riche.py mais **pas** par un
   geste d'écran ; **ne vérifie pas non plus** le 404 rendu à un non-administrateur, la
   redirection rendue à un visiteur non connecté, ni l'en-tête `Cache-Control` — tous trois
-  couverts en unitaire seulement.)
+  couverts en unitaire seulement.) S'y ajoute
+  ::test_le_diagnostic_n_execute_pas_le_balisage_qu_il_mesure, qui sème une valeur hostile
+  (`<img src=… onerror=…>`) et vérifie qu'**aucune ressource du corpus n'est chargée et
+  qu'aucun gestionnaire ne s'exécute** — la phrase « elle lit et compte, elle n'écrit
+  jamais » de l'étape 1, tenue dans le navigateur ; c'est le seul niveau où elle se mesure
 - **État requis** : E2
 
 **Étapes**
@@ -2103,27 +2107,43 @@ corrigé : l'abandon est demandé par le praticien.
   patient avant une suppression RGPD, puis vérifie au niveau ORM la disparition du
   patient, de l'objet Document et du fichier stocké ; ce test-ci vérifie en plus le
   rendu de la fenêtre de confirmation, la case à cocher qui déverrouille le bouton
-  « Ok », et la survie de la facture à la cascade — étape 4 de cette fiche)
+  « Ok », et la survie de la facture à la cascade — étape 5 de cette fiche).
+  L'étape 2 est couverte en unitaire par
+  libreosteoweb/tests/test_page_dossier_patient.py::TestSuppressionRgpd::
+  test_la_suppression_est_refusee_sans_le_droit (la barrière serveur) et
+  ::test_sans_le_droit_le_dossier_ne_porte_aucun_bouton_de_suppression (l'affordance) ;
+  **aucun test d'écran ne la joue**, d'où sa présence ici
 - **État requis** : E2. Fiche destructive par nature : elle supprime le patient
-  Picard et l'intégralité de son dossier — reconstruire l'état E2 (chapitre 1) avant
-  de jouer une autre fiche qui en dépend.
+  Picard et l'intégralité de son dossier, **et l'étape 2 crée durablement un second
+  utilisateur** — reconstruire l'état E2 (chapitre 1) avant de jouer une autre fiche
+  qui en dépend.
 
 **Étapes**
 
 1. Rechercher `Picard`, ouvrir sa fiche.
    Attendu : le bouton « Supprimer » est visible en haut de la fiche.
-2. Cliquer « Supprimer ».
+2. Menu utilisateur → « Paramètres », onglet « Utilisateurs », « Ajouter un
+   utilisateur » ; saisir `soignant` comme nom d'utilisateur et `motdepasse` dans les
+   deux champs, « Valider ». Se déconnecter, s'identifier avec `soignant` /
+   `motdepasse`, rechercher `Picard`, ouvrir sa fiche.
+   Attendu : la fiche s'affiche normalement — ce compte lit et modifie le dossier —
+   mais **aucun bouton « Supprimer » n'apparaît en haut de la fiche**, sur aucun des
+   onglets. La suppression d'un dossier est réservée aux comptes administrateurs.
+   **Avant ce lot, ce compte pouvait purger le dossier** : la permission de l'API
+   rendait vrai pour tout compte authentifié. Se déconnecter, se reconnecter avec le
+   compte `test` et rouvrir la fiche de `Picard` avant de poursuivre.
+3. Cliquer « Supprimer ».
    Attendu : une fenêtre modale s'ouvre, titre « Confirmer », texte « Pour la
    conformité RGPD, un patient peut demander à supprimer toutes ses informations.
    Cette fonction supprime toutes les infos ne laissant aucune trace excepté les
    factures. Vous pouvez retrouver les factures dans la fonction Comptabilité.
    Êtes-vous d'accord avec cette opération ? », case à cocher « Je comprends ce que
    cela signifie », bouton « Ok » désactivé tant que la case n'est pas cochée.
-3. Cocher la case, cliquer « Ok ».
+4. Cocher la case, cliquer « Ok ».
    Attendu : aucune erreur ne s'affiche ; retour à l'URL racine de l'instance ; une
    recherche `Picard` affiche « Aucun résultat trouvé. » (le patient, ses deux
    consultations et son document joint ont disparu).
-4. Cliquer « Comptabilité » (menu du haut).
+5. Cliquer « Comptabilité » (menu du haut).
    Attendu : la ligne de facturation créée à l'état E2 est toujours présente : N° de
    facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de paiement
    `Chèque`, État `Réglée` — la facture n'est pas supprimée par la cascade.
@@ -2374,6 +2394,58 @@ cachait laissait le praticien **capable de clôturer, mais plus de saisir**.
    Attendu : la consultation se clôture normalement ; l'onglet « Consultation en cours »
    disparaît. L'étape existe pour vérifier qu'un cycle saisie/enregistrement/reprise ne
    laisse pas la consultation dans un état qui empêcherait sa clôture.
+
+### R-CON-06 — Supprimer une consultation, et seulement là où c'est permis
+
+- **Domaine** : Consultation
+- **Couverture auto** : partielle —
+  tests/functional/test_consultation.py::test_une_consultation_en_cours_se_supprime_depuis_son_onglet
+  (ouvre une consultation, constate que « Supprimer » est présent sur son onglet et absent
+  de l'onglet « Historique », confirme la modale, et vérifie la notification, la
+  disparition de l'onglet et celle de la séance en base). **Ne vérifie pas** : l'absence du
+  bouton sur « Comptes rendus médicaux » et sur une séance déjà clôturée, ni la persistance
+  après rechargement — les étapes 2, 3 et 7 ci-dessous. Le refus opposé par le serveur à la
+  suppression d'une séance clôturée est couvert en unitaire par
+  libreosteoweb/tests/test_page_dossier_patient.py::TestSuppressionDeConsultation
+- **État requis** : E2. Fiche **non destructive** : elle crée une consultation et la
+  supprime ; l'état E2 est retrouvé à la fin, les deux consultations d'origine de `Picard`
+  étant intactes (étape 7 le vérifie).
+
+**Ce que cette fiche garde.** Le bouton « Supprimer » de la barre du haut n'agit pas sur la
+même chose selon l'onglet ouvert : sur « Infos générales » il supprime le **dossier**, sur
+« Consultations » et « Consultation en cours » il supprime la **séance**, et sur
+« Historique » et « Comptes rendus médicaux » il **n'existe pas**. Cette dépendance à
+l'onglet est un comportement du produit d'origine, et la migration l'avait perdue : un
+bouton unique supprimait le dossier depuis les cinq onglets. **Une séance clôturée ne se
+supprime pas** — elle porte une facture.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations », bouton « Démarrer une
+   consultation ».
+   Attendu : l'onglet « Consultation en cours » apparaît et devient actif ; un bouton
+   rouge « Supprimer » est visible en haut à droite, à côté de « Fin d'édition ».
+2. Cliquer l'onglet « Historique », puis l'onglet « Comptes rendus médicaux ».
+   Attendu : sur **aucun** des deux, le bouton « Supprimer » n'est visible — seul « Éditer »
+   l'est. **C'est le point que la migration avait perdu** : le bouton y apparaissait, et il
+   supprimait le dossier patient.
+3. Cliquer l'onglet « Consultations », puis, dans la chronologie, la séance la plus
+   ancienne (celle facturée `10000`).
+   Attendu : son volet s'ouvre sous la chronologie, et **aucun bouton « Supprimer » n'est
+   visible** : une séance clôturée ne se supprime pas.
+4. Cliquer l'onglet « Consultation en cours », puis « Supprimer ».
+   Attendu : une fenêtre modale s'ouvre, titre « Confirmer », texte « Êtes-vous sûr(e) de
+   supprimer cette consultation ? », boutons « OK » et « Annuler ».
+5. Cliquer « Annuler ».
+   Attendu : la fenêtre se ferme, la page reste défilable, l'onglet « Consultation en
+   cours » est toujours là et la séance n'a pas été supprimée.
+6. Cliquer « Supprimer » à nouveau, puis « OK ».
+   Attendu : la fenêtre se ferme ; un message de confirmation « Consultation supprimée »
+   s'affiche ; l'onglet « Consultation en cours » **disparaît** ; l'onglet « Consultations »
+   redevient actif et la chronologie ne montre plus que les deux séances d'origine.
+7. Recharger complètement la page (touche F5 ou équivalent), onglet « Consultations ».
+   Attendu : la chronologie porte exactement deux séances ; le bouton « Démarrer une
+   consultation » est de nouveau actif.
 
 ### Facturation
 
