@@ -46,7 +46,7 @@
       {% include "pages/fragments/dossier-identite.html" with identite=identite %}
     </div>
 
-    <div id="panneau-history"
+    <div id="panneau-history" data-testid="onglet-antecedents"
          x-show="actif === 'history'"{% if onglet_actif != 'history' %} style="display: none"{% endif %}
          hx-get="{% url 'dossier-antecedents' patient.id %}"
          hx-trigger="dossier-editer-history from:body"
@@ -54,7 +54,7 @@
       {% include "pages/fragments/dossier-antecedents.html" with antecedents=antecedents %}
     </div>
 
-    <div id="panneau-medicalreports"
+    <div id="panneau-medicalreports" data-testid="onglet-comptes-rendus"
          x-show="actif === 'medicalreports'"{% if onglet_actif != 'medicalreports' %} style="display: none"{% endif %}
          hx-get="{% url 'dossier-comptes-rendus' patient.id %}"
          hx-trigger="dossier-editer-medicalreports from:body"
@@ -75,7 +75,7 @@
       </div>
     </div>
 
-    <div id="panneau-examinations"
+    <div id="panneau-examinations" data-testid="onglet-consultations"
          x-show="actif === 'examinations'"{% if onglet_actif != 'examinations' %} style="display: none"{% endif %}
          {% if volet_selectionne %}hx-get="{{ volet_selectionne.url_edition }}?prefixe=examinations"
          hx-trigger="dossier-editer-examinations from:body"
@@ -99,7 +99,7 @@
     {# reapparaissait et ne chargeait rien, et le praticien ne pouvait plus que cloturer. #}
     {# Le prefixe voyage sur la chaine de requete, comme pour l'onglet « Consultations » : #}
     {# les deux volets coexistent et chacun doit recevoir **sa** reponse. #}
-    <div id="panneau-current-examination"
+    <div id="panneau-current-examination" data-testid="onglet-consultation-en-cours"
          x-show="actif === 'current-examination'"{% if onglet_actif != 'current-examination' %} style="display: none"{% endif %}
          hx-get="{{ volet_en_cours.url_edition }}?prefixe=current-examination"
          hx-trigger="dossier-editer-current-examination from:body"

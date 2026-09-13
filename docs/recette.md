@@ -354,7 +354,7 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 ```
 ### <ID> — <Titre>
 
-- **Domaine** : <un des quatorze chapitres du cahier>
+- **Domaine** : <un des quinze chapitres du cahier>
 - **Couverture auto** : non | oui — tests/functional/test_xxx.py::identifiant_du_test
 - **État requis** : E0 | E1 | E2
 
@@ -3189,6 +3189,52 @@ la borne.
    Attendu : après le rechargement, la tuile « Consultations » de la vue « Semaine »
    affiche toujours `2` — la consultation du jour reste comptée de façon stable, pas
    seulement au moment de sa clôture.
+
+### Navigation
+
+### R-NAV-01 — Chaque écran est joignable au clic, depuis un navigateur froid
+
+- **Domaine** : Navigation
+- **Couverture auto** : oui —
+  tests/functional/test_atteignabilite.py::test_chaque_ecran_est_joignable_au_clic
+  (le test clique les mêmes chemins ; il ne voit pas un lien recouvert par un autre
+  élément, ce que seule la passe manuelle constate)
+- **État requis** : E1. La fiche crée durablement un patient, une consultation et une
+  facture — remonter E1 avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Ouvrir l'URL racine de l'instance dans une fenêtre de navigation privée, se connecter.
+   Attendu : titre de page « Tableau de bord ».
+2. Lien « Nouveau patient » (menu du haut), créer un patient quelconque.
+   Attendu : la fiche du patient s'ouvre ; son nom s'affiche en titre de page.
+3. Cliquer successivement les onglets « Antécédents », « Compte-rendus médicaux »,
+   « Consultations », « Infos générales ».
+   Attendu : chaque onglet s'ouvre et affiche son panneau.
+4. Bouton « Démarrer une consultation », saisir un motif, clôturer avec facturation
+   (moyen « Chèque »).
+   Attendu : l'onglet « Consultation en cours » apparaît puis la facture est émise.
+5. Saisir le nom du patient dans le champ de recherche du menu et valider.
+   Attendu : la page de résultats affiche le patient.
+6. Lien « Comptabilité » (menu du haut).
+   Attendu : titre de page « Comptabilité » ; la facture figure dans la liste.
+7. Menu « Actions » de la facture, entrée « Imprimer ».
+   Attendu : un nouvel onglet s'ouvre sur la facture.
+8. Menu utilisateur (nom d'utilisateur, en haut à droite), entrée « Profil utilisateur ».
+   Attendu : titre de page « Profil utilisateur ».
+9. Menu utilisateur, entrée « Paramètres ».
+   Attendu : titre de page « Paramètres du cabinet ».
+10. Menu utilisateur, entrée « Import/export ».
+    Attendu : la page d'import/export s'affiche.
+11. Menu utilisateur, entrée « Réindexer ».
+    Attendu : la page de réindexation s'affiche.
+12. Cliquer le logo « LibreOsteo » (en haut à gauche).
+    Attendu : titre de page « Tableau de bord ».
+13. Menu utilisateur, entrée « Déconnexion ».
+    Attendu : le formulaire d'identification s'affiche.
+
+**Hors matrice, et c'est délibéré** : l'outil de diagnostic du texte riche (hors menu par
+construction), la restauration et l'inscription (URL de maintenance), l'installeur.
 
 ### Pages d'erreur
 
