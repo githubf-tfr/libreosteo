@@ -28,6 +28,7 @@ from __future__ import annotations
 import re
 from datetime import date, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from django.template.loader import render_to_string
@@ -58,10 +59,27 @@ from .fixtures import (
 
 _BALISE = re.compile(r"<[^>]+>")
 
+# Meme idiome que `tests/qualite/test_contrat_gabarits.py` : le gabarit se lit sur le disque.
+RACINE_DU_DEPOT = Path(__file__).resolve().parents[2]
+GABARIT_DU_DOSSIER = "libreosteoweb/templates/pages/dossier-patient.html"
+
 
 def _texte(html: str) -> str:
     """Le texte rendu, espaces normalises — la meme normalisation que `to_contain_text`."""
     return " ".join(_BALISE.sub(" ", html).split())
+
+
+# Le marqueur **pose comme attribut**, et non cite dans une expression. `siSaisieDeFormulaire`
+# contient la chaine `[data-panneau-en-edition]` dans le `x-data` de la racine : une recherche
+# de sous-chaine y serait satisfaite sur **toute** reponse qui rend le document, y compris
+# celles qui ne portent aucun panneau en edition. Mesure faite — deux assertions ecrites ici
+# passaient pour cette raison, et c'est la seizieme fois de ce lot qu'une preuve se revele
+# trop lache sous sa propre falsification.
+_MARQUEUR_D_EDITION = re.compile(r"\sdata-panneau-en-edition[\s>]")
+
+
+def _porte_le_marqueur_d_edition(html: str) -> bool:
+    return _MARQUEUR_D_EDITION.search(html) is not None
 
 
 def _classe_de_l_onglet(html: str, cle: str) -> str:
@@ -914,6 +932,109 @@ class TestEtatInitialDAlpine(_SocleDuDossier):
         )
 
 
+class TestGardeDeSortie(_SocleDuDossier):
+    """La garde « modifications non enregistrees » (A11), cote serveur.
+
+    Le test d'ecran `test_la_garde_de_sortie_ne_s_arme_qu_apres_une_saisie` mesure le
+    marqueur aux quatre instants qui comptent ; ces preuves-ci tiennent ce que le serveur
+    rend, et **surtout le seul chemin qui desarme la garde** — que rien ne couvrait.
+    """
+
+    def test_le_document_declare_la_garde_et_ses_deux_conditions(self) -> None:
+        """Ce que ce test regarde : les trois expressions dont la garde depend.
+
+        Ce qu'il laisserait passer : ce qu'Alpine en fait — c'est le test d'ecran qui le
+        voit.
+        """
+        html = self.client.get(
+            reverse("dossier-patient", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertIn("siSaisieDeFormulaire($event)", html)
+        # Condition 1 : le controle doit etre **soumis**. Les six cases des spheres n'ont
+        # pas de `name` et ne doivent pas armer la garde.
+        self.assertIn("if (!cible.name) { return; }", html)
+        # Condition 2 : il doit etre **dans un panneau en edition**. Le menu est rendu dans
+        # cette racine, champ de recherche compris.
+        self.assertIn(
+            "if (!cible.closest('[data-panneau-en-edition]')) { return; }", html
+        )
+        self.assertIn(
+            ":data-modifications-non-enregistrees=\"modifie ? '1' : null\"", html
+        )
+
+    def test_les_cinq_surfaces_de_saisie_portent_le_marqueur(self) -> None:
+        """Un fragment d'edition qui oublierait le marqueur ne pourrait **jamais** armer la
+        garde : la saisie s'y perdrait sans un mot au praticien."""
+        with sans_receivers():
+            consultation = cree_consultation(self.patient, therapeut=self.praticien)
+        surfaces = [
+            reverse(route, args=[self.patient.pk])
+            for route in (
+                "dossier-general",
+                "dossier-antecedents",
+                "dossier-comptes-rendus",
+            )
+        ]
+        surfaces.append(
+            reverse("dossier-titre-cellule", args=[self.patient.pk, "family_name"])
+        )
+        surfaces.append(reverse("consultation-edition", args=[consultation.pk]))
+        for url in surfaces:
+            with self.subTest(url=url):
+                # `_porte_le_marqueur_d_edition` et non `assertContains` : le marqueur est
+                # **cite** dans le `x-data` de la racine, et une recherche de sous-chaine y
+                # serait satisfaite par n'importe quelle reponse qui rend le document.
+                self.assertTrue(
+                    _porte_le_marqueur_d_edition(
+                        self.client.get(url).content.decode("utf-8")
+                    ),
+                    "%s ne pose pas le marqueur : la saisie s'y perdrait en silence"
+                    % url,
+                )
+
+    def test_un_fragment_de_lecture_ne_porte_pas_le_marqueur(self) -> None:
+        """L'autre sens : un marqueur pose en lecture armerait la garde sur un dossier que
+        personne n'edite."""
+        html = self.client.get(
+            reverse("dossier-patient", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertFalse(_porte_le_marqueur_d_edition(html))
+
+    def test_le_corps_rafraichi_desarme_la_garde(self) -> None:
+        """**Le seul chemin qui desarme la garde apres une cloture ou une facturation**, et
+        il n'avait aucune preuve (re-revue T12).
+
+        Une cloture recompose le corps du dossier ; le drapeau `modifie`, lui, vit sur la
+        racine du document et **survit** a cet echange. Sans cette remise a zero, le
+        praticien qui a saisi une consultation puis l'a cloturee se verrait demander
+        confirmation en quittant la page — exactement le faux positif que la revue
+        precedente a fait fermer, revenu par l'autre bout et **sans qu'aucun test ne bouge**.
+
+        Ce que ce test regarde : l'expression posee par la reponse de rafraichissement. Ce
+        qu'il laisserait passer : ce qu'Alpine en fait.
+        """
+        html = self.client.get(
+            reverse("dossier-corps", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        # L'expression entiere, et non la seule remise a zero : `modifie = false` figure
+        # aussi dans le `@htmx:after-request` de la racine du document, et une recherche de
+        # sous-chaine y serait satisfaite sur toute reponse qui rend le document.
+        self.assertIn(
+            "x-init=\"actif = 'examinations'; edition = null; modifie = false\"", html
+        )
+
+    def test_le_premier_rendu_ne_repose_aucun_etat(self) -> None:
+        """L'autre sens : le bloc `x-init` de bascule n'existe qu'au rafraichissement. Pose
+        au premier rendu, il ecraserait l'onglet que l'URL demande."""
+        html = self.client.get(
+            reverse("dossier-patient-consultations", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        # **L'ancrage porte sur le bloc de bascule, pas sur `modifie = false` seul** : cette
+        # remise a zero figure aussi dans le `@htmx:after-request` de la racine, si bien
+        # qu'une recherche de sous-chaine rougissait sur un document parfaitement correct.
+        self.assertNotIn('x-init="actif =', html)
+
+
 class TestAccesAuDossier(_SocleDuDossier):
     def test_un_dossier_inconnu_rend_404(self) -> None:
         reponse = self.client.get(reverse("dossier-patient", args=[999]))
@@ -921,11 +1042,21 @@ class TestAccesAuDossier(_SocleDuDossier):
 
     def test_le_document_charge_le_script_du_texte_riche(self) -> None:
         """Sans lui la barre reste invisible et le formulaire soumet l'ancienne valeur
-        **sans rien signaler** — le mode d'echec le plus grave du lot."""
-        html = self.client.get(
-            reverse("dossier-patient", args=[self.patient.pk])
-        ).content.decode("utf-8")
-        self.assertIn("js/composants/texte-riche", html)
+        **sans rien signaler** — le mode d'echec le plus grave du lot.
+
+        **L'assertion porte sur la source du gabarit, pas sur le document rendu**, et c'est
+        une mesure : sous compression hors ligne — le mode qu'active la suite fonctionnelle —
+        `{% compress js %}` remplace le chemin par un paquet `CACHE/js/…`, et une assertion
+        posee sur le rendu rougissait **des que ce fichier tournait a cote de la suite
+        d'ecran**, sur un produit parfaitement correct. Ce qui doit etre garde est que le
+        **document declare** le script ; le cliquet `test_contrat_gabarits.py` en est
+        l'autorite, et cette preuve-ci le dit pour ce document-la.
+        """
+        # Le fichier est lu **sur le disque**, comme le fait le cliquet de gabarit : passer
+        # par le moteur rendrait une enveloppe dont les stubs Django ne declarent pas
+        # `.template`, et ce cliquet-ci n'accepte aucun `# type: ignore` neuf.
+        source = (RACINE_DU_DEPOT / GABARIT_DU_DOSSIER).read_text(encoding="utf-8")
+        self.assertIn("js/composants/texte-riche.js", source)
 
 
 class TestContexteExpose(_SocleDuDossier):

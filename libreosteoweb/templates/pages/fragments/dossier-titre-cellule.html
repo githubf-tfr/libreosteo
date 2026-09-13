@@ -14,7 +14,10 @@
 {# **un**. #}
 <span id="cellule-{{ champ }}" data-testid="{% if champ == 'family_name' %}nom-de-famille{% else %}prenom{% endif %}">
   {% if edition %}
-  <form hx-post="{% url 'dossier-titre-cellule' patient.id champ %}"
+  {# `data-panneau-en-edition` : la cellule est une surface de saisie a part entiere, hors #}
+  {# des cinq panneaux, et la garde de sortie doit la voir comme les autres. #}
+  <form data-panneau-en-edition
+        hx-post="{% url 'dossier-titre-cellule' patient.id champ %}"
         hx-target="#cellule-{{ champ }}" hx-swap="outerHTML" style="display: inline">
     <input type="text" name="valeur" class="form-control input-sm" style="display: inline; width: auto"
            value="{% if champ == 'family_name' %}{{ patient.family_name }}{% else %}{{ patient.first_name }}{% endif %}" autofocus>

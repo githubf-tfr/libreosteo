@@ -560,6 +560,16 @@ class _VoletRendu(TestCase):
     def rendu(
         self, gabarit: str = "pages/fragments/consultation.html", **extras: Any
     ) -> str:
+        """Rend le volet du socle. **`en_cours` est explicite par defaut** (revue T12).
+
+        `contexte_du_volet` deduit desormais `en_cours` du statut quand l'appelant se tait,
+        et la consultation du socle est **en cours** (statut 0) : les appels sans argument
+        de cette classe auraient donc change de sens sous eux, en restant verts. Ce qu'ils
+        eprouvent — les dix-huit sites de texte riche, les deux boutons conditionnels, le
+        balisage — est le volet **anterieur** ; le fixer ici le dit une fois pour toutes, et
+        les trois tests qui regardent la consultation en cours passent `en_cours=True`.
+        """
+        extras.setdefault("en_cours", False)
         volet = contexte_du_volet(
             self.consultation, self.patient, self.reglages, **extras
         )
@@ -589,10 +599,7 @@ class TestFragmentDeLecture(_VoletRendu):
         self.assertNotIn("contenteditable", self.rendu())
 
     def test_les_ancres_du_filet_sont_conservees(self) -> None:
-        """`en_cours=False` est **explicite** depuis la revue de T12 : la consultation du
-        socle est en cours (statut 0), et `contexte_du_volet` deduit desormais `en_cours`
-        du statut quand l'appelant se tait. C'est le volet **anterieur** qu'on rend ici."""
-        html = self.rendu(en_cours=False)
+        html = self.rendu()
         for ancre in (
             'data-testid="consultation-anterieure"',
             'data-testid="examen-medical"',
