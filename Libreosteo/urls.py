@@ -69,6 +69,9 @@ urlpatterns = [
     ),
     re_path(r"^myuserid", TemplateView.as_view(template_name="account/myuserid.html")),
     re_path(r"^search$", views.recherche, name="search"),
+    # Le journal du tableau de bord, pagine et regroupe par le serveur (D6f, A7). Sous-
+    # ressource en anglais, nom de route en francais, comme tout le reste du fork.
+    re_path(r"^events$", views.fragment_evenements, name="evenements"),
     re_path(
         r"^office/rebuild-index$",
         views.page_reindexation,

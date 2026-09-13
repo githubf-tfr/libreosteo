@@ -76,6 +76,7 @@ from .profil import (
     page_profil,
 )
 from .reindexation import page_reindexation
+from .tableau_de_bord import fragment_evenements
 
 __all__ = [
     "analyser_import",
@@ -102,6 +103,7 @@ __all__ = [
     "enregistrer_identite",
     "envoyer_facture",
     "facturer_consultation",
+    "fragment_evenements",
     "fragment_utilisateurs",
     "integrer_import",
     "medecin_nouveau",

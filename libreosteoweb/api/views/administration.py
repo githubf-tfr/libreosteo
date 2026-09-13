@@ -121,6 +121,21 @@ class PaginationEvenements(pagination.LimitOffsetPagination):
     max_limit = 100
 
 
+def evenements_du_journal():
+    """Le journal tel que le tableau de bord l'affiche, et **la seule** definition.
+
+    La ressource DRF `api/events` et le fragment htmx du tableau de bord partent du meme
+    queryset : les mises a jour de patient (`clazz="Patient"`, `type=2`) sont exclues, et
+    l'ordre est antichronologique. Deux definitions divergeraient en silence — c'est la
+    faute que D6d a nommee sur le total de la comptabilite.
+    """
+    return (
+        models.OfficeEvent.objects.all()
+        .order_by("-date")
+        .exclude(clazz__exact="Patient", type__exact=2)
+    )
+
+
 class OfficeEventViewSet(viewsets.ReadOnlyModelViewSet):
     model = models.OfficeEvent
     serializer_class = apiserializers.OfficeEventSerializer
@@ -133,11 +148,9 @@ class OfficeEventViewSet(viewsets.ReadOnlyModelViewSet):
         No update events are given.
         'all' parameter is used to get all events
         """
-        queryset = models.OfficeEvent.objects.all().order_by("-date")
-        all_flag = self.request.query_params.get("all", None)
-        if all_flag is None:
-            queryset = queryset.exclude(clazz__exact="Patient", type__exact=2)
-        return queryset
+        if self.request.query_params.get("all", None) is not None:
+            return models.OfficeEvent.objects.all().order_by("-date")
+        return evenements_du_journal()
 
 
 class OfficeSettingsView(viewsets.ModelViewSet):

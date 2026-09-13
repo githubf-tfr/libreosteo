@@ -1,0 +1,26 @@
+{% load i18n %}
+{# Une entree du journal : un `<a href>` reel (A8). `loadOfficeevent` ecrivait #}
+{# `window.location.href` — deux autorites sur un element, ce que C2 interdit. L'ancre #}
+{# `evenement-cabinet` est conservee a l'octet : trois assertions du filet la lisent. #}
+<li class="left clearfix officeevent">
+  <a href="{{ entree.url }}" data-testid="evenement-cabinet">
+    <div class="chat-img pull-left events-badge">
+      <i class="fa {% if entree.est_patient %}fa-user{% else %}fa-search{% endif %}"></i>
+    </div>
+    <div class="chat-body clearfix">
+      <div class="header">
+        <strong class="primary-font">{{ entree.nom_du_patient }}</strong>
+        {# C5 : le prefixe est **dans le gabarit**. `timeAgo.js` rendait « il y a moins #}
+        {# d'une minute » sous la minute ; `timesince` rend « 0 minutes ». Le libelle se #}
+        {# degrade sur une seule fenetre de soixante secondes, et la fiche le dit. #}
+        <small class="pull-right text-muted">
+          <i class="fa fa-clock-o fa-fw"></i> {% blocktrans with anciennete=entree.date|timesince %}il y a {{ anciennete }}{% endblocktrans %}
+        </small>
+      </div>
+      <p>{{ entree.commentaire }}</p>
+      <small class="pull-right text-muted">
+        <i class="fa fa-hand-o-right"></i> {{ entree.therapeute }}
+      </small>
+    </div>
+  </a>
+</li>

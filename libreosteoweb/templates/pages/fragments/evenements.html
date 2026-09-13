@@ -1,0 +1,7 @@
+{% load i18n %}
+{# La liste entiere, cible du filtre « Par jour » / « Tout » (D6f, A7). Le filtre #}
+{# **recharge** la liste : c'est un changement de produit assume — un utilisateur qui a #}
+{# deroule loin perd son defilement. R-AGE-02 le decrit. #}
+<ul class="chat" id="liste-evenements">
+  {% include "pages/fragments/evenements-page.html" %}
+</ul>

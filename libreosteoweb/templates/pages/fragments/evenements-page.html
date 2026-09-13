@@ -1,0 +1,26 @@
+{% load i18n %}
+{# Une page de dix evenements : les entrees, et le declencheur de la suivante (D6f, C4). #}
+{# La **derniere** page ne porte aucun declencheur : c'est la traduction du drapeau #}
+{# `hasFinish` d'`officeevent.js:26`, et la seule qui ne boucle pas. #}
+{% if groupe == "jour" %}
+  {% for jour in groupes %}
+    {% if jour.entete %}
+    <li class="left clearfix" data-testid="jour-evenements">
+      <div class="chat-body clearfix">
+        <p class="pull-right"><b>{{ jour.jour|date:"l j F Y" }}</b></p>
+      </div>
+    </li>
+    {% endif %}
+    {% for entree in jour.entrees %}
+      {% include "pages/fragments/evenement.html" %}
+    {% endfor %}
+  {% endfor %}
+{% else %}
+  {% for entree in entrees %}
+    {% include "pages/fragments/evenement.html" %}
+  {% endfor %}
+{% endif %}
+{% if offset_suivant %}
+<li hx-get="{% url 'evenements' %}?groupe={{ groupe }}&offset={{ offset_suivant }}"
+    hx-trigger="revealed" hx-swap="outerHTML" data-testid="suite-evenements"></li>
+{% endif %}
