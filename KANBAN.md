@@ -1037,6 +1037,8 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   | 6 | « Latéralité : None » dans le volet droit de la consultation | fermé, `85461ff` |
   | 7 | `address_street` rendu sans classe — entrée nue de 189 px | fermé, `85461ff` |
   | 8 | le premier commentaire chevauche le champ de saisie de 11 px | versé, cause d'amont |
+  | 9 | la pastille de type déborde de 17 px hors de son en-tête | fermé, `a879556` |
+  | 10 | un commentaire de gabarit s'affiche en clair dans l'en-tête | fermé, `aa00ef6` |
 
   **Le n° 4 n'était pas un défaut du produit, et sa cause est mesurée.** Il n'avait été
   reproduit ni au banc ni sur le conteneur — cinq onglets, dix instants de clic de 0 à
@@ -1064,9 +1066,20 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   non scopés en résolvaient alors deux. `make check` ne lance pas la suite fonctionnelle : la
   référence « 112 » ne tenait déjà plus quand elle a été écrite. Fermé par `9f79657`.
 
-  **Quatrième cliquet de qualité posé** : `tests/qualite/test_contrat_traductions.py` — tout
-  `msgid` demandé par un gabarit doit avoir une entrée `.po` non vide et non `fuzzy`. Six
-  orphelins de plus ont été trouvés à cette occasion et documentés en exceptions closes.
+  **Deux cliquets de qualité posés**, le quatrième et le cinquième du dépôt :
+  `tests/qualite/test_contrat_traductions.py` — tout `msgid` demandé par un gabarit doit
+  avoir une entrée `.po` non vide et non `fuzzy` ; six orphelins de plus ont été trouvés à
+  cette occasion et documentés en exceptions closes. Et
+  `tests/qualite/test_contrat_commentaires.py` — aucun `{#` de gabarit ne déborde de sa
+  ligne.
+
+  **Le n° 10 a été introduit par le correctif du n° 9**, et c'est le fait marquant de cette
+  passe. La syntaxe `{# … #}` de Django commente **une seule ligne** ; étalée sur trois,
+  elle ne commente rien et le moteur rend le texte tel quel — l'en-tête du panneau affichait
+  son libellé suivi du commentaire, accolades comprises. Ni `make check`, ni les 115 tests
+  fonctionnels, ni la relecture ne l'ont vu : les assertions de texte cherchent une
+  sous-chaîne, et la sous-chaîne attendue était toujours là. Seul l'écran l'a montré. C'est
+  le cinquième cliquet qui ferme la classe, pas le correctif.
 
   **Le « 200 muet » versé par D6e a été constaté à l'écran**, et non plus seulement lu dans
   le code : envoyer un commentaire vide rafraîchit le volet à l'identique, sans rien écrire
@@ -1077,8 +1090,8 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   le volet de consultation coexiste avec la chronologie après clôture et facturation
   (changement produit n° 3).
 
-  État final : `make check` **773 passed**, couverture **94,31 %**, `mypy` **162** ; suite
-  fonctionnelle **114 passed**.
+  État final : `make check` **774 passed**, couverture **94,31 %**, `mypy` **162** ; suite
+  fonctionnelle **115 passed**.
 
 - **2026-09-13 — D6e clos : clause de stabilité verte du premier coup, plan supprimé.**
   Vingt exécutions consécutives de `make test-functional` sur `92903ab`, **`112 passed` à
