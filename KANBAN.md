@@ -559,6 +559,17 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
+- **Trois actions jointives de 10 px dans l'édition d'une vignette de document, dont une
+  suppression irréversible.** `pages/fragments/document-edition.html` rend « valider »,
+  « annuler » et « supprimer » en trois `button.close` flottants, mesurés à l'écran à
+  13×13 px, 10×13 px et 10×13 px, **bord à bord** (x = 92‑105, 105‑115, 115‑125) ; les trois
+  portent le même `aria-label="Close"`, si bien qu'un lecteur d'écran annonce trois fois
+  « Close » pour trois gestes différents. Un clic à un pixel près efface le document au lieu
+  d'annuler la saisie. **Défaut d'amont, reproduit à l'octet** : `patient-detail.html:292-294`
+  d'avant la migration porte exactement les mêmes classes et les mêmes `aria-label`. Ce n'est
+  donc pas une régression de D6e — et c'est précisément pour cela qu'il est versé plutôt que
+  corrigé ici : élargir les cibles et nommer les trois actions est une décision d'ergonomie,
+  à prendre avec D6g (base visuelle).
 - **Deux autorités écrivent `edition`, et seul l'ordre de parcours d'Alpine les tient
   d'accord.** `libreosteoweb/templates/pages/fragments/dossier-corps.html:30` lit
   `consultation_ouverte`, clef que seule la vue `nouvelle_consultation` pose, tandis que le
