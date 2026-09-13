@@ -934,11 +934,13 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 - **2026-09-13 — D6e Dossier patient migré : le dossier, la consultation, les documents et
   le médecin traitant en htmx, sans AngularJS** (quatorze tâches ; spec
   `docs/superpowers/specs/2026-09-12-d6e-dossier-patient-design.md`).
-  **Trente-huit commits depuis `956e0fa`**, celui-ci compris, pour quatorze tâches : un par tâche, plus
-  vingt-quatre correctifs isolés en commit séparé — dont **six pour le seul mécanisme de la
-  garde de sortie** (cf. plus bas) et deux, `834c9ca` et `b9c6b2f`, hors de toute tâche,
-  pour réparer un dégât que le commit du plan avait lui-même causé. 119 fichiers,
-  **+15 432/−4 277**. Les quatre écrans cliniques sont servis par des vues de page Django et
+  **Trente-sept commits `956e0fa..f1af6ff`** pour les treize tâches d'implémentation : un par
+  tâche, plus vingt-deux correctifs isolés en commit séparé — dont **six pour le seul
+  mécanisme de la garde de sortie** (cf. plus bas) et deux, `834c9ca` et `b9c6b2f`, hors de
+  toute tâche, pour réparer un dégât que le commit du plan avait lui-même causé.
+  **119 fichiers, +15 432/−4 277** sur ce même intervalle. S'y ajoutent les commits
+  documentaires de la tâche de clôture, dont le volume est de la documentation et non du
+  produit. Les quatre écrans cliniques sont servis par des vues de page Django et
   ne chargent plus une ligne d'AngularJS ; la coquille, elle, vit toujours jusqu'à D6f.
 
   **Les chiffres du lot** : suite fonctionnelle de **83 à 110 tests** (vingt-sept tests
@@ -949,11 +951,18 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `paiment-mean` et `comments` perdent leur dernier lecteur d'URL. Après
   `rm -rf static/CACHE && make static` : **2 bundles JS, 9 CSS**.
 
-  **La mesure d'Angular, faite comme la spec la demandait.** La recherche des motifs
-  AngularJS (`ng-`, `ui-view`, `ui-sref`, `uib-`, `{$`, `tooltip=`, `editable-`, `e-name`,
-  `hallo`, `ngf-`, `bind-html-compile`) rendait **397 occurrences** sur les onze gabarits
-  d'origine de `partials/` — 442 sur `partials/` entier. Sur `templates/pages/`, qui les
-  remplace, elle rend **65 occurrences réparties sur 60 lignes, dont 54 sont des
+  **La mesure d'Angular, faite comme la spec la demandait, et rejouable.** La recherche
+  (`grep -o`) des motifs AngularJS (`ng-`, `ui-view`, `ui-sref`, `uib-`, `{$`, `tooltip=`,
+  `editable-`, `e-name`, `hallo`, `ngf-`, `bind-html-compile`) rendait, sur `f5b3351`,
+  **397 occurrences** sur les onze gabarits `partials/` du périmètre : **394** sur les dix
+  que le lot a supprimés — `patient-detail`, `examination`, `timeline`, `filemanager`,
+  `add-patient`, `doctor-selector`, `doctor-modal-add`, `invoice-modal`,
+  `invoice-send-modal`, `confirmation` — et **3** sur le onzième, `menu.html`, que le lot
+  **modifie sans le supprimer**. `partials/` entier en rendait 442. Le chiffre de 459 qu'a
+  porté le plan n'est atteint par aucun de ces découpages ; il n'a pas été repris.
+  `menu.html` porte encore ses 3 occurrences aujourd'hui — deux `ui-sref` réels, qui vivent
+  jusqu'à D6f, et un faux positif. Sur `templates/pages/`, qui remplace les dix autres, la
+  même recherche rend **65 occurrences réparties sur 60 lignes, dont 54 sont des
   commentaires Django** citant le code d'avant pour dire ce qui a été transposé, et **6 sont
   des faux positifs** (`ng-` à l'intérieur de `padding-bottom`). **Zéro directive
   AngularJS active.** Les dix gabarits `partials/` du dossier et les dix scripts
@@ -1012,17 +1021,29 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   cliquet de compression est **vide**, et son second test — celui qui rougit si une
   exception survit à sa raison d'être — n'a plus rien à garder.
 
-  **Dix-sept preuves se sont révélées vides sous falsification, en six catégories.** C'est
-  le chiffre le plus instructif du lot, et **sept d'entre elles étaient prescrites par le
-  plan** : écrire une preuve dans un plan ne la rend pas mordante. Les six formes, toutes
-  trouvées par la mesure et **aucune** par la lecture du test :
-  l'assertion trop lâche ; la barrière inerte, qui rend la main avant que le produit ait
-  agi ; la preuve rendue complaisante par un effet de bord du produit ; la preuve
-  auto-référentielle, qui compose son attendu avec la fonction même qu'elle teste ;
-  l'assertion qui épingle une **forme** plutôt qu'un **effet** ; et le test dont le vert
-  dépend de ce qui tourne à côté. La contre-mesure est la règle que le lot a appliquée et
-  qui doit survivre : **chaque preuve vient avec sa falsification, et le plan écrit ce que
-  le rouge doit dire, mot pour mot**.
+  **Des preuves se sont révélées vides sous falsification à presque toutes les tâches, et
+  plusieurs d'entre elles étaient prescrites par le plan** — écrire une preuve dans un plan
+  ne la rend pas mordante. **Aucun décompte n'a été tenu pendant le lot, et aucun n'est
+  reconstruit ici** : les rapports de tâche ne portent pas de marqueur uniforme, et un total
+  obtenu en ratissant leur vocabulaire serait un chiffre fabriqué, pas mesuré. Ce que le
+  journal d'exécution établit, en revanche, ce sont les **formes**, et elles valent mieux
+  qu'un total.
+
+  Quatre catégories y sont nommées et numérotées, la quatrième à T11 : **l'assertion trop
+  lâche** ; **la barrière inerte**, qui rend la main avant que le produit ait agi ; **la
+  preuve rendue complaisante par un effet de bord du produit** — ici le récepteur
+  `post_delete`, qui faisait converger les deux chemins qu'une mutation aurait dû
+  distinguer ; et **la preuve auto-référentielle**, qui compose son attendu avec la fonction
+  même qu'elle teste, donc incapable de rougir quelle que soit la valeur rendue. Deux formes
+  de plus apparaissent ensuite sans être numérotées : **l'assertion qui épingle une forme
+  plutôt qu'un effet**, retirée au sixième tour de T12, et **le test dont le vert dépend de
+  ce qui tourne à côté**, rencontré à T3 sur `zipcode_lookup/tests.py` et versé plus haut
+  comme défaut préexistant.
+
+  **Aucune des six n'est détectable en lisant le test** — les six l'ont été par la
+  falsification systématique. C'est là qu'est la leçon, et la contre-mesure est la règle que
+  le lot a appliquée et qui doit survivre : **chaque preuve vient avec sa falsification, et
+  le plan écrit ce que le rouge doit dire, mot pour mot**.
 
   **Six tours de revue pour un mécanisme de quatre lignes.** La garde de sortie — le
   « modifications non enregistrées » du navigateur — a coûté six tours à T12, au-delà du
@@ -1047,7 +1068,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   **Constats sans emport, pour les lots suivants** : `@components/angular-bootstrap` et
   `@components/angular-animate` perdent leur dernier consommateur à D6e mais leur unique
   trace résiduelle est la coquille — **D6f** ; `css/typeahead.css` est un fichier du dépôt
-  devenu sans consommateur — D6f/D6g ; `typeahead-select-on-blur` et
+  devenu sans consommateur — D6f/D6g, **et le thème DataTables
+  (`css/plugins/dataTables.bootstrap.css`, `css/plugins/dataTables/`) est dans le même cas,
+  sans l'être devenu** : aucun gabarit ne l'a jamais chargé sur toute l'histoire du fork,
+  ni au point de fork ni aujourd'hui. Relevé par la relecture de `README.rst` à la clôture,
+  et versé pour que les deux soient tranchés ensemble ; `typeahead-select-on-blur` et
   `typeahead-select-on-exact` ne sont pas reproduits, et aucune fiche ni aucun test ne les
   décrivait ; **le réglage d'auto-complétion annonçait deux caractères et n'était jamais
   atteignable en deçà de cinq**, mesuré et désormais écrit à `R-PAT-11` étape 2.

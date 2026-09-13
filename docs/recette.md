@@ -1404,6 +1404,12 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
   **jamais au navigateur** — voir l'avertissement ci-dessous)
 - **État requis** : E2. Les étapes 1 à 4 se jouent depuis E1, mais l'étape 5 ouvre une
   consultation sur un patient, ce que E1 — qui n'en porte aucun — ne permet pas.
+  **Les étapes 5 à 8 créent durablement une consultation supplémentaire**, clôturée « Non
+  facturée » et portant une sphère renseignée, sur le patient qu'elles choisissent :
+  remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend. Jouer ces
+  quatre étapes sur un patient **autre que Picard** — celui de `R-PAT-05` par exemple —
+  laisse les comptes de séances de Picard intacts, et c'est la façon la moins coûteuse de
+  jouer cette fiche.
 
 **⚠️ Avertissement, à lire avant d'écrire un test sur cet écran.** Décocher « Statistiques »
 rend le tableau de bord sans bloc de statistiques, et la barrière d'ouverture de session de
@@ -1429,23 +1435,30 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
 4. Revenir sur Profil utilisateur → « Paramètres d'affichage », recocher
    `Historique des évènements`, cliquer « Enregistrer », retourner au tableau de bord.
    Attendu : le bloc « Évènements » est de nouveau affiché.
-5. Décocher `Sphères`, cliquer « Enregistrer », ouvrir une consultation en cours sur un
-   patient **dont aucune sphère n'a jamais été renseignée** (mêmes gestes que R-CON-01,
-   sur un patient neuf).
+5. Décocher `Sphères`, cliquer « Enregistrer », puis ouvrir une consultation en cours sur
+   un patient **dont aucune sphère n'a jamais été renseignée** (mêmes gestes que R-CON-01,
+   sur un patient neuf — celui créé par `R-PAT-05` convient).
    Attendu : ni le titre « Sphères », ni les boutons à cocher, ni les panneaux (ORL,
-   viscérale, cardio-pulmonaire, uro-gynéco, périphérique) ne sont affichés. Recocher la
-   case et vérifier leur retour : le titre, les **six** boutons à cocher et les **six**
-   panneaux ouverts, la consultation étant en cours.
-6. **La règle a deux niveaux, et la case n'en commande que le premier.** Toujours case
-   décochée, ouvrir une consultation **déjà close** dont au moins une sphère porte une
-   note (par exemple celle renseignée à l'étape 5 avant de recocher).
-   Attendu : le bloc « Sphères » **réapparaît**, avec ses six boutons à cocher — le
-   réglage ne le masque que tant qu'aucune sphère n'est renseignée. Mais **seuls les
-   panneaux portant une note sont ouverts**, et seuls leurs boutons sont enfoncés ; les
-   autres panneaux restent repliés, et se déplient au clic sur leur bouton. C'est le
+   viscérale, cardio-pulmonaire, uro-gynéco, périphérique) ne sont affichés.
+6. **Recocher** `Sphères`, « Enregistrer », revenir sur cette consultation en cours.
+   Attendu : le bloc revient — le titre « Sphères », les **six** boutons à cocher tous
+   enfoncés, et les **six** panneaux ouverts, la consultation étant en cours. Saisir
+   `Sphère ORL de recette` dans le panneau `ORL`, puis clôturer la consultation « Non
+   facturée », motif `Sphères` (mêmes gestes que `R-CON-01` étapes 2 et 3). **C'est le
+   montage de l'étape 7** : il faut une consultation close portant une sphère renseignée,
+   et une seule.
+7. **La règle a deux niveaux, et la case n'en commande que le premier.** Décocher de
+   nouveau `Sphères`, « Enregistrer », puis rouvrir la séance clôturée à l'étape 6.
+   Attendu : le bloc « Sphères » **réapparaît malgré la case décochée**, avec ses six
+   boutons à cocher — le réglage ne masque le bloc que tant qu'**aucune** sphère n'est
+   renseignée. Mais **seul le panneau `ORL` est ouvert**, et seul son bouton est enfoncé ;
+   les cinq autres panneaux sont repliés et se déplient au clic sur leur bouton. C'est le
    comportement d'avant migration, reproduit à l'identique par D6e : décocher `Sphères`
-   n'efface pas une saisie existante, elle cesse seulement de proposer le bloc sur les
-   dossiers vierges.
+   n'efface pas une saisie existante, la case cesse seulement de proposer le bloc sur les
+   dossiers qui n'en portent aucune.
+8. **Recocher** `Sphères` et « Enregistrer » — l'étape 7 a coupé un réglage par défaut,
+   cette étape le rend.
+   Attendu : la case est de nouveau cochée.
 
 ### Patient
 
@@ -1910,8 +1923,9 @@ sans effet **partout**, et qu'il le reste après plusieurs répétitions.
   qui la dessine. Aucun des six ne regarde non plus le libellé de l'avertissement, qui
   n'appartient pas à l'application.
 - **État requis** : E2. Cette fiche modifie durablement la ville, le code postal et les
-  antécédents chirurgicaux du patient Picard : remonter l'état E2 (chapitre 1) avant de
-  jouer une autre fiche qui en dépend.
+  antécédents chirurgicaux du patient Picard, **et laisse en base un patient
+  supplémentaire, « Kirk Jean-Luc »**, créé à l'étape 6 pour rendre le refus atteignable :
+  remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
 
 **Ce que cette fiche garde.** Une saisie en cours ne doit pas partir en silence. Le
 dossier avant migration lisait `.ng-dirty` — l'état « sali » du formulaire AngularJS — pour
@@ -1950,13 +1964,20 @@ sur l'entrée en édition, ni sur une lecture, ni sur un refus, ni sur une panne
    Attendu : la vignette revient en lecture avec son titre d'origine, et **aucun
    avertissement** ne s'affiche — l'abandon est un geste du praticien, il n'y a plus rien
    à perdre.
-6. Sur le titre de la fiche, cliquer le nom de famille `Picard`, le remplacer par le nom
-   d'un homonyme exact — même prénom, même date de naissance — créé au préalable, puis
-   valider par le bouton ✓.
-   Attendu : le refus s'affiche dans la cellule (« Ce patient existe déjà »), la cellule
-   **reste en saisie** avec la valeur refusée. Demander à quitter la page : l'avertissement
-   **est affiché**. Un refus serveur ne désarme pas la garde — la saisie est toujours là,
-   et toujours pas enregistrée. Rester sur la page, rétablir `Picard`.
+6. **Montage d'abord** : lien « Nouveau patient », saisir `Kirk` (Nom de famille),
+   `Jean-Luc` (Prénom), `13/07/1935` (date de naissance, **la même que Picard**), cocher le
+   consentement, cliquer « Initialiser la fiche patient ».
+   Attendu : la fiche s'ouvre directement, **sans aucun avertissement d'homonyme** — celui-ci
+   se déclenche sur le couple nom + prénom, et le nom de famille diffère ici. Ce patient
+   reste en base à l'issue de la fiche.
+   Revenir sur la fiche de `Picard`, et **hors mode édition** cliquer le nom de famille
+   `Picard` dans le titre, le remplacer par `Kirk`, puis valider par le bouton ✓.
+   Attendu : le renommage est **refusé**, parce que `Kirk` + `Jean-Luc` + `13/07/1935`
+   existe déjà — le refus s'affiche dans la cellule (« Ce patient existe déjà ») et la
+   cellule **reste en saisie** avec la valeur refusée. Demander à quitter la page :
+   l'avertissement **est affiché**. Un refus serveur ne désarme pas la garde — la saisie est
+   toujours là, et toujours pas enregistrée. Rester sur la page, rétablir `Picard` et
+   valider.
 7. Onglet « Historique », « Éditer », saisir quelque chose, puis **couper le réseau**
    (outils de développement → onglet Réseau → mode « Hors ligne ») et cliquer « Fin
    d'édition ». Rétablir le réseau, puis demander à quitter la page.
@@ -2310,7 +2331,7 @@ la marge nécessaire pour redater vers l'avant tout en restant dans le passé).
 
 - **Domaine** : Consultation
 - **Couverture auto** : oui —
-  tests/functional/test_consultation.py::test_une_consultation_en_cours_se_reprend_en_edition
+  tests/functional/test_patient.py::test_une_consultation_en_cours_se_reprend_en_edition
   (ouvre une consultation, la saisit, l'enregistre par « Fin d'édition », constate que le
   volet est repassé en lecture, le rouvre par « Éditer », saisit une seconde fois dans le
   motif **et** dans l'examen médical, enregistre, et relit les deux colonnes en base.

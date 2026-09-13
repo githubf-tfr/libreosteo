@@ -661,10 +661,18 @@ Vendored third-party assets
 ===========================
 
 Eight families of third-party assets live under ``libreosteoweb/static/``, are versioned in
-git, are loaded by the templates, and are declared in no manifest at all. They are listed
-here because they are invisible to ``package.json`` and to ``yarn.lock``, and because they
-are the part of the frontend most likely to outlive a framework migration. Versions are read
-from the files themselves; where a file carries no version, that is said rather than guessed.
+git, and are declared in no manifest at all. They are listed here because they are invisible
+to ``package.json`` and to ``yarn.lock``, and because they are the part of the frontend most
+likely to outlive a framework migration. Versions are read from the files themselves; where
+a file carries no version, that is said rather than guessed.
+
+Seven of the eight are loaded by a template. **DataTables is not**, and has not been for as
+long as this fork's history goes: no template under ``libreosteoweb/templates/`` names it,
+at the tip or at the fork point. It is a vendored family with no consumer — the same
+situation as ``css/typeahead.css``, which ``KANBAN.md`` records under the frontend cleanup
+still to be decided. It is listed here because it is present on disk, not because it is
+served. (Glyphicons, by contrast, is loaded: ``css/bootstrap.css`` references the font files
+by path.)
 
 A ninth family, ``animatescroll``, was listed here until the administration screens were
 migrated: its only callers were three inline scripts, and the file was deleted with them.
