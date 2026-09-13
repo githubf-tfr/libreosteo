@@ -1032,20 +1032,31 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   | 1 | « End of edition » rendu en anglais — `msgid` orphelin | fermé, `bfb4998` |
   | 2 | « Latéralité : None » dans le panneau d'identité | fermé, `bfb4998` |
   | 3 | « Ajouter des documents » rendu deux fois — deux `<label for>` sur un même `id` | fermé, `bfb4998` |
-  | 4 | premier clic d'onglet avalé, consultation en cours | **non reproduit**, `9f79657` |
+  | 4 | premier clic d'onglet avalé, consultation en cours | **artefact de pilotage**, clos |
   | 5 | le titre du dossier se disloque hors édition | fermé, `85461ff` |
   | 6 | « Latéralité : None » dans le volet droit de la consultation | fermé, `85461ff` |
   | 7 | `address_street` rendu sans classe — entrée nue de 189 px | fermé, `85461ff` |
   | 8 | le premier commentaire chevauche le champ de saisie de 11 px | versé, cause d'amont |
 
-  **Le n° 4 est instructif.** Observé à l'écran, il n'a été reproduit ni au banc ni sur le
-  conteneur réel : cinq onglets, dix instants de clic de 0 à 3000 ms, bridage CPU jusqu'à ×20,
-  réponse retardée de 4 s, huit clics enchaînés. Les deux hypothèses données au diagnostic ont
-  été **mesurées fausses** — la trace du conteneur montre qu'aucun `GET /patient/1/corps`
-  n'est parti pendant la session où le défaut a été vu, et la barre d'onglets vit **dans**
-  `#dossier-corps`, donc rien ne peut la laisser vivante en tuant les panneaux. Le diagnostic
-  n'a pas inventé de cause : il a posé la **barrière d'écran** qui manquait — elle assertit le
-  panneau *visible*, jamais la classe `active`, qui serait restée verte sur le symptôme.
+  **Le n° 4 n'était pas un défaut du produit, et sa cause est mesurée.** Il n'avait été
+  reproduit ni au banc ni sur le conteneur — cinq onglets, dix instants de clic de 0 à
+  3000 ms, bridage CPU jusqu'à ×20, réponse retardée de 4 s, huit clics enchaînés — et les
+  deux hypothèses données au diagnostic avaient été mesurées fausses. Reproduit une seconde
+  fois à l'écran, il a livré sa cause : **l'onglet du navigateur était en arrière-plan**
+  (`document.visibilityState === "hidden"`, `document.hasFocus() === false`), parce qu'une
+  autre session regardait le produit dans un onglet voisin de la même fenêtre. Aucun
+  événement `click` n'atteint alors la page — mesuré par un écouteur en capture sur
+  `document`, qui n'a rien reçu — et aucune requête ne part, ce que la trace du conteneur
+  disait déjà. Le **survol**, lui, se peint dans la capture d'écran : l'onglet paraît
+  sélectionné alors que rien ne s'est produit.
+
+  **Leçon pour la passe de comparaison**, où deux navigateurs seront pilotés de front :
+  vérifier `document.visibilityState` avant de conclure à un défaut d'interaction. Un clic
+  sans effet sur une capture où l'élément paraît survolé n'est pas une mesure.
+
+  Le diagnostic n'avait pas inventé de cause : il a posé la **barrière d'écran** qui
+  manquait — elle assertit le panneau *visible*, jamais la classe `active`, qui serait
+  restée verte sur le symptôme.
 
   **Le n° 1 a rendu sept tests fonctionnels rouges sans que `make check` puisse le voir** :
   rapprocher le `msgid` de `consultation-edition.html` a donné au soumetteur du volet le même
