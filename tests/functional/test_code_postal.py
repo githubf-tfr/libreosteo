@@ -10,20 +10,25 @@ liste, ni son ordre, ni le nombre de suggestions rendues.
 quatre chiffres l'appel part sur une URL qui ne resout pas, et rien n'apparait. Le composant
 qui remplace `uib-typeahead` reproduit cette borne (D6e, E5).
 
-**Ce par quoi ce filet tient encore a `uib-typeahead`** — a lire avant de le declarer
-« traverse sans retouche » (D6e, T12) :
+**Les quatre points par lesquels ce filet tenait a `uib-typeahead`, et ce que T12 en a
+fait** — ils etaient ecrits pour etre relus au moment de la migration :
 
 1. `page.fill` ne diffuse que `input` puis `change`. Un composant declenche sur `keyup`
-   rendrait le premier test rouge **sur un produit qui marche**.
-2. Le compteur de requetes suppose que la recherche part **synchronement** dans le digest
-   de l'evenement `input` (`typeahead-wait-ms` vaut 0, le gabarit ne la pose pas). Une
-   temporisation neuve — debounce, `hx-trigger="… delay:300ms"` — la ferait partir apres
-   la lecture du compteur : l'assertion deviendrait vacueuse **sans devenir rouge**.
-3. `page.goto(".../#/patient/<id>")` est une route `ui-router`, que D6e supprime au profit
-   de `/patient/<id>` sans `#`. Cette ligne-la **devra** etre reprise.
+   aurait rendu le premier test rouge **sur un produit qui marche** : le champ porte donc
+   `hx-trigger="input changed"`, et non `keyup`.
+2. Le compteur de requetes suppose que la recherche part **synchronement** sur l'evenement
+   `input` (`typeahead-wait-ms` valait 0, le gabarit ne la posait pas). Une temporisation
+   neuve — debounce, `hx-trigger="… delay:300ms"` — l'aurait fait partir **apres** la
+   lecture du compteur : l'assertion serait devenue vacueuse **sans devenir rouge**. Aucun
+   `delay:` n'est donc pose.
+3. `page.goto(".../#/patient/<id>")` etait une route `ui-router` : **reprise** en
+   `/patient/<id>`, et l'URL observee par le compteur avec elle — la recherche part
+   desormais vers `/zipcode-suggestions`, une vue de page, et non plus vers
+   `/zipcode_lookup/<code>` que le service AngularJS appelait.
 4. `get_by_text(..., exact=True)` : un composant rendant deux fois le meme texte (option
    masquee et ligne visible, annonce `aria-live`) declencherait une violation de mode
    strict, que Playwright **ne rejoue pas** — rouge instantane sur un produit qui marche.
+   Le fragment de suggestions ne rend qu'une ligne par commune.
 """
 
 import re
@@ -36,7 +41,7 @@ from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import Patient, TherapeutSettings
 from tests.functional.helpers import (
-    attendre_enregistrement_patient,
+    attendre_enregistrement_declenche,
     connexion,
     creer_patient,
 )
@@ -48,8 +53,9 @@ def communes() -> None:
     """Deux villes pour un meme code postal : une suggestion ne suffit pas a prouver
     qu'un clic pose bien **la ville cliquee** et non la seule disponible.
 
-    **Dependance a l'ordre de rendu, assumee et non garantie** : `zipcode_lookup/views.py`
-    interroge sans `ORDER BY`, et l'ordre d'insertion met `Rioz` en **seconde** position.
+    **Dependance a l'ordre de rendu, assumee et non garantie** : la vue interroge
+    `ZipcodeMapping` sans `ORDER BY`, et l'ordre d'insertion met `Rioz` en **seconde**
+    position.
     C'est ce qui fait que ce test attrape aussi le composant fautif qui poserait toujours
     la *premiere* suggestion au lieu de celle qu'on a cliquee. Si l'ordre s'inversait, le
     test resterait vert en perdant cette vertu-la, **sans aucun signal** — il ne peut pas
@@ -70,20 +76,28 @@ _URL_SENTINELLE = "/api/profiles/get_by_user?sentinelle-t3=1"
 
 @contextmanager
 def _recherches_de_code_postal_observees(page: Page) -> Iterator[list[str]]:
-    """Collecte les `GET /zipcode_lookup/...` emis pendant le bloc.
+    """Collecte les recherches de code postal emises pendant le bloc.
 
     Meme idiome que `helpers.enregistrements_patient_observes`, et pour la meme raison :
     l'**emission** d'une requete est deterministe la ou l'apparition d'une liste ne l'est
     pas. C'est la seule mesure qui distingue vraiment les deux etats du reglage — reglage
-    coupe, `zipcodeLookup()` (`patient.js:260`) rend `[]` sans jamais appeler
-    `ZipCodeServ`, donc **aucune** requete ne part ; reglage actif, une requete part a
-    chaque frappe qui atteint `typeahead-min-length`.
+    coupe, `zipcodeLookup()` (`patient.js:260`) rendait `[]` sans jamais appeler
+    `ZipCodeServ`, donc **aucune** requete ne partait ; reglage actif, une requete partait a
+    chaque frappe qui atteignait `typeahead-min-length`.
 
-    La methode est filtree, comme `helpers.enregistrements_patient_observes` filtre `PUT` :
-    seul le `GET` du service est une recherche.
+    **L'URL observee change avec D6e T12, la mesure ne change pas.** La recherche est
+    desormais un `hx-get` vers `/zipcode-suggestions`, une vue de page qui interroge
+    `ZipcodeMapping` par l'ORM : plus aucune requete de navigateur n'atteint
+    `/zipcode_lookup/`, et un compteur reste sur cette URL serait **vide dans les deux
+    etats du reglage** — vert sur un produit casse. Le reglage coupe se voit toujours a
+    l'emission, et non a la reponse : c'est le serveur qui decide, au **rendu du champ**,
+    de poser ou non le `hx-get` ; sans ce choix, la requete partirait quand meme et la
+    mesure serait de nouveau vide.
+
+    La methode est filtree : seul le `GET` de suggestion est une recherche.
     """
     emises: list[str] = []
-    motif = re.compile(r"/zipcode_lookup/")
+    motif = re.compile(r"/zipcode-suggestions")
 
     def _capter(requete: Request) -> None:
         if requete.method == "GET" and motif.search(requete.url) is not None:
@@ -130,7 +144,7 @@ def _ouvrir_le_dossier_en_edition(page: Page, live_server: LiveServer) -> Patien
     connexion(page, live_server)
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
-    page.goto(f"{live_server.url}/#/patient/{patient.id}")
+    page.goto(f"{live_server.url}/patient/{patient.id}")
     page.get_by_role("button", name="Éditer").click()
     expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
     return patient
@@ -152,7 +166,7 @@ def test_une_suggestion_pose_le_code_postal_et_la_ville(
     expect(page.locator("input[name=zipcode]")).to_have_value("70190")
     expect(page.locator("input[name=city]")).to_have_value("Rioz")
 
-    attendre_enregistrement_patient(
+    attendre_enregistrement_declenche(
         page,
         patient.id,
         lambda: page.get_by_role("button", name="Fin d'édition").click(),

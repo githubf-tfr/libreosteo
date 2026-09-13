@@ -2379,3 +2379,21 @@ msgstr "Valeurs que le navigateur réécrirait :"
 
 msgid "Identifier"
 msgstr "Identifiant"
+
+# D6e T12 : les deux chaines de la modale RGPD passent du domaine `djangojs` au domaine
+# `django`. Elles vivaient dans `patient.js` (`:609-618`), qui les composait par
+# concatenation ; l'ecran est desormais un document Django, et un `{% trans %}` de gabarit
+# lit le domaine `django`. Les traductions sont reprises **a l'octet** de `djangojs.po:120`
+# et `:129`. L'entree de `djangojs.po` reste : `patient.js` sert jusqu'a T13.
+msgid ""
+"For GDPR conformity, patient can ask to delete all information. This "
+"function delete all information without trace except invoices. You can find "
+"invoices into Accounting function. Are you agree with that ?"
+msgstr ""
+"Pour la conformité RGPD, un patient peut demander à supprimer toutes ses "
+"informations. Cette fonction supprime toutes les infos ne laissant aucune "
+"trace excepté les factures. Vous pouvez retrouver les factures dans la "
+"fonction Comptabilité. Êtes-vous d'accord avec cette opération ?"
+
+msgid "I understand that it means"
+msgstr "Je comprends ce que cela signifie"

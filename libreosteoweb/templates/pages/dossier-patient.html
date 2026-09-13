@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load i18n static compress %}
+{# Le dossier patient (D6e, T12) : le document qui consomme T7, T9, T10 et T11. #}
+{# #}
+{# **Le menu est rendu ici, et le bloc `menu` est vide.** Ce n'est pas un ecart de style : #}
+{# `{% block menu %}` et `{% block contenu %}` sont deux sous-arbres **freres** de `<body>` #}
+{# dans `base.html`, et une portee Alpine ne traverse pas cette frontiere. Or le bandeau #}
+{# d'actions lit `actif` et `edition`, les deux variables du document. Le rendre depuis le #}
+{# bloc `menu` aurait impose un magasin global ou un second etat — donc deux autorites sur #}
+{# la meme chose, exactement ce que le correctif `2a75d2b` a inscrit dans ce depot. Le #}
+{# point d'extension reste celui de D6c : le parametre `gabarit_actions` d'`{% include #}
+{# "partials/menu.html" %}` (E8). #}
+{# #}
+{# **La numerotation d'onglets a disparu, et c'est le defaut de D6b qui se ferme par #}
+{# construction** (`KANBAN.md:443-444`) : `uib-tabset` numerotait `1, 2, 3, 5, 6` — l'index 4 #}
+{# saute. Il n'y a plus d'index du tout, la variable `actif` porte des **clefs**. #}
+{# #}
+{# **`quitterEdition()` est l'enregistrement implicite au changement d'onglet** (AR5). #}
+{# `save-on-lost-focus` le faisait par `uiTabChange` ; ici l'onglet appelle cette methode #}
+{# **avant** d'ecrire `actif`, et elle soumet le formulaire en edition s'il y en a un. Deux #}
+{# tests en dependent explicitement (`test_patient.py`, barriere sur le clic d'onglet), et #}
+{# les quatre assertions d'antecedents ne sont vraies que parce que ce mecanisme a tourne. #}
+{# #}
+{# **`edition` vaut deja `'current-examination'` quand une consultation est ouverte.** Une #}
+{# consultation en cours **est** un formulaire en edition (`examination.js` la mettait en #}
+{# edition d'office) : le bandeau doit donc afficher « Fin d'edition », et le titre ne doit #}
+{# pas s'ouvrir. C'est aussi ce qui tient l'invariant « un seul formulaire en edition a la #}
+{# fois » : sans cela, ouvrir un volet anterieur en edition pendant une consultation en #}
+{# cours rendrait deux formulaires que « Fin d'edition » soumettrait tous les deux. #}
+
+{% block titre %}{{ patient.family_name }} {{ patient.first_name }}{% endblock %}
+
+{% block css_page %}
+{# Les deux memes feuilles que les trois ecrans deja migres, et pour les memes raisons : #}
+{# `sb-admin-2.css` porte la mise en page de `#page-wrapper`, `libreosteo.css` le #}
+{# `padding-top: 50px` qui degage la barre fixe, les classes de la chronologie #}
+{# (`.timeline`) et celles des vignettes (`.documenttile`, `.doc_thumbnail`). Aucun #}
+{# fichier CSS n'est ajoute au depot. #}
+{% compress css %}
+<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
+<link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
+{% endcompress %}
+{% endblock %}
+
+{% block menu %}{% endblock %}
+
+{% block contenu %}
+<div x-data="{
+       actif: '{{ onglet_actif }}',
+       edition: {% if consultation_en_cours %}'current-examination'{% else %}null{% endif %},
+       quitterEdition() {
+         if (this.edition === null) { return; }
+         this.$dispatch('dossier-fin-edition');
+         this.edition = null;
+       }
+     }">
+  {% if request.user.is_authenticated %}{% include "partials/menu.html" with gabarit_actions="pages/fragments/actions-dossier.html" %}{% endif %}
+  <div id="page-wrapper">
+    {% include "pages/fragments/dossier-consentement.html" %}
+    {% include "pages/fragments/dossier-titre.html" with patient=titre.patient age=titre.age profession=titre.profession hors_bande=False %}
+    {% include "pages/fragments/dossier-corps.html" %}
+  </div>
+</div>
+{% endblock %}
+
+{% block js_page %}
+{% compress js %}<script src="{% static "js/composants/texte-riche.js" %}"></script>{% endcompress %}
+{# **La garde « modifications non enregistrees » est un `beforeunload` natif, et rien #}
+{# d'autre** (A11). Les trois declencheurs de sortie d'AngularJS (changement d'etat #}
+{# `ui-router`, clic hors formulaire, perte de focus) disparaissent avec le routage client ; #}
+{# il ne reste que la sortie de document, que seul cet evenement voit. #}
+{# #}
+{# **Le message n'est pas interpole ici, et c'est mesure** : #}
+{# `gettext("There are unsaved changes. Do you really want to leave this page ?")` vit dans #}
+{# le domaine **`djangojs`** (`djangojs.po:21`), que `patient.js` consomme jusqu'a T13 ; un #}
+{# `{% trans %}` de gabarit lit le domaine `django`, ou ce `msgid` n'existe pas. Le #}
+{# recopier d'un domaine a l'autre exigerait de recompiler un `.mo` dans le commit le plus #}
+{# lourd du lot, pour une chaine que **plus aucun navigateur n'affiche** : depuis Chrome 51 #}
+{# et Firefox 44, `returnValue` est ignore et seul le texte du navigateur s'affiche. La #}
+{# chaine reste donc au catalogue, la ou elle est, et cette garde se contente de declencher #}
+{# l'avertissement natif. #}
+<script>
+  window.addEventListener('beforeunload', function (evenement) {
+    if (!document.querySelector('[data-edition-en-cours]')) { return; }
+    evenement.preventDefault();
+    evenement.returnValue = '';
+  });
+</script>
+{% endblock %}

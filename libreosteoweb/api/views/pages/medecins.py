@@ -45,18 +45,15 @@ nom pourrait faire croire le contraire.
 **Trois pieges pour T12, mesures et certains** (revue T9) :
 
 - **Le `<select name="doctor">` est une seconde autorite pour le champ `doctor` du
-  formulaire de l'onglet « Infos generales »**, et il tire son option selectionnee de
-  `patient.doctor_id` (`medecin-selecteur-edition.html`), **jamais des donnees postees**. Un
-  refus de sauvegarde qui re-rendrait ce panneau ramenerait donc la valeur en base a la place
-  de la saisie du praticien, en silence. T12 doit soit lier la selection a `formulaire[...]`
-  sur le chemin de refus, soit ne pas re-rendre ce fragment dans une reponse de refus.
-- **Les deux identifiants de conteneur collisionneront**, ce n'est pas une hypothese : le
-  gabarit du dossier porte `#general` **et** `#current-examination` dans le meme document, et
-  les deux sites incluent ce fragment. Des qu'une consultation est en cours, il y a deux
-  `id="selecteur-medecin-<pid>"`, et l'echange hors-bande atteint le premier — celui du
-  dossier — meme si le praticien edite depuis la colonne de consultation. Le rattrapage est un
-  prefixe de contexte a poser sur les deux identifiants ; il n'est pas ecrit ici parce qu'il
-  serait invérifiable tant qu'aucun gabarit ne rend deux exemplaires.
+  formulaire de l'onglet « Infos generales »**. *Ferme par D6e T12* : l'option cochee vient
+  desormais de la clef `selection`, que `contexte_selecteur` pose a `patient.doctor_id` par
+  defaut et qu'un appelant rendant un formulaire **lie** remplace par la valeur postee. Sans
+  cela, un refus de sauvegarde ramenait la valeur en base a la place de la saisie, en silence.
+- **Les deux identifiants de conteneur collisionnaient** : le dossier porte `#general`,
+  `#examinations` et `#current-examination` dans le meme document, et les trois incluent ce
+  fragment. *Ferme par D6e T12* : la clef `prefixe`, vide par defaut, prefixe les deux
+  identifiants, et elle fait l'aller-retour avec la modale d'ajout (chaine de requete, puis
+  champ cache) pour que l'echange hors-bande vise le selecteur qui a ouvert la modale.
 - **Le rattachement est immediat**, contrairement a AngularJS qui ne posait l'identifiant
   dans le `$scope` que jusqu'au « Fin d'edition » (`doctor.js:99-105`). Le geste est borne a
   une seule colonne (`update_fields=["doctor"]`), donc il n'ecrase aucune saisie en cours ;
@@ -161,7 +158,20 @@ def contexte_selecteur(patient: models.Patient, **extras: Any) -> dict[str, Any]
     fournir `medecins`, et le composer a la main dans deux gabarits differents serait deux
     occasions d'oublier le tri.
     """
-    return {"patient": patient, "medecins": _medecins(), "editable": True, **extras}
+    return {
+        "patient": patient,
+        "medecins": _medecins(),
+        "editable": True,
+        # **`selection` par defaut, et surchargeable** (D6e T12) : le `<select>` est une
+        # seconde autorite pour le champ `doctor` du formulaire qui l'englobe. Un appelant
+        # qui rend un formulaire **lie** — donc un chemin de refus — y met la valeur postee,
+        # faute de quoi l'ecran ramenerait le medecin enregistre a la place de la saisie.
+        "selection": patient.doctor_id,
+        # Le prefixe d'identifiant, vide par defaut : un document qui rend la ligne
+        # plusieurs fois (le dossier patient en rend jusqu'a trois) le pose, les autres non.
+        "prefixe": "",
+        **extras,
+    }
 
 
 def selecteur_medecin(request: HttpRequest, identifiant: str) -> HttpResponse:
@@ -206,9 +216,16 @@ def medecin_nouveau(request: HttpRequest) -> HttpResponse:
     `GET` le lit dans la chaine de requete, le `POST` dans un champ cache de la modale.
     """
     patient = _patient_de_la_requete(request)
+    # Le prefixe du selecteur appelant fait l'aller-retour : chaine de requete a
+    # l'ouverture, champ cache a la soumission. Sans lui, l'echange hors-bande viserait
+    # `#selecteur-medecin-<pid>` nu, qui n'existe pas dans un document qui prefixe.
+    donnees = request.POST if request.method == "POST" else request.GET
+    prefixe = donnees.get("prefixe", "")
     if request.method != "POST":
         return render(
-            request, "partials/modale.html", _modale(patient, FormulaireMedecin())
+            request,
+            "partials/modale.html",
+            _modale(patient, FormulaireMedecin(), prefixe),
         )
 
     formulaire = FormulaireMedecin(request.POST)
@@ -218,7 +235,9 @@ def medecin_nouveau(request: HttpRequest) -> HttpResponse:
         # a declencher l'echange — `base.html:16` echange sur `[45].*`.
         return HttpResponse(
             render_to_string(
-                "partials/modale.html", _modale(patient, formulaire), request=request
+                "partials/modale.html",
+                _modale(patient, formulaire, prefixe),
+                request=request,
             ),
             status=422,
         )
@@ -240,11 +259,13 @@ def medecin_nouveau(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "pages/fragments/medecin-selecteur-edition.html",
-        contexte_selecteur(patient, hors_bande=True),
+        contexte_selecteur(patient, hors_bande=True, prefixe=prefixe),
     )
 
 
-def _modale(patient: models.Patient, formulaire: FormulaireMedecin) -> dict[str, Any]:
+def _modale(
+    patient: models.Patient, formulaire: FormulaireMedecin, prefixe: str = ""
+) -> dict[str, Any]:
     """Le contexte de `partials/modale.html`.
 
     Le titre et le libelle du bouton se conservent a l'octet : `test_medecins.py:23,29`
@@ -258,4 +279,5 @@ def _modale(patient: models.Patient, formulaire: FormulaireMedecin) -> dict[str,
         "formulaire_confirmer": "formulaire-medecin",
         "formulaire": formulaire,
         "patient": patient,
+        "prefixe": prefixe,
     }

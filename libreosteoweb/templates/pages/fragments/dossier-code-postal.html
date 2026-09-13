@@ -1,0 +1,25 @@
+{% load i18n %}
+{# Les deux entrees du code postal et de la ville (D6e, E12). #}
+{# #}
+{# Elles vivent dans **leur propre fragment** parce que la reponse au clic sur une #}
+{# suggestion les repose toutes les deux en hors-bande : une seule autorite par element, et #}
+{# un seul endroit ou leurs attributs sont ecrits. Composer la reponse a la main ailleurs #}
+{# serait la certitude qu'elles divergent — l'une garderait son declencheur, l'autre non. #}
+{# #}
+{# **`hx-get` n'est pose que si le reglage l'autorise.** `zipcodeLookup` #}
+{# (`patient.js:260-266`) rendait `[]` sans jamais appeler le service quand #}
+{# `zipcode_completion_enabled` etait faux : **aucune requete ne partait**, et c'est cela que #}
+{# `test_code_postal.py` mesure. Un `hx-get` pose inconditionnellement ferait partir la #}
+{# requete a chaque frappe et rendrait cette mesure vide. #}
+{# #}
+{# **`input` et non `keyup`** : `page.fill` diffuse `input` puis `change`, jamais `keyup` — #}
+{# un declencheur sur `keyup` rendrait le filet rouge sur un produit qui marche (mesure de #}
+{# T3, point 1). **Aucune temporisation** non plus : `typeahead-wait-ms` valait zero, et un #}
+{# `delay:` ferait partir la requete apres la lecture du compteur, rendant l'assertion #}
+{# vacueuse **sans la rendre rouge** (mesure de T3, point 2). #}
+<input type="text" name="zipcode" id="zipcode" class="form-control input-sm" style="display: inline; width: 100px"
+       value="{{ zipcode }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}
+       {% if completion_code_postal %}hx-get="{{ url_suggestions }}" hx-trigger="input changed"
+       hx-target="#suggestions-code-postal" hx-swap="innerHTML"{% endif %}>
+<input type="text" name="city" id="city" class="form-control input-sm" style="display: inline; width: 200px"
+       value="{{ city }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}>

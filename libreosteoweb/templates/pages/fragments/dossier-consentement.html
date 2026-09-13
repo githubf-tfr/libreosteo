@@ -1,0 +1,28 @@
+{% load i18n %}
+{# Le bandeau RGPD, repris de `patient-detail.html:2-16`. #}
+{# #}
+{# Il disparait des que le consentement est recueilli : la reponse du bouton « Accepter » #}
+{# **est** ce fragment, re-rendu vide. Une seule autorite par element (C8). #}
+<div id="dossier-consentement">
+  {% if not patient.consent %}
+  <div class="alert alert-warning" role="alert" x-data="{ deplie: false, refuse: false }">
+    <p>{% trans "This patient didn't give its consent to handle data in an information technology system." %}</p>
+    <p>{% trans "Please inform about data that you use : specially phone number and email, and request for consentment." %}</p>
+    <p>{% trans "Otherwise you have to delete this folder or these data" %}</p>
+    <button type="button" class="btn btn-primary" @click="deplie = true">{% trans 'Get consent' %}</button>
+    <div class="request_consent" x-show="deplie" style="display: none">
+      <p>{% trans 'In accordance with GDPR law, you have to request consent of your patient in order to store personal information'%}</p>
+      <p>{% trans 'Inform your patient, that personal information are required for the osteopathic treatment'%}</p>
+      <p>{% trans 'For email or phone, please indicates to the patient what is the usage for'%}</p>
+      <p>{% trans 'Does the patient give you its consent ?'%}</p>
+      <form id="dossier-consentement-formulaire" style="display: inline"
+            hx-post="{% url 'dossier-consentement' patient.id %}"
+            hx-target="#dossier-consentement" hx-swap="innerHTML">
+        <button type="submit" class="btn btn-success">{% trans 'Accept' %}</button>
+      </form>
+      <button type="button" class="btn btn-danger" @click="refuse = true">{% trans 'Refuse' %}</button>
+    </div>
+    <div class="alert alert-danger center-block" role="alert" x-show="refuse" style="display: none">{% trans 'You have to delete this folder' %}</div>
+  </div>
+  {% endif %}
+</div>

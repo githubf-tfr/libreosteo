@@ -15,9 +15,14 @@ def ajouter_medecin_traitant(
 ) -> None:
     """Ouvre la modale d'ajout de medecin, la remplit et valide.
 
-    `$uibModal` (doctor.js, `formAddDoctor`) rend la modale hors du DOM du
-    formulaire patient : l'attendre par son titre (« Ajouter un médecin »),
-    jamais par une position — primitive nommee par le plan.
+    La modale vit dans `#modale`, hors du formulaire du dossier : l'attendre par son titre
+    (« Ajouter un médecin »), jamais par une position — primitive nommee par le plan.
+
+    Les quatre `page.fill` ne sont **pas** ambigus, et ce n'est pas un hasard :
+    `#modale` precede `{% block contenu %}` dans `base.html`, donc les champs de la modale
+    sont les **premiers** du document. `page.fill` n'est pas strict et prend le premier,
+    la ou `input[name=phone]` et `input[name=city]` existent aussi dans le panneau ouvert
+    en edition.
     """
     page.click("button[title='Ajouter un médecin']")
     expect(page.get_by_test_id("titre-modale")).to_have_text("Ajouter un médecin")
@@ -34,12 +39,13 @@ def test_creation_d_un_medecin_traitant(page: Page, live_server: LiveServer) -> 
     connexion(page, live_server)
     creer_patient(page)
 
-    # `examination.html` porte son propre `<doctor-selector>` (panneau "resume" de la
-    # consultation, `form.partialPatientForm`) : le scope au vrai formulaire de la fiche
-    # patient (`form.patientForm`, onglet "Infos generales") reste necessaire pour le
-    # `select`, qui existe des deux cotes. La ligne « Médecin traitant », elle, se
-    # designe directement : seul l'exemplaire de la fiche patient porte son `data-testid`.
-    formulaire = page.locator('form[name="form.patientForm"]')
+    # **La seule ancre du filet qui soit reprise et non conservee** (D6e, A16) :
+    # `form[name="form.patientForm"]` etait un nom de formulaire AngularJS, sans successeur
+    # en htmx. L'ancrage devient celui du panneau « Infos generales », adresse par son
+    # `data-testid`. Le scope reste necessaire : le volet de consultation porte son propre
+    # `<select name="doctor">`. La ligne « Médecin traitant », elle, se designe directement :
+    # seul l'exemplaire du dossier porte son `data-testid`.
+    formulaire = page.get_by_test_id("onglet-infos-generales")
     ligne_medecin = page.get_by_test_id("ligne-medecin-traitant")
     expect(ligne_medecin).to_contain_text(
         "Médecin traitant : non renseigné - non renseigné"
@@ -68,7 +74,8 @@ def test_rattachement_d_un_medecin_a_un_patient(
     creer_patient(page)
     rechercher_patient(page, "Picard")
 
-    formulaire = page.locator('form[name="form.patientForm"]')
+    # Meme reprise d'ancre qu'au test precedent (A16).
+    formulaire = page.get_by_test_id("onglet-infos-generales")
     ligne_medecin = page.get_by_test_id("ligne-medecin-traitant")
     expect(ligne_medecin).to_contain_text(
         "Médecin traitant : non renseigné - non renseigné"

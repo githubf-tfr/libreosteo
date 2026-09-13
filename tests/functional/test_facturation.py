@@ -27,7 +27,6 @@ from tests.functional.helpers import (
     connexion,
     creer_patient,
     enregistrer_formulaire,
-    notifications_d_erreur,
     notifications_de_succes,
     ouvrir_nouvelle_consultation,
     ouvrir_profil_therapeute,
@@ -173,23 +172,20 @@ def test_annulation_et_refacturation(
     cloturer_consultation(page, mode="invoiced", moyen="check")
     consultation = Examination.objects.get(patient=patient)
 
-    page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
+    page.goto(f"{live_server.url}/patient/{patient.id}/examination/{consultation.id}")
     page.click("#cancelInvoiceBtn")
     confirmer_la_modale(page)
     expect(page.locator("#invoiceExaminationBtn")).to_be_visible()
     page.click("#unfold_invoices")
     # Deux `data-testid` distincts, et un scope, pour deux ambiguites distinctes.
-    # Entre vues : `invoice-list.html` (vue « Comptabilité ») porte deja
-    # `statut-facture-annulee` sur le meme construit ; `ui-router` insere la vue
-    # entrante avant de sortir la sortante et `ngAnimate` laisse la quittee dans le DOM
-    # le temps de l'animation, donc les deux vues coexistent transitoirement. Une valeur
-    # propre au volet de consultation retablit l'invariant « un testid = une vue ».
-    # Dans la vue : le dossier patient monte deux fois la directive <examination>
-    # (consultation anterieure et consultation en cours, cette derniere masquee par
-    # `ng-show`), donc le testid y existe en deux exemplaires des qu'une facture annulee
-    # figure dans les deux volets. `:visible` designe celui qu'on regarde. Une violation
-    # du mode strict n'etant jamais rejouee par Playwright, seul un locator non ambigu
-    # en toutes circonstances la ferme.
+    # Entre ecrans : `comptabilite-liste.html` porte deja `statut-facture-annulee` sur le
+    # meme construit ; une valeur propre au volet de consultation retablit l'invariant
+    # « un testid = un ecran ».
+    # Dans l'ecran : le dossier peut rendre **deux** volets dans le meme document — celui
+    # de la seance choisie et celui d'une consultation en cours — donc le testid y
+    # existerait en deux exemplaires des qu'une facture annulee figure dans les deux.
+    # `:visible` designe celui qu'on regarde. Une violation du mode strict n'etant jamais
+    # rejouee par Playwright, seul un locator non ambigu en toutes circonstances la ferme.
     volet = page.locator('[data-testid="consultation-anterieure"]:visible')
     expect(volet.get_by_test_id("statut-facture-annulee-consultation")).to_be_visible()
 
@@ -199,12 +195,11 @@ def test_annulation_et_refacturation(
     expect(page.locator("#amount")).to_have_value("55")
     page.check("input[value=check]")
     page.get_by_role("button", name="Valider", exact=True).click()
-    # Deviation du brief : sans barriere liee au retour du serveur, la requete
-    # POST /api/examinations/:id/close pouvait encore etre en vol quand l'ORM lisait la
-    # base juste apres, constate par lancement reel (`Invoice.DoesNotExist` intermittent).
-    # La disparition de ce bouton est une
-    # vraie barriere d'etat : elle ne se pose qu'apres le GET de rafraichissement declenche
-    # par le callback de succes de la fermeture (`$scope.close`, `patient.js`).
+    # Deviation du brief : sans barriere liee au retour du serveur, la requete de cloture
+    # pouvait encore etre en vol quand l'ORM lisait la base juste apres, constate par
+    # lancement reel (`Invoice.DoesNotExist` intermittent). La disparition de ce bouton
+    # reste une vraie barriere d'etat : elle ne se pose qu'apres le rafraichissement du
+    # corps du dossier, declenche par la reponse de la facturation (D6e T12, C8).
     expect(page.locator("#invoiceExaminationBtn")).to_have_count(0)
 
     numeros = sorted(Invoice.objects.values_list("number", flat=True))
@@ -227,7 +222,7 @@ def test_facture_impayee_puis_reglee(
     page.goto(f"{live_server.url}/invoice/{facture.id}")
     expect(page.locator("#main")).to_contain_text("Non réglée en date de facture")
 
-    page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
+    page.goto(f"{live_server.url}/patient/{patient.id}/examination/{consultation.id}")
     page.click("#finishPaimentBtn")
     expect(page.locator("#amount")).to_have_value("55")
     page.check("input[value=check]")
@@ -280,7 +275,7 @@ def test_avoir_sur_facture_deja_emise(
     consultation = Examination.objects.get(patient=patient)
     facture_initiale = Invoice.objects.get()
 
-    page.goto(f"{live_server.url}/#/patient/{patient.id}/examination/{consultation.id}")
+    page.goto(f"{live_server.url}/patient/{patient.id}/examination/{consultation.id}")
     # Preuve de presence avant l'annulation : sans elle, l'absence verifiee plus bas ne
     # prouve rien (le lien pourrait n'avoir jamais porte ce numero).
     expect(page.locator("#cancelInvoiceBtn + span a")).to_contain_text(
@@ -290,11 +285,12 @@ def test_avoir_sur_facture_deja_emise(
     confirmer_la_modale(page)
     page.check("input[value=cash]")
     page.get_by_role("button", name="Valider", exact=True).click()
-    # Meme course que `test_annulation_et_refacturation` (POST /api/invoices/:id/cancel
-    # pouvait encore etre en vol quand l'ORM lisait la base juste apres, constate par
-    # lancement reel : `Invoice.DoesNotExist`). En facture corrective, `model.invoice_number`
-    # reste non nul avant, pendant et apres l'appel, donc `#cancelInvoiceBtn` ne
-    # disparait jamais : c'est le numero affiche a cote qui change, une vraie barriere.
+    # Meme course que `test_annulation_et_refacturation` (l'annulation pouvait encore etre
+    # en vol quand l'ORM lisait la base juste apres, constate par lancement reel :
+    # `Invoice.DoesNotExist`). En facture corrective, `Examination.last_invoice` reste non
+    # nul avant, pendant et apres l'appel — il resout a travers `canceled_by` jusqu'a la
+    # corrective — donc `#cancelInvoiceBtn` ne disparait jamais : c'est le numero affiche a
+    # cote qui change, une vraie barriere.
     expect(page.locator("#cancelInvoiceBtn + span a")).not_to_contain_text(
         facture_initiale.number
     )
@@ -308,16 +304,17 @@ def test_avoir_sur_facture_deja_emise(
 
 
 def revenir_a_la_chronologie(page: Page) -> None:
-    """Ferme le panneau de detail pour retrouver le bouton « Demarrer une consultation ».
+    """Ferme le volet de detail pour revenir a la chronologie seule.
 
-    Apres une cloture, `reloadExaminations` (patient.js) affiche le detail de la
-    consultation qui vient de se fermer a la place de la chronologie
-    (`previousExamination.data` devient non nul, `timeline.html` disparait sous son
-    `ng-if`) : `#new-examination-btn` reste hors du DOM tant que ce panneau est
-    ouvert. Le bouton « × » (`ng-click="model = null"`, examination.html) le referme
-    — meme geste que E2 (chapitre 0, « Seconde consultation, non facturée »). Ne
-    clique que si le panneau est bien ouvert : au tout premier appel d'un test, la
-    chronologie est deja affichee et ce bouton n'existe pas encore dans le DOM.
+    **Le geste reste, son enjeu tombe** (D6e T12). Avant, `reloadExaminations` remplacait
+    la chronologie par le detail de la consultation fermee : `#new-examination-btn` restait
+    hors du DOM tant que ce volet etait ouvert, et il fallait le refermer pour redemarrer
+    une consultation. Le dossier migre rend les deux — le volet **au-dessus** de la
+    chronologie — donc le bouton est toujours la. Le « × » reste un vrai lien vers l'onglet
+    « Consultations », et le refermer reste le geste que `R-CON-01` decrit.
+
+    Ne clique que si le volet est bien ouvert : au tout premier appel d'un test, la
+    chronologie est seule et ce bouton n'existe pas encore dans le DOM.
     """
     bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
     if bouton_fermer.count() > 0:
@@ -381,8 +378,9 @@ def test_numerotation_continue_sur_deux_factures(
     saisir_consultation(page)
     cloturer_consultation(page, mode="invoiced", moyen="check")
     premiere_facture = Invoice.objects.get()
-    # `reloadExaminations` (patient.js) affiche deja le detail de la consultation
-    # qui vient de se fermer : pas de navigation supplementaire pour lire son numero.
+    # Le corps du dossier, recompose apres la cloture, affiche deja le volet de la
+    # consultation qui vient de se fermer : pas de navigation supplementaire pour lire son
+    # numero.
     expect(page.locator("#page-wrapper")).to_contain_text(
         f"n° {premiere_facture.number}"
     )
@@ -455,7 +453,7 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
 
     # (b) troisieme consultation, montant a trois decimales : refuse.
     numeros_avant = set(Invoice.objects.values_list("number", flat=True))
-    page.goto(f"{live_server.url}/#/patient/{patient.id}")
+    page.goto(f"{live_server.url}/patient/{patient.id}")
     revenir_a_la_chronologie(page)
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)
@@ -466,10 +464,16 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     page.check("input[value=cash]")
     page.get_by_role("button", name="Valider", exact=True).click()
 
-    banniere = notifications_d_erreur(page)
-    expect(banniere).to_contain_text("amount :")
-    expect(banniere).to_contain_text("chiffres après la virgule")
-    expect(page.locator("#current-examination")).to_be_visible()
+    # **Le refus change de surface avec D6e T12, et il devient plus tot.** Il venait du
+    # serveur (`amount : … chiffres après la virgule`) et s'affichait en notification, parce
+    # que le champ n'avait aucune contrainte cliente : `invoice-modal.html` rendait un
+    # `<input type="text">` nu. Le champ porte desormais
+    # `pattern="[0-9]+([.][0-9]{1,2})?"` — la meme borne de deux decimales, cote navigateur
+    # cette fois (E13) — donc la soumission **ne part pas** et la modale reste ouverte sur
+    # la saisie. Ce que la fiche garde est intact : aucun numero consomme, la consultation
+    # toujours en cours, et aucune facture.
+    expect(page.get_by_test_id("corps-modale")).to_be_visible()
+    expect(page.locator("#amount")).to_have_value("55.555")
     expect(page.locator("#current-examination")).not_to_contain_text("Facture")
 
     assert set(Invoice.objects.values_list("number", flat=True)) == numeros_avant

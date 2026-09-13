@@ -85,7 +85,7 @@ officeEvent.controller('OfficeEventCtrl', ['$scope', 'growl', 'OfficeEventServ',
 ]);
 
 
-officeEvent.directive('officeevent', ['$location', 'PatientServ', 'ExaminationServ', function($location, PatientServ, ExaminationServ){
+officeEvent.directive('officeevent', ['$location', function($location){
     return {
     restrict: 'E',
     //transclude : true,
@@ -102,13 +102,16 @@ officeEvent.directive('officeevent', ['$location', 'PatientServ', 'ExaminationSe
 
         $scope.loadOfficeevent = function(officeevent)
         {
+            // D6e T12 : les deux cibles sont des documents Django, atteints par une
+            // navigation complete. `ExaminationServ` disparait avec la seconde — le
+            // serveur resout le patient derriere `/examination/<id>` (A13), la ou le
+            // client faisait un aller-retour d'API avant de naviguer. `PatientServ`
+            // etait une injection morte.
             if (officeevent.clazz === 'Patient'){
-                $location.path('/patient/'+officeevent.reference);
+                window.location.href = '/patient/' + officeevent.reference;
             } else if(officeevent.clazz === 'Examination')
             {
-                ExaminationServ.get({examinationId : officeevent.reference}, function(data){
-                  $location.path('/patient/'+data.patient+'/examination/'+officeevent.reference);
-                });
+                window.location.href = '/examination/' + officeevent.reference;
             }
         };
         $scope.show = function(selector) {

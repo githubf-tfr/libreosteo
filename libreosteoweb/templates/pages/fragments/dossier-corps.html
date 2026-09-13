@@ -1,0 +1,100 @@
+{% load i18n %}
+{# Le corps rafraichissable du dossier : la barre d'onglets **et** les cinq panneaux. #}
+{# #}
+{# **Pourquoi les onglets et les panneaux sont une seule autorite.** Une cloture, une #}
+{# facturation ou une regularisation change le **statut** d'une seance, donc quatre surfaces #}
+{# a la fois (C8) : l'entree d'onglet « Consultation en cours », son panneau, la chronologie #}
+{# et l'encart de facture. Les rafraichir une par une en hors-bande demanderait quatre #}
+{# fragments coherents entre eux a chaque chemin ; le serveur les recompose ici d'un bloc, et #}
+{# aucune ne peut rester perimee. #}
+{# #}
+{# **Le declencheur est un evenement, pas une cible.** `volet_hors_bande` #}
+{# (`pages/consultation.py`) repond `HX-Trigger-After-Swap: consultation-modifiee` : le #}
+{# volet signale qu'il a change de statut, et l'ecran qui l'heberge decide quoi recomposer. #}
+{# Le volet reste ainsi ignorant de l'ecran, ce qu'il doit etre — il est rendu deux fois dans #}
+{# ce document. #}
+{# #}
+{# **L'identifiant de la seance regardee voyage sur l'URL de rafraichissement**, posee au #}
+{# rendu **precedent** : c'est ce qui fait qu'apres une cloture le volet de la seance qu'on #}
+{# vient de fermer reste affiche, comme `reloadExaminations` le faisait. #}
+<div id="dossier-corps"
+     hx-get="{{ url_corps }}" hx-trigger="consultation-modifiee from:body"
+     hx-target="#dossier-corps" hx-swap="outerHTML">
+  {% if bascule %}
+  {# **L'etat Alpine est pose dans le meme geste que le HTML** (regle 1 du lot). La barre #}
+  {# d'onglets vient de changer sous les pieds d'Alpine : si `actif` designait un onglet qui #}
+  {# n'existe plus, aucun panneau ne s'afficherait et l'ecran serait blanc. #}
+  <div x-init="actif = '{{ onglet_actif }}'; edition = {% if consultation_ouverte %}'current-examination'{% else %}null{% endif %}" style="display: none"></div>
+  {% endif %}
+  {% include "partials/onglets.html" with actif_initial=onglet_actif avant_changement="quitterEdition()" %}
+  <div class="tab-content">
+    {# **Les identifiants d'onglet du filet sont sur la barre, pas ici** : `uib-tab` posait #}
+    {# `id` sur le `<li>`, et c'est ce `<li>` que quatre sites du filet cliquent. Les #}
+    {# panneaux portent donc `#panneau-<cle>`. #}
+    {# **Pas de classe `tab-pane`** : son `display:none` vient d'une feuille de style, #}
+    {# qu'Alpine ne sait que *retirer* et non reecrire (legs n° 1 de D6c, `dfb2473`). Les #}
+    {# quatre panneaux non initiaux portent donc `style="display: none"` en ligne, pose par #}
+    {# le serveur. #}
+    <div id="panneau-general" data-testid="onglet-infos-generales"
+         x-show="actif === 'general'"{% if onglet_actif != 'general' %} style="display: none"{% endif %}
+         hx-get="{% url 'dossier-general' patient.id %}"
+         hx-trigger="dossier-editer-general from:body"
+         hx-target="#general-corps" hx-swap="outerHTML">
+      {% include "pages/fragments/dossier-identite.html" with identite=identite %}
+    </div>
+
+    <div id="panneau-history"
+         x-show="actif === 'history'"{% if onglet_actif != 'history' %} style="display: none"{% endif %}
+         hx-get="{% url 'dossier-antecedents' patient.id %}"
+         hx-trigger="dossier-editer-history from:body"
+         hx-target="#history-corps" hx-swap="outerHTML">
+      {% include "pages/fragments/dossier-antecedents.html" with antecedents=antecedents %}
+    </div>
+
+    <div id="panneau-medicalreports"
+         x-show="actif === 'medicalreports'"{% if onglet_actif != 'medicalreports' %} style="display: none"{% endif %}
+         hx-get="{% url 'dossier-comptes-rendus' patient.id %}"
+         hx-trigger="dossier-editer-medicalreports from:body"
+         hx-target="#medicalreports-corps" hx-swap="outerHTML">
+      <div class="panel panel-primary">
+        <div class="panel-heading">{{ comptes_rendus.champ.libelle }}</div>
+        <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+          {# **La cible d'edition ne porte que le champ de texte riche.** Englober la liste #}
+          {# des vignettes la ferait detruire puis reconstruire a chaque entree en edition, #}
+          {# et `test_enregistrer_le_patient_ne_dedouble_pas_la_tuile` compte les etats #}
+          {# traverses, pas seulement l'etat final. #}
+          {% include "pages/fragments/dossier-comptes-rendus.html" with comptes_rendus=comptes_rendus %}
+          <div class="form-group">
+            <label for="addDocumentMedicalReport">{% trans 'Add document' %}</label>
+            {% include "pages/fragments/document-televersement.html" with patient=televersement.patient formulaire=televersement.formulaire choisi=televersement.choisi hors_bande=False %}
+          </div>
+          {% include "pages/fragments/documents-liste.html" with patient=documents.patient documents=documents.documents hors_bande=False %}
+        </div>
+      </div>
+    </div>
+
+    <div id="panneau-examinations"
+         x-show="actif === 'examinations'"{% if onglet_actif != 'examinations' %} style="display: none"{% endif %}
+         {% if volet_selectionne %}hx-get="{{ volet_selectionne.url_edition }}?prefixe=examinations"
+         hx-trigger="dossier-editer-examinations from:body"
+         hx-target="#examinations-volet" hx-swap="outerHTML"{% endif %}>
+      {# **Ecart assume : la chronologie ne disparait plus quand un volet est ouvert.** #}
+      {# AngularJS la remplacait (`ng-if="previousExamination.data == null"`), ce qui privait #}
+      {# l'ecran de `#new-examination-btn` juste apres une cloture — d'ou le geste #}
+      {# « fermer le volet » que trois tests devaient jouer pour redemarrer une consultation. #}
+      {# Les deux coexistent desormais ; le bouton de fermeture reste, et reste un vrai lien. #}
+      {% if volet_selectionne %}{% include "pages/fragments/consultation.html" with volet=volet_selectionne %}{% endif %}
+      {% include "pages/fragments/chronologie.html" with patient=chronologie.patient consultations=chronologie.consultations consultation_en_cours=chronologie.consultation_en_cours url_nouvelle_consultation=chronologie.url_nouvelle_consultation cible_nouvelle_consultation=chronologie.cible_nouvelle_consultation %}
+    </div>
+
+    {# **Le jumeau du `{% if %}` de la barre d'onglets** : sans lui, l'onglet pointerait vers #}
+    {# un panneau absent (A21). Le volet en cours nait **en edition**, comme #}
+    {# `examination.js` le faisait — `helpers.saisir_consultation` remplit un `<input>`. #}
+    {% if volet_en_cours %}
+    <div id="panneau-current-examination"
+         x-show="actif === 'current-examination'"{% if onglet_actif != 'current-examination' %} style="display: none"{% endif %}>
+      {% include "pages/fragments/consultation-edition.html" with volet=volet_en_cours %}
+    </div>
+    {% endif %}
+  </div>
+</div>

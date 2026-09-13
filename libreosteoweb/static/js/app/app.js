@@ -83,22 +83,10 @@ libreosteoApp.config(['$stateProvider', '$urlRouterProvider',
     function ($stateProvider, $urlRouterProvider) {
         $urlRouterProvider.otherwise('/');
 
+        // Les trois etats du dossier patient (`patient`, `patient.examinations`,
+        // `patient.examination`) sont retires par D6e T12 : le dossier est desormais un
+        // document Django servi sous `/patient/<id>`, sans `#`.
         $stateProvider.
-            state('patient',
-            {
-                url : '/patient/{patientId}',
-                templateUrl : 'web-view/partials/patient-detail',
-                controller : 'PatientCtrl'
-            }).
-            state('patient.examinations',
-            {
-                url : '/examinations',
-
-            }).
-            state('patient.examination',
-            {
-                url : '/examination/{examinationId}',
-            }).
             state('dashboard',
             {
                 url : '/',

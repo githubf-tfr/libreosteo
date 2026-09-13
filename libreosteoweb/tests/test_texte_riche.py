@@ -353,13 +353,15 @@ def _hors_balayage(nom: str) -> bool:
     )
 
 
-# Exemption close, et justifiee : `api/displays.py` declare six `ModelForm` batis sur
-# `[f.name for f in model._meta.fields if f.editable]`, donc portant les champs de texte
-# riche. Ils ne sont **jamais lies a des donnees** — `displays.py:94-136` les instancie sans
-# argument et n'en lit que `display_fields()`, c'est-a-dire les libelles, pour la coquille
-# AngularJS. Aucun `is_valid()`, aucun `cleaned_data`, donc aucun rognage possible. Ce sont
-# les derniers consommateurs de cette mecanique et D6e les retire.
-MODULES_EXEMPTES = frozenset(["libreosteoweb.api.displays"])
+# **L'exemption est vide, et c'est D6e T12 qui l'a videe.** Elle couvrait
+# `api/displays.py`, dont les `ModelForm` etaient batis sur
+# `[f.name for f in model._meta.fields if f.editable]` et portaient donc les champs de texte
+# riche sans les proteger. Ils n'etaient jamais lies a des donnees — la coquille AngularJS
+# n'en lisait que `display_fields()`, c'est-a-dire les libelles — mais l'exemption restait un
+# trou. `PatientDisplay`, `RegularDoctorDisplay` et `ExaminationDisplay` sont partis avec les
+# sept vues du dossier patient ; les deux qui restent ne portent aucun champ de texte riche.
+# `TestExemptionLeguee` est ce qui l'a signale, dans le commit meme qui l'a rendu vrai.
+MODULES_EXEMPTES: frozenset[str] = frozenset()
 
 
 def formulaires_du_produit() -> list[type[forms.ModelForm]]:
@@ -461,8 +463,8 @@ class TestCliquetDeMontage(SimpleTestCase):
 
         Ce qu'il regarde : la classe reellement montee dans `base_fields`. Ce qu'il
         laisserait passer : un formulaire qui ecrirait ces champs sans les declarer (par
-        `save(commit=False)` puis affectation directe), et les six `ModelForm` de
-        `api/displays.py`, exemptes nommement ci-dessus parce qu'ils ne sont jamais lies.
+        `save(commit=False)` puis affectation directe). **L'exemption nommee est vide depuis
+        D6e T12** : plus aucun module n'echappe a ce cliquet.
         """
         fautifs = [
             f"{formulaire.__module__}.{formulaire.__name__} : {', '.join(champs)}"
@@ -531,9 +533,10 @@ class TestExemptionLeguee(SimpleTestCase):
     """L'exemption de `MODULES_EXEMPTES` doit mourir avec sa raison d'etre.
 
     Meme patron que `test_l_exception_leguee_existe_toujours` du cliquet de compression :
-    une exemption qui survit au code qu'elle excusait est un trou muet. D6e retire
-    `api/displays.py` (T13) ; ce test rougira alors, et l'entree devra partir dans le meme
-    geste.
+    une exemption qui survit au code qu'elle excusait est un trou muet. **Il a mordu** : en
+    retirant les trois `Display` du dossier patient (D6e T12), il a rougi et l'entree est
+    partie dans le meme commit. Il boucle desormais sur un ensemble vide, et reste : la
+    prochaine exemption y sera soumise du premier jour.
     """
 
     def test_chaque_module_exempte_existe_et_serait_encore_fautif(self) -> None:

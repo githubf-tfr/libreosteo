@@ -1,0 +1,108 @@
+{% load i18n %}
+{# L'onglet « Infos generales » en **lecture**, repris de `patient-detail.html:26-209`. #}
+{# #}
+{# Les deux fragments — lecture et edition — ont **la meme racine**, `#general-corps`, pour #}
+{# qu'un `outerHTML` la remplace en entier : sur succes le formulaire disparait avec elle, #}
+{# sur refus le `<form>` de la reponse ne s'insere dans aucun autre (regle 3 du lot). #}
+<div id="general-corps" class="row">
+  <div class="col-md-8">
+    <div class="panel panel-info">
+      <div class="panel-heading">
+        {% trans 'Patient infos' %}
+        {% if identite.patient.consent %}<span class="pull-right">{% trans 'Consent given on '%}{{ identite.patient.consent|date:"d/m/Y" }}</span>{% endif %}
+      </div>
+      <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+        <div class="row">
+          <div class="col-md-12">
+            {{ identite.libelles.original_name }} :
+            <span>{{ identite.patient.original_name|default:_("not documented") }}</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-7">
+            {{ identite.libelles.birth_date }} :
+            <span>{{ identite.patient.birth_date|date:"d/m/Y"|default:_("not documented") }}</span>
+          </div>
+          <div class="col-md-5 left-bordered-col">
+            {{ identite.libelles.sex }} :
+            <span>{{ identite.patient.get_sex_display|default:_("not documented") }}</span>
+          </div>
+        </div>
+        <hr/>
+        <div class="row">
+          <div class="col-md-7">
+            <div class="row">
+              <div class="col-md-12"><span>{{ identite.patient.address_street }}&nbsp;</span></div>
+              {% if identite.patient.address_complement %}<div class="col-md-12"><span>{{ identite.patient.address_complement }}</span></div>{% endif %}
+              <div class="col-md-12">
+                <span>{{ identite.patient.address_zipcode }}</span>
+                <span>{{ identite.patient.address_city }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-5 left-bordered-col">
+            <div class="row">
+              <div class="col-md-12">
+                <span class="glyphicon glyphicon-phone-alt"></span>
+                <span>{{ identite.patient.phone|default:_("not documented") }}</span>
+              </div>
+              <div class="col-md-12">
+                <span class="glyphicon glyphicon-earphone"></span>
+                <span>{{ identite.patient.mobile_phone|default:_("not documented") }}</span>
+              </div>
+              <div class="col-md-12">
+                <span>@</span>
+                <span>{{ identite.patient.email|default:_("not documented") }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <hr/>
+        <div class="row">
+          <div class="col-md-7">
+            {{ identite.libelles.laterality }} :
+            <span>{{ identite.patient.get_laterality_display }}</span>
+          </div>
+          <div class="col-md-5 left-bordered-col">
+            <span>{% if identite.patient.smoker %}{{ identite.libelles.smoker }}{% else %}{% trans 'Not smoker' %}{% endif %}</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            {# `avec_testid` : **seul l'exemplaire du dossier** porte l'ancre du filet #}
+            {# (contrat T9). Le prefixe evite les trois `id="medecin-traitant-<pid>"` que #}
+            {# ce document porterait sinon. #}
+            {% include "pages/fragments/medecin-selecteur.html" with patient=identite.patient editable=False avec_testid=True prefixe="general-" %}
+          </div>
+        </div>
+        <hr/>
+        <div class="row">
+          <div class="col-md-7">
+            {{ identite.champs.hobbies.libelle }} :
+            {% include "pages/fragments/texte-riche.html" with nom="hobbies" valeur=identite.champs.hobbies.valeur libelle=identite.champs.hobbies.libelle editable=False %}
+          </div>
+          <div class="col-md-5 left-bordered-col">
+            {{ identite.champs.job.libelle }} :
+            {% include "pages/fragments/texte-riche.html" with nom="job" valeur=identite.champs.job.valeur libelle=identite.champs.job.libelle editable=False %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="panel panel-danger inner-spaced">
+      <div class="panel-heading">{{ identite.champs.important_info.libelle }}</div>
+      <div class="panel-body row">
+        {% include "pages/fragments/texte-riche.html" with nom="important_info" valeur=identite.champs.important_info.valeur libelle=identite.champs.important_info.libelle editable=False %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="panel panel-info inner-spaced">
+      <div class="panel-heading">{{ identite.champs.current_treatment.libelle }}</div>
+      <div class="panel-body row">
+        {% include "pages/fragments/texte-riche.html" with nom="current_treatment" valeur=identite.champs.current_treatment.valeur libelle=identite.champs.current_treatment.libelle editable=False %}
+      </div>
+    </div>
+  </div>
+</div>

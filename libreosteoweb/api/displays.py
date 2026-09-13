@@ -50,24 +50,6 @@ class GenericDisplay(ModelForm):
         )
 
 
-class PatientDisplay(GenericDisplay):
-    class Meta:
-        model = models.Patient
-        fields = [f.name for f in model._meta.fields if f.editable]
-
-
-class RegularDoctorDisplay(GenericDisplay):
-    class Meta:
-        model = models.RegularDoctor
-        fields = [f.name for f in model._meta.fields if f.editable]
-
-
-class ExaminationDisplay(GenericDisplay):
-    class Meta:
-        model = models.Examination
-        fields = [f.name for f in model._meta.fields if f.editable]
-
-
 class UserDisplay(GenericDisplay):
     class Meta:
         model = get_user_model()
@@ -90,57 +72,6 @@ def display_index(request):
     return render(request, "index.html", {"request": request})
 
 
-def display_patient(request):
-    display = PatientDisplay()
-    displayExamination = ExaminationDisplay()
-    return render(
-        request,
-        "partials/patient-detail.html",
-        {
-            "patient": display.display_fields(),
-            "examination": displayExamination.display_fields(),
-        },
-    )
-
-
-def display_doctor(request):
-    display = RegularDoctorDisplay()
-    return render(
-        request, "partials/doctor-modal-add.html", {"doctor": display.display_fields()}
-    )
-
-
-def select_doctor(request):
-    display = RegularDoctorDisplay()
-    return render(
-        request, "partials/doctor-selector.html", {"doctor": display.display_fields()}
-    )
-
-
-def display_examination_timeline(request):
-    display = ExaminationDisplay()
-    return render(
-        request, "partials/timeline.html", {"examination": display.display_fields()}
-    )
-
-
-def display_examination(request):
-    displayExamination = ExaminationDisplay()
-    displayPatient = PatientDisplay()
-    therapeut_settings, _ = models.TherapeutSettings.objects.get_or_create(
-        user=request.user
-    )
-    return render(
-        request,
-        "partials/examination.html",
-        {
-            "examination": displayExamination.display_fields(),
-            "patient": displayPatient.display_fields(),
-            "therapeutsettings": therapeut_settings,
-        },
-    )
-
-
 def display_dashboard(request):
     therapeut_settings, _ = models.TherapeutSettings.objects.get_or_create(
         user=request.user
@@ -156,22 +87,6 @@ def display_dashboard(request):
 
 def display_officeevent(request):
     return render(request, "partials/officeevent.html", {})
-
-
-def display_invoicing(request):
-    return render(request, "partials/invoice-modal.html", {})
-
-
-def display_send_invoice(request):
-    return render(request, "partials/invoice-send-modal.html", {})
-
-
-def display_file_manager(request):
-    return render(request, "partials/filemanager.html", {"request": request})
-
-
-def display_confirmation(request):
-    return render(request, "partials/confirmation.html")
 
 
 @never_cache

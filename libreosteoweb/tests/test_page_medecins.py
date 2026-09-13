@@ -36,7 +36,10 @@ from django.template.loader import render_to_string
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from libreosteoweb.api.views.pages.medecins import FormulaireMedecin
+from libreosteoweb.api.views.pages.medecins import (
+    FormulaireMedecin,
+    contexte_selecteur,
+)
 from libreosteoweb.models import Patient, RegularDoctor
 
 from .fixtures import (
@@ -211,6 +214,31 @@ class TestFragmentDEdition(SocleConnecte):
 
         self.assertNotIn('id="medecin-traitant-', corps)
         self.assertIn('id="selecteur-medecin-%d"' % self.patient.id, corps)
+
+    def test_la_selection_prime_sur_le_medecin_en_base(self) -> None:
+        """La clef `selection` **seule**, isolee de tout formulaire (D6e T12).
+
+        Le `<select name="doctor">` est une seconde autorite pour le champ `doctor` du
+        formulaire qui l'englobe : tirer l'option cochee de `patient.doctor_id` ramenerait,
+        sur un chemin de refus, le medecin enregistre a la place de celui que le praticien
+        venait de choisir — en silence. `contexte_selecteur` pose `patient.doctor_id` par
+        defaut ; un appelant qui rend un formulaire **lie** y met la valeur postee.
+
+        Ce que ce test regarde : que `selection` l'emporte, sans qu'aucun formulaire ne soit
+        dans le tableau. C'est la seule preuve qui isole cette clef — dans une vue reelle,
+        `_post_clean` applique deja la saisie sur l'instance, si bien que les deux lectures
+        disent la meme chose et qu'aucune ne se distingue de l'autre.
+        """
+        garde = RegularDoctor.objects.create(family_name="Lefevre", city="Limoges")
+        neuf = RegularDoctor.objects.create(family_name="Girard", city="Limoges")
+        with sans_receivers():
+            patient = cree_patient(family_name="Sisko", doctor=garde)
+
+        html = render_to_string(
+            "pages/fragments/medecin-selecteur-edition.html",
+            contexte_selecteur(patient, selection=neuf.id),
+        )
+        self.assertEqual(_valeur_selectionnee(html), str(neuf.id))
 
     def test_le_bouton_d_ajout_garde_le_titre_que_le_filet_clique(self) -> None:
         """Ce que ce test regarde : `button[title='Ajouter un médecin']`, l'ancre que

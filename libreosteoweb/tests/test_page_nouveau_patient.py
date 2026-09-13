@@ -142,7 +142,7 @@ class TestDocument(SocleConnecte):
 
 class TestCreation(SocleConnecte):
     def test_la_creation_repond_204_et_redirige_vers_le_dossier(self):
-        """T8-D2 : `/#/patient/<id>` tant que le dossier n'est pas migre (T12 la change).
+        """Depuis D6e T12, le dossier est un document Django : la redirection perd son `#`.
 
         Ce que ce test regarde : le code de reponse, l'en-tete `HX-Redirect`, la ligne
         ecrite en base et la date de consentement. Ce qu'il laisserait passer : ce que la
@@ -151,7 +151,9 @@ class TestCreation(SocleConnecte):
         reponse = self.client.post(self.url, CHARGE_UTILE)
         self.assertEqual(reponse.status_code, 204)
         patient = Patient.objects.get(family_name="Picard")
-        self.assertEqual(reponse["HX-Redirect"], "/#/patient/%d" % patient.id)
+        self.assertEqual(
+            reponse["HX-Redirect"], reverse("dossier-patient", args=[patient.id])
+        )
         self.assertEqual(patient.first_name, "Jean-Luc")
         self.assertEqual(patient.birth_date, date(1935, 7, 13))
         self.assertEqual(patient.consent, date.today())
@@ -433,7 +435,9 @@ class TestModaleDHomonyme(SocleConnecte):
         self.assertEqual(reponse.status_code, 204)
         self.assertEqual(Patient.objects.filter(family_name="Picard").count(), 2)
         nouveau = Patient.objects.get(birth_date=date(1980, 1, 1))
-        self.assertEqual(reponse["HX-Redirect"], "/#/patient/%d" % nouveau.id)
+        self.assertEqual(
+            reponse["HX-Redirect"], reverse("dossier-patient", args=[nouveau.id])
+        )
 
     def test_une_charge_html_dans_un_nom_d_homonyme_ressort_litterale(self):
         """Les noms d'homonymes sont du **texte**, jamais du HTML concatene.

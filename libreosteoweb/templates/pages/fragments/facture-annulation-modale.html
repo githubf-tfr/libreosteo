@@ -1,0 +1,16 @@
+{% load i18n %}
+{# Le corps de la modale d'annulation de facture, repris de `examination.js:231-237`. #}
+{# #}
+{# **Corps court, ecrit ici** : c'est la septieme et derniere modale du lot, et la seule que #}
+{# T10 avait laissee sans cible (`#cancelInvoiceBtn` etait rendu mais inerte). Le message #}
+{# est du **texte**, rendu par Django : `bind-html-compile` et `$sce.trustAsHtml` #}
+{# disparaissent avec lui, et l'echappement devient structurel. #}
+{# #}
+{# `etape=confirme` distingue les deux soumissions de la **meme** URL : celle-ci, et celle de #}
+{# la modale de facturation qui lui succede en mode « facture corrective ». #}
+<form id="formulaire-annulation-facture" hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  <input type="hidden" name="etape" value="confirme">
+  <input type="hidden" name="prefixe" value="{{ prefixe }}">
+  <p>{% trans 'Are you sure to cancel this invoice ?' %}</p>
+</form>

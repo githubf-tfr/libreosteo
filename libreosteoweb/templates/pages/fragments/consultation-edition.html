@@ -15,12 +15,29 @@
 {# survivait en enveloppe orpheline autour du volet en lecture, et sur refus la reponse — #}
 {# un `<form>` complet — s'inserait dans le `<form>` existant. Les deux fragments ont donc #}
 {# **la meme racine**, `#…-volet`, et l'echange la remplace en entier. #}
-<div id="{{ volet.prefixe }}-volet"
+{# **`data-edition-en-cours` et `x-init`** (D6e T12) : le premier arme la garde #}
+{# `beforeunload` du dossier, le second repose l'etat Alpine `edition` que « Fin d'edition » #}
+{# vient de remettre a `null` — sur un refus 422, le bandeau doit redire « Fin d'edition » #}
+{# plutot que de laisser croire que l'enregistrement a abouti (regle 1 du lot). Le prefixe #}
+{# **est** la clef d'onglet du dossier (`examinations`, `current-examination`). #}
+{# `hx-trigger` ajoute l'evenement du bandeau d'actions, qui vit hors de ce formulaire et ne #}
+{# peut donc pas le viser par un attribut `form=`. #}
+<div id="{{ volet.prefixe }}-volet" data-edition-en-cours
+     x-init="edition = '{{ volet.prefixe }}'"
      data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
-  <form id="{{ volet.prefixe }}-formulaire"
+  {# **`class="row"` sur le formulaire, et ce n'est pas de la decoration** (D6e T12) : ses #}
+  {# deux seuls enfants sont des `col-md-*`, donc **flottants**, et un parent dont tous les #}
+  {# enfants flottent a une hauteur nulle. Le volet en edition etait alors « invisible » au #}
+  {# sens de Playwright — `:visible` exige une boite non vide — alors qu'il s'affichait #}
+  {# parfaitement a l'oeil, par debordement. Trois tests scopent sur #}
+  {# `[data-testid="consultation-anterieure"]:visible` et n'auraient jamais resolu leur #}
+  {# cible. `.row` porte le clearfix de Bootstrap 3 : aucune classe n'est retiree, une seule #}
+  {# est ajoutee, et c'est celle que le fragment de lecture emploie deja au meme etage. #}
+  <form id="{{ volet.prefixe }}-formulaire" class="row"
         hx-post="{{ volet.url_edition }}"
         hx-target="#{{ volet.prefixe }}-volet"
-        hx-swap="outerHTML">
+        hx-swap="outerHTML"
+        hx-trigger="submit, dossier-fin-edition from:body">
     {% csrf_token %}
     {# Le prefixe voyage avec la charge : la reponse de refus doit re-rendre **ce** volet. #}
     <input type="hidden" name="prefixe" value="{{ volet.prefixe }}">
@@ -115,6 +132,18 @@
       <div class="row">
         <div class="col-md-8"></div>
         <div class="col-md-4">
+          {# **`#close-examination` existe aussi en edition, et c'est un second soumetteur** #}
+          {# (D6e T12). `helpers.cloturer_consultation` le clique juste apres avoir saisi le #}
+          {# motif et l'examen, et `test_consultation_non_facturee` relit ces deux valeurs #}
+          {# en base apres la cloture : la saisie doit donc etre enregistree **avant** que #}
+          {# la modale ne s'ouvre. Le bouton poste donc le formulaire avec `puis=cloture`, #}
+          {# et la vue rend le volet en lecture **plus** la modale hors-bande. Enchainer #}
+          {# deux requetes cote client aurait laisse une fenetre ou la modale s'ouvre sur #}
+          {# une saisie non encore ecrite. #}
+          {% if volet.consultation.status < 1 %}
+          <button type="submit" id="close-examination" name="puis" value="cloture"
+                  class="btn btn-success pull-right">{% trans 'Close' %}</button>
+          {% endif %}
           <button type="submit" class="btn btn-primary pull-right">{% trans "End of edition" %}</button>
         </div>
       </div>
@@ -161,7 +190,7 @@
               <hr />
               <div class="row">
                 <div class="col-md-12">
-                  {% include "pages/fragments/medecin-selecteur.html" with patient=volet.patient medecins=volet.medecins editable=True %}
+                  {% include "pages/fragments/medecin-selecteur.html" with patient=volet.patient medecins=volet.medecins editable=True selection=volet.selection_medecin prefixe=volet.prefixe|add:"-" %}
                 </div>
               </div>
             </div>

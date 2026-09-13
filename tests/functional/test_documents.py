@@ -28,9 +28,11 @@ def test_joindre_un_document(page: Page, live_server: LiveServer) -> None:
         page, CHEMIN_DOCUMENT, "Radiographie lombaire", "01/01/2024", "Premier document"
     )
     # Un second `set_input_files` sur le meme chemin ne redeclenche pas l'evenement
-    # `change` du champ (constate empiriquement) : `fillInfoFiles` (patient.js) n'est
-    # jamais rappele, et le formulaire d'envoi du second document n'apparait pas.
-    # Un second fichier de ressource, deja present, l'evite sans en ajouter un neuf.
+    # `change` du champ (constate empiriquement) : le bloc de saisie ne se rouvre pas, et
+    # le formulaire d'envoi du second document n'apparait pas. Le rafraichissement
+    # hors-bande de D6e T11 remplace bien le champ par un element neuf, ce qui rendrait le
+    # meme chemin utilisable ; le second fichier de ressource reste employe **deliberement**
+    # — le simplifier serait un changement a justifier, pas un effet de bord.
     joindre_document(
         page,
         "tests/functional/resources/examinations_1.csv",
@@ -41,8 +43,9 @@ def test_joindre_un_document(page: Page, live_server: LiveServer) -> None:
 
     titres = page.locator("li.documenttile .document_title")
     expect(titres).to_have_count(2)
-    # Classement par date decroissante (ng-repeat, patient-detail.html) : le document le
-    # plus recent (15/03/2024) precede le plus ancien (01/01/2024).
+    # Classement par date decroissante, decide par la vue (`documents_de`, `-document_date`)
+    # et non par le gabarit : le document le plus recent (15/03/2024) precede le plus ancien
+    # (01/01/2024).
     expect(titres.nth(0)).to_have_text("Compte-rendu radio")
     expect(titres.nth(1)).to_have_text("Radiographie lombaire")
 
@@ -96,8 +99,17 @@ def test_supprimer_un_document(page: Page, live_server: LiveServer) -> None:
         "Êtes-vous sûr(e) de supprimer ce document ?"
     )
     confirmer_la_modale(page)
-    # Disparait sans rechargement (mise a jour du $scope par le callback de succes).
+    # Disparait sans rechargement : la reponse de la suppression n'a pas de corps principal
+    # — `#modale` recoit du vide et la modale se referme — et la liste revient hors-bande.
     expect(page.locator("li.documenttile")).to_have_count(0)
+    # **La modale se referme vraiment, et la page redefile.** Sans cette mesure, la fuite
+    # que T8 a fermee reviendrait sans que rien ne la voie : le `page.reload()` ci-dessous
+    # l'effacerait (trou releve par la revue T11). La mesure porte sur le **style calcule**
+    # et jamais sur la classe : le cliquet d'adressage interdit d'adresser une classe de
+    # presentation, et ce qui est en cause est le comportement — une page qui ne defile
+    # plus — non le nom de la classe qui le provoque. Meme idiome que
+    # `test_socle_composants.DEFILEMENT_BLOQUE`.
+    assert page.evaluate("() => getComputedStyle(document.body).overflow") != "hidden"
 
     page.reload()
     page.click("#medicalreports")
@@ -124,20 +136,26 @@ def test_enregistrer_le_patient_ne_dedouble_pas_la_tuile(
 ) -> None:
     """La liste des documents n'est ni videe ni dedoublee par un enregistrement.
 
-    Le rappel de succes de `savePatient()` (`static/js/app/patient.js`) substitue la
-    reponse du PUT a `$scope.patient`, puis recharge les documents. Entre les deux,
-    `patient.medicalReportsDoc` n'existe plus : le `ng-repeat` de `patient-detail.html`
-    detruit sa tuile, ngAnimate la conserve 500 ms en `ng-leave` (libreosteo.css) et la
-    tuile rechargee entre a cote d'elle — deux `li.documenttile`, donc deux
-    `.document_title`, pour un seul document.
+    Le rappel de succes de `savePatient()` (`static/js/app/patient.js`) substituait la
+    reponse du PUT a `$scope.patient`, puis rechargeait les documents. Entre les deux,
+    `patient.medicalReportsDoc` n'existait plus : le `ng-repeat` detruisait sa tuile,
+    ngAnimate la conservait 500 ms en `ng-leave` (libreosteo.css) et la tuile rechargee
+    entrait a cote d'elle — deux `li.documenttile`, donc deux `.document_title`, pour un
+    seul document.
+
+    **Ce que ce test garde apres D6e T12** : que l'enregistrement du panneau « Comptes
+    rendus » ne traverse jamais un etat sans tuile ni un etat a deux tuiles. La cible
+    d'edition ne porte que le champ de texte riche, et la liste revient en **une seule**
+    reecriture hors-bande : il n'existe plus d'instant ou elle est detruite puis
+    reconstruite. L'observateur reste la mesure, et elle est exactement la meme.
 
     Le compteur est un observateur de mutations et non un echantillonnage : il voit
     **tous** les etats traverses, y compris ceux qui ne durent qu'un rendu.
 
     La barriere de fin est le titre relu : renomme en base pendant que la page l'ignore,
-    il ne peut s'afficher qu'une fois la liste rechargee par le rappel de succes de
-    l'enregistrement. Elle est donc franchie dans les deux arbres, avec et sans
-    correctif, et elle est posterieure a la destruction comme a la recreation.
+    il ne peut s'afficher qu'une fois la liste rafraichie par la reponse de
+    l'enregistrement. Elle est donc franchie dans les deux arbres, avec et sans correctif,
+    et elle est posterieure a la destruction comme a la recreation.
     """
     connexion(page, live_server)
     creer_patient(page)

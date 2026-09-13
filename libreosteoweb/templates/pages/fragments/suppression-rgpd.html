@@ -1,0 +1,23 @@
+{% load i18n %}
+{# Le corps de la modale de suppression RGPD, repris de `patient.js:609-628` a l'octet. #}
+{# #}
+{# **Les deux chaines passent du domaine `djangojs` au domaine `django`** (D6e T12) : #}
+{# `patient.js` les composait par concatenation puis les passait a `$sce.trustAsHtml`, et un #}
+{# `{% trans %}` de gabarit ne lit que le domaine `django`. Les traductions sont reprises a #}
+{# l'octet ; l'entree de `djangojs.po` reste, `patient.js` servant jusqu'a T13. Le message #}
+{# est desormais du **texte** : l'echappement est structurel. #}
+{# #}
+{# **La case conditionne le bouton Ok** (E10), et l'etat initial d'Alpine dit la meme chose #}
+{# que l'attribut rendu : `#modal-btn-ok` nait `disabled`, et `accepte` nait faux. C'est la #}
+{# regle que la casse A de T10 a payee — un attribut pose par le serveur sans son etat #}
+{# Alpine correspondant rend l'ecran inutilisable au premier rendu, sans que rien ne le #}
+{# rattrape. `#agreeGdpr` et `#modal-btn-ok` sont deux ancres du filet #}
+{# (`test_patient.py:759-762`). #}
+<form id="formulaire-suppression-dossier" hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML">
+  {% csrf_token %}
+  <p>{% trans "For GDPR conformity, patient can ask to delete all information. This function delete all information without trace except invoices. You can find invoices into Accounting function. Are you agree with that ?" %}</p>
+  <div>
+    <input type="checkbox" id="agreeGdpr" name="agreeGdpr" x-model="accepte">
+    <label for="agreeGdpr">{% trans 'I understand that it means' %}</label>
+  </div>
+</form>

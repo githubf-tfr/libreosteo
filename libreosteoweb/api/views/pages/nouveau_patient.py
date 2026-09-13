@@ -50,6 +50,7 @@ from django.db import IntegrityError, transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -273,9 +274,8 @@ def page_nouveau_patient(request: HttpRequest) -> HttpResponse:
         return _refus(request, formulaire)
 
     reponse = HttpResponse(status=204)
-    # **`/#/patient/<id>` et non `/patient/<id>`** : le dossier n'est migre qu'a T12
-    # (T8-D2). C'est T12 qui change cette ligne, dans le commit qui migre l'ecran cible.
-    reponse["HX-Redirect"] = "/#/patient/%d" % patient.id
+    # Le dossier est un document Django depuis T12 : la redirection perd son `#`.
+    reponse["HX-Redirect"] = reverse("dossier-patient", args=[patient.id])
     return reponse
 
 

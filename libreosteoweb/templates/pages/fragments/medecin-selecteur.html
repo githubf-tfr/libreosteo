@@ -4,10 +4,15 @@
 {# `examination.html:313` porte son propre selecteur, et `test_medecins.py:41` documente #}
 {# que seul celui de la fiche patient porte ce testid. Le parametre `avec_testid` le #}
 {# gouverne, et l'appelant decide. #}
+{# **`prefixe` est obligatoire des qu'un document rend la ligne plus d'une fois** (D6e T12). #}
+{# Le dossier patient porte `#general`, `#examinations` et `#current-examination` dans le #}
+{# meme document, et les trois incluent ce fragment : sans prefixe, trois elements #}
+{# porteraient `id="medecin-traitant-<pid>"`. Il vaut la chaine vide par defaut, ce qui rend #}
+{# l'identifiant d'origine aux appelants qui n'en rendent qu'un. #}
 {# Cette ligne n'est **jamais** la cible d'un echange hors-bande : elle appartient a l'ecran #}
 {# qui l'inclut, qui seul sait s'il doit poser l'ancre. C'est le `<span>` interieur du #}
 {# fragment d'edition qui se rafraichit (une seule autorite par element, C8). #}
-<div id="medecin-traitant-{{ patient.id }}"{% if avec_testid %} data-testid="ligne-medecin-traitant"{% endif %}>
+<div id="{{ prefixe }}medecin-traitant-{{ patient.id }}"{% if avec_testid %} data-testid="ligne-medecin-traitant"{% endif %}>
   {% trans 'Regular doctor' %} :
   {% if editable %}{% include "pages/fragments/medecin-selecteur-edition.html" %}
   {# `RegularDoctor.city` est `blank=True` : un medecin sans ville affichait « Lefevre - » #}

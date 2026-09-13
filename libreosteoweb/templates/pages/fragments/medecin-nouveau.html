@@ -6,6 +6,8 @@
 <form id="formulaire-medecin" hx-post="{% url 'medecin-nouveau' %}" hx-target="#modale" hx-swap="innerHTML">
   {% csrf_token %}
   <input type="hidden" name="patient" value="{{ patient.id }}">
+  {# Le prefixe du selecteur appelant, pour que l'echange hors-bande vise le bon (D6e T12). #}
+  <input type="hidden" name="prefixe" value="{{ prefixe }}">
   {% for champ in formulaire %}
   <div class="form-group">
     <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>

@@ -1,0 +1,17 @@
+{% load i18n %}
+{# Le titre du dossier (D6e, T12), reproduit de `patient-detail.html:17-22`. #}
+{# #}
+{# **Surface hors-bande n° 1 des cinq de C8** : le nom de naissance, l'age et la profession #}
+{# sont ecrits par le panneau « Infos generales », et c'est **exactement** la surface que le #}
+{# maillon 4 effacait. Le fragment reste fille directe de la reponse, sans quoi htmx ne #}
+{# l'extrait pas. #}
+{# #}
+{# **Les deux noms sont modifiables hors mode edition et ne s'ouvrent pas pendant l'edition** #}
+{# — l'acquis de D8, que sept tests de `test_patient.py` gardent et que `R-PAT-08` decrit en #}
+{# dix etapes. C'est `pages/fragments/dossier-titre-cellule.html` qui le porte. #}
+<h1 class="page-header" id="dossier-titre" data-testid="titre-patient"{% if hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
+  {% include "pages/fragments/dossier-titre-cellule.html" with patient=patient champ="family_name" edition=False %}
+  {% if patient.original_name %}<span>({{ patient.original_name }})</span>{% endif %}
+  {% include "pages/fragments/dossier-titre-cellule.html" with patient=patient champ="first_name" edition=False %}
+  {% if age or profession %}<small>{% if profession %}{{ profession }}, {% endif %}{{ age }}</small>{% endif %}
+</h1>

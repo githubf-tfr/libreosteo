@@ -1,0 +1,120 @@
+{% load i18n %}
+{# L'onglet « Infos generales » en **edition**. Meme racine que le fragment de lecture. #}
+{# #}
+{# **`data-edition-en-cours`** arme la garde `beforeunload` du document (A11) : elle ne #}
+{# demande confirmation que s'il y a vraiment un formulaire ouvert. #}
+{# **`x-init="edition = 'general'"`** repose l'etat Alpine que « Fin d'edition » vient de #}
+{# remettre a `null` : sur un refus 422, le bandeau doit redire « Fin d'edition » plutot que #}
+{# de laisser croire que l'enregistrement a abouti (regle 1 du lot). #}
+{# #}
+{# **Les quatre alias de `name` sont rendus par `add_prefix()`**, pas ecrits ici : #}
+{# `input[name=street]`, `[name=zipcode]`, `[name=city]` et `[name=mobile]` sont des ancres #}
+{# du filet conservees a l'octet (A16). #}
+<div id="general-corps" class="row" data-edition-en-cours x-init="edition = 'general'">
+  <form id="general-formulaire"
+        hx-post="{{ identite.url_enregistrement }}"
+        hx-target="#general-corps" hx-swap="outerHTML"
+        hx-trigger="submit, dossier-fin-edition from:body">
+    {% csrf_token %}
+    <div class="col-md-8">
+      <div class="panel panel-info">
+        <div class="panel-heading">
+          {% trans 'Patient infos' %}
+          {% if identite.patient.consent %}<span class="pull-right">{% trans 'Consent given on '%}{{ identite.patient.consent|date:"d/m/Y" }}</span>{% endif %}
+        </div>
+        <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+          {% if identite.formulaire.non_field_errors %}
+          <div class="alert alert-danger" role="alert">{{ identite.formulaire.non_field_errors }}</div>
+          {% endif %}
+          <div class="row">
+            <div class="col-md-12">
+              {{ identite.libelles.original_name }} :
+              {{ identite.formulaire.original_name }}{{ identite.formulaire.original_name.errors }}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-7">
+              {{ identite.libelles.birth_date }} :
+              {{ identite.formulaire.birth_date }}{{ identite.formulaire.birth_date.errors }}
+            </div>
+            <div class="col-md-5 left-bordered-col">
+              {{ identite.libelles.sex }} :
+              {{ identite.formulaire.sex }}
+            </div>
+          </div>
+          <hr/>
+          <div class="row">
+            <div class="col-md-7">
+              <div class="row">
+                <div class="col-md-12">{{ identite.formulaire.address_street }}</div>
+                <div class="col-md-12">{{ identite.formulaire.address_complement }}</div>
+                <div class="col-md-12">
+                  {% include "pages/fragments/dossier-code-postal.html" with zipcode=identite.formulaire.address_zipcode.value city=identite.formulaire.address_city.value hors_bande=False completion_code_postal=identite.completion_code_postal url_suggestions=identite.url_suggestions %}
+                  <ul id="suggestions-code-postal" class="list-unstyled"></ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-5 left-bordered-col">
+              <div class="row">
+                <div class="col-md-12">
+                  <span class="glyphicon glyphicon-phone-alt"></span>
+                  {{ identite.formulaire.phone }}
+                </div>
+                <div class="col-md-12">
+                  <span class="glyphicon glyphicon-earphone"></span>
+                  {{ identite.formulaire.mobile_phone }}
+                </div>
+                <div class="col-md-12">
+                  <span>@</span>
+                  {{ identite.formulaire.email }}{{ identite.formulaire.email.errors }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <hr/>
+          <div class="row">
+            <div class="col-md-7">
+              {{ identite.libelles.laterality }} :
+              {{ identite.formulaire.laterality }}
+            </div>
+            <div class="col-md-5 left-bordered-col">
+              <label>{{ identite.formulaire.smoker }} {{ identite.libelles.smoker }}</label>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-12">
+              {% include "pages/fragments/medecin-selecteur.html" with patient=identite.patient medecins=identite.medecins editable=True avec_testid=True prefixe="general-" selection=identite.formulaire.doctor.value %}
+            </div>
+          </div>
+          <hr/>
+          <div class="row">
+            <div class="col-md-7">
+              {{ identite.champs.hobbies.libelle }} :
+              {% include "pages/fragments/texte-riche.html" with nom="hobbies" valeur=identite.champs.hobbies.valeur libelle=identite.champs.hobbies.libelle editable=True %}
+            </div>
+            <div class="col-md-5 left-bordered-col">
+              {{ identite.champs.job.libelle }} :
+              {% include "pages/fragments/texte-riche.html" with nom="job" valeur=identite.champs.job.valeur libelle=identite.champs.job.libelle editable=True %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-danger inner-spaced">
+        <div class="panel-heading">{{ identite.champs.important_info.libelle }}</div>
+        <div class="panel-body row">
+          {% include "pages/fragments/texte-riche.html" with nom="important_info" valeur=identite.champs.important_info.valeur libelle=identite.champs.important_info.libelle editable=True %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-info inner-spaced">
+        <div class="panel-heading">{{ identite.champs.current_treatment.libelle }}</div>
+        <div class="panel-body row">
+          {% include "pages/fragments/texte-riche.html" with nom="current_treatment" valeur=identite.champs.current_treatment.valeur libelle=identite.champs.current_treatment.libelle editable=True %}
+        </div>
+      </div>
+    </div>
+  </form>
+</div>

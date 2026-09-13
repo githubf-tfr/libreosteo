@@ -6,9 +6,7 @@
             {% for result in page.object_list %}
                 <div class="search-entry">
                 <h4>
-                    {# Absolu : depuis un autre document, un fragment relatif ne quitte pas #}
-                    {# la page. Reste `/#/patient/<id>` tant que D6e n'a pas migre la fiche. #}
-                    <a class="" href="/#/patient/{{ result.object.id }}">{{ result.object.family_name }} {{ result.object.first_name }}</a>
+                    <a class="" href="{% url 'dossier-patient' result.object.id %}">{{ result.object.family_name }} {{ result.object.first_name }}</a>
                 </h4>
                 <p class="extract"><span>{% highlight result.text with query max_length 80 %}</span></p>
                 </div>

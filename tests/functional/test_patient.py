@@ -50,7 +50,7 @@ def test_creation_patient_et_refus_du_doublon(
     # `consent_check` n'existe que cote serialiseur/Angular (PatientSerializer.to_representation
     # calcule `consent_check = bool(consent)`) ; le modele ORM ne porte que la date `consent`.
     assert patient.consent is not None
-    expect(page).to_have_url(f"{live_server.url}/#/patient/{patient.id}")
+    expect(page).to_have_url(f"{live_server.url}/patient/{patient.id}")
 
     # Le meme patient une seconde fois : l'application refuse et l'explique.
     page.click("a:has-text('Nouveau patient')")
@@ -220,11 +220,12 @@ def test_edition_du_dossier_patient(
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
 
-    page.goto(f"{live_server.url}/#/patient/{patient.id}")
+    page.goto(f"{live_server.url}/patient/{patient.id}")
 
     # Informations generales : les boutons disent dans quel mode on est.
-    # Ces champs n'ont pas d'id : angular-xeditable pose un attribut `name` (celui de
-    # `e-name`), jamais d'`id`, sur l'`<input>`/`<select>` de saisie (patient-detail.html).
+    # Les quatre alias `street`, `zipcode`, `city` et `mobile` sont conserves a l'octet par
+    # `dossier_patient.ALIAS_DE_NOM` : ce sont les `e-name` d'`angular-xeditable`, et le
+    # filet les adresse depuis D6b (D6e, table des ancres).
     # `exact=True` est impossible sur ce libelle : Playwright fait entrer le contenu des
     # pseudo-elements dans le nom accessible, et l'icone Font Awesome qui precede le
     # texte (`<i class="fa fa-edit">` / `<i class="fa fa-thumbs-o-up">`, index.html) y ajoute sa glyphe de la zone privee Unicode. Le nom
@@ -276,16 +277,16 @@ def test_edition_du_dossier_patient(
     )
     expect(page.get_by_role("button", name="Éditer")).to_be_visible()
 
-    # Antecedents (memes champs de texte riche reperes par `name`). Le changement
-    # d'onglet declenche ici aussi une sauvegarde implicite (save-on-lost-focus) : les
-    # `div[hallo-editor]` des informations generales restent dans le DOM apres la
-    # fermeture du formulaire (contrairement aux `input` xeditable, que `$hide` retire),
-    # `.ng-dirty` y reste donc vrai, et `uiTabChange` (diffuse par le clic sur #history)
-    # declenche un `$save()` dont le succes appelle `onaftersave` sans garde sur
-    # `$visible`. Mesure directe (D8 T2, `enregistrements_patient_observes`) : ce clic
-    # emet 1 PUT /api/patients/:id. Meme course que celle deja barree quatre lignes plus
-    # bas sur #medicalreports, meme barriere.
-    attendre_enregistrement_patient(page, patient.id, lambda: page.click("#history"))
+    # Antecedents (memes champs de texte riche reperes par `name`).
+    #
+    # **Ce clic n'emet plus rien, et c'est un defaut qui tombe** (D6e T12). Le panneau
+    # « Infos generales » vient d'etre enregistre et referme par « Fin d'edition » : il n'y
+    # a plus rien a sauver. AngularJS en emettait pourtant un second — les `div[hallo-editor]`
+    # restaient dans le DOM apres la fermeture du formulaire, `.ng-dirty` y restait vrai, et
+    # `uiTabChange` declenchait un `$save()` dont le succes appelait `onaftersave` **sans
+    # garde sur `$visible`**. Mesure de D8 T2 : 1 PUT parasite. Le mecanisme qui le portait
+    # a disparu, la barriere qui l'attendait aussi.
+    page.click("#history")
     page.get_by_role("button", name="Éditer").click()
     remplir_champ_de_texte_riche(
         page, page.locator("div[name=surgical_history]"), "Surgical history"
@@ -301,7 +302,7 @@ def test_edition_du_dossier_patient(
     )
 
     # Comptes rendus et piece jointe. Le changement d'onglet declenche la sauvegarde
-    # implicite des antecedents (save-on-lost-focus) : meme course que ci-dessus.
+    # implicite des antecedents (AR5) : meme mecanisme que ci-dessus.
     attendre_enregistrement_patient(
         page, patient.id, lambda: page.click("#medicalreports")
     )
@@ -315,18 +316,14 @@ def test_edition_du_dossier_patient(
         lambda: page.get_by_role("button", name="Fin d'édition").click(),
     )
     page.set_input_files("#addDocumentMedicalReport", CHEMIN_DOCUMENT)
-    expect(page.locator("div.document_create")).to_contain_text("patients_1.csv")
+    expect(page.locator("div.document_create")).to_be_visible()
     page.fill("input[placeholder*='Titre']", "Licence LibreOsteo")
-    # Le champ de date (filemanager.html) est remplace par le widget webshim configure
-    # dans static/js/app/app.js (webshim.setOptions('forms-ext', {replaceUI: 'auto',
-    # types: 'date', ...})), qui lit desormais la locale du document (index.html,
-    # <html lang>) : ordre francais JJ/MM/AAAA. "10/01/2012" donne le 10 janvier 2012
-    # (assertion plus bas), pas le 1er octobre.
-    page.fill("input[placeholder*='Date']:visible", "10/01/2012")
-    # Champ de texte riche sans attribut `name` (filemanager.html), repere par son
-    # `data-testid="notes-document"` : desormais couvert par
-    # `remplir_champ_de_texte_riche`, au meme titre que les champs poses par attribut
-    # `name` plus haut.
+    # **Champ de date natif depuis D6e T12** : `webshim` ne polyfille plus rien, et la
+    # valeur se saisit au format ISO. L'assertion plus bas lit toujours le 10 janvier 2012.
+    saisir_date(page, "input[placeholder*='Date']:visible", "2012-01-10")
+    # Champ de texte riche sans attribut `name`, repere par son
+    # `data-testid="notes-document"` : couvert par `remplir_champ_de_texte_riche`, au meme
+    # titre que les champs poses par attribut `name` plus haut.
     remplir_champ_de_texte_riche(
         page, page.get_by_test_id("notes-document"), "Licence GNU GPLv3"
     )
@@ -652,51 +649,35 @@ def test_le_nom_de_famille_redevient_modifiable_apres_un_cycle_d_edition(
 
 
 def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) -> None:
-    """Ferme le site laisse sans couverture par le defaut A (design, T4).
+    """La date de naissance se saisit et s'enregistre depuis le dossier.
 
-    `patient-detail.html:40-42` (`e-class="polyfill-updatable birthdate"`,
-    `editable-date="patient.birth_date"`) est l'un des quatre champs ambigus que
-    corrige `<html lang>` (`index.html:8`) : aucun test ne le traversait, la seule
-    saisie de date de naissance couverte etant les trois cases non ambigues
-    de l'ecran « Nouveau patient » (`creer_patient`, trois cases `webshim` jusqu'a
-    D6e T8, un champ de date natif depuis). Une corruption
-    silencieuse de ce champ precis serait une erreur de date de naissance dans un
-    dossier medical.
+    **Ce que ce test regarde** : la valeur relue en base apres deux cycles d'edition. Il ne
+    regarde ni le format d'affichage, ni le widget.
 
-    Deux saisies, qui ne prouvent pas la meme chose (relecture post-livraison, cf.
-    KANBAN.md defaut A) :
-    - **"03/02/1935" est le seul cas qui distingue une lecture francaise (JJ/MM) d'une
-      lecture americaine (MM/JJ)** : jour et mois y sont tous deux <= 12 et distincts
-      (3 != 2). Sans le correctif, ce texte se relit mois-jour -> 1935-03-02 ; avec, il
-      se relit jour-mois -> 1935-02-03. C'est la seule assertion de ce test qui
-      echouerait sans `<html lang>`.
-    - **"24/02/1935" (quantieme > 12) ne prouve rien sur le correctif** : l'heuristique
-      de rattrapage de webshim (`form-number-date-ui.js:605`, qui echange jour/mois des
-      que le premier groupe depasse 12) le lit correctement avec ou sans le correctif —
-      un jour > 12 n'est jamais discriminant. Gardee comme non-regression de ce
-      rattrapage, pas comme preuve du defaut A.
+    **Sa raison d'etre a change avec D6e T12, et il reste.** Il fermait le site laisse sans
+    couverture par le defaut A : `patient-detail.html:40-42` etait l'un des quatre champs
+    de date ambigus que corrigeait `<html lang>` (`index.html:8`), et « 03/02/1935 » y
+    distinguait une lecture francaise d'une lecture americaine. Ce site a disparu avec
+    `webshim` : un `<input type="date">` natif ne connait que l'ISO, et l'ambiguite ne peut
+    plus se produire. Ce qui reste est un vrai cas d'usage — une correction de date de
+    naissance dans un dossier medical — que **rien d'autre** ne traverse : les deux saisies
+    sont conservees pour cela, et non plus comme preuve du defaut A.
     """
     connexion(page, live_server)
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
 
     page.get_by_role("button", name="Éditer").click()
-    # Meme widget, meme risque de propagation que `saisir_date_examen`
-    # (`tests/functional/test_consultation.py`) : ce champ passe lui aussi par
-    # `editable-date` (xeditable) puis webshim (`onshow="updateComponentPolyfill()"`)
-    # sur le meme chemin de code que la date de consultation, pas par le chemin
-    # `page.fill()` deja eprouve pour la date de document (chemin sans xeditable).
-    champ = page.locator("input.ws-date.birthdate")
-
-    # Cas ambigu : la seule assertion de ce test qui echoue sans le correctif (cf.
-    # docstring). Preuve du defaut A sur ce site.
+    # **`#birthdate-dossier`, et un champ de date natif** (D6e T12). L'ambiguite de lecture
+    # que ce test gardait — `03/02/1935` lu jour-mois ou mois-jour selon la locale — **n'a
+    # plus de site** : `webshim` ne polyfille plus rien, et un `<input type="date">` ne
+    # connait qu'un format, l'ISO. Les deux saisies restent, en non-regression du **champ**
+    # lui-meme : une date de naissance est une donnee medicale, et aucun autre test ne
+    # traverse ce site.
     #
-    # Ce clic emettait un enregistrement parasite avant D8, dont la reponse ecrasait la
-    # date saisie ensuite : c'etait la cause de l'alea historique de ce test.
-    champ.click()
-    champ.press("Control+a")
-    champ.press_sequentially("03/02/1935")
-    champ.press("Tab")
+    # L'identifiant est celui que pose `FormulaireIdentite` : `#birthdate` existe deja sur
+    # l'ecran « Nouveau patient », et le suffixe leve l'ambiguite pour de bon.
+    saisir_date(page, "#birthdate-dossier", "1935-02-03")
     attendre_enregistrement_patient(
         page,
         patient.id,
@@ -711,11 +692,7 @@ def test_edition_de_la_date_de_naissance(page: Page, live_server: LiveServer) ->
     # correctif, desormais lu directement par la locale francaise du document — ne
     # prouve pas le defaut A a elle seule (cf. docstring).
     page.get_by_role("button", name="Éditer").click()
-    # Meme geste, meme cause disparue qu'au cas precedent.
-    champ.click()
-    champ.press("Control+a")
-    champ.press_sequentially("24/02/1935")
-    champ.press("Tab")
+    saisir_date(page, "#birthdate-dossier", "1935-02-24")
     attendre_enregistrement_patient(
         page,
         patient.id,
@@ -855,4 +832,56 @@ def test_timeline_consultations_et_documents(
     expect(tuile.locator(".document_notes")).to_have_text("Notes")
     expect(tuile.locator(".document_partialnote")).to_contain_text(
         "Document de recette"
+    )
+
+
+# Valeur qui **n'est pas un point fixe** de l'analyseur du navigateur : reinjectee par
+# `innerHTML`, elle ressort `<p>x</p>`. C'est ce qui rend ce test falsifiable — une valeur
+# deja normalisee serait preservee par n'importe quelle implementation, `hallo` compris, et
+# le test ne prouverait rien (D6e, A8, C6).
+VALEUR_NON_POINT_FIXE = "<P>x</P>"
+
+
+def test_le_dossier_preserve_le_texte_riche_a_l_octet(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Ouvrir un panneau en edition, **ne rien saisir**, fermer, relire la base.
+
+    Ce que ce test regarde : **l'egalite d'octets** entre la valeur semee et la valeur
+    relue par l'ORM apres un cycle d'edition **sans aucune saisie**. Il ne regarde ni le
+    rendu, ni la presence du champ, ni une classe.
+
+    C'est la mesure que ce lot existe pour garantir : `hallo` reecrivait la valeur a chaque
+    sortie du mode edition (`halloeditor.js:110-121`), meme sans saisie, en la faisant
+    passer par `innerHTML`. Le composant de D6e T5 rend **deux** elements portant le meme
+    `name` — un `contenteditable` non soumissible et une entree cachee — et tant que
+    personne n'a frappe, c'est la valeur du serveur, octet pour octet, qui repart.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+    with sans_receivers():
+        patient.job = VALEUR_NON_POINT_FIXE
+        patient.surgical_history = VALEUR_NON_POINT_FIXE
+        patient.save()
+    # **Garde du semis, et elle n'est pas decorative** : sur l'arbre d'avant correctif, la
+    # valeur relue apres le cycle d'edition vaut `''` — l'ancien editeur **vide** le champ,
+    # il ne se contente pas de le normaliser. Sans cette relecture, un rouge a `''` serait
+    # ambigu : semis manque ou reecriture. Mesure faite sur un worktree place sur `BASE`.
+    patient.refresh_from_db()
+    assert patient.job == VALEUR_NON_POINT_FIXE, "le semis n'a pas atteint la base"
+
+    page.goto(f"{live_server.url}/patient/{patient.id}")
+    page.get_by_role("button", name="Éditer").click()
+    expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
+    attendre_enregistrement_declenche(
+        page,
+        patient.id,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+    )
+    expect(page.get_by_role("button", name="Éditer")).to_be_visible()
+
+    patient.refresh_from_db()
+    assert patient.job == VALEUR_NON_POINT_FIXE, (
+        f"le dossier a reecrit le texte riche : {patient.job!r}"
     )

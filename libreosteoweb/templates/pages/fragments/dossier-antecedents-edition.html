@@ -1,0 +1,24 @@
+{% load i18n %}
+{# L'onglet « Historique » en **edition**. Meme racine que le fragment de lecture. #}
+{# `hx-trigger="submit, dossier-fin-edition from:body"` : le bandeau d'actions vit hors de ce #}
+{# formulaire et le soumet par un evenement, faute de pouvoir le viser par un `form=`. #}
+<div id="history-corps" data-edition-en-cours x-init="edition = 'history'">
+  <form id="history-formulaire"
+        hx-post="{{ antecedents.url_enregistrement }}"
+        hx-target="#history-corps" hx-swap="outerHTML"
+        hx-trigger="submit, dossier-fin-edition from:body">
+    {% csrf_token %}
+    <div class="row">
+      {% for champ in antecedents.champs %}
+      <div class="col-md-6">
+        <div class="panel panel-primary">
+          <div class="panel-heading">{{ champ.libelle }}</div>
+          <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+            {% include "pages/fragments/texte-riche.html" with nom=champ.nom valeur=champ.valeur libelle=champ.libelle editable=True %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </form>
+</div>

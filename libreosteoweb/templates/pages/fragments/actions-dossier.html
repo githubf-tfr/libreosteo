@@ -1,0 +1,34 @@
+{% load i18n %}
+{# Le bandeau d'actions du dossier (D6e, T12), repris de `partials/actions-coquille.html`. #}
+{# #}
+{# **`loEditFormManager` meurt ici** (A10). L'etat d'edition est la variable Alpine #}
+{# `edition`, **locale a la page**, et un seul formulaire est en edition a la fois dans le #}
+{# document — c'est l'invariant « une seule autorite » que le correctif `2a75d2b` a inscrit #}
+{# dans ce depot. Les trois proprietes du mecanisme actuel ne se reportent pas : #}
+{# `form.is(':visible')` est un appel jQuery, `.ng-dirty` une classe Angular, et deux des #}
+{# trois declencheurs de sortie disparaissent avec le routage client. #}
+{# #}
+{# **Les libelles se conservent a l'octet, et `exact=True` reste impossible** : Playwright #}
+{# fait entrer la glyphe Font Awesome dans le nom accessible, ce que le commentaire de #}
+{# `test_patient.py:204-208` documente — et ce commentaire reste vrai. #}
+{# #}
+{# **Le clic n'emet pas la requete lui-meme**, et il ne le peut pas : l'URL d'edition depend #}
+{# de l'onglet actif, qui est un etat client. Il **diffuse** donc un evenement par onglet, #}
+{# que le panneau concerne ecoute (`hx-trigger="dossier-editer-<cle> from:body"`). Alpine #}
+{# fait remonter l'evenement jusqu'a `<body>`, et htmx l'y attend. #}
+{# #}
+{# **`edition = null` est pose au clic, et repose par la reponse en cas de refus** : chaque #}
+{# fragment d'edition porte `x-init="edition = '<cle>'"`, si bien qu'un 422 rouvre le #}
+{# bandeau sur « Fin d'edition » au lieu de mentir. #}
+<ul class="nav navbar-top-links navbar-right">
+  <li>
+    <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition === null"
+            @click="edition = actif; $dispatch('dossier-editer-' + actif)"><i class="fa fa-edit"></i> {% trans 'Edit' %}</button>
+    <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition !== null" style="display: none"
+            @click="$dispatch('dossier-fin-edition'); edition = null"><i class="fa fa-thumbs-o-up"></i> {% trans 'End of editing' %}</button>
+    {% if suppression_possible %}
+    <button type="button" class="btn btn-danger btn-xs navbar-btn"
+            hx-get="{% url 'dossier-suppression' patient.id %}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-trash"></i> {% trans 'Delete' %}</button>
+    {% endif %}
+  </li>
+</ul>

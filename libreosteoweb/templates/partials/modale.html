@@ -19,8 +19,13 @@
 {# `for (let o of r) ... Tr.forEach(...)` precede `for (let o of t) ... Or.forEach(...)`). #}
 {# Une modale qui en remplace une autre pose donc bien `modal-open` apres que la sortante #}
 {# l'a retire, et non l'inverse. #}
+{# **`accepte` sert les modales dont le bouton Ok est conditionne par une case a cocher** #}
+{# (`bouton_conditionne`, D6e T12, E10). Il nait **faux** et le bouton nait `disabled` : #}
+{# l'etat initial d'Alpine dit la meme chose que le HTML rendu, ce que la casse A de T10 a #}
+{# paye. Une modale qui ne pose pas `bouton_conditionne` ne lit jamais cette variable. #}
 <div x-data="{
        ouverte: true,
+       accepte: false,
        init() {
          this.$watch('ouverte', v => document.body.classList.toggle('modal-open', v));
          document.body.classList.add('modal-open');
@@ -60,6 +65,7 @@
           {# L'identifiant `modal-btn-ok` ne bouge pas : `helpers.bouton_de_confirmation` #}
           {# l'adresse, et douze appels de `confirmer_la_modale` en dependent (C1). #}
           <button id="modal-btn-ok" class="btn btn-primary" data-testid="confirmer-modale"
+                  {% if bouton_conditionne %}disabled :disabled="!accepte"{% endif %}
                   {% if formulaire_confirmer %}type="submit" form="{{ formulaire_confirmer }}"{% else %}type="button"{% endif %}>{{ libelle_confirmer|default:_("OK") }}</button>
         </div>
       </div>

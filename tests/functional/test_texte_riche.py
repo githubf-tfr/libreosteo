@@ -6,10 +6,11 @@ Quatre tests, une famille de commande chacun — c'est le decoupage qu'AR2 fixe.
 texte a l'ecran, l'etat visuel du bouton, et les dix commandes qui ne sont pas le
 representant de leur famille.
 
-Ecrits contre l'implementation actuelle, donc **verts avant la migration** : c'est leur
-seule chance d'etre ecrits contre un comportement connu. Le composant qui la remplace (T5)
-reproduit les quatorze info-bulles a l'octet, et ces quatre tests ne sont plus jamais
-retouches.
+Ecrits contre l'implementation d'origine, donc **verts avant la migration** : c'etait leur
+seule chance d'etre ecrits contre un comportement connu. Le composant qui l'a remplacee (T5)
+reproduit les quatorze info-bulles a l'octet, et ces quatre tests traversent la migration
+**sans une retouche de geste** : seules l'URL du dossier et le nom de la barriere
+d'enregistrement changent a T12, et aucune n'appartient a ce qu'ils mesurent.
 
 Les info-bulles et le balisage attendu ci-dessous sont **mesures**, jamais supposes (T2,
 etape 1) : la barre d'outils porte quatorze boutons et non douze, ses info-bulles sont
@@ -24,7 +25,7 @@ from pytest_django.live_server_helper import LiveServer
 from libreosteoweb.models import Patient
 from tests.functional.helpers import (
     appliquer_mise_en_forme,
-    attendre_enregistrement_patient,
+    attendre_enregistrement_declenche,
     connexion,
     creer_patient,
     remplir_champ_de_texte_riche,
@@ -38,13 +39,13 @@ def _saisir_puis_mettre_en_forme(
     connexion(page, live_server)
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
-    page.goto(f"{live_server.url}/#/patient/{patient.id}")
+    page.goto(f"{live_server.url}/patient/{patient.id}")
     page.get_by_role("button", name="Éditer").click()
     expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
     zone = page.locator(f"div[name={champ}]")
     remplir_champ_de_texte_riche(page, zone, texte)
     appliquer_mise_en_forme(page, zone, libelle)
-    attendre_enregistrement_patient(
+    attendre_enregistrement_declenche(
         page,
         patient.id,
         lambda: page.get_by_role("button", name="Fin d'édition").click(),

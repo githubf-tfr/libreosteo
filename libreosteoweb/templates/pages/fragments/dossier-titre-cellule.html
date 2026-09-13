@@ -1,0 +1,31 @@
+{% load i18n %}
+{# Une cellule click-to-edit du titre : le patron `cellule-lecture` / `cellule-edition` de #}
+{# D6d, dont le commentaire disait explicitement qu'il etait ecrit pour D6e. #}
+{# #}
+{# **Le `data-testid` est sur l'enveloppe, jamais sur le bouton**, et c'est ce qui reproduit #}
+{# `edit-disabled`. Trois tests cliquent `titre.get_by_test_id("nom-de-famille")` **pendant** #}
+{# l'edition et attendent que rien ne s'ouvre : un bouton masque ferait attendre Playwright #}
+{# jusqu'au timeout au lieu de rendre un compte nul. L'enveloppe reste donc visible, et c'est #}
+{# son contenu qui change — un bouton hors edition, un `<span>` inerte pendant. #}
+{# #}
+{# **Aucun `{% csrf_token %}` dans le formulaire** : `base.html:42` porte `hx-headers` sur #}
+{# `<body>`, et `test_le_nom_de_famille_reste_modifiable_hors_edition` compte #}
+{# `titre.locator("input")` — un jeton cache en ferait un second, et le compte attendu est #}
+{# **un**. #}
+<span id="cellule-{{ champ }}" data-testid="{% if champ == 'family_name' %}nom-de-famille{% else %}prenom{% endif %}">
+  {% if edition %}
+  <form hx-post="{% url 'dossier-titre-cellule' patient.id champ %}"
+        hx-target="#cellule-{{ champ }}" hx-swap="outerHTML" style="display: inline">
+    <input type="text" name="valeur" class="form-control input-sm" style="display: inline; width: auto"
+           value="{% if champ == 'family_name' %}{{ patient.family_name }}{% else %}{{ patient.first_name }}{% endif %}" autofocus>
+    <button type="submit" class="btn btn-primary btn-xs">{% trans 'Validate' %}</button>
+    {% if erreur %}<span class="help-block" role="alert" data-testid="erreur-{{ champ }}">{{ erreur }}</span>{% endif %}
+  </form>
+  {% else %}
+  <button type="button" class="btn btn-link" x-show="edition === null"
+          hx-get="{% url 'dossier-titre-cellule' patient.id champ %}"
+          hx-target="#cellule-{{ champ }}"
+          hx-swap="outerHTML">{% if champ == 'family_name' %}{{ patient.family_name }}{% else %}{{ patient.first_name }}{% endif %}</button>
+  <span x-show="edition !== null" style="display: none">{% if champ == 'family_name' %}{{ patient.family_name }}{% else %}{{ patient.first_name }}{% endif %}</span>
+  {% endif %}
+</span>

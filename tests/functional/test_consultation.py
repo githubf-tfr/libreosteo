@@ -18,7 +18,9 @@ from tests.functional.helpers import (
     rechercher_patient,
     remplir_champ_de_texte_riche,
     saisir_consultation,
+    saisir_date,
 )
+from tests.functional.test_patient import VALEUR_NON_POINT_FIXE
 
 
 @pytest.fixture
@@ -87,13 +89,10 @@ def test_recherche_puis_ouverture_de_consultation(
 ) -> None:
     connexion(page, live_server)
     rechercher_patient(page, "Picard")
-    expect(page).to_have_url(f"{live_server.url}/#/patient/{patient_existant.id}")
-    # `original_name`, vide ici, occupe quand meme un noeud de texte entre les deux noms
-    # (patient-detail.html : `<span>{$ family_name $}</span> <span ng-show="original_name
-    # || ...">(...)</span> <span>{$ first_name $}</span>`) — `ng-show` le masque a l'affichage
-    # mais ne le retire pas du DOM, et `to_contain_text` lit le texte du DOM, pas le rendu
-    # visuel. "Picard Jean-Luc" n'est donc jamais une sous-chaine contigue du titre :
-    # deux assertions independantes, plutot qu'une regex couplee a ce detail de rendu.
+    expect(page).to_have_url(f"{live_server.url}/patient/{patient_existant.id}")
+    # Le titre rend le nom, le nom de naissance entre parentheses et le prenom dans trois
+    # elements distincts : « Picard Jean-Luc » n'est donc pas une sous-chaine contigue.
+    # Deux assertions independantes, plutot qu'une regex couplee a un detail de rendu.
     en_tete = page.get_by_test_id("titre-patient")
     expect(en_tete).to_contain_text("Picard")
     expect(en_tete).to_contain_text("Jean-Luc")
@@ -149,47 +148,45 @@ def naviguer_vers_examen(
 ) -> None:
     """Ouvre la vue dediee d'une consultation et attend que sa vraie date s'affiche.
 
-    `page.goto` vers une URL en `#/...` ne recharge pas le document : c'est une navigation
-    interne a ui-router, sur l'application Angular deja en cours d'execution depuis le
-    parcours qui precede (connexion puis creation/cloture de la consultation, dans ce test
-    ou dans `consultation_facturee`). Constate par instrumentation directe (lecture du DOM
-    et de `previousExamination.data` via l'API a l'instant du blocage) : dans cet etat, le
-    pan "#current-examination" reste actif au lieu du pan "#examinations" nouvellement
-    demande, avec sa propre instance de la directive `<examination>` liee a un objet perime
-    — la date affichee est alors celle du jour (`moment(undefined)` dans
-    `freezeExaminationDate`, static/js/app/examination.js), pas celle attendue, et ce
-    durablement : dix secondes d'attente supplementaire ne changent rien, ce n'est pas une
-    course. Un rechargement complet du document repart d'un etat Angular neuf, qui relit la
-    consultation demandee depuis le serveur ; l'assertion qui suit en est la preuve et sert
-    aussi de barriere avant toute edition.
+    **`/patient/<p>/examination/<s>` est une URL de document depuis D6e T12** : le `goto`
+    charge la page, et le serveur y rend l'onglet « Consultations » avec le volet de la
+    seance demandee. Le `page.reload()` qui suivait le `goto` a disparu avec sa raison
+    d'etre : il contournait une navigation `ui-router` qui ne rechargeait rien et laissait
+    le pan « #current-examination » actif, lie a un objet perime — la date affichee etait
+    alors celle du jour, durablement, et ce n'etait pas une course.
+
+    L'assertion qui suit reste : elle sert de barriere avant toute edition.
     """
-    page.goto(f"{live_server.url}/#/patient/{patient_id}/examination/{examination_id}")
-    page.reload()
+    page.goto(f"{live_server.url}/patient/{patient_id}/examination/{examination_id}")
     expect(page.locator("#examinationDate:visible")).to_have_text(
         libelle_date_longue(date_affichee)
     )
 
 
 def saisir_date_examen(page: Page, valeur: date) -> None:
-    """Tape une date dans le champ d'edition de la consultation active.
+    """Saisit une date dans le champ d'edition de la consultation active.
 
-    `input.ws-date.examinationdate` (id non unique, cf. `naviguer_vers_examen`) est donc
-    scope au volet de la consultation anterieure, seul visible, pour la meme raison.
-    `.fill()` pose directement la
-    valeur DOM sans passer par les gestionnaires clavier du widget : constate par
-    instrumentation directe (classe `ng-dirty`, jamais posee sur le champ cache dans ce
-    cas), la propagation vers Angular reste alors aleatoire — parfois la valeur tapee
-    n'atteint jamais le `ng-model` avant le clic de soumission qui suit. Taper touche par
-    touche, puis quitter le champ (`Tab`), la rend fiable (`ng-dirty` constate a chaque
-    essai).
+    **Champ de date natif depuis D6e T12**, adresse par `#examinationDate` — l'ancre du
+    filet, conservee a l'octet. `webshim` ne polyfille plus rien, donc ni le decoupage en
+    trois cases ni la frappe touche par touche n'ont plus d'objet : la valeur se pose d'un
+    coup, au format ISO, par `helpers.saisir_date`.
+
+    Le champ reste scope au volet visible : `#examinationDate` existe aussi dans le volet
+    d'une consultation en cours, et le mode strict de Playwright refuserait un locator
+    ambigu sans jamais le rejouer.
+
+    **`input#examinationDate` et non `#examinationDate` : c'est la barriere d'echange.**
+    Entrer en edition est un aller-retour htmx qui remplace le volet, et l'identifiant
+    existe **des les deux modes** — un `<span>` en lecture, une `<input>` en edition. Un
+    selecteur qui ne distingue pas les deux resout le `<span>` immediatement et echoue net
+    (« Element is not an <input>... ») au lieu d'attendre le fragment. La balise est la
+    seule difference observable entre les deux modes, et c'est un etat, jamais une
+    temporisation.
     """
-    champ = page.locator('[data-testid="consultation-anterieure"]:visible').locator(
-        "input.ws-date.examinationdate"
-    )
-    champ.click()
-    champ.press("Control+a")
-    champ.press_sequentially(valeur.strftime("%d/%m/%Y"))
-    champ.press("Tab")
+    champ = page.locator("input#examinationDate:visible")
+    expect(champ).to_have_count(1)
+    saisir_date(page, "input#examinationDate:visible", valeur.isoformat())
+    expect(champ).to_have_value(valeur.isoformat())
 
 
 def test_changement_de_date_accepte(
@@ -239,15 +236,15 @@ def test_changement_de_date_accepte(
     # editent un document joint portent `aria-label="Edit"`.
     page.get_by_role("button", name="Éditer").click()
     saisir_date_examen(page, nouvelle_date)
-    # L'assertion finale de ce test porte sur la base, pas sur l'ecran : AngularJS met le
-    # `$scope` a jour de facon optimiste et la date affichee change avant que le PUT ne
-    # soit revenu. La seule barriere vraie est la reponse du PUT lui-meme (arbitrage A1 du
-    # lot D6b) : l'assertion d'ecran qui suit, elle, passe deja sans elle.
+    # L'assertion finale de ce test porte sur la base, pas sur l'ecran : la barriere est
+    # donc la reponse du serveur, comme l'exige l'arbitrage A1 du lot D6b. Depuis D6e T12
+    # l'ecriture passe par la vue de page (`POST /examination/<id>/edit`) et non plus par le
+    # viewset DRF ; la reponse **est** l'ecran, mais la barriere reste ou elle doit etre.
     attendre_reponse(
         page,
         lambda: page.get_by_role("button", name="Fin d'édition").click(),
-        methode="PUT",
-        motif_url=r"/api/examinations/\d+$",
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
     )
 
     # `#examinationDate` (id non unique) existe deux fois dans le DOM : le panneau
@@ -320,12 +317,12 @@ def test_date_posterieure_a_la_facture_acceptee(
     page.get_by_role("button", name="Éditer").click()
     saisir_date_examen(page, nouvelle_date)
     # Meme barriere que dans test_changement_de_date_accepte : l'assertion finale porte
-    # sur la base, seule la reponse du PUT la barre (A1).
+    # sur la base, seule la reponse du serveur la barre (A1).
     attendre_reponse(
         page,
         lambda: page.get_by_role("button", name="Fin d'édition").click(),
-        methode="PUT",
-        motif_url=r"/api/examinations/\d+$",
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
     )
 
     # Meme ambiguite d'id que dans test_date_anterieure_a_la_facture_acceptee :
@@ -356,12 +353,12 @@ def test_date_anterieure_a_la_facture_acceptee(
     page.get_by_role("button", name="Éditer").click()
     saisir_date_examen(page, nouvelle_date)
     # Meme barriere que dans test_changement_de_date_accepte : l'assertion finale porte
-    # sur la base, seule la reponse du PUT la barre (A1).
+    # sur la base, seule la reponse du serveur la barre (A1).
     attendre_reponse(
         page,
         lambda: page.get_by_role("button", name="Fin d'édition").click(),
-        methode="PUT",
-        motif_url=r"/api/examinations/\d+$",
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
     )
 
     # Meme ambiguite d'id que dans test_changement_de_date_accepte : `:visible` la leve.
@@ -452,12 +449,10 @@ def test_edition_d_une_consultation_existante(
         consultation_facturee.id,
         date_initiale,
     )
-    # Le dossier patient monte deux fois la directive <examination> : celle de la
-    # consultation anterieure (`ng-if="previousExamination.data != null"`) et celle de
-    # la consultation en cours (`#current-examination`, `uib-tab` masque par `ng-show`),
-    # sans rapport avec la consultation ouverte ici. Seule la premiere est affichee :
-    # `:visible` leve l'ambiguite (verifie par instrumentation directe : compte a 1 avec
-    # ce scope, a 2 sans lui).
+    # Le dossier peut rendre **deux** volets dans le meme document : celui de la
+    # consultation choisie, dans l'onglet « Consultations », et celui d'une consultation en
+    # cours, dans son propre panneau. Aucune n'est ouverte ici, mais `:visible` reste la
+    # garde : une violation du mode strict n'est jamais rejouee par Playwright.
     volet = page.locator('[data-testid="consultation-anterieure"]:visible')
     expect(volet).to_contain_text("n° 10000")
     expect(volet).to_contain_text("Motif de consultation")
@@ -474,12 +469,12 @@ def test_edition_d_une_consultation_existante(
     # Ce test finit par deux lectures en base (`reason`, `medical_examination`) : meme
     # barriere que dans test_changement_de_date_accepte, l'ecran ne prouve rien de
     # l'ecriture (A1). Aggravant ici, le `page.reload()` deux instructions plus bas
-    # avorterait un PUT encore en vol.
+    # avorterait un enregistrement encore en vol.
     attendre_reponse(
         page,
         lambda: page.get_by_role("button", name="Fin d'édition").click(),
-        methode="PUT",
-        motif_url=r"/api/examinations/\d+$",
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
     )
     expect(volet).to_contain_text("Motif modifie")
     expect(volet).to_contain_text("Examen modifie")
@@ -491,3 +486,84 @@ def test_edition_d_une_consultation_existante(
     consultation_facturee.refresh_from_db()
     assert consultation_facturee.reason == "Motif modifie"
     assert consultation_facturee.medical_examination == "Examen modifie"
+
+
+def test_l_onglet_consultation_en_cours_revient_apres_une_cloture(
+    page: Page, live_server: LiveServer, patient_existant: Patient
+) -> None:
+    """Le defaut du 2026-09-04 tombe avec le mecanisme qui le portait (A23).
+
+    Ce que ce test regarde : que l'onglet « Consultation en cours » **reapparaisse** apres
+    une cloture puis un nouveau demarrage, **sans rechargement de page**. Il ne regarde pas
+    le contenu de l'onglet.
+
+    Le defaut venait de ce qu'`examinationsTab.newExaminationDisplay` restait faux apres la
+    cloture : l'onglet ne revenait qu'au prochain chargement complet. Ici, l'entree d'onglet
+    et son panneau sont recomposes par le serveur (C8, surface 4) sur l'evenement
+    `consultation-modifiee` que la reponse de cloture declenche.
+    """
+    connexion(page, live_server)
+    rechercher_patient(page, "Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="notinvoiced", raison="Test")
+    # Sans rechargement : c'est tout l'objet du test.
+    page.click("#examinations")
+    page.click("#new-examination-btn")
+    expect(page.locator("#current-examination")).to_be_visible()
+
+
+def test_la_consultation_preserve_le_texte_riche_a_l_octet(
+    page: Page, live_server: LiveServer, patient_existant: Patient
+) -> None:
+    """Le jumeau de `test_le_dossier_preserve_le_texte_riche_a_l_octet`, sur la consultation.
+
+    Ce que ce test regarde : **l'egalite d'octets** de `medical_examination` et
+    `conclusion` apres un cycle d'edition **sans aucune saisie**. Il ne regarde ni le rendu,
+    ni la presence des champs.
+
+    La valeur semee n'est pas un point fixe de l'analyseur du navigateur : reinjectee par
+    `innerHTML`, elle ressortirait `<p>x</p>`. C'est ce qui rend le test falsifiable.
+    """
+    connexion(page, live_server)
+    rechercher_patient(page, "Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="notinvoiced", raison="Test")
+    consultation = Examination.objects.get(patient=patient_existant)
+    with sans_receivers():
+        consultation.medical_examination = VALEUR_NON_POINT_FIXE
+        consultation.conclusion = VALEUR_NON_POINT_FIXE
+        consultation.save()
+    # Meme garde de semis que dans `test_le_dossier_preserve_le_texte_riche_a_l_octet` :
+    # sans elle, un rouge a la valeur vide ne distinguerait pas une reecriture d'un semis
+    # manque.
+    consultation.refresh_from_db()
+    assert consultation.conclusion == VALEUR_NON_POINT_FIXE, (
+        "le semis n'a pas atteint la base"
+    )
+
+    date_initiale = timezone.localtime(consultation.date).date()
+    naviguer_vers_examen(
+        page, live_server, patient_existant.id, consultation.id, date_initiale
+    )
+    page.get_by_role("button", name="Éditer").click()
+    # **Barriere d'echange, et non d'affordance** : « Fin d'edition » apparait des le clic —
+    # c'est un etat Alpine, pose sans aller-retour. Le formulaire, lui, arrive par htmx, et
+    # « Fin d'edition » ne peut le soumettre qu'une fois qu'il est la. La balise du champ de
+    # date est la seule difference observable entre les deux modes.
+    expect(page.locator("input#examinationDate:visible")).to_have_count(1)
+    attendre_reponse(
+        page,
+        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
+    )
+
+    consultation.refresh_from_db()
+    assert consultation.medical_examination == VALEUR_NON_POINT_FIXE, (
+        f"la consultation a reecrit le texte riche : {consultation.medical_examination!r}"
+    )
+    assert consultation.conclusion == VALEUR_NON_POINT_FIXE, (
+        f"la consultation a reecrit le texte riche : {consultation.conclusion!r}"
+    )

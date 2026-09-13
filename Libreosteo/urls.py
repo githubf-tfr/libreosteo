@@ -143,10 +143,91 @@ urlpatterns = [
     # `addPatient` en camelCase : l'URL est reprise a l'octet de la table d'etats
     # d'`app.js` (A1), pour que le menu fige de `404.html` continue d'y mener.
     re_path(r"^addPatient$", views.page_nouveau_patient, name="nouveau-patient"),
-    # Le medecin traitant (T9). **Aucun ecran ne rend encore ces deux vues** : c'est T12 qui
-    # inclut le selecteur dans le dossier et dans la colonne patient de la consultation.
-    # `/doctors/new` est repris a l'octet de la table d'etats (A2) et ne porte donc pas
-    # d'identifiant de patient : celui-ci voyage dans la requete.
+    # Le dossier patient (T12). Les **trois** premieres URL sont reprises a l'octet de la
+    # table d'etats d'`app.js:83-113` (A1) : c'est **le meme document**, un panneau de plus
+    # ouvert. Les sous-ressources sont en anglais sous l'URL de leur ecran (A2) ; les noms de
+    # route sont en francais, comme tout identifiant Python du fork.
+    re_path(
+        r"^patient/(?P<identifiant>\d+)$",
+        views.page_dossier_patient,
+        name="dossier-patient",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/examinations$",
+        views.page_dossier_consultations,
+        name="dossier-patient-consultations",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/examination/(?P<consultation>\d+)$",
+        views.page_dossier_consultation,
+        name="dossier-patient-consultation",
+    ),
+    # Le corps rafraichissable : les onglets **et** les panneaux, recomposes d'un bloc apres
+    # toute mutation de consultation (C8). Ce n'est pas une URL de la table d'etats : c'est
+    # une sous-ressource du dossier, et elle en suit la forme.
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/body$",
+        views.corps_du_dossier,
+        name="dossier-corps",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/general$",
+        views.dossier_general,
+        name="dossier-general",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/history$",
+        views.dossier_antecedents,
+        name="dossier-antecedents",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/medical-reports$",
+        views.dossier_comptes_rendus,
+        name="dossier-comptes-rendus",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/title/(?P<champ>[a-z_]+)$",
+        views.dossier_titre_cellule,
+        name="dossier-titre-cellule",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/consent$",
+        views.dossier_consentement,
+        name="dossier-consentement",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/delete$",
+        views.dossier_suppression,
+        name="dossier-suppression",
+    ),
+    re_path(
+        r"^patient/(?P<identifiant>\d+)/examination/new$",
+        views.nouvelle_consultation,
+        name="consultation-nouvelle",
+    ),
+    # `/examination/<id>` est une **URL neuve du produit** qui redirige vers
+    # `/patient/<p>/examination/<id>` (A13). C'est elle qui prive `ExaminationServ` de son
+    # dernier consommateur hors D6e : `officeevent.js` resolvait le patient par un appel a
+    # l'API avant de naviguer ; le serveur resout desormais.
+    re_path(
+        r"^examination/(?P<identifiant>\d+)$",
+        views.redirection_de_consultation,
+        name="consultation-redirection",
+    ),
+    re_path(
+        r"^examination/(?P<identifiant>\d+)/cancel-invoice$",
+        views.annulation_de_facture,
+        name="consultation-annulation-facture",
+    ),
+    re_path(
+        r"^zipcode-suggestions$",
+        views.suggestions_de_code_postal,
+        name="zipcode-suggestions",
+    ),
+    re_path(r"^zipcode-choice$", views.choix_de_code_postal, name="zipcode-choix"),
+    # Le medecin traitant (T9), consomme par le dossier et par la colonne patient de la
+    # consultation depuis T12. `/doctors/new` est repris a l'octet de la table d'etats (A2)
+    # et ne porte donc pas d'identifiant de patient : celui-ci voyage dans la requete.
     re_path(r"^doctors/new$", views.medecin_nouveau, name="medecin-nouveau"),
     re_path(
         r"^patient/(?P<identifiant>\d+)/doctor$",
@@ -223,19 +304,8 @@ urlpatterns = [
         r"^internal/rebuild_index", views.RebuildIndex.as_view(), name="rebuild_index"
     ),
     # Serve web-view
-    re_path(r"^web-view/partials/patient-detail", displays.display_patient),
-    re_path(r"^web-view/partials/doctor-selector", displays.select_doctor),
-    re_path(r"^web-view/partials/doctor-modal", displays.display_doctor),
-    re_path(
-        r"^web-view/partials/examinations-timeline",
-        displays.display_examination_timeline,
-    ),
-    re_path(r"^web-view/partials/examination", displays.display_examination),
     re_path(r"^web-view/partials/dashboard", displays.display_dashboard),
     re_path(r"^web-view/partials/officeevent", displays.display_officeevent),
-    re_path(r"^web-view/partials/invoice-modal", displays.display_invoicing),
-    re_path(r"^web-view/partials/invoice-send-modal", displays.display_send_invoice),
-    re_path(r"^web-view/partials/filemanager$", displays.display_file_manager),
     re_path(
         r"^web-view/partials/restore$",
         displays.display_restore,
@@ -251,7 +321,6 @@ urlpatterns = [
         views.InvoiceViewHtml.as_view(),
         name="invoice_view",
     ),
-    re_path(r"^web-view/partials/confirmation", displays.display_confirmation),
     re_path(
         r"^zipcode_lookup/",
         include(("zipcode_lookup.urls", "zipcode_lookup"), namespace="zipcode-lookup"),

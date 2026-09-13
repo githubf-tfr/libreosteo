@@ -1,0 +1,18 @@
+{% load i18n %}
+{# Les suggestions de communes, et **les deux valeurs qu'un clic pose** (D6e, E12). Le clic #}
+{# est un `hx-get` dont la reponse porte deux `<input>` hors-bande : une seule autorite par #}
+{# element (C8), et le remplissage de la ville — le service reel de cette fonction — ne #}
+{# passe par aucune ligne de JavaScript. #}
+{# #}
+{# **Cinq chiffres et non deux** : `zipcode_lookup` n'accepte que `\d{5}`, et l'ecran #}
+{# d'avant n'affichait donc jamais rien en deca (D6e, E5, mesure par T3). #}
+{# #}
+{# **Ce fragment ne porte pas son `<ul>`, et c'est structurel.** La liste vit en permanence #}
+{# dans le panneau d'identite, et les deux reponses — les suggestions, puis le choix — s'y #}
+{# echangent en `innerHTML`. Un fragment qui porterait sa propre racine devrait s'echanger en #}
+{# `outerHTML` ; la reponse du choix, qui n'a **aucun** corps principal, effacerait alors la #}
+{# liste elle-meme, et la frappe suivante n'aurait plus de cible. #}
+{% for suggestion in suggestions %}
+<li><a href="#" hx-get="{% url 'zipcode-choix' %}?zipcode={{ suggestion.zipcode|urlencode }}&amp;city={{ suggestion.city|urlencode }}"
+       hx-target="#suggestions-code-postal" hx-swap="innerHTML">{{ suggestion.zipcode }} {{ suggestion.city }}</a></li>
+{% endfor %}

@@ -189,7 +189,7 @@
               <div class="col-md-12">
                 {# `avec_testid` **absent** : `test_medecins.py:41` documente que seul #}
                 {# l'exemplaire du dossier porte `data-testid="ligne-medecin-traitant"`. #}
-                {% include "pages/fragments/medecin-selecteur.html" with patient=volet.patient editable=False %}
+                {% include "pages/fragments/medecin-selecteur.html" with patient=volet.patient editable=False prefixe=volet.prefixe|add:"-" %}
               </div>
             </div>
           </div>

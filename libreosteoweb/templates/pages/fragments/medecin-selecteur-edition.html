@@ -3,18 +3,24 @@
 {# **C'est lui, et lui seul, que la creation d'un medecin rafraichit hors-bande** : le #}
 {# `<span>` doit donc rester fille directe de la reponse quand `hors_bande` vaut vrai, #}
 {# sans quoi htmx ne l'extrait pas (patron de D6d, `comptabilite-echange.html`). #}
-<span id="selecteur-medecin-{{ patient.id }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}>
-  {# L'option vide reste sans libelle, comme la liste d'`editable-select` qu'elle remplace : #}
+<span id="{{ prefixe }}selecteur-medecin-{{ patient.id }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}>
+  {# **`selection` et non `patient.doctor_id`** (D6e T12, piege legue par la revue T9) : ce #}
+{# selecteur est une **seconde autorite** pour le champ `doctor` du formulaire qui #}
+{# l'englobe. Tirer l'option cochee de la base ramenerait, sur un chemin de refus, le #}
+{# medecin enregistre a la place de celui que le praticien venait de choisir — en silence. #}
+{# `contexte_selecteur` pose `selection` a `patient.doctor_id` par defaut ; un appelant qui #}
+{# rend un formulaire lie y met la valeur **postee**. #}
+{# L'option vide reste sans libelle, comme la liste d'`editable-select` qu'elle remplace : #}
   {# c'est la ligne de lecture qui dit « non renseigne - non renseigne », pas le selecteur. #}
   <select name="doctor" class="form-control input-sm">
-    <option value=""{% if not patient.doctor_id %} selected{% endif %}></option>
-    {% for medecin in medecins %}<option value="{{ medecin.id }}"{% if medecin.id == patient.doctor_id %} selected{% endif %}>{{ medecin.family_name }} - {{ medecin.city }}</option>
+    <option value=""{% if not selection %} selected{% endif %}></option>
+    {% for medecin in medecins %}<option value="{{ medecin.id }}"{% if medecin.id|stringformat:"s" == selection|stringformat:"s" %} selected{% endif %}>{{ medecin.family_name }} - {{ medecin.city }}</option>
     {% endfor %}
   </select>
   {# `title` conserve a l'octet : `test_medecins.py:22` clique `button[title='Ajouter un #}
   {# médecin']`. Les classes Bootstrap 3 et Font Awesome sont reprises telles quelles de #}
   {# `doctor-selector.html:7`. #}
   <button type="button" class="btn btn-default btn-xs fa fa-plus" title="{% trans 'Add a doctor' %}"
-          hx-get="{% url 'medecin-nouveau' %}?patient={{ patient.id }}"
+          hx-get="{% url 'medecin-nouveau' %}?patient={{ patient.id }}&amp;prefixe={{ prefixe|urlencode }}"
           hx-target="#modale" hx-swap="innerHTML"></button>
 </span>

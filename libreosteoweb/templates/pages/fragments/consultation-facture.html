@@ -27,13 +27,14 @@
         {# `<a target="_blank">` fait la meme chose sans minuterie. #}
         <a id="printInvoiceBtn" class="btn btn-success btn-xs" target="_blank"
            href="{% url 'invoice_view' volet.derniere_facture.id %}" title="{% trans 'Print' %}"><i class="fa fa-print"></i> </a>
-        {# **Non branche par T10, et c'est dit** : l'annulation depuis la consultation suit #}
-        {# le chemin « facture corrective » d'`examination.js:222-262`, qui enchaine deux #}
-        {# modales et n'a pas de route de page. T12 lui donne sa cible ; l'identifiant est #}
-        {# pose des maintenant parce qu'il est une ancre du filet. Sans attribut htmx, ce #}
-        {# bouton est inerte : il ne peut pas atteindre une mauvaise cible par accident. #}
+        {# **Branche par D6e T12.** T10 l'avait laisse inerte, faute de route : l'annulation #}
+        {# depuis la consultation suit le chemin d'`examination.js:226-268`, qui enchaine #}
+        {# une confirmation puis, en mode « facture corrective », la modale de facturation. #}
+        {# Les deux etapes postent sur la meme URL, distinguees par `etape=confirme`. #}
         <button type="button" id="cancelInvoiceBtn" class="btn btn-danger btn-xs"
-                title="{% trans 'Cancel' %}"><i class="fa fa-ban"></i> </button>
+                title="{% trans 'Cancel' %}"
+                hx-get="{{ volet.url_annulation_facture }}?prefixe={{ volet.prefixe }}"
+                hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-ban"></i> </button>
         <span><a href="{% url 'invoice_view' volet.derniere_facture.id %}" target="_blank">n° {{ volet.derniere_facture.number }}</a></span>
         {% else %}
         <span>

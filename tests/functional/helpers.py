@@ -124,39 +124,31 @@ def notifications_de_succes(page: Page) -> Locator:
     """Les notifications de succes affichees par l'application.
 
     Contrat neutre : l'implementation est derriere ce nom, et c'est l'un des deux seuls
-    endroits de la suite qui la nomme. `angular-growl` rend son gabarit en ligne dans sa
-    propre directive (`growlDirective.js`), sans aucun attribut `role` ni rôle ARIA
-    implicite — un `div` nu : le produit ne peut y poser ni identifiant ni `data-testid`,
-    et il n'existe aucun autre adressage possible tant que cette bibliotheque est la.
+    endroits de la suite qui la nomme.
 
-    **Deux implementations pendant la cohabitation, et une seule fonction** (D6d, A18).
-    `test_facturation.py` traverse D6d et D6e : ses huit appels a
-    `enregistrer_formulaire` et ses quatre appels a `notifications_d_erreur` portent, dans
-    le meme module, sur des ecrans migres (cabinet, profil, comptabilite) et sur des ecrans
-    encore AngularJS (cloture de consultation). Repartir les modules de test entre les deux
-    lots est impossible ; un selecteur qui n'accepterait qu'une implementation casserait
-    treize sites d'appel le jour du premier ecran migre.
-
-    La seconde moitie du selecteur est le contrat pose par D6c
+    **Echeance atteinte a D6e T12.** La cohabitation a dure le temps de la migration : deux
+    implementations, un seul selecteur. Les quatorze appels a `growl.add*Message` vivaient
+    dans `patient.js` (douze) et `examination.js` (deux) ; le dossier patient migre, **plus
+    aucune reponse du produit ne peut produire un `div.growl-item`**, et la moitie `growl`
+    du selecteur est donc retiree. Ce qui reste est le contrat pose par D6c
     (`partials/notification.html`) : `data-testid="notification"` et
-    `data-severite="succes"`. Elle n'est **pas** une exemption supplementaire — la liste
-    close `CONTRATS_NEUTRES` du cliquet d'adressage ne s'allonge pas, c'est l'interieur de
-    ces deux fonctions-la qui s'elargit.
+    `data-severite="succes"`.
 
-    **Echeance : D6f.** Le jour ou le dernier ecran `growl` disparait, la premiere moitie
-    du selecteur se retire et le commentaire ci-dessus avec elle.
+    La bibliotheque, elle, part a D6f : ce sont les trois lignes de coquille
+    (`index.html:46`, `app.js:31`, `app.js:77-80`) qui survivent a ce commit. C'est le
+    **selecteur** qui se resserre ici, pas le paquet.
+
+    `CONTRATS_NEUTRES` ne change pas : ces deux fonctions y restent parce qu'elles restent
+    les seules a nommer une notification, ce que le cliquet d'adressage n'interdit pas.
+    L'exemption n'a simplement plus d'objet.
     """
-    return page.locator(
-        'div.growl-item.alert-success, [data-testid="notification"][data-severite="succes"]'
-    )
+    return page.locator('[data-testid="notification"][data-severite="succes"]')
 
 
 def notifications_d_erreur(page: Page) -> Locator:
     """Les notifications d'erreur affichees par l'application. Meme contrat neutre que
-    `notifications_de_succes`, meme motif, meme echeance."""
-    return page.locator(
-        'div.growl-item.alert-danger, [data-testid="notification"][data-severite="erreur"]'
-    )
+    `notifications_de_succes`, meme motif, meme echeance — echue."""
+    return page.locator('[data-testid="notification"][data-severite="erreur"]')
 
 
 def attendre_notification_de_succes(page: Page, geste: Callable[[], None]) -> None:
@@ -241,21 +233,16 @@ def rechercher_patient(page: Page, nom: str) -> None:
     page.click("div.custom-search-form span > button")
     expect(page.get_by_test_id("titre-recherche")).to_contain_text(nom)
     page.click("div.search-entry > h4 > a")
-    # Depuis D6c, ce geste traverse **deux** chargements de document : la soumission du
-    # formulaire GET mene a /search?q=…, puis le clic sur un resultat recharge la coquille
-    # et rejoue donc toute la resolution initiale d'AngularJS. Avant, le clic ne changeait
-    # que d'etat ui-router, sans quitter le document deja resolu.
+    # **Le motif de cette barriere a change avec D6e T12, elle reste juste.** Le clic sur un
+    # resultat charge desormais un **document Django** (`/patient/<id>`) : la course de
+    # resolution AngularJS qu'elle barrait — un geste emis pendant la transition `ui-router`
+    # etait absorbe en silence, sans erreur ni requete reseau — se ferme avec le routage
+    # client, et le titre arrive dans le meme document que le reste de la page.
     #
-    # Sans barriere ici, les gestes des 11 sites d'appel (test_consultation.py ×8,
-    # test_medecins.py, test_recherche.py, test_patient.py) partiraient pendant cette
-    # resolution : un geste joue avant qu'elle n'ait fini est **absorbe en silence**, sans
-    # erreur ni requete reseau — meme mecanisme, et meme remede, que dans `connexion()`.
-    #
-    # `titre-patient` (partials/patient-detail.html:17) interpole `$scope.patient`, que
-    # seule la reponse du `GET /api/patients/:id` renseigne : la barriere est donc **en
-    # aval du reseau**, comme l'exige l'arbitrage A1 de D6b, et non une barriere d'ecran
-    # qu'AngularJS satisferait de facon optimiste. Attendre un titre non vide plutot que le
-    # nom cherche : l'appelant assert deja sur le nom quand c'est ce qu'il observe.
+    # Elle est donc **immediatement satisfaite**, ce qui ne coute rien, et elle continue de
+    # distinguer un document charge d'un document en cours de chargement pour les onze sites
+    # d'appel. Attendre un titre non vide plutot que le nom cherche : l'appelant assert deja
+    # sur le nom quand c'est ce qu'il observe.
     expect(page.get_by_test_id("titre-patient")).not_to_have_text("")
 
 
@@ -311,29 +298,18 @@ def cloturer_consultation(
         page.check(f"input[value={moyen}]")
     page.get_by_role("button", name="Valider", exact=True).click()
     expect(page.locator("#current-examination")).to_be_hidden()
-    # Seconde barriere, indissociable de la premiere : la cloture laisse une requete en
-    # vol, et la premiere barriere est satisfaite *pendant* son vol.
+    # **Seconde barriere, indissociable de la premiere ; son motif a change avec D6e T12.**
+    # Elle barrait une course d'AngularJS : `reloadExaminations` (patient.js) affectait
+    # `previousExamination.data` avec l'objet `$resource` **vide** rendu immediatement, si
+    # bien que `#current-examination` se cachait pendant que le `GET api/examinations/:id`
+    # etait encore en vol, et qu'un geste suivant pouvait faire rouvrir le volet tout seul
+    # (1 echec sur 7 lancements complets sur `6761590`).
     #
-    # Le callback de succes de `$scope.close` (patient.js) appelle `reloadExaminations`,
-    # qui fait `$scope.previousExamination.data = ExaminationServ.get(...)`. Une action
-    # `$resource` rend son objet **immediatement**, vide et non nul : dans le meme digest,
-    # `#current-examination` se cache (barriere ci-dessus) *et* le volet de la consultation
-    # fermee s'ouvre a la place de la chronologie — pendant que le `GET api/examinations/:id`
-    # part. Personne n'attend sa reponse.
-    #
-    # Quand le geste suivant referme ce volet (`revenir_a_la_chronologie`, `model = null`)
-    # avant que cette reponse ne soit revenue, le callback de succes reaffecte
-    # `previousExamination.data` : **le volet se rouvre tout seul et la chronologie
-    # disparait definitivement**, avec `#new-examination-btn` qu'elle porte. Le geste suivant
-    # attend alors un bouton qui n'entrera plus jamais dans le DOM (1 echec sur 7 lancements
-    # de la suite complete sur `6761590` ; rendu deterministe en retardant ce seul GET de
-    # 1500 ms — rapport `clause3-echec-rapport.md`).
-    #
-    # La barriere est la date de seance du volet : `#examinationDate` interpole `model.date`,
-    # que l'objet `$resource` vide n'a pas et que seule la reponse renseigne. Elle est donc
-    # bien **en aval du callback**, comme l'exige l'arbitrage A1 — et non en aval des seuls
-    # octets recus, ce que le retour du GET prouverait seul. Le volet est adresse par son
-    # `data-testid` : `#examinationDate` existe aussi dans la consultation en cours.
+    # Le rendu serveur supprime cette course : la reponse de la cloture **est** l'ecran, et
+    # le corps du dossier est recompose d'un bloc. La barriere reste juste et devient
+    # immediatement satisfaite — son cout est nul, et elle continue de distinguer un volet
+    # rendu d'un volet vide. Le volet est adresse par son `data-testid` : `#examinationDate`
+    # existe aussi dans la consultation en cours.
     expect(
         page.locator('[data-testid="consultation-anterieure"] #examinationDate')
     ).not_to_have_text("")
@@ -347,23 +323,33 @@ def libelle_date_longue(jour: date) -> str:
 def remplir_champ_de_texte_riche(page: Page, champ: Locator, valeur: str) -> None:
     """Remplit un champ de texte riche et force sa validation.
 
-    Le champ ne recopie son contenu vers le modele de l'application que sur l'evenement
-    natif `blur` de l'element : c'est le seul declencheur ecoute. Or `page.fill()` sur un
-    `[contenteditable]` focalise le nouvel element sans passer par le chemin qui, lui,
-    blur explicitement l'element actif precedent quand la cible est elle-meme
-    contenteditable. Entre deux `page.fill()` consecutifs sur deux champs de ce type, le
-    blur du premier n'est donc pas garanti par la simple focalisation du second : course
-    intermittente (non reproduite a la demande, cf. KANBAN.md section « Pieges
-    rencontres »), qui perd silencieusement la saisie du champ quitte en premier. Le
-    `blur()` explicite ci-dessous est une vraie barriere d'etat — l'evenement natif `blur`
-    est toujours synchrone, jamais une temporisation.
+    **Le motif a change avec le composant de D6e T5, et le `blur()` reste.** Il n'est plus
+    « un `blur` natif non garanti entre deux `contenteditable` » : le champ ecrit dans son
+    entree cachee **a chaque frappe** (`@input="commettreDepuisLaFrappe()"`,
+    `pages/fragments/texte-riche.html`), et non plus a la seule desactivation, si bien que
+    la course que ce helper barrait ne peut plus se produire. `hallo`, lui, ne recopiait
+    qu'a `hallodeactivated`.
+    Le `blur()` explicite est conserve, et il garde un role : il garantit le commit du
+    **dernier** champ touche avant la soumission, et il rend ce helper indifferent a
+    l'implementation — un composant futur qui recommencerait a commettre au `blur` serait
+    couvert sans une retouche. C'est une vraie barriere d'etat, l'evenement natif `blur`
+    etant toujours synchrone, jamais une temporisation.
 
     Le champ est passe en `Locator` et non en nom : ceux du dossier patient portent un
     attribut `name` stable (que l'arbitrage A8 interdit de doubler d'un `data-testid`),
     ceux de la consultation et du gestionnaire de documents n'en ont pas et portent un
     `data-testid`. Un parametre unique couvre les deux sans inventer de troisieme
     convention.
+
+    **La premiere ligne est une barriere d'echange, et elle n'est pas decorative** (D6e T12).
+    Entrer en edition est desormais un aller-retour htmx qui remplace le corps du panneau :
+    le champ de lecture, lui, **existe deja** et porte le meme `name`. `Locator.fill` le
+    resout donc immediatement et echoue net — « Element is not an <input>, <textarea>,
+    <select> or [contenteditable] » — au lieu d'attendre le fragment d'edition. Attendre
+    l'attribut `contenteditable` est la seule difference observable entre les deux modes, et
+    c'est un etat, jamais une temporisation.
     """
+    expect(champ).to_have_attribute("contenteditable", "true")
     champ.fill(valeur)
     champ.blur()
 
@@ -460,62 +446,46 @@ def attendre_reponse(
     )
 
 
+# Les quatre sous-ressources du dossier qui **ecrivent** le patient (D6e T12). Le titre a
+# deux cellules, `family_name` et `first_name`, chacune sous son propre chemin.
+_SOUS_RESSOURCES_QUI_ECRIVENT = r"(?:general|history|medical-reports|title/[a-z_]+)"
+
+
+def _motif_d_enregistrement(patient_id: int) -> str:
+    return rf"/patient/{patient_id}/{_SOUS_RESSOURCES_QUI_ECRIVENT}$"
+
+
 def attendre_enregistrement_patient(
     page: Page, patient_id: int, geste: Callable[[], None]
 ) -> None:
-    """Execute `geste` (un clic qui declenche un `PUT /api/patients/:id`) et attend sa
-    reponse HTTP, avant de rendre la main.
+    """Execute `geste` (un clic qui enregistre un panneau du dossier) et attend sa reponse.
 
-    `savePatient()` (`static/js/app/patient.js`) appelle `PatientServ.save(...)` — une
-    action **statique** `$resource` (`Resource.save(params, data, success, error)`),
-    pas une action d'instance (`instance.$save()`). `angular-resource.js` ne renvoie
-    la vraie promesse (`value.$promise`) que pour l'appel d'instance
-    (`Resource.prototype['$save']`, ligne ~846) ; l'appel statique renvoie
-    l'instance elle-meme (ligne ~825, branche `!isInstanceCall`), qui n'a pas de
-    methode `.then()` directement dessus. Or `angular-xeditable`
-    (`editablePromiseCollection.when()`, `xeditable.js`) traite tout objet sans
-    `.then()` comme une valeur deja resolue (`$q.when(objetNonThenable)` resout au
-    digest suivant, sans jamais attendre le vrai aller-retour reseau) : le
-    formulaire se referme (bouton « Éditer » revient) des le clic, bien avant que
-    la reponse du PUT ne soit revenue. Le callback de succes de `savePatient()`
-    remplace ensuite `$scope.patient` par la reponse serveur — un objet neuf, pris
-    au moment ou la requete a ete *envoyee*, donc sans les champs saisis
-    *depuis*. Si ce remplacement survient apres la saisie d'un onglet suivant sur
-    le meme `$scope.patient` (ex: les antecedents, dont la sauvegarde repose sur
-    `save-on-lost-focus` au changement d'onglet), ces saisies sont perdues en
-    silence : elles ont bien ete ecrites sur l'objet JS, mais sur une reference
-    que `$scope.patient` a entre-temps abandonnee. Attendre que le `Éditer`
-    reapparaisse ne barre donc pas cette course, le bouton n'etant pas lie a la
-    fin reelle de la sauvegarde — meme defaut de principe que toute barriere
-    d'ecran posee devant une assertion en base (KANBAN.md tache 9). Reproduit ici (~1 echec sur 6
-    lancements de `test_edition_du_dossier_patient`, toujours sur le premier champ
-    « antecedents » saisi apres la sauvegarde des informations generales) : la
-    barriere reelle est la reponse HTTP du PUT lui-meme, jamais une temporisation.
+    **L'URL observee a change avec D6e T12**, et le motif de cette barriere avec elle. Elle
+    attendait un `PUT /api/patients/:id`, dont la particularite etait qu'`angular-xeditable`
+    refermait le formulaire **avant** son retour : `PatientServ.save(...)` est une action
+    `$resource` **statique**, qui rend l'instance et non une promesse, et
+    `editablePromiseCollection.when()` traite tout objet sans `.then()` comme deja resolu.
+    Le bouton « Éditer » revenait donc des le clic, bien avant l'ecriture, et une saisie
+    faite sur un onglet suivant se perdait en silence quand la reponse remplacait
+    `$scope.patient` (~1 echec sur 6 lancements de `test_edition_du_dossier_patient`).
+
+    Le dossier poste desormais vers ses propres sous-ressources — `/patient/<id>/general`,
+    `/history`, `/medical-reports`, `/title/<champ>` — et la reponse **est** l'ecran : le
+    panneau en lecture n'existe pas avant elle. La barriere reste neanmoins la reponse HTTP
+    et non un etat d'ecran, parce que c'est ce que l'arbitrage A1 de D6b exige quand
+    l'assertion qui suit porte sur la base.
 
     Pas de correlation par identifiant de requete : cette fonction rend la main a la
-    **premiere** reponse de signature `PUT /api/patients/:id` qui arrive apres le
-    debut de l'attente, sans verifier que c'est bien le `geste` qui l'a provoquee.
-    L'invariant tient donc tant qu'aucun PUT de meme signature n'est en vol au
-    moment ou l'attente commence, ce qui suppose deux choses de l'appelant : qu'il
-    n'enchaine pas deux appels concurrents (aucun ne le fait, ils sont tous en
-    sequence), **et qu'aucun geste anterieur non barre n'ait laisse un PUT en
-    vol**.
-
-    Cette seconde condition est gratuite depuis le lot D8 : le dossier patient n'emet plus
-    aucun `PUT /api/patients/:id` entre l'entree et la sortie du mode edition, et
-    `test_aucun_enregistrement_pendant_l_edition` /
-    `test_aucun_enregistrement_sur_tabulation_en_edition` le tiennent. Elle reste une
-    condition, pas une garantie de construction : un appelant qui laisserait un PUT en vol
-    la reviolerait. Rendre la fonction insensible aux reponses perimees (ne retenir qu'une
-    reponse dont la requete est partie apres le debut du `geste`) reste possible et
-    toucherait ses douze appelants ; `attendre_enregistrement_declenche` le fait, pour les
-    seuls tests qui en ont besoin.
+    **premiere** reponse de cette signature qui arrive. L'invariant tient tant qu'aucun
+    enregistrement de meme signature n'est en vol au debut de l'attente — ce qui est vrai
+    par construction depuis D8, aucun geste d'edition n'emettant plus d'enregistrement
+    parasite. `attendre_enregistrement_declenche` ferme le cas general.
     """
     attendre_reponse(
         page,
         geste,
-        methode="PUT",
-        motif_url=rf"/api/patients/{patient_id}$",
+        methode="POST",
+        motif_url=_motif_d_enregistrement(patient_id),
     )
 
 
@@ -523,27 +493,31 @@ def attendre_enregistrement_patient(
 def enregistrements_patient_observes(
     page: Page, patient_id: int
 ) -> Iterator[list[str]]:
-    """Collecte les `PUT /api/patients/:id` emis pendant le bloc, sans rien attendre.
+    """Collecte les enregistrements de panneau emis pendant le bloc, sans rien attendre.
 
-    Compter les emissions, et non asserter une valeur en base : l'ecrasement d'une
-    saisie par la reponse d'un enregistrement parasite depend d'un ordre d'arrivee (le
-    PUT parasite repondait en 64 ms, mesure du 2026-09-10), donc une assertion de valeur
-    serait **intermittente** avant correctif — un test qui ne prouve rien de facon
-    opposable. L'emission, elle, est deterministe : elle a lieu a chaque fois, au premier
-    geste.
+    Compter les emissions, et non asserter une valeur en base : l'ecrasement d'une saisie
+    par la reponse d'un enregistrement parasite depend d'un ordre d'arrivee (le PUT parasite
+    repondait en 64 ms, mesure du 2026-09-10), donc une assertion de valeur serait
+    **intermittente** avant correctif — un test qui ne prouve rien de facon opposable.
+    L'emission, elle, est deterministe : elle a lieu a chaque fois, au premier geste.
 
-    Le compteur est lu **apres** la reponse du PUT de « Fin d'edition », jamais avant :
-    c'est la seule barriere causale disponible, et elle garantit que toute requete
-    anterieure a deja ete dispatchee par Playwright (l'ordre des evenements du protocole
-    est celui du reseau). L'attendu est donc **exactement un** PUT — celui de la fin
-    d'edition — et non zero ; « zero enregistrement pendant l'edition » se lit `len(...)
-    - 1 == 0` dans le message d'assertion.
+    **Seules les requetes d'ecriture sont comptees** : `POST`, jamais `GET`. C'est ce qui
+    rend la mesure lisible depuis D6e T12, ou l'entree en edition d'un panneau est un `GET`
+    sur la meme URL — le compter ferait dire au test « deux enregistrements » la ou il n'y
+    en a qu'un.
+
+    Le compteur est lu **apres** la reponse de l'enregistrement de « Fin d'edition », jamais
+    avant : c'est la seule barriere causale disponible, et elle garantit que toute requete
+    anterieure a deja ete dispatchee par Playwright (l'ordre des evenements du protocole est
+    celui du reseau). L'attendu est donc **exactement un** enregistrement — celui de la fin
+    d'edition — et non zero ; « zero enregistrement pendant l'edition » se lit
+    `len(...) - 1 == 0` dans le message d'assertion.
     """
     emis: list[str] = []
-    motif = re.compile(rf"/api/patients/{patient_id}$")
+    motif = re.compile(_motif_d_enregistrement(patient_id))
 
     def _capter(requete: Request) -> None:
-        if requete.method == "PUT" and motif.search(requete.url) is not None:
+        if requete.method == "POST" and motif.search(requete.url) is not None:
             emis.append(requete.url)
 
     page.on("request", _capter)
@@ -556,34 +530,38 @@ def enregistrements_patient_observes(
 def attendre_enregistrement_declenche(
     page: Page, patient_id: int, geste: Callable[[], None]
 ) -> None:
-    """Execute `geste` et rend la main a la reponse du `PUT /api/patients/:id` que **ce
-    geste** a emis.
+    """Execute `geste` et rend la main a la reponse de l'enregistrement que **ce geste** a
+    emis.
 
     Difference avec `attendre_enregistrement_patient`, et seule raison d'etre : cette
     derniere rend la main a la **premiere reponse** de cette signature qui arrive, fut-ce
-    celle d'un PUT parti **avant** le geste (son docstring le dit). Dans un test qui doit
-    etre constate **rouge sur l'arbre d'avant correctif**, ou un PUT parasite est
+    celle d'une requete partie **avant** le geste (son docstring le dit). Dans un test qui
+    doit etre constate **rouge sur l'arbre d'avant correctif**, ou une requete parasite est
     precisement en vol, cette barriere serait satisfaite par le parasite : le compteur
-    vaudrait un, et le test passerait au vert sans rien prouver. Ici la requete est
-    capturee a l'emission (`expect_request` ne voit que ce qui part apres l'entree dans
-    le bloc), puis on attend **sa** reponse.
+    vaudrait un, et le test passerait au vert sans rien prouver. Ici la requete est capturee
+    a l'emission (`expect_request` ne voit que ce qui part apres l'entree dans le bloc),
+    puis on attend **sa** reponse.
 
-    `attendre_enregistrement_patient` n'est volontairement pas corrigee : le changement
-    toucherait ses douze appelants et sort du perimetre de ce lot.
+    **`POST` et non `PUT`, et une URL de sous-ressource et non le viewset DRF** : l'ecriture
+    passe par `/patient/<id>/general`, `/history`, `/medical-reports` ou `/title/<champ>`
+    depuis D6e T12. Une barriere restee sur `PUT /api/patients/<id>` n'aurait plus jamais
+    ete satisfaite : elle aurait expire, donc signale — c'est le seul mode d'echec
+    acceptable pour une barriere, mais elle aurait fait rougir cinq tests pour une raison
+    qui n'est pas la leur.
     """
-    motif = re.compile(rf"/api/patients/{patient_id}$")
+    motif = re.compile(_motif_d_enregistrement(patient_id))
     with page.expect_request(
         lambda requete: (
-            requete.method == "PUT" and motif.search(requete.url) is not None
+            requete.method == "POST" and motif.search(requete.url) is not None
         )
     ) as info_requete:
         geste()
     reponse = info_requete.value.response()
     assert reponse is not None, (
-        f"PUT /api/patients/{patient_id} n'a recu aucune reponse"
+        f"l'enregistrement du dossier {patient_id} n'a recu aucune reponse"
     )
     assert reponse.ok, (
-        f"PUT /api/patients/{patient_id} a echoue : "
+        f"l'enregistrement du dossier {patient_id} a echoue : "
         f"{reponse.status} {reponse.status_text}"
     )
 
@@ -615,21 +593,28 @@ def joindre_document(
 ) -> None:
     """Televerse un document dans l'onglet "Compte-rendus medicaux", deja ouvert.
 
-    `filemanager.html` (directive `fileManager`, static/js/app/filemanager.js) vit hors
-    de tout `editable-form` : aucun mode edition prealable n'est requis, contrairement
-    aux autres panneaux du dossier patient.
+    Le bloc de televersement vit hors de tout formulaire d'edition : aucun mode edition
+    prealable n'est requis, contrairement aux autres panneaux du dossier patient.
 
-    La barriere de fin est la disparition du bloc `div.document_create`, gouverne par
-    `ng-if="f.status != 2"` : il ne s'efface qu'au succes reel du televersement. Le
-    libelle du bouton ne peut pas la porter, lui : il passe par "en cours..." (statut 1)
-    avant le succes, donc une attente sur l'absence de "Cliquer pour envoyer" serait
-    satisfaite pendant l'envoi. `document_create` est une classe applicative, pas un
-    rouage de framework.
+    La barriere de fin est la disparition du bloc `div.document_create`, gouverne depuis
+    D6e T11 par un `<template x-if="choisi">` dont l'etat vient du **serveur** : il ne
+    s'efface qu'au succes reel du televersement, et un refus le rend ouvert. Le libelle du
+    bouton ne peut pas la porter, lui : il passe par « en cours... » avant le succes, donc
+    une attente sur l'absence de « Cliquer pour envoyer » serait satisfaite pendant l'envoi.
+    `document_create` est une classe applicative, pas un rouage de framework.
+
+    **`saisir_date` et non `page.fill`** (D6e T12) : le champ de date etait polyfille par
+    `webshim` (`app.js:118`), qui acceptait le format francais `JJ/MM/AAAA`. Le dossier
+    migre ne charge plus webshim, le champ est un `<input type="date">` natif, et
+    `page.fill("01/01/2024")` y echoue avec « Malformed value ». La signature de ce helper
+    ne change pas : ses quatre appelants passent toujours une date francaise, recomposee
+    ici en la seule valeur ISO qu'un champ natif accepte.
     """
     page.set_input_files("#addDocumentMedicalReport", chemin)
     expect(page.locator("div.document_create")).to_be_visible()
     page.fill("input[placeholder*='Titre']", titre)
-    page.fill("input[placeholder*='Date']:visible", date)
+    jour, mois, annee = date.split("/")
+    saisir_date(page, "input[placeholder*='Date']:visible", f"{annee}-{mois}-{jour}")
     remplir_champ_de_texte_riche(page, page.get_by_test_id("notes-document"), notes)
     page.get_by_role("button", name="Cliquer pour envoyer", exact=True).click()
     expect(page.locator("div.document_create")).to_have_count(0)

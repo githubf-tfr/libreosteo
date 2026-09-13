@@ -1,0 +1,12 @@
+{% load i18n %}
+{# Le champ « Notes » de l'onglet « Comptes rendus medicaux », en **edition**. #}
+<div id="medicalreports-corps" class="form-group" data-edition-en-cours x-init="edition = 'medicalreports'">
+  <form id="medicalreports-formulaire"
+        hx-post="{{ comptes_rendus.url_enregistrement }}"
+        hx-target="#medicalreports-corps" hx-swap="outerHTML"
+        hx-trigger="submit, dossier-fin-edition from:body">
+    {% csrf_token %}
+    <label>{{ comptes_rendus.champ.libelle }}</label>
+    {% include "pages/fragments/texte-riche.html" with nom="medical_reports" valeur=comptes_rendus.champ.valeur libelle=comptes_rendus.champ.libelle editable=True %}
+  </form>
+</div>

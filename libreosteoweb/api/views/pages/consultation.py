@@ -401,6 +401,10 @@ def contexte_du_volet(
         "spheres": [dict(champs[nom], ouverte=nom in ouvertes) for nom in SPHERES],
         "antecedents": [champs[nom] for nom in ANTECEDENTS],
         "medecins": models.RegularDoctor.objects.order_by("family_name"),
+        # L'option cochee du `<select name="doctor">` vient du **formulaire**, pas de la
+        # base : sur un chemin de refus, le volet re-rendu doit montrer le medecin choisi
+        # par le praticien (piege legue par la revue T9, ferme a T12).
+        "selection_medecin": formulaire_patient["doctor"].value(),
         "libelle_du_type": dict(TYPES_DE_CONSULTATION).get(
             consultation.type, _("not documented")
         ),
@@ -418,6 +422,13 @@ def contexte_du_volet(
         "url_facturation": reverse("consultation-facturation", args=[consultation.pk]),
         "url_regularisation": reverse(
             "consultation-regularisation", args=[consultation.pk]
+        ),
+        # **Branche depuis D6e T12** : T10 posait `#cancelInvoiceBtn` sans cible, faute de
+        # route — l'annulation depuis la consultation suit le chemin « facture corrective »
+        # d'`examination.js:226-268`, qui enchaine deux modales. La route existe maintenant,
+        # et elle porte les deux chemins du reglage de cabinet.
+        "url_annulation_facture": reverse(
+            "consultation-annulation-facture", args=[consultation.pk]
         ),
         "url_envoi": reverse("facture-envoi", args=[consultation.last_invoice.pk])
         if consultation.pk and consultation.last_invoice
@@ -469,7 +480,7 @@ def enregistrer_consultation(request: HttpRequest, identifiant: str) -> HttpResp
     # `id="consultation-volet"` et des champs `consultation-*` dans une cible
     # `#current-examination-volet`. Il voyage sur la chaine de requete a l'ouverture, puis
     # dans le champ cache du formulaire d'edition.
-    prefixe = _prefixe_de(request)
+    prefixe = prefixe_de(request)
     if request.method != "POST":
         return render(
             request,
@@ -511,11 +522,28 @@ def enregistrer_consultation(request: HttpRequest, identifiant: str) -> HttpResp
 
     ecrire_le_volet(formulaire, formulaire_patient, request.user, ancienne_date)
     consultation.refresh_from_db()
-    return render(
-        request,
+    corps: str = render_to_string(
         "pages/fragments/consultation.html",
         {"volet": _volet(request, consultation, prefixe=prefixe)},
+        request=request,
     )
+    # **« Cloturer » depuis le mode edition est un seul echange, pas deux** (D6e T12).
+    # `helpers.cloturer_consultation` clique `#close-examination` juste apres avoir saisi le
+    # motif et l'examen, et `test_consultation_non_facturee` relit ces deux valeurs en base
+    # apres la cloture : la saisie doit donc etre enregistree **avant** que la modale ne
+    # s'ouvre. Le bouton est un second soumetteur du formulaire, portant `puis=cloture` ; la
+    # reponse porte le volet en lecture sur la cible principale et la modale hors-bande.
+    # Enchainer deux requetes cote client aurait laisse une fenetre ou la modale s'ouvre sur
+    # une saisie non encore ecrite.
+    if request.POST.get("puis") == "cloture":
+        modale = modale_de_facturation(
+            request,
+            consultation,
+            facturation_seule=False,
+            action=reverse("consultation-cloture", args=[consultation.pk]),
+        ).content.decode("utf-8")
+        corps += '<div id="modale" hx-swap-oob="innerHTML">%s</div>' % modale
+    return HttpResponse(corps)
 
 
 def ecrire_le_volet(
@@ -563,13 +591,21 @@ def ecrire_le_volet(
         redatation_event_tracer(seance, utilisateur, ancienne_date, seance.date)
 
 
-def _modale_de_facturation(
+def modale_de_facturation(
     request: HttpRequest,
     consultation: models.Examination,
     facturation_seule: bool,
     erreurs: list[str] | None = None,
     statut: int = 200,
+    action: str | None = None,
 ) -> HttpResponse:
+    """La modale de facturation. `action` est l'URL que son formulaire poste.
+
+    **Elle n'est pas toujours `request.path`** (D6e T12) : la cloture d'une consultation en
+    cours passe d'abord par l'enregistrement du volet — `POST …/edit?puis=cloture` — et
+    c'est bien vers `…/close` que la modale doit poster ensuite. Un `request.path` en dur
+    renverrait le praticien vers l'enregistrement, qui ne cloture rien.
+    """
     cabinet = getattr(request, "officesettings", None)
     montant = None
     if consultation.last_invoice is not None:
@@ -590,11 +626,11 @@ def _modale_de_facturation(
         "libelle_confirmer": _("Validate"),
         "libelle_annuler": _("Cancel"),
         "formulaire_confirmer": "formulaire-facturation",
-        "action": request.path,
+        "action": action or request.path,
         # Le prefixe du volet appelant voyage sur la chaine de requete a l'ouverture, puis
         # dans un champ cache : la reponse de succes doit rafraichir **le** volet qui a
         # ouvert la modale, et le dossier en rend deux.
-        "prefixe": _prefixe_de(request),
+        "prefixe": prefixe_de(request),
         "consultation": consultation,
         "facturation_seule": facturation_seule,
         # `enabledPm` de `patient.js:824-832` : les moyens desactives ne sont pas proposes.
@@ -623,7 +659,7 @@ def _facturer(
     """
     consultation = get_object_or_404(models.Examination, pk=identifiant)
     if request.method != "POST":
-        return _modale_de_facturation(request, consultation, facturation_seule)
+        return modale_de_facturation(request, consultation, facturation_seule)
 
     donnees: dict[str, Any] = {
         "status": "invoiced" if facturation_seule else request.POST.get("status", ""),
@@ -644,24 +680,24 @@ def _facturer(
         # Le numero deja emis, relu **en base** par `_convertir_si_numero_deja_emis` et
         # non devine dans le message du SGBD (T5 de D6d). On rend le refus, on ne le
         # traduit pas une seconde fois.
-        return _modale_de_facturation(
+        return modale_de_facturation(
             request, consultation, facturation_seule, _messages(refus.detail), 422
         )
     if "errors" in resultat:
-        return _modale_de_facturation(
+        return modale_de_facturation(
             request, consultation, facturation_seule, _messages(resultat["errors"]), 422
         )
     consultation.refresh_from_db()
-    return _volet_hors_bande(request, consultation)
+    return volet_hors_bande(request, consultation)
 
 
-def _prefixe_de(request: HttpRequest) -> str:
+def prefixe_de(request: HttpRequest) -> str:
     """Le prefixe du volet appelant, lu dans la requete."""
     donnees = request.POST if request.method == "POST" else request.GET
     return donnees.get("prefixe") or "consultation"
 
 
-def _volet_hors_bande(
+def volet_hors_bande(
     request: HttpRequest, consultation: models.Examination
 ) -> HttpResponse:
     """La reponse de succes d'une modale : **le volet seul, en hors-bande**.
@@ -680,19 +716,71 @@ def _volet_hors_bande(
 
     Le fragment hors-bande doit rester **fille directe de la reponse** pour qu'htmx
     l'extraie : ce corps ne rend donc rien d'autre.
+
+    **`HX-Trigger-After-Swap` est la jonction avec l'ecran qui rend ce volet** (D6e T12).
+    Une cloture, une facturation ou une regularisation change le **statut** de la seance,
+    donc la barre d'onglets du dossier, sa chronologie et son encart de facture : quatre
+    surfaces que ce fragment-ci ne connait pas. Plutot que de les composer ici — ce qui
+    ferait du volet une autorite sur l'ecran qui l'heberge —, la reponse **signale** le
+    changement, et le dossier patient rafraichit son corps. Un ecran qui n'ecoute pas cet
+    evenement ne voit rien changer, ce qui est exactement l'etat d'avant T12.
+    `AfterSwap` et non `HX-Trigger` : l'echange hors-bande de ce volet doit avoir eu lieu
+    avant que le corps ne soit recompose.
     """
-    return render(
+    reponse = render(
         request,
         "pages/fragments/consultation.html",
         {
             "volet": _volet(
                 request,
                 consultation,
-                prefixe=_prefixe_de(request),
+                prefixe=prefixe_de(request),
                 hors_bande=True,
             )
         },
     )
+    reponse["HX-Trigger-After-Swap"] = "consultation-modifiee"
+    return reponse
+
+
+def facturer_en_remplacement(
+    request: HttpRequest, consultation: models.Examination, annulee: models.Invoice
+) -> HttpResponse:
+    """La branche « facture corrective » de `cancelInvoice` (`examination.js:253-265`).
+
+    `invoice_examination` prend la facture a annuler en troisieme argument : c'est le meme
+    appel que `InvoiceViewSet.cancel`, pour que les deux surfaces disent la meme chose. La
+    facture emise cite l'annulee, et `Examination.last_invoice` — qui resout a travers
+    `canceled_by` — designe desormais la corrective.
+    """
+    donnees: dict[str, Any] = {
+        "status": "invoiced",
+        "reason": request.POST.get("reason") or None,
+        "paiment_mode": request.POST.get("paiment_mode") or None,
+        "amount": request.POST.get("amount") or None,
+        "check": {},
+    }
+    serialiseur = ExaminationInvoicingSerializer(data=donnees)
+    assistant = invoicing_generator.ExaminationInvoiceHelper(
+        getattr(request, "officesettings", None), _reglages_de(request), request.user
+    )
+    try:
+        resultat = assistant.invoice_examination(serialiseur, consultation, annulee)
+    except DRFValidationError as refus:
+        return modale_de_facturation(
+            request, consultation, True, _messages(refus.detail), 422, request.path
+        )
+    if "errors" in resultat:
+        return modale_de_facturation(
+            request,
+            consultation,
+            True,
+            _messages(resultat["errors"]),
+            422,
+            request.path,
+        )
+    consultation.refresh_from_db()
+    return volet_hors_bande(request, consultation)
 
 
 def regulariser_consultation(request: HttpRequest, identifiant: str) -> HttpResponse:
@@ -709,7 +797,7 @@ def regulariser_consultation(request: HttpRequest, identifiant: str) -> HttpResp
     """
     consultation = get_object_or_404(models.Examination, pk=identifiant)
     if request.method != "POST":
-        return _modale_de_facturation(request, consultation, facturation_seule=True)
+        return modale_de_facturation(request, consultation, facturation_seule=True)
     cabinet = getattr(request, "officesettings", None)
     assert cabinet is not None
     try:
@@ -717,9 +805,9 @@ def regulariser_consultation(request: HttpRequest, identifiant: str) -> HttpResp
             consultation, request.POST.get("paiment_mode", ""), cabinet
         )
     except services_facturation.EncaissementRefuse as refus:
-        return _modale_de_facturation(request, consultation, True, [str(refus)], 422)
+        return modale_de_facturation(request, consultation, True, [str(refus)], 422)
     consultation.refresh_from_db()
-    return _volet_hors_bande(request, consultation)
+    return volet_hors_bande(request, consultation)
 
 
 def _messages(erreurs: Any) -> list[str]:

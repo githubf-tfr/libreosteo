@@ -58,14 +58,27 @@
 {# La garde `actif_initial and …` ci-dessous n'est pas redondante avec la branche de #}
 {# repli : sans elle, un `actif_initial` vide — le `… if onglets else ""` d'un calcul de #}
 {# vue — serait **egal** a la cle d'un onglet vide, et deux onglets seraient marques. #}
+{# **Une entree peut porter un identifiant** (D6e T12), et c'est facultatif : `uib-tab` #}
+{# posait `id` sur le `<li>` de la barre, et quatre sites du filet cliquent ces #}
+{# identifiants-la (`#general`, `#history`, `#medicalreports`, `#examinations`) tandis que #}
+{# trois autres mesurent la presence de `#current-examination`. Ce sont des ancres du filet, #}
+{# conservees a l'octet. Les trois ecrans de D6d n'en posent pas et ne changent pas. #}
 <ul class="nav nav-tabs" role="tablist">
   {% for onglet in onglets %}
-  <li role="presentation" class="{% if actif_initial and onglet.cle == actif_initial or not actif_initial and forloop.first %}active{% endif %}"
+  <li role="presentation"{% if onglet.id %} id="{{ onglet.id }}"{% endif %} class="{% if actif_initial and onglet.cle == actif_initial or not actif_initial and forloop.first %}active{% endif %}"
       :class="{ 'active': actif === '{{ onglet.cle }}' }">
     {# Le libelle **est** l'adressage : `test_import_csv.py` clique #}
     {# `a:has-text("Importer d'un système externe")`, six fois. Les onglets restent donc #}
     {# des `<a>` portant leur libelle exact (C3). #}
-    <a href="#" role="tab" @click.prevent="actif = '{{ onglet.cle }}'">{{ onglet.libelle }}</a>
+    {# **`avant_changement`** : une expression Alpine evaluee **avant** l'ecriture d'`actif` #}
+    {# (D6e T12, AR5). Le dossier patient y passe `quitterEdition()`, qui soumet le #}
+    {# formulaire en edition — c'est l'enregistrement implicite au changement d'onglet que #}
+    {# `save-on-lost-focus` faisait, et dont deux tests de `test_patient.py` dependent #}
+    {# explicitement. Facultatif : les trois ecrans de D6d n'en passent pas. Le contrat est #}
+    {# un **nom de methode** declaree dans le `x-data` de l'appelant, jamais une expression #}
+    {# a apostrophes : celles-ci traverseraient l'echappement de Django en entites, que #}
+    {# `getAttribute` redecoderait — ca marche, mais ca se lit mal et ca se casse en silence. #}
+    <a href="#" role="tab" @click.prevent="{% if avant_changement %}{{ avant_changement }}; {% endif %}actif = '{{ onglet.cle }}'">{{ onglet.libelle }}</a>
   </li>
   {% endfor %}
 </ul>

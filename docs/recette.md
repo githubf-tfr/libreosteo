@@ -306,9 +306,10 @@ Montant se pré-remplit à `55`, valeur du cabinet — ne pas le modifier), moye
 « Chèque », bouton « Valider ».
 
 **3. Seconde consultation, non facturée** — la clôture de la première consultation laisse
-affiché son détail (onglet « Consultations » déjà actif) : cliquer le bouton « × » en haut
-à droite du panneau (info-bulle « Fermer ce volet ») pour revenir à la chronologie, où
-« Démarrer une consultation » redevient disponible.
+affiché son détail, **au-dessus** de la chronologie (onglet « Consultations » déjà actif).
+Le bouton « Démarrer une consultation » est donc déjà disponible : le cliquer directement.
+Fermer d'abord le volet par le « × » en haut à droite (info-bulle « Fermer ce volet »)
+reste possible et mène au même endroit — c'était obligatoire avant D6e, ça ne l'est plus.
 
 | Champ | Valeur |
 |---|---|
@@ -1449,7 +1450,7 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
    Attendu : le bouton « Initialiser la fiche patient » devient actif (cliquable).
 3. Cliquer « Initialiser la fiche patient ».
    Attendu : la fiche du nouveau patient s'ouvre, URL de la forme
-   `.../#/patient/<id>` ; le titre de page affiche « Picard Jean-Luc » suivi de l'âge
+   `.../patient/<id>` ; le titre de page affiche « Picard Jean-Luc » suivi de l'âge
    calculé (variable selon la date du jour).
 
 ### R-PAT-02 — Éditer une fiche patient
@@ -1509,7 +1510,7 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
    la fiche patient ».
    Attendu : une fenêtre modale d'avertissement d'homonyme s'ouvre (cf. R-PAT-06 pour
    son contenu détaillé) ; cliquer « Ok ». La fiche du nouveau patient s'ouvre, URL de
-   la forme `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — à la
+   la forme `.../patient/<id>` ; aucun message d'erreur ne s'affiche — à la
    différence de l'étape 1, cette création aboutit alors que le nom et le prénom sont
    strictement identiques à ceux d'un patient déjà existant.
 3. Dans le champ de recherche, saisir `Picard`, valider.
@@ -1588,7 +1589,7 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
    homonyme déjà en base ; boutons « Ok » et « Annuler ».
 2. Cliquer « Ok ».
    Attendu : la fiche du nouveau patient s'ouvre, URL de la forme
-   `.../#/patient/<id>` ; aucun message d'erreur ne s'affiche — l'avertissement
+   `.../patient/<id>` ; aucun message d'erreur ne s'affiche — l'avertissement
    n'a pas empêché la création.
 3. Dans le champ de recherche, saisir `Picard`, valider.
    Attendu : la liste de résultats affiche deux entrées « Picard Jean-Luc »,
@@ -1760,6 +1761,65 @@ l'est pas.
 **dans la base** — `<b>…</b>`, `<h1>…</h1>`, `<div style="text-align: center;">…</div>`,
 `<ul><li>…</li></ul>`. Ils ne prouvent rien de l'apparence à l'écran : c'est cette fiche,
 et elle seule, qui la vérifie.
+
+### R-PAT-10 — Préservation du texte riche
+
+- **Domaine** : Patient
+- **Couverture auto** : oui —
+  tests/functional/test_patient.py::test_le_dossier_preserve_le_texte_riche_a_l_octet,
+  tests/functional/test_consultation.py::test_la_consultation_preserve_le_texte_riche_a_l_octet
+  (les deux sèment une valeur **non idempotente** — `<P>x</P>`, que l'analyseur du
+  navigateur ramènerait à `<p>x</p>` s'il la retraversait —, ouvrent un panneau en édition,
+  **ne saisissent rien**, ferment, et relisent la base par l'ORM. Ce qu'ils regardent est
+  l'**égalité d'octets**, et rien d'autre : ni le rendu, ni la présence du champ, ni une
+  classe. **Ce qu'ils ne couvrent pas** : ils portent sur **deux champs** — `job` et
+  `surgical_history` pour le dossier, `medical_examination` et `conclusion` pour la
+  consultation —, sur **deux panneaux**, et avec **une seule** valeur non idempotente. La
+  fiche, elle, décrit le geste sur **tous** les panneaux et avec plusieurs formes de valeur.)
+- **État requis** : E2. Cette fiche modifie durablement quatre champs de texte riche du
+  patient Picard : remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en
+  dépend.
+
+**Ce que cette fiche garde.** L'éditeur d'avant réécrivait la valeur **à chaque sortie du
+mode édition**, même sans aucune saisie : il relisait le `innerHTML` de la zone et l'écrivait
+au modèle. Une valeur que l'analyseur du navigateur ne rend pas telle quelle en ressortait
+transformée — et, mesuré sur l'arbre d'avant migration, parfois **entièrement effacée**. Sur
+un dossier médical, cela veut dire une note de consultation perdue par le seul fait d'avoir
+ouvert puis fermé l'édition.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Infos générales », cliquer « Éditer ».
+   Dans la zone « Profession », saisir `Navigateur`, sélectionner le mot, cliquer `bold`.
+   Cliquer « Fin d'édition ».
+   Attendu : la profession s'affiche en gras dans le panneau et dans le titre de la page.
+2. Cliquer de nouveau « Éditer », **ne rien saisir**, cliquer « Fin d'édition ».
+   Attendu : la profession est **toujours en gras**, à l'identique. Recharger complètement
+   la page : elle l'est encore.
+3. Répéter l'étape 2 **cinq fois de suite**.
+   Attendu : aucune dégradation cumulée — la mise en forme ne se dédouble pas, ne se perd
+   pas, et le texte ne change pas.
+4. Onglet « Historique », « Éditer », saisir dans les quatre zones (`Antécédents
+   chirurgicaux`, `Antécédents médicaux`, `Antécédents familiaux`, `Traumatismes`) une
+   valeur portant une mise en forme différente : gras, titre `h1`, liste à puces, texte
+   centré. Cliquer « Fin d'édition », puis recharger complètement la page.
+   Attendu : les quatre valeurs sont affichées avec leur mise en forme.
+5. Cliquer « Éditer », **ne rien saisir**, changer d'onglet pour « Comptes rendus
+   médicaux » — ce qui déclenche l'enregistrement implicite —, puis revenir sur
+   « Historique » et recharger la page.
+   Attendu : les quatre valeurs sont **inchangées**. C'est le chemin le plus piégeux de la
+   fiche : l'enregistrement part sans que le praticien ait rien demandé.
+6. Onglet « Consultations », ouvrir une séance, cliquer « Éditer », **ne rien saisir**,
+   cliquer « Fin d'édition », recharger la page.
+   Attendu : le motif, l'examen médical, le diagnostic, les traitements et la conclusion
+   sont inchangés.
+7. Onglet « Comptes rendus médicaux » : ouvrir une vignette de document en édition par son
+   bouton crayon, **ne rien saisir dans les notes**, valider.
+   Attendu : les notes du document sont inchangées, mise en forme comprise.
+
+**Constat** : ce que les deux tests prouvent est l'égalité d'octets sur deux champs, pour
+une valeur ; ce que cette fiche prouve est que le geste — ouvrir, ne rien faire, fermer — est
+sans effet **partout**, et qu'il le reste après plusieurs répétitions.
 
 ### R-PAT-11 — Auto-complétion du code postal
 
@@ -1965,7 +2025,11 @@ et elle seule, qui la vérifie.
 - **Couverture auto** : oui — tests/functional/test_consultation.py::test_consultation_non_facturee,
   ::test_date_affichee_suit_le_jour_local_meme_quand_lutc_differe (constate que la
   date affichée d'une consultation créée suit le jour local, même quand il diverge
-  du jour UTC ; ne couvre pas le reste de la fiche — panneaux, boutons, texte)
+  du jour UTC ; ne couvre pas le reste de la fiche — panneaux, boutons, texte),
+  ::test_l_onglet_consultation_en_cours_revient_apres_une_cloture (clôture une
+  consultation puis en démarre une autre **sans recharger la page**, et constate que
+  l'onglet « Consultation en cours » revient ; ne regarde **pas** le contenu de
+  l'onglet, ni le panneau, ni la chronologie)
 - **État requis** : E2. Cette fiche crée durablement une troisième consultation (non
   facturée) chez le patient Picard : remonter l'état E2 (chapitre 1) avant de jouer
   une autre fiche qui en dépend.
@@ -1984,8 +2048,14 @@ et elle seule, qui la vérifie.
    « Facturée ».
 3. Choisir « Non facturée », saisir `Controle` dans le champ qui apparaît
    (placeholder « Motif »), cliquer « Valider ».
-   Attendu : la fenêtre se ferme ; l'onglet « Consultation en cours » disparaît ; le
-   panneau affiche un encart « Non facturée » contenant `Controle`.
+   Attendu : la fenêtre se ferme ; l'onglet « Consultation en cours » disparaît ;
+   l'onglet « Consultations » s'active et affiche le volet de la séance qui vient
+   d'être fermée, portant un encart « Non facturée » contenant `Controle`, **au-dessus
+   de la chronologie** — celle-ci reste visible et porte désormais la séance de plus.
+   Le bouton « Démarrer une consultation » reste donc atteignable sans fermer le volet
+   au préalable : c'est un changement d'écran assumé de D6e, et la contrepartie du
+   défaut du 2026-09-04 (« le panneau *Démarrer une consultation* ne revient pas sans
+   rechargement »), qui tombe avec le mécanisme qui le portait.
 4. Recharger complètement la page, revenir sur l'onglet « Consultations ».
    Attendu : trois séances sont désormais listées (les deux de l'état E2, plus
    celle-ci) — preuve d'une persistance réelle.
