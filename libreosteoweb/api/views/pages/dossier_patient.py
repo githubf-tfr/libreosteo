@@ -212,7 +212,16 @@ class FormulaireIdentite(_FormulaireDuDossier):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        for nom in ("original_name", "address_complement", "phone", "email"):
+        # `address_street` **en fait partie** : defaut n° 7 de la recette D6e. Il etait le
+        # seul champ du panneau rendu sans classe -- une entree nue de 189 px au milieu de
+        # ses voisines a 654 px.
+        for nom in (
+            "original_name",
+            "address_street",
+            "address_complement",
+            "phone",
+            "email",
+        ):
             self.fields[nom].widget.attrs["class"] = "form-control input-sm"
         for nom in ("sex", "laterality", "doctor"):
             self.fields[nom].widget.attrs["class"] = "form-control input-sm"

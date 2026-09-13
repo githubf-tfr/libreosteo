@@ -115,6 +115,17 @@ def _zones_de_texte_riche(html: str) -> list[str]:
     return _ZONE.findall(html)
 
 
+# Meme normalisation que `to_contain_text` de Playwright, et que `_texte` de
+# `test_page_dossier_patient.py` : les deux fichiers eprouvent le meme repli sur deux
+# gabarits differents, et doivent le lire de la meme facon.
+_TOUTE_BALISE = re.compile(r"<[^>]+>")
+
+
+def _texte(html: str) -> str:
+    """Le texte rendu, espaces normalises."""
+    return " ".join(_TOUTE_BALISE.sub(" ", html).split())
+
+
 _BALISE = re.compile(r"<[a-zA-Z][^>]*>")
 
 
@@ -592,6 +603,36 @@ class TestFragmentDeLecture(_VoletRendu):
         self.assertEqual(
             sorted([*CHAMPS_TEXTE_RICHE, *_CHAMPS_PATIENT_RICHES]), sorted(noms)
         )
+
+    def test_une_lateralite_absente_s_affiche_non_renseignee(self) -> None:
+        """Defaut n° 6 de la recette D6e : « Lateralite : None » dans le volet droit.
+
+        Jumeau du defaut n° 2, ferme sur `dossier-identite.html` : `Patient.laterality`
+        est `null=True`, `get_laterality_display()` rend alors `None`, et Django imprime
+        la chaine litterale « None ». Le panneau « Infos patient » de la consultation
+        portait le meme trou, sur une autre autorite — la vue cette fois, pas le gabarit.
+
+        **Ce que ce test regarde : le texte rendu avec une valeur nulle**, pas la forme
+        du repli dans la vue. Le premier `assertIsNone` tient l'hypothese du defaut : le
+        jour ou le modele rendrait la chaine vide, cette preuve serait sans objet, et il
+        le dirait.
+        """
+        self.assertIsNone(self.patient.laterality)
+        self.assertIsNone(self.patient.get_laterality_display())
+
+        self.assertIn("Latéralité : non renseigné", _texte(self.rendu()))
+
+    def test_une_lateralite_renseignee_s_affiche_telle_quelle(self) -> None:
+        """Le repli ne mange pas la valeur quand il y en a une.
+
+        Sans cette seconde preuve, une vue qui renverrait la constante en toute
+        circonstance resterait verte, et le volet afficherait « non renseigne » sur un
+        patient droitier.
+        """
+        self.patient.laterality = "R"
+        self.patient.save(update_fields=["laterality"])
+
+        self.assertIn("Latéralité : Droitier", _texte(self.rendu()))
 
     def test_aucune_zone_n_est_editable_en_lecture(self) -> None:
         """Ce qu'il laisserait passer : une zone editable dans un volet clos. Le produit

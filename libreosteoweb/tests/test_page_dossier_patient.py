@@ -173,6 +173,52 @@ class TestPerimetreDesFormulaires(_SocleDuDossier):
         self.assertNotIn("first_name", champs)
 
 
+class TestClassesDuFormulaireDIdentite(_SocleDuDossier):
+    """Defaut n° 7 de la recette D6e : une entree nue au milieu du panneau."""
+
+    # Les dix champs que le panneau rend **par le formulaire**. `address_zipcode` et
+    # `address_city` n'y sont pas : `pages/fragments/dossier-code-postal.html` les ecrit
+    # lui-meme, et porte leur classe en propre. `smoker` non plus, c'est une case a cocher,
+    # que le produit n'a jamais habillee. Les champs de texte riche passent par le
+    # composant, qui a sa propre classe.
+    CHAMPS_HABILLES = (
+        "original_name",
+        "birth_date",
+        "sex",
+        "address_street",
+        "address_complement",
+        "phone",
+        "mobile_phone",
+        "email",
+        "laterality",
+        "doctor",
+    )
+
+    def test_les_dix_entrees_du_panneau_portent_la_meme_classe(self) -> None:
+        """Ce que ce test regarde : le balisage effectivement rendu, champ par champ.
+
+        `address_street` sortait du rendu **sans aucune classe** : Bootstrap ne lui
+        donnait donc ni largeur ni hauteur, et l'ecran montrait une entree nue de 189 px
+        entre un complement d'adresse de 654 px et un telephone de 457 px.
+
+        L'assertion porte sur les dix champs et non sur le seul defaut : un test qui
+        n'aurait regarde que `address_street` serait reste vert le jour ou un onzieme
+        champ arriverait sans classe, et c'est exactement ainsi que celui-ci est ne.
+
+        Ce qu'il laisserait passer : la largeur reelle a l'ecran, qui depend de la feuille
+        de style et non du balisage.
+        """
+        formulaire = FormulaireIdentite(instance=self.patient)
+
+        sans_classe = [
+            nom
+            for nom in self.CHAMPS_HABILLES
+            if 'class="form-control input-sm"' not in str(formulaire[nom])
+        ]
+
+        self.assertEqual([], sans_classe)
+
+
 class TestAliasDeNom(_SocleDuDossier):
     """Les quatre alias `e-name` de `patient-detail.html:61,77,92,119`, a l'octet."""
 

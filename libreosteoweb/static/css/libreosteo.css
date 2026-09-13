@@ -424,3 +424,27 @@ input.ng-invalid:focus {
   height: 5em;
   width: 75%;
 }
+
+/* Defaut n° 5 de la recette D6e : le nom et le prenom du titre du dossier sont des boutons click-to-edit
+   (`btn btn-link`), la ou l'ecran AngularJS posait `editable-text` sur un `<span>`. Sans
+   cette regle, le bouton impose sa propre typographie -- 14px, bleu, cadratin de bouton --
+   et le titre se disloque : les deux noms passent en petits liens et seul l'age garde la
+   taille du `<h1>`. On rend au bouton la typographie de son titre et on garde l'affordance
+   de clic sous la forme du souligne pointille d'xeditable. */
+#dossier-titre .btn-link {
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  vertical-align: baseline;
+  border-radius: 0;
+  border-bottom: 1px dashed #337ab7;
+}
+
+#dossier-titre .btn-link:hover,
+#dossier-titre .btn-link:focus {
+  color: inherit;
+  text-decoration: none;
+  border-bottom-color: #23527c;
+}

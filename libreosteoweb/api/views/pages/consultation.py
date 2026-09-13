@@ -419,7 +419,13 @@ def contexte_du_volet(
         "libelle_du_type": dict(TYPES_DE_CONSULTATION).get(
             consultation.type, _("not documented")
         ),
-        "libelle_de_lateralite": patient.get_laterality_display(),
+        # Repli identique a `libelle_du_type` ci-dessus : `Patient.laterality` est
+        # `null=True`, et `get_laterality_display()` rend alors `None`, que Django
+        # imprime « None » a l'ecran. Defaut n° 6 de la recette D6e, jumeau du n° 2
+        # ferme sur `dossier-identite.html` : le volet droit de la consultation
+        # portait le meme.
+        "libelle_de_lateralite": patient.get_laterality_display()
+        or _("not documented"),
         "factures": consultation.invoices.all().order_by("-date", "-id")
         if consultation.pk
         else [],

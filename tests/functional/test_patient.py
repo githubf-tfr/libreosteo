@@ -1347,6 +1347,8 @@ def test_le_titre_garde_sa_typographie_hors_edition(
 ) -> None:
     """Hors edition, le nom et le prenom gardent la typographie du `<h1>`.
 
+    Defaut n° 5 de la recette D6e.
+
     Les deux cellules du titre sont des boutons `btn btn-link` (D6e T12), la ou l'ecran
     AngularJS posait `editable-text` sur un `<span>`. Bootstrap donne a `.btn` sa propre
     typographie -- 14px, couleur de lien -- si bien que le titre se disloquait a l'ecran :
