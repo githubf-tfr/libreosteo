@@ -22,6 +22,7 @@ from tests.functional.helpers import (
     attendre_enregistrement_patient,
     attendre_reponse,
     bouton_de_confirmation,
+    bouton_fin_d_edition,
     cloturer_consultation,
     confirmer_la_modale,
     connexion,
@@ -929,7 +930,7 @@ def test_une_consultation_en_cours_se_reprend_en_edition(
     volet = page.locator('[data-testid="consultation-en-cours"]')
     attendre_reponse(
         page,
-        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        lambda: bouton_fin_d_edition(page).click(),
         methode="POST",
         motif_url=r"/examination/\d+/edit$",
     )
@@ -947,7 +948,7 @@ def test_une_consultation_en_cours_se_reprend_en_edition(
     )
     attendre_reponse(
         page,
-        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        lambda: bouton_fin_d_edition(page).click(),
         methode="POST",
         motif_url=r"/examination/\d+/edit$",
     )
@@ -955,6 +956,87 @@ def test_une_consultation_en_cours_se_reprend_en_edition(
     consultation.refresh_from_db()
     assert consultation.reason == "Motif repris"
     assert consultation.medical_examination == "Examen repris"
+
+
+def test_un_seul_clic_d_onglet_bascule_le_panneau_pendant_une_consultation(
+    page: Page, live_server: LiveServer
+) -> None:
+    """**Un** clic d'onglet change le panneau affiche, consultation en cours comprise.
+
+    **Ce que ce test regarde** : le panneau reellement **affiche** apres un seul clic, dans
+    l'etat ou le changement d'onglet declenche un echange htmx — une consultation de statut
+    0, donc `edition` non nul et `quitterEdition()` qui soumet. Il regarde aussi, dans le
+    meme test, que cet enregistrement implicite a bien eu lieu (AR5).
+
+    **Pourquoi les deux dans le meme test** : c'est une garde, et une garde se prouve par
+    son armement **et** son desarmement. Les deux correctifs symetriques sont assertes ici.
+    Un correctif qui ferait basculer le panneau depuis la reponse de l'echange rendrait
+    muet le clic qui n'echange rien — celui joue apres, `edition` valant deja `null` ; un
+    correctif qui retirerait `quitterEdition()` du clic d'onglet rendrait la bascule sure
+    et **perdrait la saisie**, que les deux lectures en base attrapent.
+
+    **Pourquoi un test d'ecran, et pourquoi il manquait** : unitairement, le gabarit rend
+    `style="display: none"` sur les quatre panneaux non initiaux **et** `x-show` sur les
+    cinq — `test_page_dossier_patient.py` tient les deux, et les deux peuvent rester vrais
+    pendant que la page ne bascule rien. C'est une interaction htmx/Alpine : elle ne se
+    voit qu'a l'ecran. Le filet cliquait ces onglets sept fois sans jamais regarder le
+    panneau qui s'affiche, et `test_socle_composants.py` ne regarde le composant qu'au banc
+    d'essai, sans `avant_changement` — donc sans echange.
+
+    **L'assertion porte sur l'effet, jamais sur la forme** : ce qui compte est le panneau
+    visible, pas la classe `active` posee sur l'entree de barre. Les deux se sont deja
+    contredits en recette — l'onglet marque et le panneau inchange —, et c'est justement
+    l'assertion de forme qui aurait ete verte.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+
+    general = page.locator("#panneau-general")
+    antecedents = page.locator("#panneau-history")
+    consultations = page.locator("#panneau-examinations")
+    en_cours = page.locator("#panneau-current-examination")
+    expect(en_cours).to_be_visible()
+
+    # Un clic, et un seul : le panneau a bascule. La barriere attend la reponse de
+    # l'enregistrement implicite, parce que les deux lectures qui suivent portent sur la
+    # base — une barriere d'ecran ne prouverait pas l'ecriture (A1).
+    attendre_reponse(
+        page,
+        lambda: page.click("#history"),
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
+    )
+    expect(antecedents).to_be_visible()
+    expect(en_cours).to_be_hidden()
+
+    # L'enregistrement implicite du changement d'onglet a eu lieu : la bascule ne s'obtient
+    # pas en sacrifiant AR5.
+    consultation = Examination.objects.get(patient=patient)
+    assert consultation.reason == "Motif de consultation"
+    assert consultation.medical_examination == "Examen normal"
+
+    # Le geste symetrique : plus rien n'est en edition, donc **aucun** echange ne part. La
+    # bascule ne doit pas dependre d'une reponse qui n'existe pas.
+    page.click("#examinations")
+    expect(consultations).to_be_visible()
+    expect(antecedents).to_be_hidden()
+
+    # Et le geste exact rapporte par la recette : apres un rechargement, la consultation en
+    # cours est de nouveau rendue **en edition** — `edition` est donc non nul a chaque
+    # chargement — et le premier clic doit suffire.
+    page.goto("%s/patient/%d" % (live_server.url, patient.id))
+    expect(general).to_be_visible()
+    attendre_reponse(
+        page,
+        lambda: page.click("#examinations"),
+        methode="POST",
+        motif_url=r"/examination/\d+/edit$",
+    )
+    expect(consultations).to_be_visible()
+    expect(general).to_be_hidden()
 
 
 def test_la_garde_de_sortie_ne_s_arme_qu_apres_une_saisie(
@@ -1258,3 +1340,45 @@ def test_le_pont_de_session_laisse_la_garde_armee(
     expect(garde).to_have_count(1)
     # Et la perte serait reelle : rien n'a ete ecrit.
     assert Patient.objects.get(pk=identifiant).surgical_history in (None, "")
+
+
+def test_le_titre_garde_sa_typographie_hors_edition(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Hors edition, le nom et le prenom gardent la typographie du `<h1>`.
+
+    Les deux cellules du titre sont des boutons `btn btn-link` (D6e T12), la ou l'ecran
+    AngularJS posait `editable-text` sur un `<span>`. Bootstrap donne a `.btn` sa propre
+    typographie -- 14px, couleur de lien -- si bien que le titre se disloquait a l'ecran :
+    « Picard » et « Jean-Luc » en petits liens bleus, et seul l'age gardait la taille du
+    titre. Le defaut n'etait visible qu'hors edition : pendant l'edition la cellule rend
+    un `<span>` inerte, qui herite sans regle.
+
+    On compare les valeurs calculees a celles du `<h1>` lui-meme plutot qu'a des
+    constantes : la regle doit faire heriter, et un futur changement de theme ne doit pas
+    rendre ce test rouge pour une raison etrangere au defaut.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+
+    titre = page.get_by_test_id("titre-patient")
+    nom = titre.get_by_test_id("nom-de-famille").locator("button")
+    expect(nom).to_be_visible()
+
+    mesure = """
+      (bouton) => {
+        const titre = bouton.closest('h1');
+        const du_bouton = getComputedStyle(bouton);
+        const du_titre = getComputedStyle(titre);
+        return {
+          taille_bouton: du_bouton.fontSize,
+          taille_titre: du_titre.fontSize,
+          couleur_bouton: du_bouton.color,
+          couleur_titre: du_titre.color,
+        };
+      }
+    """
+    mesures = nom.evaluate(mesure)
+
+    assert mesures["taille_bouton"] == mesures["taille_titre"], mesures
+    assert mesures["couleur_bouton"] == mesures["couleur_titre"], mesures

@@ -620,6 +620,27 @@ def joindre_document(
     expect(page.locator("div.document_create")).to_have_count(0)
 
 
+def bouton_fin_d_edition(page: Page) -> Locator:
+    """Le bouton « Fin d'édition » **du bandeau d'actions**, jamais celui d'un volet.
+
+    **Le scope n'est pas une precaution de style, c'est ce que ces tests tiennent** : le
+    bouton du bandeau vit hors de tout formulaire et n'agit que par son
+    `$dispatch('dossier-fin-edition')`, que le formulaire en edition ecoute par
+    `hx-trigger="… from:body"`. Viser le soumetteur local du volet enregistrerait tout
+    aussi bien et ne traverserait plus ce chemin : la preuve resterait verte en ayant cesse
+    de prouver quelque chose.
+
+    **Pourquoi un scope est devenu necessaire** : `bfb4998` a rapproche le `msgid` du
+    soumetteur du volet (`consultation-edition.html:146`) de celui du catalogue, corrigeant
+    un bouton reste en anglais. Les deux boutons portent depuis le meme libelle, donc le
+    meme nom accessible, et un `get_by_role` non scope en resout deux des qu'un volet est
+    ouvert — Playwright refuse alors le geste. Sept sites de `test_consultation.py` et deux
+    de `test_patient.py` tombaient ainsi, sans que `make check` le voie : il ne lance pas
+    la suite fonctionnelle.
+    """
+    return page.locator("#actions-dossier").get_by_role("button", name="Fin d'édition")
+
+
 def bouton_de_confirmation(page: Page) -> Locator:
     """Le bouton qui confirme la modale ouverte."""
     return page.locator("#modal-btn-ok")

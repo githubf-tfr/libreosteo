@@ -11,6 +11,7 @@ from libreosteoweb.models import Examination, ExaminationStatus, Invoice, Patien
 from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
     attendre_reponse,
+    bouton_fin_d_edition,
     cloturer_consultation,
     confirmer_la_modale,
     connexion,
@@ -244,7 +245,7 @@ def test_changement_de_date_accepte(
     # viewset DRF ; la reponse **est** l'ecran, mais la barriere reste ou elle doit etre.
     attendre_reponse(
         page,
-        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        lambda: bouton_fin_d_edition(page).click(),
         methode="POST",
         motif_url=r"/examination/\d+/edit$",
     )
@@ -279,7 +280,7 @@ def test_changement_de_date_dans_le_futur_refuse(
     )
     page.get_by_role("button", name="Éditer").click()
     saisir_date_examen(page, date_initiale + timedelta(days=13))
-    page.get_by_role("button", name="Fin d'édition").click()
+    bouton_fin_d_edition(page).click()
 
     # Le refus se prouve par ce que l'utilisateur lit, pas par le nœud que xeditable
     # utilise pour l'afficher.
@@ -322,7 +323,7 @@ def test_date_posterieure_a_la_facture_acceptee(
     # sur la base, seule la reponse du serveur la barre (A1).
     attendre_reponse(
         page,
-        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        lambda: bouton_fin_d_edition(page).click(),
         methode="POST",
         motif_url=r"/examination/\d+/edit$",
     )
@@ -358,7 +359,7 @@ def test_date_anterieure_a_la_facture_acceptee(
     # sur la base, seule la reponse du serveur la barre (A1).
     attendre_reponse(
         page,
-        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        lambda: bouton_fin_d_edition(page).click(),
         methode="POST",
         motif_url=r"/examination/\d+/edit$",
     )
@@ -460,7 +461,7 @@ def test_edition_d_une_consultation_existante(
     expect(volet).to_contain_text("Motif de consultation")
     expect(volet).to_contain_text("Examen normal")
     page.get_by_role("button", name="Éditer").click()
-    expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
+    expect(bouton_fin_d_edition(page)).to_be_visible()
 
     volet.locator("input[placeholder='Motif']").fill("Motif modifie")
     remplir_champ_de_texte_riche(
@@ -474,7 +475,7 @@ def test_edition_d_une_consultation_existante(
     # avorterait un enregistrement encore en vol.
     attendre_reponse(
         page,
-        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        lambda: bouton_fin_d_edition(page).click(),
         methode="POST",
         motif_url=r"/examination/\d+/edit$",
     )
@@ -557,7 +558,7 @@ def test_la_consultation_preserve_le_texte_riche_a_l_octet(
     expect(page.locator("input#examinationDate:visible")).to_have_count(1)
     attendre_reponse(
         page,
-        lambda: page.get_by_role("button", name="Fin d'édition").click(),
+        lambda: bouton_fin_d_edition(page).click(),
         methode="POST",
         motif_url=r"/examination/\d+/edit$",
     )
