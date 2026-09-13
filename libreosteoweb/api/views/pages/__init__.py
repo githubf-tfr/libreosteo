@@ -76,7 +76,7 @@ from .profil import (
     page_profil,
 )
 from .reindexation import page_reindexation
-from .tableau_de_bord import fragment_evenements
+from .tableau_de_bord import fragment_evenements, page_tableau_de_bord
 
 __all__ = [
     "analyser_import",
@@ -120,6 +120,7 @@ __all__ = [
     "page_nouveau_patient",
     "page_profil",
     "page_reindexation",
+    "page_tableau_de_bord",
     "redirection_de_consultation",
     "regulariser_consultation",
     "selecteur_medecin",

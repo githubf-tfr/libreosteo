@@ -47,7 +47,7 @@ from django.test import RequestFactory, TestCase
 
 GABARIT_AVEC_ACTIONS = """
 {% extends "base.html" %}
-{% block menu %}{% if request.user.is_authenticated %}{% include "partials/menu.html" with gabarit_actions="partials/actions-coquille.html" %}{% endif %}{% endblock %}
+{% block menu %}{% if request.user.is_authenticated %}{% include "partials/menu.html" with gabarit_actions="pages/fragments/actions-dossier.html" %}{% endif %}{% endblock %}
 {% block contenu %}<p id="corps">corps</p><p id="portee">{{ gabarit_actions|default:"vide" }}</p>{% endblock %}
 """
 
@@ -59,7 +59,7 @@ GABARIT_SANS_ACTIONS = """
 # L'ancre qui mesure la portee de `gabarit_actions` hors du menu, et les deux valeurs
 # opposees que les deux voies y produisent.
 PORTEE_VIDE = '<p id="portee">vide</p>'
-PORTEE_VISIBLE = '<p id="portee">partials/actions-coquille.html</p>'
+PORTEE_VISIBLE = '<p id="portee">pages/fragments/actions-dossier.html</p>'
 
 
 class TestGabaritActions(TestCase):
@@ -76,7 +76,12 @@ class TestGabaritActions(TestCase):
         )
 
     def _exiger_le_bandeau(self, rendu: str) -> None:
-        for libelle in ("Éditer", "Fin d'édition", "Supprimer"):
+        # D6f a retire `partials/actions-coquille.html` avec la coquille ; le fragment de
+        # remplacement (`pages/fragments/actions-dossier.html`, D6e T12) rend « Éditer » et
+        # « Fin d'édition » sans condition. « Supprimer » est borne a l'onglet actif du
+        # dossier (`suppression_possible`, `patient.id`) : hors de propos ici, ce test ne
+        # verifiant que le mecanisme generique de `gabarit_actions`, pas ce fragment.
+        for libelle in ("Éditer", "Fin d'édition"):
             self.assertIn(libelle, rendu, f"« {libelle} » absent du bandeau")
         # A l'emplacement du menu, et non ailleurs : le fragment est rendu **dans** la
         # barre de navigation, et **apres le formulaire de recherche**. La borne basse est
@@ -106,7 +111,7 @@ class TestGabaritActions(TestCase):
         # voit la variable. Les deux tests forment la falsification l'un de l'autre.
         rendu = self._rendre(
             GABARIT_SANS_ACTIONS,
-            {"gabarit_actions": "partials/actions-coquille.html"},
+            {"gabarit_actions": "pages/fragments/actions-dossier.html"},
         )
         self._exiger_le_bandeau(rendu)
         # La contrepartie exacte de l'assertion du premier test, sur la meme ancre : la

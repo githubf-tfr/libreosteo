@@ -2827,9 +2827,12 @@ deux dates.
 2. Cliquer le logo « LibreOsteo » (en haut à gauche) pour revenir au tableau de bord.
    Attendu : titre de page « Tableau de bord » ; le panneau « Évènements » affiche
    une entrée : nom du patient en gras « La Forge Geordi », texte « Nouveau patient
-   créé », une indication d'ancienneté relative (ex. « il y a moins d'une minute »,
-   le libellé exact dépendant du délai écoulé depuis la création), signée
-   « Robot Tester ».
+   créé », une indication d'ancienneté relative préfixée par « il y a » (ex. « il y a
+   3 minutes »), le libellé exact dépendant du délai écoulé. **Changement assumé de
+   D6f** : sous la minute, le produit affiche désormais « il y a 0 minutes » là où il
+   affichait « il y a moins d'une minute ». `timeAgo.js` a été remplacé par le filtre
+   `timesince` de Django, qui n'a pas ce libellé ; le préfixe, lui, est dans le
+   gabarit et ne bouge pas. Signée « Robot Tester ».
 
 ### R-AGE-02 — Regroupement et navigation depuis les événements du tableau de bord
 
@@ -2848,8 +2851,12 @@ deux dates.
    « Picard Jean-Luc », signées « Robot Tester ».
 2. Cliquer le chevron du panneau « Évènements », puis l'entrée « Tout » du menu
    déroulant.
-   Attendu : les trois mêmes entrées restent affichées, dans le même ordre, mais
-   sans l'en-tête de date.
+   Attendu : les trois mêmes entrées restent affichées, dans le même ordre, mais sans
+   l'en-tête de date. **Changement assumé de D6f** : le filtre **recharge** la liste
+   depuis le serveur (elle repart des dix premiers événements) là où il ne faisait,
+   avant, que basculer un affichage sur des données déjà chargées. Sur un journal de
+   plus de dix entrées, un défilement déjà déroulé est **perdu** au changement de
+   filtre.
 3. Cliquer sur l'entrée « Nouvelle consultation » la plus récente.
    Attendu : la fiche de Jean-Luc Picard s'ouvre directement sur l'onglet
    « Consultations » (actif) ; le panneau « Motif » affiche « Motif de

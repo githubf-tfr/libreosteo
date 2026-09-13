@@ -12,14 +12,19 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-"""Le fragment d'evenements du tableau de bord (D6f, C4, C5, A7, A8).
+"""Le tableau de bord (D6f) : le document servi sous `/` (`TestPage`) et son fragment
+d'evenements (C4, C5, A7, A8).
 
 Ce que ces tests regardent : ce que le **serveur** rend — dix entrees par page, le
 regroupement par jour, la presence ou l'absence du declencheur de page suivante, les deux
-formes de `<a href>`, le prefixe « il y a ».
+formes de `<a href>`, le prefixe « il y a », et pour `TestPage`, le document complet
+(tuiles, graphes, panneau d'evenements, visite guidee) et la disparition des deux routes
+de fragment de la coquille.
 
-Ce qu'ils ne voient pas : que `hx-trigger="revealed"` se declenche au defilement. C'est un
-comportement de navigateur, prouve par R-AGE-02 et par la passe au navigateur.
+Ce qu'ils ne voient pas : que `hx-trigger="revealed"` se declenche au defilement, et que le
+basculement semaine/mois/annee fonctionne au navigateur. Deux comportements de navigateur,
+prouves par R-AGE-02, par `test_tableau_de_bord.py` (fonctionnel) et par la passe au
+navigateur.
 """
 
 from __future__ import annotations
@@ -27,19 +32,24 @@ from __future__ import annotations
 import re
 from datetime import timedelta
 from typing import Any
+from unittest.mock import patch
 
 from django.contrib.auth.models import AnonymousUser
 from django.db import connection
 from django.template import engines
 from django.test import RequestFactory, TestCase
 from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
 
+from libreosteoweb.api import displays
+from libreosteoweb.api.graphiques import serie
 from libreosteoweb.api.serializers import OfficeEventSerializer
 from libreosteoweb.api.views.pages.tableau_de_bord import (
     etapes_de_visite,
     nom_du_patient,
+    page_tableau_de_bord,
 )
 from libreosteoweb.models import OfficeEvent
 
@@ -580,3 +590,227 @@ class TestVisiteGuidee(TestCase):
         ):
             with self.subTest(msgid=msgid):
                 self.assertNotIn(msgid, corps)
+
+
+class TestPage(TestCase):
+    """`/` devient un document Django (D6f, A1, A6, A8) : la bascule de la tache 7.
+
+    Ce que ces tests regardent : ce que le document rendu par `page_tableau_de_bord`
+    contient — titre, socle htmx/Alpine sans jQuery ni Angular, tuiles, neuf graphes SVG,
+    panneau d'evenements, visite guidee, memorisation de version — et que les deux
+    anciennes routes de fragment repondent 404.
+
+    Ce qu'ils ne voient pas : que le basculement semaine/mois/annee fonctionne. C'est du
+    JavaScript Alpine, prouve par `test_tableau_de_bord.py` (fonctionnel) et par la passe
+    au navigateur.
+    """
+
+    def setUp(self) -> None:
+        with sans_receivers():
+            self.praticien = cree_praticien()
+            self.reglages = cree_reglages_praticien(self.praticien)
+            self.cabinet = regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def test_la_racine_rend_le_titre_du_tableau_de_bord(self) -> None:
+        reponse = self.client.get("/")
+
+        self.assertEqual(200, reponse.status_code)
+        corps = reponse.content.decode()
+        self.assertIn('data-testid="titre-tableau-de-bord"', corps)
+        self.assertIn("Tableau de bord", corps)
+
+    def test_la_racine_etend_le_socle_et_ne_charge_ni_jquery_ni_angular(self) -> None:
+        corps = self.client.get("/").content.decode()
+
+        self.assertIn("components/htmx/dist/htmx.min.js", corps)
+        self.assertIn("components/alpinejs/dist/cdn.min.js", corps)
+        self.assertNotIn("components/jquery", corps)
+        self.assertNotIn("components/angular", corps)
+
+    def test_les_trois_compteurs_sont_rendus_dans_le_document(self) -> None:
+        """A6 : aucun appel a `/api/statistics` n'est necessaire — ce test l'atteste en
+        n'en faisant aucun, les trois valeurs arrivant **avec** le document."""
+        with sans_receivers():
+            # `creation_date` n'est rempli par `Patient.clean()` qu'a la validation d'un
+            # formulaire : `objects.create()` le laisse `None` si on ne le passe pas
+            # (mesure directe, comme `test_exploitation.py::test_les_donnees_du_jour_
+            # sont_comptees`), et un patient sans date de creation n'entre dans aucune
+            # des trois periodes.
+            patient = cree_patient(creation_date=timezone.localdate())
+            cree_consultation(patient, therapeut=self.praticien)
+            cree_consultation(patient, therapeut=self.praticien)
+
+        corps = self.client.get("/").content.decode()
+
+        self.assertIn('data-testid="compteur-nouveaux-patients"', corps)
+        self.assertIn('data-testid="compteur-consultations"', corps)
+        self.assertIn('data-testid="compteur-retours-urgents"', corps)
+        motif = re.search(
+            r'data-testid="compteur-nouveaux-patients"[^>]*>(\d+)<', corps
+        )
+        assert motif is not None
+        self.assertEqual("1", motif.group(1))
+
+    def test_la_periode_active_est_portee_par_la_valeur_du_data_testid(self) -> None:
+        """Contrat pose par D6b (E2) ; `test_tableau_de_bord.py:77,83,89` s'y appuie."""
+        corps = self.client.get("/").content.decode()
+
+        self.assertIn('data-testid="periode-active-week"', corps)
+
+    def test_les_neuf_series_sont_rendues_en_svg_inline(self) -> None:
+        corps = self.client.get("/").content.decode()
+
+        self.assertEqual(9, corps.count("<polyline"))
+        self.assertNotIn("sparkline.min.js", corps)
+
+    def test_statistiques_coupees_ne_rendent_pas_les_tuiles(self) -> None:
+        """C3 : une valeur fausse ne masque pas, elle ne rend pas."""
+        self.reglages.stats_enabled = False
+        self.reglages.save()
+
+        corps = self.client.get("/").content.decode()
+
+        self.assertNotIn('data-testid="compteur-nouveaux-patients"', corps)
+
+    def test_evenements_coupes_ne_rendent_pas_le_panneau(self) -> None:
+        self.reglages.last_events_enabled = False
+        self.reglages.save()
+
+        corps = self.client.get("/").content.decode()
+
+        self.assertNotIn('data-testid="panneau-evenements"', corps)
+
+    def test_le_panneau_d_evenements_inclut_la_premiere_page(self) -> None:
+        with sans_receivers():
+            patient = cree_patient()
+            for rang in range(3):
+                OfficeEvent.objects.create(
+                    date=timezone.now() - timedelta(seconds=60 * rang),
+                    clazz="Patient",
+                    type=1,
+                    comment="Nouveau patient cree",
+                    reference=patient.id,
+                    user=self.praticien,
+                )
+
+        corps = self.client.get("/").content.decode()
+
+        self.assertIn('data-testid="panneau-evenements"', corps)
+        self.assertIn('id="liste-evenements"', corps)
+        self.assertEqual(3, corps.count('data-testid="evenement-cabinet"'))
+
+    def test_la_visite_guidee_est_rendue_quand_une_condition_tient(self) -> None:
+        self.reglages.professional_id = ""
+        self.reglages.save()
+
+        corps = self.client.get("/").content.decode()
+
+        self.assertIn('data-testid="visite-guidee"', corps)
+
+    def test_la_visite_guidee_n_est_pas_rendue_quand_tout_est_renseigne(self) -> None:
+        """Le socle regle `professional_id` et `currency` : zero etape, zero encart."""
+        corps = self.client.get("/").content.decode()
+
+        self.assertNotIn("visite-guidee", corps)
+
+    def test_la_memorisation_de_version_est_remplie_par_la_vue_de_la_racine(
+        self,
+    ) -> None:
+        """A1 : `display_index` etait le seul site qui remplissait la memorisation
+        consommee par le context processor ; la vue neuve reprend cette responsabilite."""
+        anciennes = (displays.new_version_available, displays.new_version)
+        displays.new_version_available, displays.new_version = (False, None)
+        try:
+            with patch(
+                "libreosteoweb.api.version.version.ask_for_new_version",
+                return_value=(True, "9.9.9"),
+            ):
+                self.client.get("/")
+            self.assertIsNotNone(displays.new_version)
+        finally:
+            displays.new_version_available, displays.new_version = anciennes
+
+    def test_l_ancienne_route_du_fragment_de_tableau_de_bord_a_disparu(self) -> None:
+        self.assertEqual(
+            404, self.client.get("/web-view/partials/dashboard").status_code
+        )
+
+    def test_l_ancienne_route_du_fragment_d_evenements_a_disparu(self) -> None:
+        """Meme forme que `test_page_nouveau_patient.py:495-501`, qui a etabli le
+        precedent."""
+        self.assertEqual(
+            404, self.client.get("/web-view/partials/officeevent").status_code
+        )
+
+    def test_les_deux_noms_de_route_du_cabinet_pointent_la_racine(self) -> None:
+        """`OfficeSettingsMiddleware.process_request` (`middleware.py:196-197`) et
+        `partials/menu.html` lisent ces deux noms : les perdre ferait boucler le
+        multi-cabinet en redirection, ou lever un `NoReverseMatch` partout (A1).
+
+        **Ecart mesure et assume** : `resolve(reverse(nom))` ne peut pas etre la preuve
+        ici. `path(r"/")` rend un slash encode (`reverse("officesettings-set") ==
+        "/%2F"`), defaut deja documente et hors perimetre de D6f
+        (`tests/functional/test_atteignabilite.py`, KANBAN.md du 2026-09-13) : `resolve()`
+        de cette chaine ne retrouve aucun motif, quelle que soit la vue ciblee. La preuve
+        directe est de retrouver les deux motifs par nom dans `libreosteoweb.urls` et de
+        lire leur `callback` ; `reverse()` est seulement verifie infaillible (A1 :
+        `NoReverseMatch` casserait le menu).
+        """
+        from libreosteoweb.urls import urlpatterns as routes_cabinet
+
+        noms = {"officesettings-set", "officesettings-reset"}
+        callbacks = {
+            motif.name: motif.callback for motif in routes_cabinet if motif.name in noms
+        }
+        self.assertEqual(noms, set(callbacks))
+        for nom, callback in callbacks.items():
+            with self.subTest(nom=nom):
+                self.assertIs(page_tableau_de_bord, callback)
+                reverse(nom)
+
+
+class TestEchappementDuGraphe(TestCase):
+    """Le `<title>` du mini-graphe n'est jamais echappe par `graphiques.py` : la surete du
+    libelle repose **entierement** sur l'auto-echappement du gabarit (D6f).
+
+    `graphiques.serie` reprend les libelles a l'octet, et aucun test de ce module ni de
+    `test_graphiques.py` n'exerce le gabarit avec un libelle balise — c'est le seul point
+    ou l'echappement peut se perdre (un `|safe`, un `mark_format`, une construction en
+    Python), et rien d'autre ne le garde.
+    """
+
+    def _rendre(self, libelle: str) -> str:
+        trace = serie([libelle], [1])
+        serie_unique = [
+            {
+                "periode": "week",
+                "actif": True,
+                "points": trace.points,
+                "sommets": trace.sommets,
+            }
+        ]
+        periode = {"nb_new_patient": 1, "nb_examination": 1, "nb_urgent_return": 1}
+        contexte = {
+            "statistiques": True,
+            "semaine": periode,
+            "mois": periode,
+            "annee": periode,
+            "graphes": {
+                "nb_new_patient": serie_unique,
+                "nb_examination": serie_unique,
+                "nb_urgent_return": serie_unique,
+            },
+            "evenements_actifs": False,
+            "visite": None,
+        }
+        gabarit = engines["django"].get_template("pages/tableau-de-bord.html")
+        requete = RequestFactory().get("/")
+        requete.user = AnonymousUser()
+        return gabarit.render(contexte, requete)
+
+    def test_le_libelle_du_sommet_est_echappe(self) -> None:
+        rendu = self._rendre("<script>alert(1)</script>")
+
+        self.assertNotIn("<script>alert(1)</script>", rendu)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", rendu)

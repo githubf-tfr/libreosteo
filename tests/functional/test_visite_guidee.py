@@ -44,8 +44,13 @@ def test_les_deux_etapes_s_enchainent_et_se_terminent(
     # Le menu utilisateur est force ouvert pendant l'etape : `to_be_attached` ne prouverait
     # rien, le `<ul>` etant rendu inconditionnellement par le serveur.
     expect(page.get_by_test_id("menu-utilisateur")).to_be_visible()
-    # Aucun voile : `backdrop: false`.
-    expect(page.locator(".tour-backdrop")).to_have_count(0)
+    # Aucun voile (`backdrop: false`) : preuve de ce que l'absence **permet**, pas de sa
+    # forme — un `.tour-backdrop` absent ne prouverait rien une fois `bootstrap-tour`
+    # retire, puisque la classe ne serait alors jamais posee pour une autre raison.
+    # `.hover()` verifie l'actionnabilite Playwright (visible, stable, recoit les
+    # evenements du curseur) sans naviguer : un voile interposerait un element qui
+    # intercepterait le pointeur, ce que ce controle detecterait.
+    page.get_by_role("link", name="Nouveau patient").hover()
 
     page.get_by_test_id("visite-suivant").click()
     expect(page.get_by_test_id("visite-titre")).to_have_text("Paramétrer le cabinet")

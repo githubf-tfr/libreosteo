@@ -75,26 +75,39 @@ def test_les_statiques_de_l_application_sont_servis(
 
     Le catalogue jsi18n est ecrit par `compilejsi18n` dans STATIC_ROOT, que les finders
     n'explorent pas : c'est le premier fichier a tomber si la bascule du conftest saute.
+
+    **D6f, ecart mesure** : Angular ne charge plus nulle part, la coquille etant morte —
+    `typeof angular` vaudrait desormais `"undefined"` partout, y compris sur une page qui
+    sert bien ses statiques. La preuve qu'un fichier JS statique s'est reellement execute
+    porte donc sur `htmx`, charge sans `defer` par `base.html` et disponible des que
+    `connexion()` a fini d'attendre le rendu du document.
     """
     connexion(page, live_server)
     reponse = page.request.get(f"{live_server.url}/static/jsi18n/fr/djangojs.js")
     assert reponse.status == 200
-    assert page.evaluate("typeof angular") == "object"
+    assert page.evaluate("typeof htmx") == "object"
 
 
 def test_la_page_sert_les_bundles_compresses(
     page: Page, live_server: LiveServer
 ) -> None:
-    """La suite exerce ce que l'image sert : un bundle, pas vingt fichiers.
+    """La suite exerce ce que l'image sert : des bundles, pas des dizaines de fichiers.
 
     Sous `dev.py`, COMPRESS_ENABLED est faux et `{% compress %}` rend le contenu
     d'origine : la suite recetterait une chaine que le produit ne sert pas. Ce test
     echoue des que le reglage repasse a faux — c'est ce qui en fait un cliquet.
+
+    **D6f, ecart mesure** : `/` ne charge plus aucun JavaScript applicatif a compresser —
+    `htmx` et `Alpine` sont deux fichiers vendus, references nus, jamais dans un bloc
+    `{% compress js %}` — la preuve historique par les scripts n'a plus de support sur
+    cette page. Elle porte desormais sur les feuilles de style, que `/` compresse
+    toujours : `base.html` produit un bundle, `{% block css_page %}` un second (mesure
+    directe, deux `<link>` `CACHE/css/output.*` sur `/`, jamais les fichiers d'origine).
     """
     connexion(page, live_server)
     sources = page.eval_on_selector_all(
-        "script[src]", "noeuds => noeuds.map((n) => n.getAttribute('src'))"
+        "link[rel=stylesheet]", "noeuds => noeuds.map((n) => n.getAttribute('href'))"
     )
-    motif = re.compile(r"^/static/CACHE/js/output\.[0-9a-f]{12}\.js$")
-    assert len([source for source in sources if motif.match(source)]) == 1, sources
-    assert [source for source in sources if "/static/js/app/" in source] == []
+    motif = re.compile(r"^/static/CACHE/css/output\.[0-9a-f]{12}\.css$")
+    assert len([source for source in sources if motif.match(source)]) == 2, sources
+    assert [source for source in sources if "/static/css/sb-admin-2.css" in source] == []

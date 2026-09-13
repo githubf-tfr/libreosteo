@@ -16,9 +16,12 @@
 
 from django.urls import path
 
-from libreosteoweb.api import displays
+from libreosteoweb.api import views
 
 urlpatterns = [
-    path(r"/", displays.display_index, name="officesettings-set"),
-    path(r"/", displays.display_index, name="officesettings-reset"),
+    # A1 : ces deux noms ne sont pas decoratifs. `OfficeSettingsMiddleware.process_request`
+    # (`middleware.py:196-197`) et `partials/menu.html` les lisent ; la forme `path(r"/")`
+    # est reprise a l'octet, un changement d'URL ferait boucler le multi-cabinet.
+    path(r"/", views.page_tableau_de_bord, name="officesettings-set"),
+    path(r"/", views.page_tableau_de_bord, name="officesettings-reset"),
 ]

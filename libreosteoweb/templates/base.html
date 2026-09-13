@@ -68,8 +68,5 @@
   <script src="{% static "components/htmx/dist/htmx.min.js" %}"></script>
   <script defer src="{% static "components/alpinejs/dist/cdn.min.js" %}"></script>
   {% block js_page %}{% endblock %}
-  {# Vide par defaut : les 45 chaines du catalogue sont toutes dans l'application #}
-  {# principale, aucune page migree par D6c n'en utilise une seule (A16). #}
-  {% block catalogue_js %}{% endblock %}
 </body>
 </html>

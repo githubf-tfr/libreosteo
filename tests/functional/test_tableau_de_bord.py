@@ -98,7 +98,13 @@ def test_statistiques_du_jour(page: Page, live_server: LiveServer) -> None:
     Le test unitaire (libreosteoweb/tests/test_exploitation.py::TestBorneDeFinDeJournee::
     test_un_acte_juste_apres_minuit_local_compte_dans_aujourdhui) verifie au niveau API
     que la borne de fin de journee est locale et non calendaire UTC ; celui-ci lit la
-    tuile rendue, avant et apres un rechargement de page complet.
+    tuile rendue.
+
+    **Distinction perdue, assumee (D6f)** : depuis que `/` est un document Django, `goto`
+    est deja une navigation complete, et `page.reload()` qui suit ne fait que la rejouer —
+    les deux lectures sont post-rechargement. L'ancien contrat (« avant et apres un
+    rechargement complet ») visait la navigation a dieze, que la coquille rendait sans
+    recharger ; elle n'a plus de sens des qu'aucune navigation same-document ne mene ici.
     """
     connexion(page, live_server)
     construire_etat_e2(page)

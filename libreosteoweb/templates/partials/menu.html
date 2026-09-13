@@ -1,9 +1,8 @@
 {% load i18n %}
-{# Pilote Alpine, strictement additif (A3). Chaque document n'en active qu'un : jQuery #}
-{# n'est charge que par la coquille, Alpine que par les pages htmx. Sur index.html les #}
-{# attributs x-data / :class / @click sont inertes ; sur une page htmx ce sont les #}
-{# data-toggle qui le sont. Un document qui chargerait les deux basculerait deux fois : #}
-{# A2 l'interdit, et le cliquet de D6g retire data-toggle en meme temps que jQuery. #}
+{# Pilote Alpine, seul (D6f, A8). Le bloc qui decrivait la cohabitation jQuery/Alpine est #}
+{# retire avec la coquille : plus aucun document ne charge le JavaScript de Bootstrap 3, #}
+{# donc `data-toggle` ne pilotait plus rien. Bootstrap 3 ne style **rien** sur cet #}
+{# attribut — verifie sur `css/bootstrap.min.css` et `css/sb-admin-2.css`. #}
 <nav class="navbar navbar-default navbar-fixed-top" role="navigation" style="margin-bottom: 0"
      x-data="{ barreDeployee: false, menuUtilisateur: {% if visite %}true{% else %}false{% endif %}, menuAide: false, visiteEtape: {% if visite %}1{% else %}0{% endif %}, visiteTotal: {{ visite.total|default:0 }} }">
   <div class="d-flex flex-column">
@@ -13,7 +12,7 @@
       <a class="navbar-brand" href="/">LibreOsteo</a>
     {% endif %}
     <div class="navbar-header">
-      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#headerNavbar"
+      <button type="button" class="navbar-toggle"
               aria-expanded="false" @click="barreDeployee = !barreDeployee">
         <span class="sr-only">Toggle navigation</span>
         <span class="icon-bar"></span>
@@ -43,7 +42,7 @@
       {# `@click.outside` ne referme plus pendant la visite : c'est la parite exacte du #}
       {# rabonnement de `tour.js:51` sur `hidden.bs.dropdown`, sans le rabonnement. #}
       <li class="dropdown{% if visite %} open{% endif %}" :class="{ 'open': menuUtilisateur }" @click.outside="if (visiteEtape === 0) { menuUtilisateur = false }">
-        <a target="_self" href="#" class="dropdown-toggle" data-toggle="dropdown" id="user-toggle" aria-haspopup="true" role="button" aria-expanded="false"
+        <a target="_self" href="#" class="dropdown-toggle" id="user-toggle" aria-haspopup="true" role="button" aria-expanded="false"
            @click.prevent="menuUtilisateur = !menuUtilisateur; menuAide = false">
           <i class="fa fa-user fa-fw"></i> {{ request.user.username }} <i class="fa fa-caret-down"></i>
         </a>
@@ -62,12 +61,8 @@
           {% if request.user.is_staff %}
           <li id="import-file"><a href="{% url 'import-export' %}"><i class="fa fa-upload"></i> {% trans "Import/export" %}</a>
           </li>
-          {# `ui-sref` retire **en meme temps** que le `href` change : la directive #}
-          {# reecrit l'attribut `href` de l'element qui la porte, donc un `href` absolu #}
-          {# pose a cote serait reecrit en `#/office/rebuild-index` des que la coquille est #}
-          {# affichee — et menerait a un etat dont le fragment n'existe plus (D6d, E2). #}
           {# L'identifiant `rebuild-index` ne bouge pas : cinq helpers du filet le #}
-          {# cliquent, et `tour.js` s'ancre sur ses deux voisins. #}
+          {# cliquent. Le `ui-sref` qui vivait ici est parti avec la coquille (D6f). #}
           <li id="rebuild-index"><a href="{% url 'reindexation' %}"><i class="fa fa-wrench"></i> {% trans "Rebuild index" %}</a>
           </li>
           {% endif %}
@@ -83,7 +78,7 @@
         <!-- /.dropdown-user -->
       </li>
       <li class="dropdown" :class="{ 'open': menuAide }" @click.outside="menuAide = false">
-        <a href="#" target="_self" class="dropdown-toggle" data-toggle="dropdown" id="help-toggle" aria-haspopup="true" role="button" aria-expanded="false"
+        <a href="#" target="_self" class="dropdown-toggle" id="help-toggle" aria-haspopup="true" role="button" aria-expanded="false"
            @click.prevent="menuAide = !menuAide; menuUtilisateur = false">
           <i class="fa fa-question-circle fa-fw"></i><i class="fa fa-caret-down"></i><span class="sr-only">{% trans "Help" %}</span>
           {% if new_version_available %}

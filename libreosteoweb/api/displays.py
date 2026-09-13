@@ -21,13 +21,16 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 
 from libreosteoweb import models
-from libreosteoweb.api.version import version
 
 from .permissions import maintenance_available
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
+# La memorisation du controle de version. `page_tableau_de_bord`
+# (`api/views/pages/tableau_de_bord.py`) est desormais le seul site qui la remplit, donc le
+# seul a faire l'appel reseau ; le context processor `libreosteoweb.context_processors.version`
+# la lit par acces d'attribut de module, jamais par `from … import` (D6f, A1).
 new_version = None
 new_version_available = False
 
@@ -60,33 +63,6 @@ class TherapeutSettingsDisplay(GenericDisplay):
     class Meta:
         model = models.TherapeutSettings
         fields = [f.name for f in model._meta.fields if f.editable]
-
-
-def display_index(request):
-    global new_version, new_version_available
-    if new_version is None:
-        new_version_available, new_version = version.ask_for_new_version()
-    # Les trois clefs du menu viennent desormais du context processor
-    # `libreosteoweb.context_processors.version` (D6c, A4). Cette vue reste la seule a
-    # remplir la memorisation ci-dessus, et donc la seule a faire l'appel reseau.
-    return render(request, "index.html", {"request": request})
-
-
-def display_dashboard(request):
-    therapeut_settings, _ = models.TherapeutSettings.objects.get_or_create(
-        user=request.user
-    )
-    return render(
-        request,
-        "partials/dashboard.html",
-        {
-            "therapeutsettings": therapeut_settings,
-        },
-    )
-
-
-def display_officeevent(request):
-    return render(request, "partials/officeevent.html", {})
 
 
 @never_cache

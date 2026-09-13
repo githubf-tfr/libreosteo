@@ -36,12 +36,20 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from libreosteoweb import models
+from libreosteoweb.api import displays
+from libreosteoweb.api.graphiques import serie
+from libreosteoweb.api.statistics import Statistics
+from libreosteoweb.api.version import version
 from libreosteoweb.api.views.administration import (
     PaginationEvenements,
     evenements_du_journal,
 )
 
 GROUPES = ("jour", "tout")
+
+# Les trois metriques, dans l'ordre des tuiles de `partials/dashboard.html`.
+METRIQUES = ("nb_new_patient", "nb_examination", "nb_urgent_return")
+PERIODES = ("week", "month", "year")
 
 
 def nom_du_patient(evenement: models.OfficeEvent) -> str:
@@ -212,3 +220,92 @@ def fragment_evenements(request: HttpRequest) -> HttpResponse:
         else "pages/fragments/evenements-page.html"
     )
     return render(request, gabarit, contexte)
+
+
+def _graphes(historique: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Neuf series : trois metriques x trois periodes (AR1).
+
+    `get_history_statistics` rend, par metrique, un couple `[libelles, valeurs]` de onze
+    entrees. Les libelles sont **repris a l'octet** : ce sont ceux que l'infobulle de
+    `jquery.sparkline` affichait (`tooltipValueLookups`, `dashboard.js:49`).
+    """
+    graphes: dict[str, list[dict[str, Any]]] = {}
+    for metrique in METRIQUES:
+        series = []
+        for periode in PERIODES:
+            libelles, valeurs = historique[periode][metrique]
+            trace = serie(libelles, valeurs)
+            series.append(
+                {
+                    "periode": periode,
+                    "actif": periode == "week",
+                    "points": trace.points,
+                    "sommets": trace.sommets,
+                }
+            )
+        graphes[metrique] = series
+    return graphes
+
+
+def page_tableau_de_bord(request: HttpRequest) -> HttpResponse:
+    """Le document servi sous `/` (D6f, A1, A6, C3).
+
+    **Les deux noms de route `officesettings-set` et `officesettings-reset` pointent ici**
+    (`libreosteoweb/urls.py`), a l'octet : `OfficeSettingsMiddleware.process_request` et
+    `partials/menu.html` les lisent. Les perdre ferait boucler le multi-cabinet en
+    redirection, ou lever un `NoReverseMatch` sur **toutes** les pages, le menu inclus.
+
+    **La memorisation de `new_version` est reprise telle quelle de `display_index`**, qui
+    en etait le seul site : le context processor `libreosteoweb.context_processors.version`
+    la **lit** par acces d'attribut de module. L'ecrire ailleurs que sur `displays` la
+    rendrait invisible au menu.
+
+    **Les statistiques sont calculees ici, en un seul appel** (A6). C'est ce que le produit
+    fait deja — un calcul, trois periodes, un basculement instantane (`dashboard.js:77-89`)
+    — mais sans les trois allers-retours d'API que `DashboardCtrl` faisait. *Repli acte
+    d'avance si le premier octet se met a attendre les ~108 requetes de comptage sur une
+    grosse base* : un `hx-trigger="load"` sur la seule region des tuiles, qui coute une URL
+    et **zero** reecriture du fragment.
+    """
+    if displays.new_version is None:
+        displays.new_version_available, displays.new_version = (
+            version.ask_for_new_version()
+        )
+
+    # `.pk` et non `request.user` directement : meme substitution que `profil.py::
+    # _profil_de` pour la meme raison de typage (`User | AnonymousUser` vs `User | int |
+    # None`). `LoginRequiredMiddleware` garantit un utilisateur authentifie ici.
+    utilisateur_id = request.user.pk
+    assert utilisateur_id is not None
+    reglages, _cree = models.TherapeutSettings.objects.get_or_create(
+        user_id=utilisateur_id
+    )
+
+    contexte: dict[str, Any] = {
+        "statistiques": None,
+        "evenements_actifs": reglages.last_events_enabled,
+        "visite": etapes_de_visite(request),
+    }
+    if reglages.stats_enabled:
+        mesures = Statistics().compute()
+        contexte["statistiques"] = True
+        contexte["semaine"] = mesures["week"]
+        contexte["mois"] = mesures["month"]
+        contexte["annee"] = mesures["year"]
+        contexte["graphes"] = _graphes(mesures["history"])
+    if reglages.last_events_enabled:
+        contexte["groupe"] = "jour"
+        entrees = entrees_du_journal(
+            list(evenements_du_journal()[: PaginationEvenements.default_limit])
+        )
+        contexte["entrees"] = entrees
+        contexte["groupes"] = grouper_par_jour(entrees)
+        contexte["offset_suivant"] = (
+            PaginationEvenements.default_limit
+            if evenements_du_journal()[
+                PaginationEvenements.default_limit : PaginationEvenements.default_limit
+                + 1
+            ].exists()
+            else None
+        )
+    return render(request, "pages/tableau-de-bord.html", contexte)

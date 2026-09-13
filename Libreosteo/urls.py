@@ -39,7 +39,7 @@ router.register(r"patient-documents", views.PatientDocumentViewSet, "PatientDocu
 
 urlpatterns = [
     # Examples:
-    re_path(r"^$", displays.display_index),
+    re_path(r"^$", views.page_tableau_de_bord, name="tableau-de-bord"),
     re_path(r"^api/", include(format_suffix_patterns(router.urls))),
     re_path(
         r"^accounts/login/$",
@@ -305,8 +305,6 @@ urlpatterns = [
         r"^internal/rebuild_index", views.RebuildIndex.as_view(), name="rebuild_index"
     ),
     # Serve web-view
-    re_path(r"^web-view/partials/dashboard", displays.display_dashboard),
-    re_path(r"^web-view/partials/officeevent", displays.display_officeevent),
     re_path(
         r"^web-view/partials/restore$",
         displays.display_restore,

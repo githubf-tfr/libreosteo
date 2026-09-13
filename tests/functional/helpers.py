@@ -29,19 +29,12 @@ def connexion(
     page.fill("input[name=password]", mot_de_passe)
     page.click("button[type=submit]")
     expect(page).to_have_title("LibreOsteo")
-    # Le tableau de bord declenche plusieurs appels asynchrones au chargement (profil,
-    # reglages, statistiques, evenements) que le clic de connexion n'attend pas : un geste
-    # suivant execute avant leur resolution est absorbe en silence par la transition
-    # initiale, sans erreur visible ni requete reseau (confirme par instrumentation directe
-    # des evenements `request` de Playwright). Le compteur de nouveaux patients est
-    # interpole depuis la reponse des statistiques : un compteur affiche et non vide prouve
-    # que l'appel statistiques a resolu — pas une temporisation. Il ne prouve rien de plus :
-    # dans dashboard.js (TherapeutSettingsServ.get_by_user().then(...)), l'appel statistiques
-    # (DashboardServ.get) et l'appel evenements (OfficeEventServ) sont deux branches soeurs
-    # du meme .then(), sans ordre garanti entre elles ; cette barriere n'attend donc pas les
-    # evenements. Elle suppose aussi TherapeutSettings.stats_enabled = True (vrai par defaut,
-    # models.py) : un socle de test qui le desactiverait ferait echouer `connexion()`, donc
-    # toute la suite, bruyamment mais sans indice dans ce commentaire — a defaut d'y penser.
+    # Depuis D6f, `/` est un document Django : les trois appels d'API du tableau de bord
+    # (profil, statistiques, evenements) n'existent plus, et le compteur arrive **avec** le
+    # document. Cette barriere est donc immediatement satisfaite — elle ne coute rien, et
+    # elle continue de distinguer un document charge d'un document en cours de chargement.
+    # Elle suppose toujours `TherapeutSettings.stats_enabled = True` (vrai par defaut) : un
+    # socle qui le desactiverait ferait echouer `connexion()`, donc toute la suite.
     compteur = page.get_by_test_id("compteur-nouveaux-patients")
     expect(compteur).to_be_visible()
     expect(compteur).not_to_have_text("")
@@ -50,15 +43,11 @@ def connexion(
 def ouvrir_menu_utilisateur(page: Page) -> None:
     """Ouvre le menu utilisateur, sans jamais cliquer en aveugle.
 
-    La visite guidee (`static/js/app/tour.js`, `onShow` des pas « Thérapeute » et
-    « Paramétrer le cabinet ») ouvre ce menu par la classe CSS `open`, hors du
-    gestionnaire de clic Bootstrap, et le rouvre elle-meme sur l'evenement
-    `hidden.bs.dropdown`. Un clic sur #user-toggle quand le menu est deja ouvert par la
-    visite guidee entre en collision avec ce rouvre-automatique : Bootstrap capture l'etat
-    « deja ouvert » avant de le refermer, donc ne remet jamais `aria-expanded` a `true`,
-    meme si le rouvre-automatique du tour laisse le menu visuellement ouvert (confirme par
-    instrumentation directe des attributs DOM). Piloter l'etat reel du menu, plutot que de
-    cliquer sans le regarder, evite cette dependance a un comportement non garanti.
+    La visite guidee force ce menu ouvert (D6f, C7) : depuis la reecriture, elle le fait par
+    la **meme** variable Alpine que le clic (`menuUtilisateur`, `partials/menu.html`), donc
+    il n'y a plus de collision entre deux moteurs. Piloter l'etat reel du menu plutot que de
+    cliquer sans le regarder reste la bonne facon de faire : quand la visite est ouverte, le
+    menu l'est deja, et un clic le refermerait.
     """
     menu = page.get_by_test_id("menu-utilisateur")
     if not menu.is_visible():
