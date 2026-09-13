@@ -177,7 +177,25 @@ le menu ne s'ouvrait pas.
 
 Quatre autres réglages mesurés, qui font partie du contrat : `storage: false` — la visite
 se redéclenche à **chaque** ouverture du tableau de bord tant que les conditions tiennent,
-elle ne se mémorise pas ; `backdrop: false` — aucun voile ; le gabarit porte **trois** boutons
+elle ne se mémorise pas ;
+
+> **Complément du 2026-09-13, mesuré par l'exécution de T2 et vérifié par sa revue.** Cette
+> phrase est vraie mais **incomplète**, et l'incomplétude est piégeuse : la réouverture est
+> **surdéterminée**, par deux causes indépendamment suffisantes.
+>
+> 1. `storage: false` range l'état dans `this._state` (`bootstrap-tour.js:396-443`), perdu au
+>    rechargement de la page.
+> 2. `tour.js:88` appelle `init()` sans argument, `ended()` rend vrai, et
+>    `bootstrap-tour.js:136-139` sort en « init prevented » sans poser `_inited` ; `start(true)`
+>    (`:167-169`) rappelle donc `init(true)`, qui met `_force` à vrai, et `ended()` — écrit
+>    `!this._force && !!this._getState('end')` (`:216`) — devient faux **quel que soit le
+>    stockage**.
+>
+> *Ce que ça change* : falsifier la réouverture en ne touchant qu'à `storage` **laisse le test
+> vert**, ce que T2 a mesuré. La réécriture au serveur doit reconduire l'**effet** — la visite
+> revient tant que les conditions tiennent — et non l'un des deux leviers en croyant tenir le
+> mécanisme. Reconduire la seule absence de mémorisation suffit ; reconduire le seul forçage
+> aussi. `backdrop: false` — aucun voile ; le gabarit porte **trois** boutons
 — « « Préc », « Suiv » », « Terminer » — séparés par un `|` qui n'en est pas un ; et `onEnd`
 referme le menu utilisateur.
 
