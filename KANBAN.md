@@ -565,6 +565,28 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
+- **Les deux routes du choix de cabinet produisent une URL invalide, et le middleware y
+  redirige.** `libreosteoweb/urls.py:22-23` déclare `path(r"/")` — un segment littéral `/` —
+  sous le préfixe vide de `Libreosteo/urls.py:298`. Mesuré :
+  `reverse("officesettings-set")` rend **`/%2F`**, slash encodé compris, et
+  `reverse("officesettings-reset")` de même. Deux consommateurs réels :
+  `middleware.py:196-197`, qui **redirige** vers cette URL, et `partials/menu.html:69`, le
+  lien « Changer de cabinet ».
+
+  ⚠️ **La garde n'est pas celle que ce journal décrivait.** L'entrée du 2026-09-10 dit le
+  multi-cabinet « inatteignable » parce qu'aucun code n'écrit `session["officesettings"]` —
+  c'est exact, mais ce n'est pas ce qui ferme le chemin. Le chemin est gardé par
+  `request.has_multiple_office`, vrai dès qu'il existe **plus d'une fiche cabinet en base**
+  (`middleware.py:185`). Créer un second cabinet suffit donc à l'ouvrir, et la redirection
+  part alors vers `/%2F`.
+
+  **Non mesuré, et à mesurer avant de corriger** : ce que fait effectivement cette
+  redirection — 404, boucle, ou résolution silencieuse. Le déduire serait précisément
+  l'erreur que ce dépôt s'interdit.
+
+  **Conservé à l'octet par D6f** (arbitrage A1 de sa spec, multi-cabinet hors périmètre) :
+  le lot qui tue la coquille n'est pas celui qui touche au routage du cabinet. Relevé par
+  l'écriture du plan de D6f, le 2026-09-13.
 - **Trois actions jointives de 10 px dans l'édition d'une vignette de document, dont une
   suppression irréversible.** `pages/fragments/document-edition.html` rend « valider »,
   « annuler » et « supprimer » en trois `button.close` flottants, mesurés à l'écran à
