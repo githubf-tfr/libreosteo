@@ -15,6 +15,7 @@ from tests.functional.helpers import (
     cloturer_consultation,
     confirmer_la_modale,
     connexion,
+    creer_patient,
     libelle_date_longue,
     notifications_de_succes,
     ouvrir_nouvelle_consultation,
@@ -614,3 +615,43 @@ def test_une_consultation_en_cours_se_supprime_depuis_son_onglet(
     expect(page.locator("#current-examination")).to_have_count(0)
     expect(page.get_by_test_id("titre-seance")).to_have_count(0)
     assert not Examination.objects.filter(patient=patient_existant).exists()
+
+
+def test_la_pastille_de_type_tient_dans_son_en_tete(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Defaut n° 9 de la recette D6e : la pastille de type debordait de son bandeau.
+
+    Le type de consultation vit dans la pastille `.badge` de l'en-tete du panneau. L'ecran
+    AngularJS n'y posait qu'un `editable-select` -- du texte, qui ne devenait un `<select>`
+    qu'au clic. L'ecran migre rend le `<select>` en permanence : une `form-control` de
+    30 px de haut faisait une pastille de 48 px dans un en-tete de 41 px, et le debordement
+    laissait l'icone seule sur le bandeau bleu, la pastille flottant sur le corps du
+    panneau.
+
+    **L'assertion compare la pastille a son propre en-tete**, jamais a des constantes de
+    pixels : c'est le confinement qui est la regle, et il doit survivre a un changement de
+    police comme a un changement de theme. Les deux bords sont asserts -- une regle qui
+    n'aurait corrige que le bas laisserait la pastille sortir par le haut.
+
+    Ce qu'il laisserait passer : la largeur de la pastille, et la lisibilite du selecteur.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+
+    pastille = page.get_by_test_id("pastille-de-type")
+    expect(pastille.locator("select")).to_be_visible()
+
+    boites = pastille.evaluate("""
+      (badge) => {
+        const entete = badge.parentElement;
+        const p = badge.getBoundingClientRect();
+        const e = entete.getBoundingClientRect();
+        return { hautPastille: p.top, basPastille: p.bottom,
+                 hautEntete: e.top, basEntete: e.bottom };
+      }
+    """)
+
+    assert boites["basPastille"] <= boites["basEntete"], boites
+    assert boites["hautPastille"] >= boites["hautEntete"], boites

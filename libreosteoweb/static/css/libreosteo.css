@@ -448,3 +448,20 @@ input.ng-invalid:focus {
   text-decoration: none;
   border-bottom-color: #23527c;
 }
+
+/* Defaut n° 9 de la recette D6e : le selecteur du type de consultation vit dans la
+   pastille `.badge` de l'en-tete de son panneau. L'ecran AngularJS n'y posait qu'un
+   `editable-select` -- du texte, qui ne devenait un `<select>` qu'au clic ; l'ecran migre
+   rend le `<select>` en permanence, et une `form-control` de 30 px de haut faisait
+   deborder la pastille de 17 px sous son en-tete, l'icone restant seule sur le bandeau.
+   On ramene le selecteur a la taille de la pastille, sans toucher a la pastille de
+   lecture, qui ne porte que du texte. */
+.panel-heading .badge select.form-control {
+  display: inline-block;
+  width: auto;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 18px;
+  vertical-align: baseline;
+}

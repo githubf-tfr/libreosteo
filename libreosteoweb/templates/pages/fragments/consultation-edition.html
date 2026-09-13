@@ -62,7 +62,10 @@
           <div class="panel panel-primary">
             <div class="panel-heading">
               {{ volet.champs.reason_description.libelle }}
-              <div class="badge">
+              {# L'ancre du filet : `tests/qualite/test_contrat_adressage.py` interdit
+                 qu'un test fonctionnel vise une classe Bootstrap, et c'est cette pastille
+                 que le defaut n° 9 de la recette faisait deborder de son en-tete. #}
+              <div class="badge" data-testid="pastille-de-type">
                 <i class="fa fa-check"></i>
                 {{ volet.formulaire.type }}
               </div>
