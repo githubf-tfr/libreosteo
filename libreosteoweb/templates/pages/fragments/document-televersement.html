@@ -44,7 +44,9 @@
 {# au demarrage), donc aucun fichier CSS ne s'ajoute. #}
 {% trans 'Notes' as libelle_notes %}
 <div id="document-televersement-{{ patient.id }}"{% if hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
-  <form method="post"
+  {# `data-surface-de-saisie` : le titre, la date et les notes vivent dans la page sans #}
+  {# etre enregistres, exactement comme un panneau en edition (re-revue T12). #}
+  <form method="post" data-surface-de-saisie
         hx-post="{% url 'documents' patient.id %}"
         hx-target="#documents-liste-{{ patient.id }}"
         hx-swap="outerHTML"

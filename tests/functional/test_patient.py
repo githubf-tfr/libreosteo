@@ -990,3 +990,37 @@ def test_la_garde_de_sortie_ne_s_arme_qu_apres_une_saisie(
         lambda: page.get_by_role("button", name="Fin d'édition").click(),
     )
     expect(garde).to_have_count(0)
+
+
+def test_la_garde_de_sortie_s_arme_sur_un_champ_de_texte_riche(
+    page: Page, live_server: LiveServer
+) -> None:
+    """La garde de sortie voit une saisie **de texte riche**, comme les autres.
+
+    **Ce que ce test regarde** : le marqueur que `beforeunload` interroge, avant et après
+    une frappe dans une zone de texte riche. Il ne déclenche jamais la boîte de dialogue.
+
+    **Le défaut qu'il ferme, et pourquoi il valait un test d'écran.** La garde filtrait sur
+    `cible.name`, la **propriété IDL** : `HTMLInputElement` la réfléchit, `HTMLDivElement`
+    **non**. Or le composant de texte riche pose `name` comme **attribut brut sur un
+    `<div>`** — conservé à l'octet pour les neuf sélecteurs `div[name=job]` du filet — et
+    l'entrée cachée, elle, reçoit sa valeur par `.value` sans qu'aucun événement ne parte.
+    Conséquence : deux panneaux cliniques entiers — « Historique » et « Comptes rendus
+    médicaux » — n'armaient **jamais** la garde, et le volet de consultation ne l'armait
+    que par ses quatre champs non médicaux.
+
+    L'onglet « Historique » est choisi parce que **tous** ses champs sont du texte riche :
+    si la garde s'y arme, c'est qu'elle a vu la zone elle-même.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    garde = page.locator("[data-modifications-non-enregistrees]")
+
+    page.click("#history")
+    page.get_by_role("button", name="Éditer").click()
+    champ = page.locator("div[name=surgical_history]")
+    expect(champ).to_have_attribute("contenteditable", "true")
+    expect(garde).to_have_count(0)
+
+    remplir_champ_de_texte_riche(page, champ, "Antecedent chirurgical")
+    expect(garde).to_have_count(1)

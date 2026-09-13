@@ -8,7 +8,7 @@
 {# **Les quatre alias de `name` sont rendus par `add_prefix()`**, pas ecrits ici : #}
 {# `input[name=street]`, `[name=zipcode]`, `[name=city]` et `[name=mobile]` sont des ancres #}
 {# du filet conservees a l'octet (A16). #}
-<div id="general-corps" class="row" data-panneau-en-edition x-init="edition = 'general'">
+<div id="general-corps" class="row" data-surface-de-saisie x-init="edition = 'general'">
   <form id="general-formulaire"
         hx-post="{{ identite.url_enregistrement }}"
         hx-target="#general-corps" hx-swap="outerHTML"

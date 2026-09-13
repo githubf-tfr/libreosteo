@@ -70,16 +70,16 @@ def _texte(html: str) -> str:
 
 
 # Le marqueur **pose comme attribut**, et non cite dans une expression. `siSaisieDeFormulaire`
-# contient la chaine `[data-panneau-en-edition]` dans le `x-data` de la racine : une recherche
+# contient la chaine `[data-surface-de-saisie]` dans le `x-data` de la racine : une recherche
 # de sous-chaine y serait satisfaite sur **toute** reponse qui rend le document, y compris
 # celles qui ne portent aucun panneau en edition. Mesure faite — deux assertions ecrites ici
 # passaient pour cette raison, et c'est la seizieme fois de ce lot qu'une preuve se revele
 # trop lache sous sa propre falsification.
-_MARQUEUR_D_EDITION = re.compile(r"\sdata-panneau-en-edition[\s>]")
+_MARQUEUR_DE_SAISIE = re.compile(r"\sdata-surface-de-saisie[\s>]")
 
 
-def _porte_le_marqueur_d_edition(html: str) -> bool:
-    return _MARQUEUR_D_EDITION.search(html) is not None
+def _porte_le_marqueur_de_saisie(html: str) -> bool:
+    return _MARQUEUR_DE_SAISIE.search(html) is not None
 
 
 def _classe_de_l_onglet(html: str, cle: str) -> str:
@@ -952,19 +952,29 @@ class TestGardeDeSortie(_SocleDuDossier):
         self.assertIn("siSaisieDeFormulaire($event)", html)
         # Condition 1 : le controle doit etre **soumis**. Les six cases des spheres n'ont
         # pas de `name` et ne doivent pas armer la garde.
-        self.assertIn("if (!cible.name) { return; }", html)
+        # **L'attribut, jamais la propriete IDL** : `HTMLDivElement` ne reflechit pas
+        # `name`, et le composant de texte riche le pose sur un `<div>`. Tester la propriete
+        # rendait la garde incapable de s'armer sur deux panneaux cliniques entiers.
+        self.assertIn("if (!cible.getAttribute('name')) { return; }", html)
         # Condition 2 : il doit etre **dans un panneau en edition**. Le menu est rendu dans
         # cette racine, champ de recherche compris.
         self.assertIn(
-            "if (!cible.closest('[data-panneau-en-edition]')) { return; }", html
+            "if (!cible.closest('[data-surface-de-saisie]')) { return; }", html
         )
         self.assertIn(
             ":data-modifications-non-enregistrees=\"modifie ? '1' : null\"", html
         )
 
-    def test_les_cinq_surfaces_de_saisie_portent_le_marqueur(self) -> None:
-        """Un fragment d'edition qui oublierait le marqueur ne pourrait **jamais** armer la
-        garde : la saisie s'y perdrait sans un mot au praticien."""
+    def test_les_huit_surfaces_de_saisie_portent_le_marqueur(self) -> None:
+        """Une surface qui oublierait le marqueur ne pourrait **jamais** armer la garde : la
+        saisie s'y perdrait sans un mot au praticien.
+
+        **Huit et non cinq** (re-revue T12) : aux cinq panneaux en edition s'ajoutent trois
+        surfaces qui vivent dans la page **sans etre en edition** — le bloc de televersement
+        (titre, date, notes), la vignette de document ouverte, et le volet de commentaires
+        d'une seance. Elles portent toutes une saisie non enregistree, et les trois etaient
+        tombees hors de la garde quand j'en ai resserre la portee.
+        """
         with sans_receivers():
             consultation = cree_consultation(self.patient, therapeut=self.praticien)
         surfaces = [
@@ -981,24 +991,77 @@ class TestGardeDeSortie(_SocleDuDossier):
         surfaces.append(reverse("consultation-edition", args=[consultation.pk]))
         for url in surfaces:
             with self.subTest(url=url):
-                # `_porte_le_marqueur_d_edition` et non `assertContains` : le marqueur est
+                # `_porte_le_marqueur_de_saisie` et non `assertContains` : le marqueur est
                 # **cite** dans le `x-data` de la racine, et une recherche de sous-chaine y
                 # serait satisfaite par n'importe quelle reponse qui rend le document.
                 self.assertTrue(
-                    _porte_le_marqueur_d_edition(
+                    _porte_le_marqueur_de_saisie(
                         self.client.get(url).content.decode("utf-8")
                     ),
                     "%s ne pose pas le marqueur : la saisie s'y perdrait en silence"
                     % url,
                 )
+        # **Les trois surfaces hors panneau se verifient sur la source du gabarit**, et c'est
+        # equivalent : elles posent le marqueur en dur, sans aucun `{% if %}`. Les rendre
+        # demanderait un `Document` ecrit sur le disque pour trois attributs statiques, et
+        # `test_page_documents.py` eprouve deja leur rendu.
+        for fragment in (
+            "document-televersement.html",
+            "document-edition.html",
+            "chronologie-commentaires.html",
+        ):
+            with self.subTest(fragment=fragment):
+                source = (
+                    RACINE_DU_DEPOT
+                    / "libreosteoweb/templates/pages/fragments"
+                    / fragment
+                ).read_text(encoding="utf-8")
+                self.assertTrue(
+                    _porte_le_marqueur_de_saisie(source),
+                    "%s ne pose pas le marqueur : une saisie s'y perdrait en silence"
+                    % fragment,
+                )
 
-    def test_un_fragment_de_lecture_ne_porte_pas_le_marqueur(self) -> None:
-        """L'autre sens : un marqueur pose en lecture armerait la garde sur un dossier que
-        personne n'edite."""
-        html = self.client.get(
-            reverse("dossier-patient", args=[self.patient.pk])
-        ).content.decode("utf-8")
-        self.assertFalse(_porte_le_marqueur_d_edition(html))
+    def test_les_fragments_de_lecture_ne_portent_pas_le_marqueur(self) -> None:
+        """L'autre sens : un marqueur pose en lecture armerait la garde sur un panneau que
+        personne n'edite.
+
+        **L'assertion porte sur les reponses de succes, pas sur le document entier**, et
+        c'est une correction de re-revue : un dossier complet porte legitimement le marqueur
+        — le bloc de televersement et les volets de commentaires sont des surfaces de saisie
+        permanentes. Une preuve posee sur le document aurait rougi sur un socle portant une
+        consultation en cours, dont le volet nait en edition : rouge sur un produit correct.
+        """
+        with sans_receivers():
+            consultation = cree_consultation(self.patient, therapeut=self.praticien)
+        reponses = {
+            "identite": self.client.post(
+                reverse("dossier-general", args=[self.patient.pk]),
+                {"birth_date": "1935-07-13"},
+            ),
+            "antecedents": self.client.post(
+                reverse("dossier-antecedents", args=[self.patient.pk]),
+                {"surgical_history": "op"},
+            ),
+            "cellule-de-titre": self.client.post(
+                reverse("dossier-titre-cellule", args=[self.patient.pk, "family_name"]),
+                {"valeur": "Picard"},
+            ),
+            "volet": self.client.post(
+                reverse("consultation-edition", args=[consultation.pk]),
+                {
+                    "date": timezone.localdate().isoformat(),
+                    "type": str(models.ExaminationType.NORMAL),
+                },
+            ),
+        }
+        for nom, reponse in reponses.items():
+            with self.subTest(fragment=nom):
+                self.assertEqual(reponse.status_code, 200)
+                self.assertFalse(
+                    _porte_le_marqueur_de_saisie(reponse.content.decode("utf-8")),
+                    "%s rend un fragment de lecture qui armerait la garde" % nom,
+                )
 
     def test_le_corps_rafraichi_desarme_la_garde(self) -> None:
         """**Le seul chemin qui desarme la garde apres une cloture ou une facturation**, et

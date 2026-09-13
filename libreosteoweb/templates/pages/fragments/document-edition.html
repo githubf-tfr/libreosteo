@@ -19,7 +19,8 @@
 {% trans 'Notes' as libelle_notes %}
 <li class="documenttile animate col-md-12" id="document-vignette-{{ entree.document.id }}">
   <div class="thumbnail doc_expand">
-    <form id="formulaire-document-{{ entree.document.id }}" method="post"
+    {# `data-surface-de-saisie` : meme raison que le bloc de televersement. #}
+    <form id="formulaire-document-{{ entree.document.id }}" method="post" data-surface-de-saisie
           hx-post="{{ entree.url_edition }}"
           hx-target="#document-vignette-{{ entree.document.id }}"
           hx-swap="outerHTML">

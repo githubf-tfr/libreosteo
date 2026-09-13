@@ -56,8 +56,8 @@
        },
        siSaisieDeFormulaire(evenement) {
          const cible = evenement.target;
-         if (!cible.name) { return; }
-         if (!cible.closest('[data-panneau-en-edition]')) { return; }
+         if (!cible.getAttribute('name')) { return; }
+         if (!cible.closest('[data-surface-de-saisie]')) { return; }
          this.modifie = true;
        }
      }"
@@ -90,13 +90,22 @@
 {# exclu : entrer en edition et chercher un code postal sont des lectures. #}
 {# #}
 {# **Deux conditions, et chacune ferme un faux positif mesure** (re-revue T12) : #}
-{# 1. le controle doit porter un `name`, donc etre **soumis**. Les six cases a cocher des #}
-{#    spheres n'en portent pas — ce sont des bascules d'affichage qui ouvrent un #}
-{#    `<details>`, et rien de ce qu'elles font ne part au serveur ; #}
-{# 2. il doit se trouver **dans un panneau en edition** (`data-panneau-en-edition`). Le #}
-{#    menu est rendu **a l'interieur** de cette racine, champ de recherche compris : sans #}
-{#    cette seconde condition, taper une recherche armait la confirmation de sortie sur un #}
-{#    dossier ou rien n'avait ete saisi. #}
+{# 1. le controle doit porter un attribut `name`, donc etre **soumis**. Les six cases a #}
+{#    cocher des spheres n'en portent pas — ce sont des bascules d'affichage qui ouvrent un #}
+{#    `<details>`, et rien de ce qu'elles font ne part au serveur. **C'est le seul faux #}
+{#    positif que cette condition ferme** : le champ de recherche du menu, lui, porte bien #}
+{#    `name="q"` (`menu.html:105`) et c'est la condition 2 qui l'exclut ; #}
+{# 2. il doit se trouver dans une **surface de saisie** (`data-surface-de-saisie`). Le menu #}
+{#    est rendu **a l'interieur** de cette racine : sans cette seconde condition, taper une #}
+{#    recherche armait la confirmation de sortie sur un dossier ou rien n'avait ete saisi. #}
+{# #}
+{# **`getAttribute('name')` et non `cible.name`**, et c'est mesure : `HTMLInputElement` #}
+{# reflechit `name` en propriete, **`HTMLDivElement` non**. Or le composant de texte riche #}
+{# pose `name` comme attribut brut sur un `<div>` — conserve a l'octet pour les neuf #}
+{# selecteurs `div[name=job]` du filet — et son entree cachee recoit sa valeur par `.value`, #}
+{# sans qu'aucun evenement ne parte. Tester la propriete rendait donc la garde **incapable #}
+{# de s'armer** sur l'onglet « Historique » et sur celui des comptes rendus, entierement #}
+{# faits de texte riche : le faux negatif exact qu'A11 existe pour fermer. #}
 {# #}
 {# **Le message n'est pas interpole ici, et c'est mesure** : #}
 {# `gettext("There are unsaved changes. Do you really want to leave this page ?")` vit dans #}

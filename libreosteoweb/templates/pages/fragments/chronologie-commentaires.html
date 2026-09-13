@@ -33,7 +33,9 @@
   <div class="timeline-panel-footer" x-show="deplie"{% if not entree.deplie %} style="display: none;"{% endif %}>
     {# La cible englobe ce formulaire et n'est jamais a l'interieur de lui : sur succes il #}
     {# disparait avec l'element remplace, sur refus il ne peut pas s'imbriquer en lui-meme. #}
-    <form method="post" hx-post="{{ entree.url_commentaires }}"
+    {# `data-surface-de-saisie` : un commentaire tape et non envoye est une saisie non #}
+    {# enregistree, que la garde de sortie du dossier doit voir (re-revue T12). #}
+    <form method="post" data-surface-de-saisie hx-post="{{ entree.url_commentaires }}"
           hx-target="#chronologie-commentaires-{{ entree.seance.id }}"
           hx-swap="outerHTML">
       {% csrf_token %}
