@@ -66,6 +66,9 @@ class TestSerie(SimpleTestCase):
         self.assertEqual(resultat.sommets[-1].x, 80)
         self.assertEqual(resultat.sommets[0].y, 20)
         self.assertEqual(resultat.sommets[-1].y, 0)
+        # `valeur` alimente la signature publique, pas la geometrie : sans cette ligne, un
+        # sommet qui perdrait sa valeur sur la branche multi-points passerait au vert.
+        self.assertEqual([s.valeur for s in resultat.sommets], list(range(11)))
 
     def test_chaque_sommet_porte_le_libelle_de_sa_periode(self):
         """L'infobulle du produit est « <debut> - <fin> » : le libelle est repris tel quel."""
