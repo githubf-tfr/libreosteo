@@ -177,8 +177,13 @@ le menu ne s'ouvrait pas.
 
 Quatre autres réglages mesurés, qui font partie du contrat : `storage: false` — la visite
 se redéclenche à **chaque** ouverture du tableau de bord tant que les conditions tiennent,
-elle ne se mémorise pas ; `backdrop: false` — aucun voile ; le gabarit porte quatre boutons
-« « Préc | Suiv » | Terminer » avec un séparateur ; et `onEnd` referme le menu utilisateur.
+elle ne se mémorise pas ; `backdrop: false` — aucun voile ; le gabarit porte **trois** boutons
+— « « Préc », « Suiv » », « Terminer » — séparés par un `|` qui n'en est pas un ; et `onEnd`
+referme le menu utilisateur.
+
+> **Correction du 2026-09-13.** Cette phrase disait « quatre boutons » : l'écriture du plan a
+> compté le séparateur comme un bouton. Le gabarit en porte trois. **La parité se mesure sur
+> trois boutons**, et une réécriture qui en rendrait quatre serait un défaut.
 
 ### F9 — Le tableau de bord interroge trois API que le serveur connaît déjà
 
@@ -597,6 +602,13 @@ Un test fonctionnel charge `/#/patient/<id>`, `/#/addPatient` et `/#/office/rebu
 et prouve dans les trois cas : code 200, titre « Tableau de bord », **zéro erreur de
 console** (même idiome que `test_pages_erreur.py:29-38`).
 
+> **Précision du 2026-09-13, levée d'ambiguïté relevée par l'écriture du plan.** « Titre »
+> désigne ici le **titre de contenu** — le `<h1>` de la page —, jamais le titre d'onglet du
+> navigateur. La distinction n'est pas cosmétique : `helpers.connexion` attend un titre
+> d'onglet précis, et lire C10 comme une contrainte sur le titre d'onglet ferait échouer la
+> suite fonctionnelle entière. `docs/recette.md:378-384` emploie le même mot dans le même
+> sens.
+
 *Coût si fausse* : la seule rupture assumée du chantier se transforme en incident visible.
 Le contrat était « le signet ne mène plus où il menait », pas « le signet casse ».
 
@@ -789,8 +801,12 @@ réel — les deux liens `#/` de `404.html`, que rien ne regarde. *Signal* : auc
 construction — c'est pourquoi la parade est préventive. *Parade* : C11, la matrice
 d'atteignabilité, **démontrée rouge** (clause 6), plus la passe manuelle qui la rejoue au clic.
 
-**Une suppression casse un écran migré.** Quatorze paquets, onze fichiers statiques, six
-scripts applicatifs, deux routes. F4 montre que le dépôt lui-même se trompe sur deux d'entre
+**Une suppression casse un écran migré.** Quatorze paquets, **quatorze** fichiers statiques,
+deux routes.
+
+> **Correction du 2026-09-13.** Ce paragraphe comptait « onze fichiers statiques, six
+> scripts applicatifs », soit dix-sept, en comptant `bootstrap.min.js` des deux côtés. **Le
+> tableau de périmètre fait foi : quatorze.** F4 montre que le dépôt lui-même se trompe sur deux d'entre
 eux. *Signal* : un rouge dans un fichier que le lot n'a pas touché — le meilleur des signaux,
 et le plus tardif. *Parade* : A2, la commande de recherche de consommateur citée dans chaque
 rapport de tâche ; A3, la règle par nature de fichier qui retire toute latitude sur les CSS ;
