@@ -981,6 +981,21 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-13 — D6e clos : clause de stabilité verte du premier coup, plan supprimé.**
+  Vingt exécutions consécutives de `make test-functional` sur `92903ab`, **`112 passed` à
+  chacune**, une par appel et jamais deux en parallèle. Durées de **450 à 480 s**, écart
+  resserré — trente secondes d'amplitude contre plus de cent à la clôture de D6d. Aucun rouge,
+  donc aucune remise à zéro du compte. **Troisième fois consécutive que la clause passe sans
+  reprise.**
+
+  À comparer à la mesure d'avant D6c, qui donnait une intermittence à **45 %** sous la charge de
+  la suite complète : les écrans les plus lourds du produit — dossier patient, volet de
+  consultation, chronologie, documents — n'en réintroduisent pas, alors que la suite est passée
+  de 83 à 112 tests et qu'elle porte désormais sept modales, un composant `contenteditable` et
+  une garde de sortie à huit surfaces.
+
+  **Le plan d'exécution achevé est supprimé**, la spec restant la trace pérenne du lot.
+
 - **2026-09-13 — D6e, vague de correction finale : le geste « supprimer une consultation »
   rétabli, le resserrement à `is_staff` déclaré, la page de diagnostic rendue inerte.**
   Dernier geste de code du lot, après la revue de branche — celle qui cherche ce qu'aucune
