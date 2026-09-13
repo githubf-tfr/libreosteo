@@ -3195,10 +3195,17 @@ la borne.
 ### R-TOU-01 — Visite guidée d'un profil et d'un cabinet incomplets
 
 - **Domaine** : Visite guidée
-- **Couverture auto** : oui —
-  tests/functional/test_visite_guidee.py::test_les_deux_etapes_s_enchainent_et_se_terminent
-  (le test exerce l'enchaînement, les libellés et la fermeture ; il ne voit **pas** la
-  position de l'encart, que seule cette fiche constate à l'étape 2)
+- **Couverture auto** : oui, par les **quatre** tests de
+  `tests/functional/test_visite_guidee.py`, un par groupe d'étapes — la fiche les rattache
+  tous, aucun n'est inscrit au chapitre 4 :
+  - `::test_les_deux_etapes_s_enchainent_et_se_terminent` — étapes 1, 3, 4 et 5
+    (l'enchaînement, les libellés, l'absence de voile, la fermeture du menu) ;
+  - `::test_la_visite_se_rouvre_a_chaque_ouverture_du_tableau_de_bord` — étape 6 ;
+  - `::test_une_seule_condition_ne_donne_qu_une_etape` — étape 7, dans son cas miroir ;
+  - `::test_la_visite_ne_s_ouvre_pas_quand_tout_est_renseigne` — étape 8.
+
+  Aucun des quatre ne voit la **position** de l'encart, que seule cette fiche constate à
+  l'étape 2.
 - **État requis** : E1, **amendé** : vider l'identifiant professionnel du thérapeute
   (« Profil utilisateur ») et la devise du cabinet (« Paramètres ») avant de commencer.
   Sans ces deux champs vides, la visite ne s'ouvre pas — c'est sa condition d'existence.
@@ -3227,7 +3234,10 @@ la borne.
    Attendu : la visite **se rouvre** à l'étape « Thérapeute ». Elle ne se mémorise pas.
 7. Renseigner l'identifiant professionnel (« Profil utilisateur ») puis revenir au tableau
    de bord.
-   Attendu : la visite s'ouvre directement sur « Paramétrer le cabinet ».
+   Attendu : la visite s'ouvre directement sur « Paramétrer le cabinet », **et le bouton
+   « Suiv » » est inactif** — une seule condition reste ouverte, donc une seule étape. Le
+   cas miroir (identifiant vide, devise renseignée) n'ouvre que « Thérapeute », avec le
+   même bouton inactif : c'est celui que le test automatique exerce.
 8. Renseigner la devise du cabinet (« Paramètres ») puis revenir au tableau de bord.
    Attendu : **aucun encart** ne s'ouvre.
 

@@ -71,6 +71,13 @@ def test_une_seule_condition_ne_donne_qu_une_etape(
     connexion(page, live_server)
 
     expect(page.get_by_test_id("visite-titre")).to_have_text("Thérapeute")
+    # **C'est cette ligne qui porte le nom du test**, et sans elle il ne prouvait rien : les
+    # trois autres assertions sont satisfaites a l'identique par une visite a deux etapes,
+    # le titre initial etant le meme et « Terminer » terminant dans les deux cas. Un pas
+    # sans suivant desactive son bouton (`step.next < 0` -> `prop('disabled', true)`,
+    # bootstrap-tour.js:629-631) : l'absence d'une seconde etape se lit donc sur un **etat**
+    # du bouton, jamais sur une classe — ce que le cliquet d'adressage exige.
+    expect(page.get_by_test_id("visite-suivant")).to_be_disabled()
     page.get_by_test_id("visite-terminer").click()
     expect(page.get_by_test_id("visite-guidee")).not_to_be_visible()
 
@@ -81,6 +88,13 @@ def test_la_visite_ne_s_ouvre_pas_quand_tout_est_renseigne(
     """Le socle seme `professional_id` et `currency` : zero etape, zero encart."""
     connexion(page, live_server)
     expect(page.get_by_test_id("visite-guidee")).to_have_count(0)
+    # **L'assertion ci-dessus est vacuement verte, et c'est pourquoi celle-ci existe** : un
+    # compte nul sur une ancre absente ne distingue pas « aucune visite » de « une visite
+    # sans ancres », et reste vert si le gabarit perd ses `data-testid` (mesure directe,
+    # D6f T2). Le menu utilisateur, lui, n'est ouvert que par la visite (`tour.js:52`) et
+    # porte une ancre du **produit**, hors du gabarit du popover : sa fermeture rougit que
+    # les ancres de la visite soient la ou non.
+    expect(page.get_by_test_id("menu-utilisateur")).not_to_be_visible()
 
 
 def test_la_visite_se_rouvre_a_chaque_ouverture_du_tableau_de_bord(
