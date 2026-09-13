@@ -224,6 +224,7 @@ files = [
     "tests/functional/test_tableau_de_bord.py",
     "tests/functional/test_texte_riche.py",
     "tests/functional/test_therapeute.py",
+    "tests/functional/test_visite_guidee.py",
     "tests/qualite/__init__.py",
     "tests/qualite/test_contrat_adressage.py",
     "tests/qualite/test_contrat_compression.py",

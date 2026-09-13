@@ -21,7 +21,7 @@ function open_dropdown() {
 
 // Instance the tour
 var tour = new Tour({
-  template : "<div class='popover tour'>  <div class='arrow'></div>  <h3 class='popover-title'></h3>  <div class='popover-content'></div>  <div class='popover-navigation'>    <button class='btn btn-default' data-role='prev'>« Préc</button>    <span data-role='separator'>|</span>    <button class='btn btn-default' data-role='next'>Suiv »</button>    <button class='btn btn-default' data-role='end'>Terminer</button>  </div></div>",
+  template : "<div class='popover tour' data-testid='visite-guidee'>  <div class='arrow'></div>  <h3 class='popover-title' data-testid='visite-titre'></h3>  <div class='popover-content' data-testid='visite-contenu'></div>  <div class='popover-navigation'>    <button class='btn btn-default' data-role='prev' data-testid='visite-precedent'>« Préc</button>    <span data-role='separator'>|</span>    <button class='btn btn-default' data-role='next' data-testid='visite-suivant'>Suiv »</button>    <button class='btn btn-default' data-role='end' data-testid='visite-terminer'>Terminer</button>  </div></div>",
   storage : false,
   onEnd : function(tour){
     $('#user-toggle').parent().off('hidden.bs.dropdown', open_dropdown);

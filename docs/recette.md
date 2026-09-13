@@ -354,7 +354,7 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 ```
 ### <ID> — <Titre>
 
-- **Domaine** : <un des quinze chapitres du cahier>
+- **Domaine** : <un des seize chapitres du cahier>
 - **Couverture auto** : non | oui — tests/functional/test_xxx.py::identifiant_du_test
 - **État requis** : E0 | E1 | E2
 
@@ -3189,6 +3189,47 @@ la borne.
    Attendu : après le rechargement, la tuile « Consultations » de la vue « Semaine »
    affiche toujours `2` — la consultation du jour reste comptée de façon stable, pas
    seulement au moment de sa clôture.
+
+### Visite guidée
+
+### R-TOU-01 — Visite guidée d'un profil et d'un cabinet incomplets
+
+- **Domaine** : Visite guidée
+- **Couverture auto** : oui —
+  tests/functional/test_visite_guidee.py::test_les_deux_etapes_s_enchainent_et_se_terminent
+  (le test exerce l'enchaînement, les libellés et la fermeture ; il ne voit **pas** la
+  position de l'encart, que seule cette fiche constate à l'étape 2)
+- **État requis** : E1, **amendé** : vider l'identifiant professionnel du thérapeute
+  (« Profil utilisateur ») et la devise du cabinet (« Paramètres ») avant de commencer.
+  Sans ces deux champs vides, la visite ne s'ouvre pas — c'est sa condition d'existence.
+
+**Étapes**
+
+1. Se connecter, atterrir sur le tableau de bord.
+   Attendu : le menu utilisateur (en haut à droite) est **ouvert tout seul** ; un encart
+   blanc est affiché **à gauche** de l'entrée « Profil utilisateur », titre
+   « Thérapeute », texte « Mettez à jour votre profil thérapeute. L'identifiant
+   professionnel est obligatoire pour les factures. » ; trois boutons « « Préc »,
+   « Suiv » » et « Terminer », séparés par un « | » entre les deux premiers. **Aucun
+   voile** ne grise la page.
+2. Regarder l'encart sans rien cliquer.
+   Attendu : l'encart est **entièrement visible dans la fenêtre**, il ne déborde ni à
+   droite ni en bas, et il ne recouvre pas l'entrée de menu qu'il désigne.
+3. Bouton « Suiv » ».
+   Attendu : l'encart passe au titre « Paramétrer le cabinet », texte « Afin de pouvoir
+   générer correctement les factures, il est nécessaire de mettre à jour les informations
+   du cabinet. », ancré à gauche de l'entrée « Paramètres » ; le menu reste ouvert.
+4. Bouton « « Préc ».
+   Attendu : retour à l'étape « Thérapeute ».
+5. Bouton « Terminer ».
+   Attendu : l'encart disparaît **et** le menu utilisateur se referme.
+6. Recharger la page du tableau de bord (F5).
+   Attendu : la visite **se rouvre** à l'étape « Thérapeute ». Elle ne se mémorise pas.
+7. Renseigner l'identifiant professionnel (« Profil utilisateur ») puis revenir au tableau
+   de bord.
+   Attendu : la visite s'ouvre directement sur « Paramétrer le cabinet ».
+8. Renseigner la devise du cabinet (« Paramètres ») puis revenir au tableau de bord.
+   Attendu : **aucun encart** ne s'ouvre.
 
 ### Navigation
 

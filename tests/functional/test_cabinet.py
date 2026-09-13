@@ -31,12 +31,10 @@ def test_reglage_du_cabinet(page: Page, live_server: LiveServer, socle: Socle) -
     expect(notifications_d_erreur(page)).to_have_count(0)
     # L'etape « Therapeute » de la visite guidee est la premiere : c'est elle qui parle
     # d'identifiant (static/js/app/tour.js).
-    # La visite guidee (`static/js/app/tour.js`) construit son popover en JavaScript,
-    # depuis un gabarit qui lui est propre : le produit ne peut y poser aucun
-    # `data-testid` (T8 n'ajoute d'attribut que dans les gabarits `.html`), et ce
-    # gabarit-la, contrairement au gabarit par defaut de `bootstrap-tour`, ne porte pas
-    # de `role="tooltip"`. Le seul ancrage qui ne soit pas un rouage de framework est
-    # donc le texte que l'utilisateur lit — celui du premier pas, « Thérapeute ».
+    # Le gabarit du popover porte desormais ses ancres (D6f T1 bis) : c'est une chaine
+    # JavaScript, mais rien n'empechait d'y ecrire un `data-testid`. L'assertion reste sur
+    # le texte que l'utilisateur lit, qui est ce que la fiche R-THE-01 decrit ; l'ancre
+    # `visite-contenu` est exercee par tests/functional/test_visite_guidee.py.
     expect(
         page.get_by_text(
             "L'identifiant professionnel est obligatoire pour les factures."
