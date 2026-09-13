@@ -56,11 +56,11 @@ def test_evenement_genere_a_la_creation_d_un_patient(
         page, nom="La Forge", prenom="Geordi", jour="16", mois="02", annee="1975"
     )
 
-    # `a.navbar-brand` (href="/") est un lien Django brut : un clic dessus rechargerait
-    # tout le document (meme constat que test_tableau_de_bord.py). La fiche accepte
-    # l'equivalent « revenir sur l'URL racine » ; une navigation ui-router vers "/"
-    # suffit et evite un rechargement complet non demande par le test.
-    page.goto(f"{live_server.url}/#/")
+    # La fiche accepte l'equivalent « revenir sur l'URL racine ». Le fragment `#/` est
+    # retire ici (D6f, C9) : il ne veut plus rien dire des que la coquille meurt, et `/#/`
+    # comme `/` chargent deja le meme ecran aujourd'hui — un vert sur `/#/` ne prouverait
+    # donc plus rien.
+    page.goto(f"{live_server.url}/")
 
     # Le titre du tableau de bord, adresse par son `data-testid` : `h1.page-header`
     # designe aussi celui de la vue quittee, qu'ui-router laisse dans le DOM le temps de
@@ -99,7 +99,7 @@ def test_regroupement_et_navigation_depuis_le_tableau_de_bord(
     saisir_consultation(page)
     cloturer_consultation(page, mode="notinvoiced", raison="Suivi")
 
-    page.goto(f"{live_server.url}/#/")
+    page.goto(f"{live_server.url}/")
 
     # Meme ambiguite de `h1.page-header` que plus haut pendant la transition ui-router :
     # le titre est adresse par son `data-testid`.
@@ -141,7 +141,7 @@ def test_regroupement_et_navigation_depuis_le_tableau_de_bord(
         page.locator('[data-testid="consultation-anterieure"]:visible')
     ).to_contain_text("Motif de consultation")
 
-    page.goto(f"{live_server.url}/#/")
+    page.goto(f"{live_server.url}/")
     entree_patient = page.get_by_test_id("evenement-cabinet").filter(
         has_text="Nouveau patient créé"
     )

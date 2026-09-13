@@ -21,7 +21,7 @@ fait** — ils etaient ecrits pour etre relus au moment de la migration :
    neuve — debounce, `hx-trigger="… delay:300ms"` — l'aurait fait partir **apres** la
    lecture du compteur : l'assertion serait devenue vacueuse **sans devenir rouge**. Aucun
    `delay:` n'est donc pose.
-3. `page.goto(".../#/patient/<id>")` etait une route `ui-router` : **reprise** en
+3. `page.goto` visait une route `ui-router` par fragment : **reprise** en
    `/patient/<id>`, et l'URL observee par le compteur avec elle — la recherche part
    desormais vers `/zipcode-suggestions`, une vue de page, et non plus vers
    `/zipcode_lookup/<code>` que le service AngularJS appelait.

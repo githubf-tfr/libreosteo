@@ -56,11 +56,11 @@ def test_compteurs_du_tableau_de_bord(page: Page, live_server: LiveServer) -> No
     connexion(page, live_server)
     construire_etat_e2(page)
 
-    # `a.navbar-brand` (href="/") est un lien Django brut, pas un ui-sref : un clic
-    # dessus rechargerait tout le document. La fiche accepte l'equivalent « revenir
-    # sur l'URL racine » ; ici, une navigation ui-router vers "/" suffit et evite un
-    # rechargement complet non demande par le test.
-    page.goto(f"{live_server.url}/#/")
+    # La fiche accepte l'equivalent « revenir sur l'URL racine ». Le fragment `#/` est
+    # retire ici (D6f, C9) : il ne veut plus rien dire des que la coquille meurt, et `/#/`
+    # comme `/` chargent deja le meme ecran aujourd'hui — un vert sur `/#/` ne prouverait
+    # donc plus rien.
+    page.goto(f"{live_server.url}/")
 
     # `h1.page-header` designe aussi le titre de la vue quittee, qu'ui-router laisse dans
     # le DOM le temps de l'animation de sortie : l'ambiguite leve une « strict mode
@@ -103,7 +103,7 @@ def test_statistiques_du_jour(page: Page, live_server: LiveServer) -> None:
     connexion(page, live_server)
     construire_etat_e2(page)
 
-    page.goto(f"{live_server.url}/#/")
+    page.goto(f"{live_server.url}/")
     expect(page.get_by_test_id("compteur-consultations")).to_have_text("2")
 
     page.reload()
