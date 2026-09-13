@@ -37,25 +37,21 @@ from .facturation import (
     ExaminationInvoicingSerializer,
     InvoiceCancelingWithCorrectiveInvoiceSerializer,
     InvoiceSerializer,
-    PaimentMeanSerializer,
     PaimentModeSerializer,
     PaimentSerializer,
 )
 from .patient import (
     DocumentSerializer,
-    DocumentUpdateSerializer,
     PatientDocumentDemonstrationSerializer,
     PatientDocumentSerializer,
     PatientExportSerializer,
     PatientHomonymeSerializer,
     PatientSerializer,
-    RegularDoctorSerializer,
 )
 
 __all__ = [
     "CheckSerializer",
     "DocumentSerializer",
-    "DocumentUpdateSerializer",
     "ExaminationCommentSerializer",
     "ExaminationExtractSerializer",
     "ExaminationInvoicingSerializer",
@@ -66,7 +62,6 @@ __all__ = [
     "OfficeDetailSerializer",
     "OfficeEventSerializer",
     "OfficeSettingsSerializer",
-    "PaimentMeanSerializer",
     "PaimentModeSerializer",
     "PaimentSerializer",
     "PatientDocumentDemonstrationSerializer",
@@ -74,7 +69,6 @@ __all__ = [
     "PatientExportSerializer",
     "PatientHomonymeSerializer",
     "PatientSerializer",
-    "RegularDoctorSerializer",
     "TherapeutSettingsSerializer",
     "UserInfoSerializer",
     "WithPkMixin",

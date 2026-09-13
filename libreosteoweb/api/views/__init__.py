@@ -29,7 +29,7 @@ from .administration import (
     TherapeutSettingsViewSet,
     recherche,
 )
-from .consultation import ExaminationCommentViewSet, ExaminationViewSet
+from .consultation import ExaminationViewSet
 from .facturation import InvoiceViewHtml, InvoiceViewSet
 from .fichiers import telecharger_fichier
 from .import_fichiers import FileImportViewSet
@@ -111,7 +111,6 @@ __all__ = [
     "enregistrer_consultation",
     "enregistrer_identite",
     "envoyer_facture",
-    "ExaminationCommentViewSet",
     "ExaminationViewSet",
     "facturer_consultation",
     "FileImportViewSet",

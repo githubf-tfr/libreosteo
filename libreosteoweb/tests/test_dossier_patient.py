@@ -194,12 +194,23 @@ class TestSuppressionPatient(APITestCase):
 
     def test_supprimer_un_patient_dont_la_consultation_est_commentee_efface_tout(self):
         consultation = cree_consultation(self.patient, therapeut=self.user)
+        # `seance-commentaires` succede a `api/comments`, retiree par D6e T13. Ce test ne
+        # prouve pas la ressource de commentaire, il prouve la cascade RGPD : la voie de
+        # creation n'est qu'un decor, et elle suit desormais celle du produit.
         commentaire = self.client.post(
-            reverse("examinationcomment-list"),
-            data={"comment": "Seance de suivi", "examination": consultation.id},
-            format="json",
+            reverse("seance-commentaires", args=[consultation.id]),
+            data={"comment": "Seance de suivi"},
+            # **`format="multipart"` n'est pas decoratif** : `TEST_REQUEST_DEFAULT_FORMAT`
+            # vaut `json` (`settings/base.py:238`), et `commentaires_de_seance` lit un
+            # `ModelForm` sur `request.POST`. En JSON le formulaire serait vide, donc
+            # invalide, et la vue rendrait **200 sans rien ecrire** : le test passerait a
+            # cote sans le dire. Mesure faite.
+            format="multipart",
         )
-        self.assertEqual(commentaire.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(commentaire.status_code, status.HTTP_200_OK)
+        self.assertTrue(
+            ExaminationComment.objects.filter(examination=consultation.id).exists()
+        )
         reponse = self.client.delete(
             reverse("patient-detail", kwargs={"pk": self.patient.id}) + "?gdpr=true"
         )
@@ -491,20 +502,31 @@ class TestCommentaires(APITestCase):
         self.client.login(username="test", password="testpw")
 
     def commente(self, texte):
-        return self.client.post(
-            reverse("examinationcomment-list"),
-            data={"comment": texte, "examination": self.consultation.id},
-            format="json",
+        """La voie du produit depuis D6e T12, et la seule depuis T13.
+
+        `api/comments` est partie avec le nettoyage : `seance-commentaires` ecrit le meme
+        objet, et pose l'auteur et la date de la meme maniere — explicitement, cote
+        serveur (`documents.commentaires_de_seance`).
+        """
+        reponse = self.client.post(
+            reverse("seance-commentaires", args=[self.consultation.id]),
+            data={"comment": texte},
+            # Voir `TestSuppressionPatient` : en JSON le formulaire serait vide et la vue
+            # rendrait 200 sans ecrire.
+            format="multipart",
         )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        return ExaminationComment.objects.get(comment=texte)
 
     def test_l_auteur_et_la_date_sont_poses_par_le_serveur(self):
-        reponse = self.commente("Première séance")
-        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED)
-        commentaire = ExaminationComment.objects.get(id=reponse.data["id"])
+        commentaire = self.commente("Première séance")
         self.assertEqual(commentaire.user, self.user)
         self.assertIsNotNone(commentaire.date)
 
     def test_les_commentaires_sont_rendus_du_plus_recent(self):
+        """Ce que cette preuve regarde : l'ordre rendu par l'action `comments`
+        d'`ExaminationViewSet`, qui **reste** au routeur. La creation n'est qu'un decor.
+        """
         premier = self.commente("Première séance")
         second = self.commente("Deuxième séance")
         reponse = self.client.get(
@@ -512,7 +534,7 @@ class TestCommentaires(APITestCase):
         )
         self.assertEqual(
             [c["id"] for c in reponse.data],
-            [second.data["id"], premier.data["id"]],
+            [second.id, premier.id],
         )
 
 

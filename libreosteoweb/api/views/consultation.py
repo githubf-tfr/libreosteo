@@ -16,7 +16,6 @@ import logging
 
 from django.db import connection
 from django.http import Http404
-from django.utils import timezone
 from drf_excel.mixins import XLSXFileMixin
 from drf_excel.renderers import XLSXRenderer
 from rest_framework import status, viewsets
@@ -171,14 +170,3 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
                 if connection.vendor == "postgresql":
                     cursor.execute("SELECT pg_advisory_unlock(1);")
         return response_list
-
-
-class ExaminationCommentViewSet(viewsets.ModelViewSet):
-    model = models.ExaminationComment
-    serializer_class = apiserializers.ExaminationCommentSerializer
-    queryset = models.ExaminationComment.objects.all()
-
-    def perform_create(self, serializer):
-        if not self.request.user.is_authenticated:
-            raise Http404()
-        serializer.save(user=self.request.user, date=timezone.now())

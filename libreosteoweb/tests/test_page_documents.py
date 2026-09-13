@@ -591,6 +591,40 @@ class TestTeleversement(_SocleDuPatient):
             [TYPE_COMPTE_RENDU],
         )
 
+    def test_en_demonstration_le_contenu_televerse_est_remplace(self) -> None:
+        """L'instance de demonstration est **publique** : elle n'accepte aucun fichier reel.
+
+        `PatientDocumentDemonstrationSerializer` tenait cette regle sur la voie DRF, et
+        `test_dossier_patient.py` la prouve encore la. La voie htmx de T12 l'avait perdue :
+        elle ecrivait le fichier du visiteur sur le seul deploiement ouvert au public.
+
+        Ce que cette preuve regarde : **le contenu reellement ecrit sur le disque**, relu
+        par l'ORM, sous `DEMONSTRATION = True`. Ce qu'elle laisserait passer : un titre ou
+        des notes conserves du depot refuse (c'est voulu — seul le fichier est remplace),
+        et le cas du locataire `demonstration`, que seul le deploiement multi-schema
+        expose.
+        """
+        contenu = b"ceci ne doit pas etre enregistre"
+        fichier = SimpleUploadedFile("secret.txt", contenu, content_type="text/plain")
+        with override_settings(DEMONSTRATION=True), translation.override("fr"):
+            reponse = self.client.post(
+                reverse("documents", args=[self.patient.pk]),
+                data={
+                    "title": "Document confidentiel",
+                    "document_date": "2024-01-01",
+                    "notes": "",
+                    "fichiers": fichier,
+                },
+            )
+        self.assertEqual(reponse.status_code, 200)
+
+        ecrit = self.document_en_base().document_file.read()
+        self.assertNotEqual(ecrit, contenu)
+        self.assertIn(
+            b"For security purpose, no document could be uploaded",
+            ecrit,
+        )
+
     def test_le_type_de_compte_rendu_est_celui_que_le_produit_ecrit(self) -> None:
         """**5, et non `AttachmentType.MEDICAL_REPORTS`, qui vaut 4.**
 

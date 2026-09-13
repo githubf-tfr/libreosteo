@@ -92,8 +92,12 @@ class FormulaireMedecin(forms.ModelForm):
     """Les quatre champs de la modale d'ajout, et rien d'autre.
 
     **Un `ModelForm` n'herite de rien** : ni des `required` de l'ancien gabarit, ni des
-    `validate_*` de `RegularDoctorSerializer`. Les deux sont donc reecrits ici, et les
-    perdre serait une regression silencieuse.
+    `validate_*` que `RegularDoctorSerializer` portait. Les deux sont donc reecrits ici, et
+    les perdre serait une regression silencieuse.
+
+    **Ce formulaire est desormais la seule autorite sur ces deux regles.** Le serialiseur
+    est parti avec la ressource `api/doctors` (D6e T13), qui n'avait plus de consommateur :
+    il n'y a plus de seconde definition a tenir en phase.
     """
 
     class Meta:
@@ -123,19 +127,19 @@ class FormulaireMedecin(forms.ModelForm):
         )
 
     def clean_family_name(self) -> str:
-        """La normalisation de `RegularDoctorSerializer.validate_family_name`.
+        """La normalisation que `RegularDoctorSerializer.validate_family_name` portait.
 
-        `api/serializers/patient.py:92`. Le serialiseur reste en place pour l'API, mais il
-        ne voit plus la modale : sans cette methode, « lefevre » resterait « lefevre ».
+        Le serialiseur est parti avec `api/doctors` (D6e T13) : cette methode est la seule
+        qui reste. Sans elle, « lefevre » resterait « lefevre ».
         """
         valeur: str = get_name_filters().filter(self.cleaned_data["family_name"])
         return valeur
 
     def clean_first_name(self) -> str:
-        """La normalisation de `RegularDoctorSerializer.validate_first_name`.
+        """La normalisation que `RegularDoctorSerializer.validate_first_name` portait.
 
-        `api/serializers/patient.py:95`, qui emploie `get_name_filters` et non
-        `get_firstname_filters` — la difference se conserve telle quelle.
+        Elle employait `get_name_filters` et non `get_firstname_filters` — la difference se
+        conserve telle quelle, et cette methode en est desormais la seule gardienne.
         """
         valeur: str = get_name_filters().filter(self.cleaned_data["first_name"])
         return valeur

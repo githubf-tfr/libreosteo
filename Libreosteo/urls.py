@@ -34,7 +34,6 @@ router.register(r"events", views.OfficeEventViewSet)
 router.register(r"invoices", views.InvoiceViewSet)
 router.register(r"settings", views.OfficeSettingsView)
 router.register(r"profiles", views.TherapeutSettingsViewSet)
-router.register(r"comments", views.ExaminationCommentViewSet)
 router.register(r"file-import", views.FileImportViewSet)
 router.register(r"patient-documents", views.PatientDocumentViewSet, "PatientDocuments")
 
@@ -67,11 +66,6 @@ urlpatterns = [
     re_path(r"^api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     re_path(
         r"^api/statistics[/]?$", views.StatisticsView.as_view(), name="statistics_view"
-    ),
-    re_path(
-        r"^api/patients/(?P<patient>.+)/documents$",
-        views.PatientDocumentViewSet.as_view({"get": "list"}),
-        name="patient_document_view",
     ),
     re_path(r"^myuserid", TemplateView.as_view(template_name="account/myuserid.html")),
     re_path(r"^search$", views.recherche, name="search"),

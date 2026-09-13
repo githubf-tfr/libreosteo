@@ -132,9 +132,3 @@ class InvoiceCancelingWithCorrectiveInvoiceSerializer(serializers.Serializer):
         from .consultation import ExaminationSerializer
 
         return {"examination": ExaminationSerializer(), **super().get_fields()}
-
-
-class PaimentMeanSerializer(WithPkMixin, serializers.ModelSerializer):
-    class Meta:
-        model = PaimentMean
-        fields = "__all__"

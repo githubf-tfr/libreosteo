@@ -76,6 +76,7 @@ from __future__ import annotations
 from typing import Any
 
 from django import forms
+from django.conf import settings
 from django.db import transaction
 from django.forms.models import construct_instance
 from django.http import HttpRequest, HttpResponse
@@ -86,6 +87,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from libreosteoweb import models
+from libreosteoweb.api.demonstration import get_demonstration_file
 from libreosteoweb.api.notifications import reponse_avec_notification
 from libreosteoweb.api.texte_riche import classes_de_champs
 
@@ -267,9 +269,11 @@ class FormulaireDocument(forms.ModelForm):
     """Les trois champs modifiables d'une vignette, et rien d'autre.
 
     **Un `ModelForm` n'herite de rien** : ni des `required` de l'ancien gabarit, ni du
-    `trim_whitespace = False` de `DocumentUpdateSerializer`. Le second est repris par
-    `field_classes`, qui pose `ChampTexteRiche` sur `notes` — sans lui, un espace de bord
-    disparaitrait a chaque enregistrement, en silence, sur une donnee medicale (AR3).
+    `trim_whitespace = False` que `DocumentUpdateSerializer` portait. Le second est repris
+    par `field_classes`, qui pose `ChampTexteRiche` sur `notes` — sans lui, un espace de
+    bord disparaitrait a chaque enregistrement, en silence, sur une donnee medicale (AR3).
+    Ce serialiseur est parti avec `api/documents` (D6e T13) : ce formulaire en est
+    desormais la seule autorite.
 
     `document_file`, `user`, `internal_date` et `mime_type` n'en sont **pas** : ce sont les
     colonnes que la vue gouverne elle-meme, et les exposer ferait d'un formulaire d'edition
@@ -444,6 +448,22 @@ def documents_du_patient(request: HttpRequest, identifiant: str) -> HttpResponse
     )
 
 
+def _en_demonstration(request: HttpRequest) -> bool:
+    """La meme regle que `PatientDocumentViewSet.is_demonstration`, a l'identique.
+
+    Deux canaux, et le second n'est pas theorique : un deploiement multi-schema pose le
+    locataire sur la requete sans que `settings.DEMONSTRATION` soit vrai.
+    """
+    if settings.DEMONSTRATION:
+        return True
+    locataire = getattr(request, "tenant", None)
+    return bool(
+        locataire
+        and getattr(locataire, "schema_name", None)
+        and locataire.schema_name == "demonstration"
+    )
+
+
 def _creer_le_document(
     request: HttpRequest,
     patient: models.Patient,
@@ -455,7 +475,14 @@ def _creer_le_document(
     `Document.clean()` lit `self.document_file.path` pour en deduire le type MIME : le
     fichier doit donc etre **ecrit sur le disque** avant l'appel, d'ou les deux
     enregistrements. Le second est borne a `mime_type`, la seule colonne que `clean()` pose.
+
+    **Sur une instance de demonstration, le fichier depose n'est jamais ecrit** : c'est le
+    texte de remplacement qui l'est, comme `PatientDocumentDemonstrationSerializer` le fait
+    sur la voie DRF. T12 avait perdu cette regle en reecrivant la creation ici, et
+    l'instance de demonstration est **le seul deploiement public** du produit.
     """
+    if _en_demonstration(request):
+        fichier = get_demonstration_file()
     document = models.Document(
         title=formulaire.cleaned_data["title"],
         notes=formulaire.cleaned_data["notes"],

@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from libreosteoweb.models import Document, Patient, PatientDocument, RegularDoctor
+from libreosteoweb.models import Document, Patient, PatientDocument
 
 from ..demonstration import get_demonstration_file
 from ..filter import get_firstname_filters, get_name_filters
@@ -88,28 +88,10 @@ class PatientHomonymeSerializer(serializers.ModelSerializer):
         fields = ("family_name", "first_name", "birth_date")
 
 
-class RegularDoctorSerializer(serializers.ModelSerializer):
-    def validate_family_name(self, value):
-        return get_name_filters().filter(value)
-
-    def validate_first_name(self, value):
-        return get_name_filters().filter(value)
-
-    class Meta:
-        model = RegularDoctor
-        fields = "__all__"
-
-
 class DocumentSerializer(WithPkMixin, SansRognageMixin):
     class Meta:
         model = Document
         fields = "__all__"
-
-
-class DocumentUpdateSerializer(WithPkMixin, SansRognageMixin):
-    class Meta:
-        fields = ["title", "notes", "document_date"]
-        model = Document
 
 
 class PatientDocumentSerializer(WithPkMixin, serializers.ModelSerializer):

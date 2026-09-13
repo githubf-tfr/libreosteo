@@ -375,8 +375,8 @@ class TestCreation(SocleConnecte):
 
     def test_la_creation_normalise_la_casse_du_nom_et_du_prenom(self) -> None:
         """Ce que ce test regarde : la normalisation que `RegularDoctorSerializer`
-        appliquait par `validate_family_name` et `validate_first_name`
-        (`api/serializers/patient.py:92,95`). Un `ModelForm` n'herite de rien : sans
+        appliquait par `validate_family_name` et `validate_first_name`, avant que D6e T13
+        ne retire le serialiseur avec sa ressource. Un `ModelForm` n'herite de rien : sans
         `clean_family_name` / `clean_first_name`, la migration la perdrait **sans que rien
         ne le signale**, et le medecin s'afficherait « lefevre » en bas de casse.
 

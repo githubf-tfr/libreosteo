@@ -1524,3 +1524,79 @@ class TestFactureCorrective(TestAnnulationDeFacture):
         self.assertEqual(reponse.status_code, 422)
         self.assertContains(reponse, 'id="formulaire-facturation"', status_code=422)
         self.assertEqual(models.Invoice.objects.count(), 1)
+
+
+# Les feuilles du depot, lues une fois : chemin relatif a `libreosteoweb/static` -> contenu.
+def _feuilles_du_depot() -> dict[str, str]:
+    racine = RACINE_DU_DEPOT / "libreosteoweb" / "static"
+    return {
+        str(chemin.relative_to(racine)): chemin.read_text(encoding="utf-8")
+        for chemin in racine.rglob("*.css")
+    }
+
+
+def _definit(feuille: str, classe: str) -> bool:
+    """La feuille porte-t-elle une regle pour cette classe, et non un simple prefixe ?"""
+    return re.search(r"\.%s(?![\w-])" % re.escape(classe), feuille) is not None
+
+
+class TestFeuillesDeStyleDuDossier(_SocleDuDossier):
+    """Le document doit servir les feuilles qui habillent les classes qu'il rend.
+
+    Ce que cette preuve regarde : pour chaque classe `timeline*` **reellement presente dans
+    le HTML rendu** du dossier, si une feuille du depot la definit, alors **l'une des
+    feuilles que ce meme document lie** doit la definir aussi. Elle lit les `href` rendus
+    puis les fichiers correspondants : renommer la feuille sans casser le lien la laisse
+    verte, retirer le lien la fait rougir en nommant les classes orphelines.
+
+    Ce qu'elle laisserait passer : une regle presente mais neutralisee par la cascade, un
+    ordre de feuilles qui ferait perdre une surcharge, une classe qu'aucune feuille du
+    depot ne definit (`timeline-heading` est dans ce cas, et c'est voulu : le cliquet ne
+    reclame pas une regle qui n'a jamais existe), et toute famille de classes autre que
+    `timeline`.
+
+    Pourquoi cette famille : c'est la seule que D6e a heritee du theme sb-admin sans
+    heriter de son chargement. `index.html` etait le seul document a lier
+    `css/plugins/timeline/timeline.css`, et le dossier patient migre rend la chronologie
+    sans passer par lui. Aucun test d'ecran ne peut voir ce trou — le cliquet d'adressage
+    interdit `to_have_class` et `to_have_css` (A20).
+    """
+
+    def _dossier_avec_une_seance(self) -> str:
+        with sans_receivers():
+            cree_consultation(self.patient, therapeut=self.praticien)
+        return self.client.get(
+            reverse("dossier-patient", args=[self.patient.pk])
+        ).content.decode("utf-8")
+
+    def test_chaque_classe_de_chronologie_rendue_est_habillee_par_une_feuille_liee(
+        self,
+    ) -> None:
+        html = self._dossier_avec_une_seance()
+
+        rendues: set[str] = set()
+        for valeur in re.findall(r'\sclass="([^"]*)"', html):
+            rendues.update(c for c in valeur.split() if c.startswith("timeline"))
+        self.assertTrue(rendues, "le dossier ne rend aucune classe de chronologie")
+
+        feuilles = _feuilles_du_depot()
+        liees = [
+            chemin
+            for href in re.findall(r'<link[^>]+href="([^"]+\.css)"', html)
+            for chemin in feuilles
+            if href.endswith("/" + chemin)
+        ]
+        self.assertTrue(liees, "le dossier ne lie aucune feuille du depot")
+
+        orphelines = sorted(
+            classe
+            for classe in rendues
+            if any(_definit(feuilles[c], classe) for c in feuilles)
+            and not any(_definit(feuilles[c], classe) for c in liees)
+        )
+        self.assertEqual(
+            orphelines,
+            [],
+            "le dossier rend des classes que le depot habille mais qu'aucune feuille "
+            "liee ne definit : %s" % ", ".join(orphelines),
+        )
