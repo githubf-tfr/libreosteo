@@ -2293,6 +2293,17 @@ msgstr ""
 msgid "Kwargs"
 msgstr ""
 
+# **Cette ligne de commentaire n'est pas decorative, elle est la seule chose qui tienne
+# les dix entrees qui suivent dans le `.mo`.** `msgfmt.py` (Python 3.12,
+# `Tools/i18n/msgfmt.py`), le seul compilateur dont dispose ce depot, ne remet son
+# drapeau `fuzzy` a zero que sur une ligne de commentaire — jamais sur un `msgid`. Toute
+# entree qui suit une entree `#, fuzzy` sans commentaire intercalaire est donc compilee
+# comme floue, c'est-a-dire **absente du `.mo`**, sans le moindre avertissement.
+# Mesure du 2026-09-13 (D6f T5) : recompiler le `.po` d'alors perdait exactement les dix
+# entrees comprises entre « Search Queries » (derniere `#, fuzzy` du fichier) et
+# « Rich text diagnostic » (premiere suivie d'un commentaire) — « oui », « non » et
+# « modifier » compris, que `test_page_cabinet.py` lit a l'ecran. Ne pas retirer sans
+# avoir corrige le compilateur.
 msgid "The password was changed."
 msgstr "Le mot de passe a été modifié."
 
@@ -2409,3 +2420,35 @@ msgstr ""
 
 msgid "I understand that it means"
 msgstr "Je comprends ce que cela signifie"
+
+# D6f T5 : les libelles de la visite guidee etaient des chaines francaises en dur dans
+# `static/js/app/tour.js` (`:41-54`, `:66-80`), fichier qui disparait avec jQuery. Portes en
+# `{% trans %}`, ils doivent avoir leur entree ici, sans quoi gettext rendrait le `msgid`
+# anglais en plein ecran francais. Textes repris **a l'octet** de `tour.js`.
+msgid "Therapist"
+msgstr "Thérapeute"
+
+msgid ""
+"Update your therapist profile. The professional id is mandatory for invoices."
+msgstr ""
+"Mettez à jour votre profil thérapeute. L'identifiant professionnel est "
+"obligatoire pour les factures."
+
+msgid "Set up the office"
+msgstr "Paramétrer le cabinet"
+
+msgid ""
+"In order to generate invoices correctly, the office information must be "
+"updated."
+msgstr ""
+"Afin de pouvoir générer correctement les factures, il est nécessaire de "
+"mettre à jour les informations du cabinet."
+
+msgid "Previous step"
+msgstr "« Préc"
+
+msgid "Next step"
+msgstr "Suiv »"
+
+msgid "Finish"
+msgstr "Terminer"

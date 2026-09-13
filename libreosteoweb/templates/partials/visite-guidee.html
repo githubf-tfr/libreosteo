@@ -1,0 +1,50 @@
+{% load i18n %}
+{# L'encart de visite guidee (D6f, C7, AR2). Rendu **a l'interieur** du `<li>` qu'il #}
+{# designe : l'ancrage est du CSS pur, sans mesure et sans bibliotheque. #}
+{# #}
+{# Contrat d'appel : le contexte porte `etape`, un dictionnaire #}
+{#   {"cle": "therapeute"|"cabinet", "rang": 1|2, "total": 1|2, "ancree": True|False} #}
+{# et un ancetre porte un `x-data` declarant `visiteEtape`, `visiteTotal` et #}
+{# `menuUtilisateur`. `partials/menu.html` honore les trois. #}
+{# #}
+{# **`<template x-if>` et non `x-show`, et c'est une mesure, pas un gout.** Sous `x-show` #}
+{# les deux etapes restent attachees en meme temps, l'une masquee : chaque `data-testid` #}
+{# resout alors **deux** elements et Playwright refuse d'agir (« strict mode violation »). #}
+{# Mesure directe : `to_be_visible`, `to_have_text` et `not_to_be_visible` echouent tous #}
+{# les trois sur deux `data-testid="visite-guidee"` attaches, quand bien meme le second #}
+{# porte `display: none`. `x-if` n'attache que l'etape courante — un `data-testid`, un #}
+{# element — et c'est ce que `bootstrap-tour` faisait deja, lui qui ne rendait qu'un #}
+{# popover a la fois. Le prix assume : l'encart nait a l'amorcage d'Alpine, pas au rendu. #}
+{# #}
+{# Les six `data-testid` sont le contrat de D6f T2, conserves **a l'octet** depuis le #}
+{# gabarit AngularJS : quatre tests fonctionnels les lisent, et ils ont ete ecrits contre #}
+{# le produit d'avant, expres. #}
+<template x-if="visiteEtape === {{ etape.rang }}">
+  <div class="lo-visite-encart{% if not etape.ancree %} lo-visite-encart--centree{% endif %}"
+       data-testid="visite-guidee" role="dialog">
+    {% if etape.cle == "therapeute" %}
+    <h3 data-testid="visite-titre">{% trans "Therapist" %}</h3>
+    <div data-testid="visite-contenu">{% trans "Update your therapist profile. The professional id is mandatory for invoices." %}</div>
+    {% else %}
+    <h3 data-testid="visite-titre">{% trans "Set up the office" %}</h3>
+    <div data-testid="visite-contenu">{% trans "In order to generate invoices correctly, the office information must be updated." %}</div>
+    {% endif %}
+    <div>
+      {# Trois boutons et un separateur, repris a l'octet du gabarit de `tour.js:24`. #}
+      {# L'attribut `disabled` est pose **par le serveur** pour l'etape rendue, et Alpine #}
+      {# ne reprend la main que sur l'etape qu'il monte lui-meme : une seule autorite. #}
+      <button type="button" class="btn btn-default" data-testid="visite-precedent"
+              {% if etape.rang == 1 %}disabled{% endif %}
+              :disabled="visiteEtape <= 1"
+              @click="visiteEtape = visiteEtape - 1">{% trans "Previous step" %}</button>
+      <span>|</span>
+      <button type="button" class="btn btn-default" data-testid="visite-suivant"
+              {% if etape.rang == etape.total %}disabled{% endif %}
+              :disabled="visiteEtape >= visiteTotal"
+              @click="visiteEtape = visiteEtape + 1">{% trans "Next step" %}</button>
+      {# `onEnd` de `tour.js:26-33` refermait le menu utilisateur : la parite est ici. #}
+      <button type="button" class="btn btn-default" data-testid="visite-terminer"
+              @click="visiteEtape = 0; menuUtilisateur = false">{% trans "Finish" %}</button>
+    </div>
+  </div>
+</template>

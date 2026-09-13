@@ -5,7 +5,7 @@
 {# data-toggle qui le sont. Un document qui chargerait les deux basculerait deux fois : #}
 {# A2 l'interdit, et le cliquet de D6g retire data-toggle en meme temps que jQuery. #}
 <nav class="navbar navbar-default navbar-fixed-top" role="navigation" style="margin-bottom: 0"
-     x-data="{ barreDeployee: false, menuUtilisateur: false, menuAide: false }">
+     x-data="{ barreDeployee: false, menuUtilisateur: {% if visite %}true{% else %}false{% endif %}, menuAide: false, visiteEtape: {% if visite %}1{% else %}0{% endif %}, visiteTotal: {{ visite.total|default:0 }} }">
   <div class="d-flex flex-column">
     {% if request.has_multiple_office %}
       <a class="navbar-brand" href="/" style="max-width:13%;padding-top:5px">{{request.officesettings.office_name}}</a>
@@ -39,19 +39,25 @@
     </ul>
     <ul class="nav navbar-top-links navbar-right">
     <!-- /.dropdown -->
-      <li class="dropdown" :class="{ 'open': menuUtilisateur }" @click.outside="menuUtilisateur = false">
+      {# Le serveur marque `open` **avant** qu'Alpine ne demarre (`defer`), et #}
+      {# `@click.outside` ne referme plus pendant la visite : c'est la parite exacte du #}
+      {# rabonnement de `tour.js:51` sur `hidden.bs.dropdown`, sans le rabonnement. #}
+      <li class="dropdown{% if visite %} open{% endif %}" :class="{ 'open': menuUtilisateur }" @click.outside="if (visiteEtape === 0) { menuUtilisateur = false }">
         <a target="_self" href="#" class="dropdown-toggle" data-toggle="dropdown" id="user-toggle" aria-haspopup="true" role="button" aria-expanded="false"
            @click.prevent="menuUtilisateur = !menuUtilisateur; menuAide = false">
           <i class="fa fa-user fa-fw"></i> {{ request.user.username }} <i class="fa fa-caret-down"></i>
         </a>
         <ul class="dropdown-menu dropdown-user" data-testid="menu-utilisateur">
           {# `ui-sref` retire en meme temps que le `href` change (E2). L'identifiant #}
-          {# `user-profile` ne bouge pas : `tour.js:43` s'y ancre, et #}
-          {# `helpers.ouvrir_profil_therapeute` le clique. #}
-          <li id="user-profile"><a href="{% url 'profil' %}"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
+          {# `user-profile` ne bouge pas : `helpers.ouvrir_profil_therapeute` le clique, #}
+          {# et l'encart de la visite guidee s'y ancre (D6f, C6). #}
+          <li id="user-profile"{% if visite.therapeute %} class="lo-visite-cible"{% endif %}><a href="{% url 'profil' %}"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
+            {% if visite.therapeute %}{% include "partials/visite-guidee.html" with etape=visite.therapeute %}{% endif %}
           </li>
-          {# `tour.js:68` s'ancre sur `#office-settings` : l'identifiant ne bouge pas. #}
-          <li id="office-settings"><a href="{% url 'cabinet' %}"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
+          {# `office-settings` : `helpers.ouvrir_reglages_cabinet` le clique, et la seconde #}
+          {# etape de la visite guidee s'y ancre (D6f, C6). #}
+          <li id="office-settings"{% if visite.cabinet %} class="lo-visite-cible"{% endif %}><a href="{% url 'cabinet' %}"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
+            {% if visite.cabinet %}{% include "partials/visite-guidee.html" with etape=visite.cabinet %}{% endif %}
           </li>
           {% if request.user.is_staff %}
           <li id="import-file"><a href="{% url 'import-export' %}"><i class="fa fa-upload"></i> {% trans "Import/export" %}</a>

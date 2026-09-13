@@ -120,6 +120,48 @@ def grouper_par_jour(
     return groupes
 
 
+def etapes_de_visite(request: HttpRequest) -> dict[str, Any] | None:
+    """Les etapes de la visite guidee, decidees **au rendu** (D6f, C7).
+
+    `tour.js:38` et `:60` appelaient `/api/profiles/get_by_user` et `/api/settings` pour
+    prendre une decision que le serveur a deja prise : `TherapeutSettings` est cree ou lu
+    ici, et `request.officesettings` est pose par `OfficeSettingsMiddleware` sur **toute**
+    requete authentifiee (F9). Les deux allers-retours disparaissent.
+
+    Rend `None` quand il n'y a aucune etape : **zero etape veut dire zero balisage rendu**.
+
+    **Rien n'est memorise, et c'est le point.** La reouverture de la visite est
+    surdeterminee dans le produit AngularJS — `storage: false` d'un cote, `tour.start(true)`
+    qui court-circuite `ended()` de l'autre (D6f T2). Ici il n'y a **aucun** support a
+    neutraliser : la fonction est une lecture pure de l'etat courant, rejouee a chaque
+    rendu de `/`. La visite revient tant que les conditions tiennent, et disparait le jour
+    ou elles cessent — c'est l'effet, pas le levier, qui est reconduit.
+    """
+    utilisateur = request.user
+    if not utilisateur.is_authenticated:
+        # Personne a qui proposer la visite, et surtout aucun `TherapeutSettings` a creer :
+        # `user` est une cle etrangere, et un `AnonymousUser` n'en est pas une valeur. La
+        # vue du tableau de bord exige deja la connexion ; cette garde dit la precondition
+        # au lieu de la supposer.
+        return None
+
+    reglages, _cree = models.TherapeutSettings.objects.get_or_create(user=utilisateur)
+    cabinet = getattr(request, "officesettings", None)
+
+    cles: list[str] = []
+    if not reglages.professional_id:
+        cles.append("therapeute")
+    if cabinet is None or not cabinet.currency:
+        cles.append("cabinet")
+    if not cles:
+        return None
+
+    visite: dict[str, Any] = {"total": len(cles)}
+    for rang, cle in enumerate(cles, start=1):
+        visite[cle] = {"cle": cle, "rang": rang, "total": len(cles), "ancree": True}
+    return visite
+
+
 def _entier(valeur: str | None, defaut: int = 0) -> int:
     try:
         return max(int(valeur), 0) if valeur is not None else defaut
