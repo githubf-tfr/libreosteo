@@ -352,6 +352,22 @@ Tenu à la main.
 > discuté ni priorisé par un humain. Une sous-section portant une date de tri ultérieure
 > n'est pas concernée par ce bandeau.
 
+### Passe de comparaison avec l'ancienne version (décidé le 2026-09-13, différé)
+
+Décision de l'utilisateur : une passe **avant/après** est nécessaire — l'écran migré a
+divergé de l'écran AngularJS sur des points que ni la spec ni la recette ne nomment
+(typographie, placeholders, formulations). Elle est **différée**, à conduire après la fin
+de la passe de recette courante.
+
+- **Conduite** : les deux instances sont pilotées au navigateur, côte à côte, par l'agent.
+- **Instance de référence** : une instance **dédiée** bâtie sur la version antérieure au lot
+  (`f5b3351`). ⚠️ **Jamais l'instance de production.**
+- **Périmètre** : non arrêté. À choisir au lancement de la passe.
+- **Entrées connues à y verser** : les placeholders d'adresse (cf. *Défauts versés par D6e*),
+  la formulation « 55 minutes par … » de la chronologie — `timesince` remplace
+  `angular-timeago`, supprimé par D5, et la préposition reste orpheline quand le thérapeute
+  n'a pas de nom.
+
 ### Sécurité
 
 - Données de santé stockées dans un SQLite non chiffré par défaut. Enjeu RGPD à
@@ -536,6 +552,21 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
+- **Deux autorités écrivent `edition`, et seul l'ordre de parcours d'Alpine les tient
+  d'accord.** `libreosteoweb/templates/pages/fragments/dossier-corps.html:30` lit
+  `consultation_ouverte`, clef que seule la vue `nouvelle_consultation` pose, tandis que le
+  `x-data` racine de `dossier-patient.html` initialise la même variable depuis
+  `consultation_en_cours`. Trouvé par le diagnostic du défaut n° 4 de la recette, qui ne l'a
+  pas corrigé pour la bonne raison : **le correctif serait invisible, donc improuvable** —
+  aucune assertion ne distinguerait le produit corrigé du produit actuel. À trancher avec le
+  reste : une seule autorité sur `edition`, ou la clef unique.
+- **Les placeholders des quatre entrées d'adresse ont disparu.** L'écran AngularJS posait
+  `e-placeholder="{{ patient.address_street }}"` — le **libellé** du champ — sur rue,
+  complément, code postal et ville ; l'écran migré rend quatre boîtes vides sans aucune
+  indication. Relevé à l'écran pendant la recette, **non corrigé** : le rétablir est une
+  décision d'affordance qui appartient à la passe de comparaison avec l'ancienne version, pas
+  à une correction de défaut. Le précédent existe déjà dans le dépôt
+  (`nouveau_patient.py:98`, `"placeholder": self.fields[nom].label`).
 - **Une vue de commentaires rend `200` sur formulaire invalide, sans écrire ni rien dire.**
   `libreosteoweb/api/views/pages/documents.py`, `commentaires_de_seance` : l'utilisateur
   voit le volet se rafraîchir à l'identique et croit avoir enregistré. Livré par T11,
@@ -980,6 +1011,51 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-13 — passe de recette au navigateur sur l'écran migré : sept défauts, dont six
+  fermés.** Première passe conduite **à l'écran** sur une instance de conteneur dédiée
+  (`localhost:8085`, PostgreSQL, images bâties sur le commit recetté), et non par la suite
+  fonctionnelle. Elle a trouvé en une session ce que **770 tests ne voyaient pas** : les six
+  premiers défauts sont des défauts d'**affichage**, exactement la surface qu'aucun des trois
+  niveaux de test ne couvre — l'unitaire lit le balisage, le fonctionnel lit le texte, aucun
+  ne regarde ce que l'œil voit.
+
+  | n° | Défaut | Sort |
+  |---|---|---|
+  | 1 | « End of edition » rendu en anglais — `msgid` orphelin | fermé, `bfb4998` |
+  | 2 | « Latéralité : None » dans le panneau d'identité | fermé, `bfb4998` |
+  | 3 | « Ajouter des documents » rendu deux fois — deux `<label for>` sur un même `id` | fermé, `bfb4998` |
+  | 4 | premier clic d'onglet avalé, consultation en cours | **non reproduit**, `9f79657` |
+  | 5 | le titre du dossier se disloque hors édition | fermé, `85461ff` |
+  | 6 | « Latéralité : None » dans le volet droit de la consultation | fermé, `85461ff` |
+  | 7 | `address_street` rendu sans classe — entrée nue de 189 px | fermé, `85461ff` |
+
+  **Le n° 4 est instructif.** Observé à l'écran, il n'a été reproduit ni au banc ni sur le
+  conteneur réel : cinq onglets, dix instants de clic de 0 à 3000 ms, bridage CPU jusqu'à ×20,
+  réponse retardée de 4 s, huit clics enchaînés. Les deux hypothèses données au diagnostic ont
+  été **mesurées fausses** — la trace du conteneur montre qu'aucun `GET /patient/1/corps`
+  n'est parti pendant la session où le défaut a été vu, et la barre d'onglets vit **dans**
+  `#dossier-corps`, donc rien ne peut la laisser vivante en tuant les panneaux. Le diagnostic
+  n'a pas inventé de cause : il a posé la **barrière d'écran** qui manquait — elle assertit le
+  panneau *visible*, jamais la classe `active`, qui serait restée verte sur le symptôme.
+
+  **Le n° 1 a rendu sept tests fonctionnels rouges sans que `make check` puisse le voir** :
+  rapprocher le `msgid` de `consultation-edition.html` a donné au soumetteur du volet le même
+  nom accessible qu'au bouton du bandeau, et neuf `get_by_role("button", name="Fin d'édition")`
+  non scopés en résolvaient alors deux. `make check` ne lance pas la suite fonctionnelle : la
+  référence « 112 » ne tenait déjà plus quand elle a été écrite. Fermé par `9f79657`.
+
+  **Quatrième cliquet de qualité posé** : `tests/qualite/test_contrat_traductions.py` — tout
+  `msgid` demandé par un gabarit doit avoir une entrée `.po` non vide et non `fuzzy`. Six
+  orphelins de plus ont été trouvés à cette occasion et documentés en exceptions closes.
+
+  **Trois confirmations positives**, à l'écran : la chronologie est correctement stylée, le
+  médecin créé depuis la modale est bien attaché à la sélection (changement produit n° 2), et
+  le volet de consultation coexiste avec la chronologie après clôture et facturation
+  (changement produit n° 3).
+
+  État final : `make check` **773 passed**, couverture **94,31 %**, `mypy` **162** ; suite
+  fonctionnelle **114 passed**.
 
 - **2026-09-13 — D6e clos : clause de stabilité verte du premier coup, plan supprimé.**
   Vingt exécutions consécutives de `make test-functional` sur `92903ab`, **`112 passed` à
