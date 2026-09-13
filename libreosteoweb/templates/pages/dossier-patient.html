@@ -59,10 +59,17 @@
          if (!cible.getAttribute('name')) { return; }
          if (!cible.closest('[data-surface-de-saisie]')) { return; }
          this.modifie = true;
+       },
+       siEcritureReussie(evenement) {
+         const statut = evenement.detail.xhr ? evenement.detail.xhr.status : 0;
+         if (evenement.detail.requestConfig.verb === 'get') { return; }
+         if (statut < 200 || statut >= 300) { return; }
+         if (statut === 204) { return; }
+         this.modifie = false;
        }
      }"
      @input="siSaisieDeFormulaire($event)" @change="siSaisieDeFormulaire($event)"
-     @htmx:after-request="if ($event.detail.xhr.status < 400 && $event.detail.requestConfig.verb !== 'get') { modifie = false; }"
+     @htmx:after-request="siEcritureReussie($event)"
      :data-modifications-non-enregistrees="modifie ? '1' : null">
   {% if request.user.is_authenticated %}{% include "partials/menu.html" with gabarit_actions="pages/fragments/actions-dossier.html" %}{% endif %}
   <div id="page-wrapper">
@@ -80,6 +87,23 @@
 {# `ui-router`, clic hors formulaire, perte de focus) disparaissent avec le routage client ; #}
 {# il ne reste que la sortie de document, que seul cet evenement voit. #}
 {# #}
+{# **Limite assumee, et elle coute une saisie : le drapeau est unique pour huit surfaces.** #}
+{# Les cinq panneaux en edition s'excluent mutuellement — un seul formulaire a la fois —, #}
+{# mais le bloc de televersement, les vignettes et les volets de commentaires sont #}
+{# **permanents** et coexistent dans le meme onglet. Deux chemins effacent donc la garde #}
+{# alors qu'une saisie reste en attente ailleurs : #}
+{# #}
+{# 1. **par enregistrement** — taper des notes dans le bloc de televersement sans envoyer, #}
+{#    cliquer « Editer » sur le panneau voisin, « Fin d'edition » : cet enregistrement #}
+{#    reussit et desarme la garde ; quitter la page perd les notes, sans avertissement ; #}
+{# 2. **par abandon** — meme depart, puis ouvrir une vignette de document et cliquer #}
+{#    « Annuler » : ce bouton desarme inconditionnellement (`document-edition.html`). #}
+{# #}
+{# **Ce n'est pas une regression** : avant D6e, aucune de ces saisies n'etait gardee. Un #}
+{# drapeau par surface est une refonte — nommer chaque surface, la compter a l'entree et a #}
+{# la sortie du DOM, decider ce que fait un echange hors-bande qui en remplace une pendant #}
+{# qu'une autre est sale — versee hors de cette tache. #}
+{# #}
 {# **Elle s'arme sur une modification, jamais sur la presence d'un formulaire** (revue T12). #}
 {# Une premiere ecriture testait la presence d'un fragment d'edition dans le DOM : or le #}
 {# volet d'une consultation en cours est rendu **en edition a chaque chargement**, si bien #}
@@ -89,12 +113,28 @@
 {# le champ de texte riche compris — et retombe a la premiere **ecriture** reussie, `GET` #}
 {# exclu : entrer en edition et chercher un code postal sont des lectures. #}
 {# #}
-{# **`xhr.status < 400` et non `$event.detail.successful`**, et c'est **mesure** (4e revue #}
-{# T12). Sur un refus 422, htmx rend `successful: true` et `failed: false` — le mot veut #}
-{# dire « la requete a abouti », pas « la reponse etait un succes ». La garde se desarmait #}
-{# donc **sur un refus** : le praticien quittait sans avertissement une page ou sa saisie #}
-{# etait toujours la, affichee, et refusee. Le statut, lui, ne laisse aucune place a #}
-{# l'interpretation. #}
+{# **Le desarmement exige un succes reel : `2xx`, `204` exclu, et jamais un `GET`.** Trois #}
+{# conditions, et chacune ferme une perte de saisie **mesuree** (6e revue T12). #}
+{# #}
+{# 1. **`204` est exclu** parce qu'il est le code du pont de session : `middleware.py:75` #}
+{#    repond `204` + `HX-Redirect` quand la session a expire, et la navigation part aussitot. #}
+{#    Le desarmer la ferait perdre la consultation **sans un mot**. #}
+{# 2. **La borne basse `>= 200` exclut le statut `0`**, celui qu'un `XMLHttpRequest` porte #}
+{#    quand la requete n'atteint jamais le serveur — panne reseau, delai depasse, requete #}
+{#    avortee. Un test `status < 400` seul le laissait passer : la garde tombait **quand la #}
+{#    connexion tombe**, c'est-a-dire au moment ou elle sert le plus. #}
+{# 3. **Le verbe** : entrer en edition et chercher un code postal sont des lectures, et la #}
+{#    seconde part **a chaque frappe**, donc pendant la saisie qu'elle doit garder. #}
+{# #}
+{# **Pourquoi pas `$event.detail.successful`, et quelle est la vraie cause.** `successful` #}
+{# suit bien le succes en htmx 2.0.10 (`responseInfo.successful = !isError`, #}
+{# `isError = !!responseHandling.error`). Mais `base.html:16` porte des motifs **non #}
+{# ancres**, et `codeMatches` fait correspondre `"422"` a la regle `[23].*` **par son `2`**, #}
+{# avant meme d'atteindre `[45].*` : **403, 422, 429, 502 et 503 echappent au marquage #}
+{# d'erreur**. C'est un defaut latent du depot, hors du perimetre de D6e — ancrer ces motifs #}
+{# changerait le comportement de cinq codes sur trois ecrans deja livres — et c'est lui, et #}
+{# non la semantique d'htmx, qui rendait `successful` vrai sur un refus. Lire le **statut** #}
+{# rend cette garde independante de ce reglage, quel qu'il devienne. #}
 {# #}
 {# **Deux conditions, et chacune ferme un faux positif mesure** (re-revue T12) : #}
 {# 1. le controle doit porter un attribut `name`, donc etre **soumis**. Les six cases a #}

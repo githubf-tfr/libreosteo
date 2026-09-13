@@ -1,10 +1,11 @@
 """Cas repris de tests/core/005_create_new_patient.robot."""
 
+from collections.abc import Callable
 from datetime import date
 
 import pytest
 from django.test.testcases import FSFilesHandler
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, Route, expect
 from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import (
@@ -1100,15 +1101,19 @@ def test_un_refus_serveur_laisse_la_garde_armee(
     soumission que le serveur refuse. Il ne déclenche jamais la boîte de dialogue.
 
     **La moitié de l'expression de désarmement qui n'avait jamais été éprouvée.** La garde
-    retombe à la première **écriture réussie** ; `$event.detail.successful` porte le mot
-    « réussie », et rien ne le tenait — ni assertion, ni parcours. Or c'est la symétrie de
-    la classe qui a déjà coûté trois casses à cette tâche : si un refus désarmait, le
-    praticien quitterait sans avertissement une page où sa saisie est **toujours** là, et
-    refusée.
+    retombe à la première **écriture réussie**, et rien ne tenait le mot « réussie » — ni
+    assertion, ni parcours. Or c'est la symétrie de la classe qui a déjà coûté trois casses
+    à cette tâche : si un refus désarmait, le praticien quitterait sans avertissement une
+    page où sa saisie est **toujours** là, et refusée.
 
-    `isError` vaut vrai pour un 4xx par la configuration `responseHandling` de
-    `base.html:16`, donc `successful` vaut faux : ce test tient **à la fois** la condition
-    du désarmement et le réglage htmx dont elle dépend.
+    **Pourquoi la garde lit le statut et non `$event.detail.successful`.** `successful` suit
+    bien le succès en htmx 2.0.10 (`responseInfo.successful = !isError`,
+    `isError = !!responseHandling.error`). Mais `base.html:16` porte des motifs **non
+    ancrés**, et `codeMatches` fait correspondre `"422"` à la règle `[23].*` **par son
+    `2`**, avant d'atteindre `[45].*` : 403, 422, 429, 502 et 503 échappent au marquage
+    d'erreur. C'est un défaut latent du dépôt, hors du périmètre de D6e. Lire le **statut**
+    rend la garde indépendante de ce réglage, quel qu'il devienne — et ce test le prouve sur
+    un refus que ce réglage classe, à tort, parmi les succès.
 
     Le refus choisi est le seul que l'écran atteigne sans être bloqué en amont par une
     contrainte HTML5 : renommer un patient vers un homonyme exact — même prénom, même date
@@ -1138,3 +1143,118 @@ def test_un_refus_serveur_laisse_la_garde_armee(
     # Et le refus est réel : le renommage n'a pas été écrit.
     assert Patient.objects.filter(family_name="Picard").count() == 1
     assert Patient.objects.filter(family_name="Kirk").count() == 1
+
+
+def _armer_la_garde_sur_les_antecedents(
+    page: Page, live_server: LiveServer
+) -> tuple[Locator, int]:
+    """Ouvre « Historique » en édition, y saisit, et rend la garde **armée** et l'identifiant.
+
+    Le même montage sert aux deux preuves de statut qui suivent : elles ne diffèrent que par
+    ce que le réseau répond au « Fin d'édition ».
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    garde = page.locator("[data-modifications-non-enregistrees]")
+
+    page.click("#history")
+    page.get_by_role("button", name="Éditer").click()
+    champ = page.locator("div[name=surgical_history]")
+    expect(champ).to_have_attribute("contenteditable", "true")
+    remplir_champ_de_texte_riche(page, champ, "Appendicectomie 1998")
+    expect(garde).to_have_count(1)
+    return garde, Patient.objects.get(family_name="Picard").id
+
+
+def _apres_le_traitement_htmx(page: Page, geste: Callable[[], None]) -> None:
+    """Exécute `geste` et rend la main quand htmx **et** Alpine ont fini de le traiter.
+
+    **Pourquoi pas `expect_request` / `expect_event`.** Ces barrières-là rendent la main sur
+    un événement du **réseau**, qui précède l'exécution du gestionnaire de la page : une
+    assertion posée juste après mesurerait le marqueur **avant** que la garde ait eu la
+    moindre chance de se désarmer, et resterait verte sur un produit fautif. La barrière
+    posée ici est celle de la page : `htmx:afterRequest` remonte jusqu'à `<body>`, donc
+    **après** le gestionnaire Alpine de la racine qu'il traverse, et le `setTimeout` qui
+    suit laisse s'écouler la file de microtâches où Alpine applique ses effets. Mesuré : les
+    trois falsifications de ces preuves rougissent, ce qui n'aurait pas été le cas d'une
+    barrière réseau.
+    """
+    page.evaluate(
+        "() => { window.__htmxTermine = new Promise((resoudre) => "
+        "document.body.addEventListener('htmx:afterRequest', "
+        "() => setTimeout(resoudre, 0), { once: true })); }"
+    )
+    geste()
+    page.evaluate("() => window.__htmxTermine")
+
+
+def test_une_panne_reseau_laisse_la_garde_armee(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Un enregistrement qui **n'atteint jamais le serveur** ne désarme pas la garde.
+
+    **Ce que ce test regarde** : le marqueur que `beforeunload` interroge, après un
+    enregistrement coupé au niveau du réseau. Il ne déclenche jamais la boîte de dialogue.
+
+    **Le défaut qu'il ferme, et il a été écrit par une correction.** La garde a d'abord
+    testé `$event.detail.xhr.status < 400`. Or `XMLHttpRequest` porte le statut **`0`**
+    quand la requête n'aboutit pas — panne réseau, délai dépassé, requête avortée — et
+    `0 < 400` est vrai : la garde tombait **au moment précis où la connexion tombe**,
+    c'est-à-dire quand elle est le plus utile. La borne basse `>= 200` ferme ce trou.
+
+    `route.abort("failed")` coupe le `POST` et lui seul : le `GET` qui ouvre l'édition doit
+    passer, sinon il n'y aurait rien à enregistrer.
+    """
+    garde, identifiant = _armer_la_garde_sur_les_antecedents(page, live_server)
+
+    def couper_l_enregistrement(route: Route) -> None:
+        if route.request.method == "POST":
+            route.abort("failed")
+        else:
+            route.continue_()
+
+    page.route(f"**/patient/{identifiant}/history", couper_l_enregistrement)
+    _apres_le_traitement_htmx(
+        page, lambda: page.get_by_role("button", name="Fin d'édition").click()
+    )
+
+    expect(garde).to_have_count(1)
+    # Et la perte serait reelle : rien n'a ete ecrit.
+    assert Patient.objects.get(pk=identifiant).surgical_history in (None, "")
+
+
+def test_le_pont_de_session_laisse_la_garde_armee(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Une réponse `204` ne désarme pas la garde, **parce que c'est celle d'une déconnexion**.
+
+    **Ce que ce test regarde** : le marqueur que `beforeunload` interroge, après un `204`.
+    Il ne déclenche jamais la boîte de dialogue.
+
+    **Le défaut qu'il ferme.** `middleware.py:75` répond `204` + `HX-Redirect` quand la
+    session a expiré : la requête « réussit » au sens du protocole, n'enregistre **rien**, et
+    la navigation vers l'écran de connexion part dans la foulée. Un désarmement sur `204`
+    faisait donc perdre la consultation **sans un mot**. C'est le seul `2xx` exclu, et il
+    l'est nommément.
+
+    **L'en-tête `HX-Redirect` est volontairement omis** : avec lui, htmx quitte le document
+    et le marqueur disparaît **avec lui**, si bien qu'aucune mesure ne distinguerait plus la
+    garde armée de la garde désarmée. Ce que ce test isole est la seule chose qui se décide
+    avant la navigation : ce que le statut fait au drapeau.
+    """
+    garde, identifiant = _armer_la_garde_sur_les_antecedents(page, live_server)
+
+    def repondre_session_expiree(route: Route) -> None:
+        if route.request.method == "POST":
+            route.fulfill(status=204)
+        else:
+            route.continue_()
+
+    page.route(f"**/patient/{identifiant}/history", repondre_session_expiree)
+    _apres_le_traitement_htmx(
+        page, lambda: page.get_by_role("button", name="Fin d'édition").click()
+    )
+
+    expect(garde).to_have_count(1)
+    # Et la perte serait reelle : rien n'a ete ecrit.
+    assert Patient.objects.get(pk=identifiant).surgical_history in (None, "")

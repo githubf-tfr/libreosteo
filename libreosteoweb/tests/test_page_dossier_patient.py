@@ -964,12 +964,26 @@ class TestGardeDeSortie(_SocleDuDossier):
         self.assertIn(
             ":data-modifications-non-enregistrees=\"modifie ? '1' : null\"", html
         )
-        # **Le desarmement lit le statut, jamais `$event.detail.successful`** : sur un refus
-        # 422, htmx rend `successful: true` — mesure — parce que le mot veut dire « la
-        # requete a abouti ». La garde se desarmait donc sur un refus, et le praticien
-        # quittait sans avertissement une page ou sa saisie etait toujours affichee.
-        self.assertIn("$event.detail.xhr.status < 400", html)
-        self.assertNotIn("$event.detail.successful", html)
+        # **Le desarmement exige un succes reel.** Trois conditions, et chacune ferme une
+        # perte de saisie mesuree : le verbe (une lecture n'enregistre rien, et la recherche
+        # de code postal part a chaque frappe), la borne basse (le statut `0` d'une requete
+        # qui n'a jamais atteint le serveur), et l'exclusion de `204` (le pont de session de
+        # `middleware.py:75`, qui repond `204` + `HX-Redirect` et navigue aussitot).
+        #
+        # **Ces trois assertions epinglent une forme ; l'effet est ailleurs, et il est
+        # tenu.** Une chaine presente dans le gabarit ne dit pas ce qu'Alpine en fait : les
+        # quatre tests d'ecran `test_un_refus_serveur_...`, `..._une_panne_reseau_...`,
+        # `..._un_pont_de_session_...` et le desarmement de
+        # `test_la_garde_de_sortie_s_arme_sur_un_champ_de_texte_riche` (un `200`) mesurent
+        # le marqueur apres chacun des quatre statuts. Ce test-ci ne garde que la
+        # **presence** des conditions, pour qu'une simplification ne les efface pas en
+        # silence sur un ecran que le filet ne rejoue pas.
+        self.assertIn("siEcritureReussie($event)", html)
+        self.assertIn(
+            "if (evenement.detail.requestConfig.verb === 'get') { return; }", html
+        )
+        self.assertIn("if (statut < 200 || statut >= 300) { return; }", html)
+        self.assertIn("if (statut === 204) { return; }", html)
 
     def test_les_huit_surfaces_de_saisie_portent_le_marqueur(self) -> None:
         """Une surface qui oublierait le marqueur ne pourrait **jamais** armer la garde : la
