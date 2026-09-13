@@ -565,6 +565,21 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
+- **`api/events` répond 500 dès qu'un événement du journal désigne un patient supprimé.**
+  `libreosteoweb/api/serializers/administration.py:66` fait un `.get()` **nu** sur la branche
+  `Patient`, là où la branche `Examination` est gardée. Et `OfficeEvent.reference` est un
+  `IntegerField` **sans clef étrangère** (`libreosteoweb/models.py:470`) : supprimer un patient
+  ne supprime pas ses entrées de journal, qui continuent de le référencer par un identifiant
+  désormais mort. La suppression RGPD d'une fiche suffit donc à casser la ressource.
+
+  **Mesuré pendant D6f (T4 et sa revue), hors périmètre du lot.** La vue neuve du journal
+  (`views/pages/tableau_de_bord.py`, `nom_du_patient`) rend une chaîne vide dans ce cas : elle
+  est **plus robuste que la voie DRF**, et cette divergence est un progrès assumé, non une
+  régression. Le défaut reste entier sur `api/events`, que D6f ne touche pas (arbitrage A4 : le
+  lot ne retire aucune ressource du registre DRF, y compris celles qu'il orpheline).
+
+  À trancher hors lot : garder la branche `Patient` comme l'est déjà `Examination`, ou poser la
+  clef étrangère qui manque — le second choix touche le schéma et les données existantes.
 - **Les deux routes du choix de cabinet produisent une URL invalide, et le middleware y
   redirige.** `libreosteoweb/urls.py:22-23` déclare `path(r"/")` — un segment littéral `/` —
   sous le préfixe vide de `Libreosteo/urls.py:298`. Mesuré :
