@@ -843,11 +843,21 @@ critère d'arrêt ne se raccourcissent pas avec le volume.
 
 ---
 
-## Arbitrages à rendre
+## Arbitrages rendus
 
-Deux points, et deux seulement, ne sont pas tranchés par cette spec : ce sont des choix de
-produit visibles, pas des choix techniques. Les options sont instruites, la recommandation
-est argumentée ; l'utilisateur tranche.
+Deux points, et deux seulement, n'étaient pas tranchés par le cadrage : des choix de produit
+visibles, pas des choix techniques. **L'utilisateur les a rendus le 2026-09-13**, tous deux
+conformes à la recommandation. Le verdict fait désormais partie de la spec au même titre que
+les contraintes ; l'instruction qui suit est conservée pour que le motif reste lisible.
+
+| Arbitrage | Verdict | Ce qu'il engage |
+|---|---|---|
+| AR1 — mini-graphes des tuiles | **SVG rendu par le serveur** | La série est calculée côté serveur et émise en `<svg>` inline. Aucune dépendance neuve, aucun JavaScript : le lot qui sort quatorze paquets n'en fait entrer aucun. Le tracé s'écrit à la main, une fois, et se prouve côté serveur. |
+| AR2 — visite guidée | **Parité ancrée, repli centré écrit d'avance** | Les encarts restent ancrés à l'élément qu'ils désignent — ce que la mesure du cadrage a établi contre ce qu'affirmait le journal — et un repli centré, écrit avant d'en avoir besoin, couvre la cible absente. La visite continue d'apprendre où cliquer. |
+
+**Conséquence sur le périmètre** : aucun des deux verdicts ne retire de surface au lot, et
+AR1 ferme la seule porte par laquelle une dépendance neuve aurait pu entrer. Les clauses de
+sortie restent celles qui sont chiffrées plus haut.
 
 ### AR1 — Les trois mini-graphes des tuiles du tableau de bord
 
