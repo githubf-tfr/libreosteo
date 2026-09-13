@@ -364,9 +364,16 @@ de la passe de recette courante.
   (`f5b3351`). ⚠️ **Jamais l'instance de production.**
 - **Périmètre** : non arrêté. À choisir au lancement de la passe.
 - **Entrées connues à y verser** : les placeholders d'adresse (cf. *Défauts versés par D6e*),
-  la formulation « 55 minutes par … » de la chronologie — `timesince` remplace
-  `angular-timeago`, supprimé par D5, et la préposition reste orpheline quand le thérapeute
-  n'a pas de nom.
+  et **la famille « praticien sans nom »**, trois symptômes d'une même cause, tous
+  antérieurs au lot et tous visibles dès que le compte connecté n'a ni nom ni prénom :
+  - la formulation « 55 minutes par … » de la chronologie, préposition orpheline —
+    `timesince` y remplace `angular-timeago`, supprimé par D5 ;
+  - « Séance du 13 septembre 2026 par » en titre du volet de consultation, même orphelin ;
+  - **le premier commentaire d'une séance chevauche le champ de saisie de 11 px.**
+    `libreosteo.css:140-145` pose `margin-bottom: -11px` sur `.comment-ident` pour
+    recoller la ligne de nom au commentaire ; mesuré à l'écran, cette ligne rend `" "` —
+    une hauteur de **0 px** — et la marge négative tire le commentaire sous le formulaire.
+    La règle est d'amont, D6e n'y a pas touché.
 
 ### Sécurité
 
@@ -1029,6 +1036,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   | 5 | le titre du dossier se disloque hors édition | fermé, `85461ff` |
   | 6 | « Latéralité : None » dans le volet droit de la consultation | fermé, `85461ff` |
   | 7 | `address_street` rendu sans classe — entrée nue de 189 px | fermé, `85461ff` |
+  | 8 | le premier commentaire chevauche le champ de saisie de 11 px | versé, cause d'amont |
 
   **Le n° 4 est instructif.** Observé à l'écran, il n'a été reproduit ni au banc ni sur le
   conteneur réel : cinq onglets, dix instants de clic de 0 à 3000 ms, bridage CPU jusqu'à ×20,
@@ -1048,6 +1056,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   **Quatrième cliquet de qualité posé** : `tests/qualite/test_contrat_traductions.py` — tout
   `msgid` demandé par un gabarit doit avoir une entrée `.po` non vide et non `fuzzy`. Six
   orphelins de plus ont été trouvés à cette occasion et documentés en exceptions closes.
+
+  **Le « 200 muet » versé par D6e a été constaté à l'écran**, et non plus seulement lu dans
+  le code : envoyer un commentaire vide rafraîchit le volet à l'identique, sans rien écrire
+  et sans rien dire. La description de ce défaut versé n'est donc plus une déduction.
 
   **Trois confirmations positives**, à l'écran : la chronologie est correctement stylée, le
   médecin créé depuis la modale est bien attaché à la sélection (changement produit n° 2), et
