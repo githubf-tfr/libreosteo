@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from django.template.loader import render_to_string
-from django.test import Client, RequestFactory, TestCase
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -1540,6 +1540,7 @@ def _definit(feuille: str, classe: str) -> bool:
     return re.search(r"\.%s(?![\w-])" % re.escape(classe), feuille) is not None
 
 
+@override_settings(COMPRESS_ENABLED=False)
 class TestFeuillesDeStyleDuDossier(_SocleDuDossier):
     """Le document doit servir les feuilles qui habillent les classes qu'il rend.
 
@@ -1560,6 +1561,16 @@ class TestFeuillesDeStyleDuDossier(_SocleDuDossier):
     `css/plugins/timeline/timeline.css`, et le dossier patient migre rend la chronologie
     sans passer par lui. Aucun test d'ecran ne peut voir ce trou — le cliquet d'adressage
     interdit `to_have_class` et `to_have_css` (A20).
+
+    **`COMPRESS_ENABLED=False` est pose ici, et ce n'est pas un detail de confort**
+    (revue D6e T13, corrige a T14). La preuve apparie les `href` rendus a des **fichiers du
+    depot** ; compression active, le document ne lie plus qu'un `CACHE/css/output.<empreinte>.css`
+    qui ne correspond a aucun chemin source, `liees` retombe a vide et l'assertion
+    « le dossier ne lie aucune feuille du depot » part en rouge — sur un produit sain.
+    Le reglage valait deja `False` sous les reglages de test, mais par heritage et non par
+    choix : l'ecrire rend la dependance visible et la rend insensible a un changement de
+    `Libreosteo/settings`. La contrepartie est nommee : ce cliquet garde l'arbre **source**,
+    jamais l'arbre compresse.
     """
 
     def _dossier_avec_une_seance(self) -> str:

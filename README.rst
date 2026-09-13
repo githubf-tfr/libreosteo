@@ -660,11 +660,15 @@ inherited from ``base.py``.
 Vendored third-party assets
 ===========================
 
-Nine families of third-party assets live under ``libreosteoweb/static/``, are versioned in
+Eight families of third-party assets live under ``libreosteoweb/static/``, are versioned in
 git, are loaded by the templates, and are declared in no manifest at all. They are listed
 here because they are invisible to ``package.json`` and to ``yarn.lock``, and because they
 are the part of the frontend most likely to outlive a framework migration. Versions are read
 from the files themselves; where a file carries no version, that is said rather than guessed.
+
+A ninth family, ``animatescroll``, was listed here until the administration screens were
+migrated: its only callers were three inline scripts, and the file was deleted with them.
+The count is the number of families actually present, not a historical total.
 
 ===================================  ==============================================  =====================
 Family                               Location                                        Version as shipped
@@ -681,10 +685,6 @@ SB Admin 2 (Start Bootstrap theme)   ``css/sb-admin-2.css``, ``js/sb-admin-2.js`
 DataTables Bootstrap theme           ``css/plugins/dataTables.bootstrap.css``,        not stated in the files
                                      ``css/plugins/dataTables/``
 timeAgo (AngularJS directive)        ``js/plugins/timeAgo.js``                        not stated in the file
-animatescroll                        ``js/plugins/animatescroll.min.js``              **provenance not
-                                                                                     established** — the whole
-                                                                                     header is
-                                                                                     ``/* Coded by Ramswaroop */``
 ===================================  ==============================================  =====================
 
 Two of these explain a purge made in the same lot: ``@components/bootstrap`` used to be

@@ -491,7 +491,10 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
   piège de geste par l'exécutant ; ressemble à un défaut d'ergonomie, non instruit.
 - **Le champ de montant refuse la virgule en silence.** `55,55` rend le formulaire invalide
   et désactive « Valider » sans aucun message, là où `55.55` passe — asymétrique avec le
-  refus des trois décimales, qui affiche une bannière. Préexiste à D6d.
+  refus des trois décimales, qui affiche une bannière. Préexiste à D6d. **Emplacement neuf
+  depuis D6e** : `libreosteoweb/templates/pages/fragments/facturation-modale.html`, dont le
+  `pattern` est repris à l'octet — le défaut est reproduit à l'identique, comme A23
+  l'exige, et il a changé de fichier sans changer de nature.
 - **`R-INST-07` : six de ses huit lectures statiques ne correspondent plus à l'arbre.**
   27 références `@components/` au lieu de 29, deux références `npm:` sans SHA40 (`alpinejs`
   et `htmx`, entrées avec D6c), `--frozen-lockfile` absent de `.github/workflows/main.yml`.
@@ -525,6 +528,68 @@ lot de migration ne change pas le produit. Chacun vient avec son emplacement et 
 - **La page de réindexation n'a pas de garde `is_staff` ; seule son action en a une.**
   `display_rebuild_index` n'en avait pas non plus : le fait est reproduit à l'identique, et
   versé ici pour que la décision soit prise une fois.
+
+### Défauts versés par D6e (2026-09-13, non corrigés, à trancher hors lot de migration)
+
+Comme pour D6d : un lot de migration ne tranche pas un défaut de produit. Chacun vient avec
+son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cours de lot**
+parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
+décrits à l'entrée de clôture, pas ici.
+
+- **Une vue de commentaires rend `200` sur formulaire invalide, sans écrire ni rien dire.**
+  `libreosteoweb/api/views/pages/documents.py`, `commentaires_de_seance` : l'utilisateur
+  voit le volet se rafraîchir à l'identique et croit avoir enregistré. Livré par T11,
+  trouvé par la revue de T13. **Il a déjà coûté trois preuves vides** : trois tests
+  repointés sur cette route seraient passés au vert sans rien créer, le format de test par
+  défaut étant `json` là où la vue lit `request.POST`. À trancher : refuser en `4xx` avec
+  le motif rendu, comme le font les autres surfaces du lot.
+- **En démonstration, tous les documents partagent un seul fichier sur disque, et la
+  suppression de l'un l'efface pour tous.** Le `FieldFile` rendu par
+  `get_demonstration_file()` est déjà *committed*, Django ne le recopie pas ; le récepteur
+  `post_delete` de `PatientDocument` efface ce fichier partagé. **Identique sur la voie
+  DRF, donc antérieur à D6e** — mais il ne se manifeste que sur la seule instance publique.
+- **Les motifs `responseHandling` de `base.html:16` ne sont pas ancrés.** `codeMatches`
+  fait correspondre `"422"` à la règle `[23].*` **par son `2`**, avant d'atteindre
+  `[45].*` : **72 codes 4xx/5xx échappent au marquage `error: true`**, dont `412`, que le
+  dépôt émet réellement (`administration.py:272,279`, écran de restauration). Latent —
+  rien ne consomme `htmx:responseError` aujourd'hui, et les deux règles échangent leur
+  effet sans conséquence visible. Hors périmètre de D6e : ancrer les motifs change le
+  comportement de codes réels sur des écrans livrés, et cela mérite sa propre décision.
+  C'est ce défaut qui a coûté un tour de revue à T12, et c'est pourquoi la garde de sortie
+  lit le **statut** et non `$event.detail.successful`.
+- **Le second site de désarmement de la garde de sortie est inconditionnel.**
+  `@click="modifie = false"` sur le bouton d'abandon d'une vignette de document tombe au
+  **clic**, pas au résultat : si son `hx-get` échoue, le formulaire reste à l'écran avec la
+  saisie et la garde est désarmée. C'est le seul endroit du dossier où la règle « seul un
+  résultat réel désarme » n'est pas appliquée. **Rangé plutôt que corrigé** : l'abandon est
+  demandé par le praticien, la perte est son geste. Décrit à `R-PAT-12` étape 5.
+- **Le dépôt n'a pas de `.gitattributes`.** Trois normalisations de fins de ligne ont dû
+  être réparées à la main pendant le lot — un script de falsification qui réécrit un
+  fichier avec `open(p, "w")` transforme ses CRLF en LF et produit des centaines de lignes
+  de diff pour une ligne ajoutée. Rattrapé chaque fois avant commit, jamais livré. Un
+  `.gitattributes` rendrait le rattrapage inutile, et c'est une décision de dépôt, pas de
+  lot.
+- **`zipcode_lookup/tests.py` ne passe que si un autre fichier est collecté avant lui.**
+  Seul, il échoue : `apps.py:ready()` n'importe que `models`, `libreosteoweb.api.receivers`
+  n'est tiré que par l'URLconf, chargé **après** le `login()`, et `middleware.py:221-223`
+  fait alors `logout()` puis redirige vers `/accounts/login/`. Le vert de `make check`
+  vient de `testpaths`, qui collecte `libreosteoweb/tests` d'abord. **Un test dont le vert
+  dépend de l'ordre de collecte.** Préexistant ; le réparer touche l'amorçage des
+  récepteurs, hors de tout écran de D6e.
+- **`import-export.html` ne passe pas `onglet_initial` au composant d'onglets comme
+  `actif_initial`.** Le composant retombe alors sur `forloop.first`, ce qui est sans effet
+  **uniquement** parce qu'`import_export.py:65` vaut toujours `onglets[0]["cle"]`. Latent
+  aujourd'hui, silencieux le jour où cette page ouvrirait ailleurs que sur son premier
+  onglet. Écran de D6d, relevé par T7. S'y ajoute le même symptôme mort d'un cran plus
+  haut : `cabinet.py:213` pose `onglet_initial: "general"` qu'aucun gabarit ne lit
+  (`cabinet.html:29,35` code tout en dur).
+- **`locale/fr/LC_MESSAGES/django.mo` a été recompilé sans table de hachage**, `msgfmt`
+  étant absent de la machine. Django le lit sans broncher — la table est facultative et
+  Python l'ignore —, d'où un fichier qui **rétrécit en gagnant vingt entrées** ; décompilé
+  et vérifié par la revue : 340 → 360 entrées, zéro manquante, zéro différente, en-tête,
+  charset et pluriels intacts. À régénérer quand `msgfmt` sera installé. **Et les `msgid`
+  dupliqués `January`..`December` du `.po`, préalables, feront broncher un vrai `msgfmt`**
+  le jour où il tournera.
 
 ### Dette technique (constat, pas action)
 
@@ -865,6 +930,154 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-13 — D6e Dossier patient migré : le dossier, la consultation, les documents et
+  le médecin traitant en htmx, sans AngularJS** (quatorze tâches ; spec
+  `docs/superpowers/specs/2026-09-12-d6e-dossier-patient-design.md`).
+  **Trente-huit commits depuis `956e0fa`**, celui-ci compris, pour quatorze tâches : un par tâche, plus
+  vingt-quatre correctifs isolés en commit séparé — dont **six pour le seul mécanisme de la
+  garde de sortie** (cf. plus bas) et deux, `834c9ca` et `b9c6b2f`, hors de toute tâche,
+  pour réparer un dégât que le commit du plan avait lui-même causé. 119 fichiers,
+  **+15 432/−4 277**. Les quatre écrans cliniques sont servis par des vues de page Django et
+  ne chargent plus une ligne d'AngularJS ; la coquille, elle, vit toujours jusqu'à D6f.
+
+  **Les chiffres du lot** : suite fonctionnelle de **83 à 110 tests** (vingt-sept tests
+  d'écran neufs) ; suite `make check` de **406 à 745** ; couverture de **92,14 % à
+  94,30 %** ; périmètre `mypy` de **141 à 161** entrées. `fail_under = 90` inchangé, `ruff`
+  `ignore = []` inchangé, **zéro `noqa` neuf, zéro `# type: ignore` neuf, zéro `skip`**.
+  Le registre DRF passe de **douze à huit** ressources : `doctors`, `documents`,
+  `paiment-mean` et `comments` perdent leur dernier lecteur d'URL. Après
+  `rm -rf static/CACHE && make static` : **2 bundles JS, 9 CSS**.
+
+  **La mesure d'Angular, faite comme la spec la demandait.** La recherche des motifs
+  AngularJS (`ng-`, `ui-view`, `ui-sref`, `uib-`, `{$`, `tooltip=`, `editable-`, `e-name`,
+  `hallo`, `ngf-`, `bind-html-compile`) rendait **397 occurrences** sur les onze gabarits
+  d'origine de `partials/` — 442 sur `partials/` entier. Sur `templates/pages/`, qui les
+  remplace, elle rend **65 occurrences réparties sur 60 lignes, dont 54 sont des
+  commentaires Django** citant le code d'avant pour dire ce qui a été transposé, et **6 sont
+  des faux positifs** (`ng-` à l'intérieur de `padding-bottom`). **Zéro directive
+  AngularJS active.** Les dix gabarits `partials/` du dossier et les dix scripts
+  `static/js/app/` correspondants n'existent plus, et la coquille `index.html` ne charge
+  plus `hallo`, `rangy`, `jquery-ui`, `xeditable`, `ng-file-upload`, `bind-html-compile`,
+  `ui-validate`, `moment` ni `webshim`.
+
+  **Quatre changements de produit assumés, et il faut les lire comme tels : l'engagement du
+  lot était « mêmes écrans, mêmes gestes », ces quatre-là y dérogent délibérément.**
+
+  1. **Le produit cesse de rogner les espaces de bord des 21 champs de texte riche.**
+     Arbitrage de l'utilisateur du 2026-09-12 (AR3), le seul du lot qui change le produit
+     sans y être contraint par la technique. Sa preuve est
+     `libreosteoweb/tests/test_texte_riche.py`, vue rouge avant le correctif. **La portée
+     est plus large que le plan ne l'écrivait** : `api/file_integrator.py:366-379` instancie
+     `PatientSerializer` et `ExaminationSerializer`, donc **l'import CSV** cesse de rogner
+     lui aussi — troisième chemin de production, que ni la spec ni le plan ne nommaient.
+  2. **Le médecin traitant est rattaché dès la sélection**, là où AngularJS attendait « Fin
+     d'édition » : l'échange hors-bande exige que le médecin existe et soit lié pour être
+     affiché. L'écriture est bornée à `update_fields=["doctor"]` — elle ne relit ni ne
+     réécrit les autres colonnes, donc elle **ne peut pas** écraser les saisies du
+     formulaire ouvert, qui est exactement le défaut que `R-PAT-08` garde. `R-MED-01`,
+     `R-MED-02` et le constat de `R-PAT-08` ont été repris en conséquence.
+  3. **L'heure d'une séance est conservée quand le jour ne bouge pas.** `<input type="date">`
+     ne transporte pas l'heure : sans garde, **tout** enregistrement ramenait la séance à
+     minuit et, une fois la traçabilité de redatation réparée, écrivait une entrée « date
+     modifiée » au journal de l'exploitant **à chaque enregistrement**. Le défaut n'était
+     visible **que** parce qu'on venait de réparer le traçage. La garde ne couvre que le
+     jour stable : **changer de jour perd l'heure, exactement comme avant**.
+  4. **La chronologie et le volet de consultation coexistent** dans l'onglet
+     « Consultations », là où l'écran d'avant les alternait. Induit par le test que le plan
+     prescrit — clôture, clic d'onglet, nouvelle consultation —, et revenir à l'alternance
+     aurait demandé d'inventer un geste. Contrepartie heureuse : le bouton « Démarrer une
+     consultation » est désormais atteignable sans fermer le volet, ce qui emporte le défaut
+     du 2026-09-04. `R-CON-01` étape 3 et le montage E2 du chapitre 1 sont repris.
+
+  **Deux défauts fermés au passage, hors du périmètre du lot, et c'est assumé.**
+  - **La fuite de `modal-open`.** Fermer une modale en vidant `#modale` — le geste de
+    fermeture de tous les écrans htmx — retirait l'élément du DOM **sans jamais flipper son
+    drapeau `ouverte`**, donc `.modal-open{overflow:hidden}` restait sur `<body>` : **la
+    page n'était plus défilable jusqu'au prochain chargement complet**. Le remède ne pouvait
+    vivre que dans `partials/modale.html`, l'élément qui porte la réparation étant
+    précisément celui qui disparaît — aucun appelant ne pouvait la poser. **Conséquence :
+    D6e répare un défaut de D6c** (le profil) et de D6d (le cabinet), tous deux livrés, et
+    aucun des deux ne le documentait. Le corriger après aurait coûté huit fois. La garde
+    vit sur le banc d'essai, et le cas symétrique — une modale qui en remplace une autre,
+    où la page doit **rester** bloquée — y est gardé aussi.
+  - **La régression de démonstration.** `_creer_le_document`, livré par T12, ne lisait
+    jamais `settings.DEMONSTRATION` : le sérialiseur de remplacement restait branché sur la
+    seule voie DRF, si bien qu'**un téléversement htmx écrivait le fichier réel du visiteur**
+    au lieu du texte de remplacement — c'est-à-dire sur la seule instance publique. A23 ne
+    couvre pas cela : c'est une régression du lot, elle se répare dans le lot.
+
+  **Le piège `{% compress %}` × `{% if %}` est refermé, un lot plus tôt que prévu.** D6c
+  l'avait légué à D6g ; D6e l'emporte en retirant `moment` d'`index.html`. `EXCEPTIONS` du
+  cliquet de compression est **vide**, et son second test — celui qui rougit si une
+  exception survit à sa raison d'être — n'a plus rien à garder.
+
+  **Dix-sept preuves se sont révélées vides sous falsification, en six catégories.** C'est
+  le chiffre le plus instructif du lot, et **sept d'entre elles étaient prescrites par le
+  plan** : écrire une preuve dans un plan ne la rend pas mordante. Les six formes, toutes
+  trouvées par la mesure et **aucune** par la lecture du test :
+  l'assertion trop lâche ; la barrière inerte, qui rend la main avant que le produit ait
+  agi ; la preuve rendue complaisante par un effet de bord du produit ; la preuve
+  auto-référentielle, qui compose son attendu avec la fonction même qu'elle teste ;
+  l'assertion qui épingle une **forme** plutôt qu'un **effet** ; et le test dont le vert
+  dépend de ce qui tourne à côté. La contre-mesure est la règle que le lot a appliquée et
+  qui doit survivre : **chaque preuve vient avec sa falsification, et le plan écrit ce que
+  le rouge doit dire, mot pour mot**.
+
+  **Six tours de revue pour un mécanisme de quatre lignes.** La garde de sortie — le
+  « modifications non enregistrées » du navigateur — a coûté six tours à T12, au-delà du
+  plafond de cinq, et **chacun a trouvé un défaut réel et mesuré**, aucun contesté. Aucun
+  n'était visible à la lecture : le premier demandait de savoir quels contrôles portent un
+  `name`, le deuxième que `HTMLDivElement` ne réfléchit pas cette propriété, le troisième
+  que le bouton d'abandon émet un `GET`, le quatrième que trois surfaces coexistent, le
+  cinquième qu'une regex non ancrée fait correspondre `"422"` à `[23].*`, le sixième que
+  `xhr.status` vaut `0` sur une panne de transport — c'est-à-dire que la garde tombait **au
+  moment précis où la connexion tombe**. Le geste n'était décrit par **aucune fiche du
+  cahier** avant ce lot ; il l'est désormais par `R-PAT-12`.
+
+  **Ce que le lot ne corrige pas est versé**, à la section « Défauts versés par D6e »
+  ci-dessus : le « 200 muet » d'une vue de commentaires, le fichier unique partagé par tous
+  les documents de démonstration, les motifs `responseHandling` non ancrés de
+  `base.html:16`, le second site de désarmement de la garde de sortie, l'absence de
+  `.gitattributes`, `zipcode_lookup/tests.py` dont le vert dépend de l'ordre de collecte,
+  `onglet_initial` non transmis par `import-export.html`, et le `.mo` recompilé sans table
+  de hachage. **Le refus silencieux de la virgule dans le champ de montant est reproduit à
+  l'identique**, à son emplacement neuf.
+
+  **Constats sans emport, pour les lots suivants** : `@components/angular-bootstrap` et
+  `@components/angular-animate` perdent leur dernier consommateur à D6e mais leur unique
+  trace résiduelle est la coquille — **D6f** ; `css/typeahead.css` est un fichier du dépôt
+  devenu sans consommateur — D6f/D6g ; `typeahead-select-on-blur` et
+  `typeahead-select-on-exact` ne sont pas reproduits, et aucune fiche ni aucun test ne les
+  décrivait ; **le réglage d'auto-complétion annonçait deux caractères et n'était jamais
+  atteignable en deçà de cinq**, mesuré et désormais écrit à `R-PAT-11` étape 2.
+
+  **Cahier de recette (T14)** : deux fiches neuves — `R-PAT-12` (l'avertissement avant de
+  quitter une saisie non enregistrée, geste que le produit portait déjà sous AngularJS et
+  qu'**aucune fiche ne décrivait**) et `R-CON-05` (reprendre la saisie d'une consultation en
+  cours après l'avoir enregistrée sans la clôturer, chemin que le filet ne traversait pas et
+  où le produit était mort). S'y ajoutent, écrites dans le lot : `R-CAB-06` (l'outil de
+  diagnostic du texte riche), `R-PAT-09`, `R-PAT-10` et `R-PAT-11`. Trois fiches corrigées
+  par la relecture finale, chacune pour une raison mesurée et non pour la forme : `R-CON-04`
+  et `R-FAC-06` citaient `examination.js` et `examination.html`, **fichiers que le lot a
+  supprimés** ; `R-RCH-01` étape 3 affirmait que la fiche patient était « encore rendue par
+  la coquille », ce qui a cessé d'être vrai avec ce lot même. `R-THE-03` étape 5 est reprise
+  et gagne une étape : décocher « Sphères » ne masque le bloc que **tant qu'aucune sphère
+  n'est renseignée** — la règle a deux niveaux et la fiche n'en décrivait qu'un. Trois tests
+  de banc d'essai entrent au chapitre 4.
+  **Dix orphelins à la vérification jouée avant le commit de clôture, zéro après** : les
+  sept tests de la garde de sortie et de la reprise de consultation, et les trois du banc.
+  La vérification est rejouée **après** le dernier commit, comme le critère l'exige — et
+  c'est la troisième fois de suite qu'elle trouve quelque chose que l'écriture des fiches
+  avait manqué.
+
+  **Ce qui reste, et qui n'appartient à aucune tâche** : la clause des **vingt lancements**
+  consécutifs de la suite fonctionnelle, et la clause 8 — les fiches neuves jouées à la
+  main, et l'outil de diagnostic exécuté sur le parc de recette **et** sur une archive
+  réelle si l'utilisateur en fournit une. **Les chiffres qui ferment AR2 et AR3 pour de
+  bon se relèvent là, pas ici** : le nombre de valeurs portant un espace de bord, la
+  présence ou l'absence de `h1`, `h2`, `h3` et `text-align` dans le parc, et le nombre de
+  valeurs que le navigateur réécrirait. `R-CAB-06` étapes 2 à 5 dit où les lire.
 
 - **2026-09-12 — Les deux régressions de D6d constatées par la recette sont corrigées**
   (`a8bab9c`, `2a75d2b`, en TDD, falsification dans les deux sens à chaque fois). `make

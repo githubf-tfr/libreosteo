@@ -37,12 +37,19 @@ from Libreosteo.urls import router
 #   produit qui lui succede. Aucune preuve perdue — l'auteur et la date restent verifies, et
 #   l'ordre des commentaires est celui de l'action `examination-comments`, qui reste ici.
 #
-# **`patient-documents` reste, et c'est instruit test par test.** Seize tests de
-# `TestDocumentsPatient` (`test_dossier_patient.py`), dont **quatorze** passent par elle :
-# huit prouvent le service des fichiers (`telecharger_fichier`, qui survit), cinq le nom de
-# stockage opaque et le type MIME, un la suppression par la ressource elle-meme ; s'y ajoute
-# la cascade RGPD de `test_supprimer_un_patient_avec_document_efface_tout`. Les deux derniers
-# ne la touchent pas. Le seul qui prouve la ressource **et** n'a pas de successeur est
+# **`patient-documents` reste, et c'est instruit test par test.** `TestDocumentsPatient`
+# (`test_dossier_patient.py`) porte **seize** tests, qui se repartissent ainsi : **huit**
+# prouvent le service des fichiers (`telecharger_fichier`, qui survit), **cinq** le nom de
+# stockage opaque, l'extension et le type MIME, **un** la suppression par la ressource
+# elle-meme, **un** la cascade RGPD, **un** le remplacement en demonstration. 8+5+1+1+1 = 16.
+#
+# **Quatorze** de ces seize passent par la ressource — les deux qui ne la touchent pas sont
+# `test_un_chemin_qui_sort_du_media_root_ne_rend_aucun_fichier` et
+# `test_un_fichier_sans_document_est_force_en_piece_jointe_sans_nom`, qui appellent l'URL de
+# service sans rien deposer. **Les deux ensembles ne se confondent pas** (revue D6e T13,
+# corrige a T14) : les huit tests de service appartiennent aux **seize**, et seuls **six**
+# d'entre eux figurent aussi parmi les **quatorze**. Le seul qui prouve la ressource
+# **et** n'a pas de successeur est
 # `test_en_demonstration_le_contenu_televerse_est_remplace` : `PatientDocumentDemonstrationSerializer`
 # n'est branche que sur cette voie. La retirer supprimerait cette preuve ; la porter demande
 # de reecrire quatorze tests sur une reponse HTML, ce qui n'est pas un nettoyage.

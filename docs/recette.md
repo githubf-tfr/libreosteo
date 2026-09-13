@@ -1430,9 +1430,22 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
    `Historique des évènements`, cliquer « Enregistrer », retourner au tableau de bord.
    Attendu : le bloc « Évènements » est de nouveau affiché.
 5. Décocher `Sphères`, cliquer « Enregistrer », ouvrir une consultation en cours sur un
-   patient (mêmes gestes que R-CON-01).
-   Attendu : les champs de sphères (ORL, viscérale, cardio-pulmonaire, uro-gynéco,
-   périphérique) ne sont plus affichés. Recocher la case et vérifier leur retour.
+   patient **dont aucune sphère n'a jamais été renseignée** (mêmes gestes que R-CON-01,
+   sur un patient neuf).
+   Attendu : ni le titre « Sphères », ni les boutons à cocher, ni les panneaux (ORL,
+   viscérale, cardio-pulmonaire, uro-gynéco, périphérique) ne sont affichés. Recocher la
+   case et vérifier leur retour : le titre, les **six** boutons à cocher et les **six**
+   panneaux ouverts, la consultation étant en cours.
+6. **La règle a deux niveaux, et la case n'en commande que le premier.** Toujours case
+   décochée, ouvrir une consultation **déjà close** dont au moins une sphère porte une
+   note (par exemple celle renseignée à l'étape 5 avant de recocher).
+   Attendu : le bloc « Sphères » **réapparaît**, avec ses six boutons à cocher — le
+   réglage ne le masque que tant qu'aucune sphère n'est renseignée. Mais **seuls les
+   panneaux portant une note sont ouverts**, et seuls leurs boutons sont enfoncés ; les
+   autres panneaux restent repliés, et se déplient au clic sur leur bouton. C'est le
+   comportement d'avant migration, reproduit à l'identique par D6e : décocher `Sphères`
+   n'efface pas une saisie existante, elle cesse seulement de proposer le bloc sur les
+   dossiers vierges.
 
 ### Patient
 
@@ -1873,6 +1886,103 @@ sans effet **partout**, et qu'il le reste après plusieurs répétitions.
    « Enregistrer » — l'étape 6 a coupé un réglage par défaut, cette étape le rend.
    Attendu : la case est de nouveau cochée.
 
+### R-PAT-12 — Avertissement avant de quitter une saisie non enregistrée
+
+- **Domaine** : Patient
+- **Couverture auto** : oui —
+  tests/functional/test_patient.py::test_la_garde_de_sortie_ne_s_arme_qu_apres_une_saisie
+  (étapes 1 à 3 : entrer en édition n'arme rien, une saisie arme, une lecture — la requête
+  de suggestions du code postal — ne désarme pas, l'enregistrement désarme),
+  ::test_la_garde_de_sortie_s_arme_sur_un_champ_de_texte_riche (étape 4 : une frappe dans
+  une zone de texte riche arme la garde, et l'enregistrement la désarme),
+  ::test_abandonner_l_edition_d_une_vignette_desarme_la_garde (étape 5),
+  ::test_un_refus_serveur_laisse_la_garde_armee (étape 6),
+  ::test_une_panne_reseau_laisse_la_garde_armee (étape 7),
+  ::test_le_pont_de_session_laisse_la_garde_armee (étape 8, **partiellement** : le test
+  répond un `204` nu, sans l'en-tête `HX-Redirect` que le produit émet réellement, parce
+  qu'avec lui le navigateur quitte le document et le marqueur disparaît avec — plus rien
+  ne serait mesurable. Il prouve donc ce que le statut fait au drapeau, jamais ce que le
+  praticien voit).
+  **Ce qu'aucun des six ne regarde, et que seule cette fiche vérifie** : la boîte de
+  dialogue du navigateur elle-même. Les six lisent le **marqueur** que `beforeunload`
+  interroge (`[data-modifications-non-enregistrees]`) et n'en déclenchent jamais la
+  conséquence — Playwright rejette cette boîte, et c'est le navigateur, non le produit,
+  qui la dessine. Aucun des six ne regarde non plus le libellé de l'avertissement, qui
+  n'appartient pas à l'application.
+- **État requis** : E2. Cette fiche modifie durablement la ville, le code postal et les
+  antécédents chirurgicaux du patient Picard : remonter l'état E2 (chapitre 1) avant de
+  jouer une autre fiche qui en dépend.
+
+**Ce que cette fiche garde.** Une saisie en cours ne doit pas partir en silence. Le
+dossier avant migration lisait `.ng-dirty` — l'état « sali » du formulaire AngularJS — pour
+décider s'il fallait avertir ; **aucune fiche de ce cahier ne le décrivait**, et le geste
+est réapparu à D6e sur un mécanisme entièrement neuf. La règle, en une phrase : la garde
+s'arme à la **première saisie**, et ne retombe qu'à la première écriture **réussie** — ni
+sur l'entrée en édition, ni sur une lecture, ni sur un refus, ni sur une panne.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Infos générales », cliquer « Éditer ».
+   Sans rien saisir, demander au navigateur de quitter la page (recharger par F5, ou
+   fermer l'onglet).
+   Attendu : **aucun avertissement** ; la page se recharge ou se ferme directement.
+   Entrer en édition n'est pas une modification.
+2. Cliquer « Éditer » à nouveau, saisir `La Barre` dans le champ (placeholder « Ville »),
+   puis demander à quitter la page.
+   Attendu : le navigateur **affiche sa boîte de confirmation** de sortie (son libellé
+   dépend du navigateur, il n'est pas fourni par l'application). Choisir de **rester** sur
+   la page.
+3. Saisir `70190` dans le champ Code postal — ce qui déclenche une requête de suggestions
+   — puis, **sans cliquer de suggestion**, demander à quitter la page.
+   Attendu : l'avertissement est **toujours** affiché. Une lecture n'efface pas la garde :
+   la saisie de l'étape 2 est toujours en attente. Rester sur la page, cliquer « Fin
+   d'édition », puis demander à quitter.
+   Attendu : plus aucun avertissement — l'enregistrement a désarmé la garde.
+4. Onglet « Historique », « Éditer », saisir `Appendicectomie 1998` dans la zone
+   « Antécédents chirurgicaux » (une zone de **texte riche**), puis demander à quitter.
+   Attendu : l'avertissement est affiché. C'est le cas qui valait un test à lui seul :
+   ces zones ne sont pas des champs de saisie ordinaires, et deux onglets entiers —
+   « Historique » et « Comptes rendus médicaux » — n'en portent aucun autre. Rester,
+   cliquer « Fin d'édition », demander à quitter : plus aucun avertissement.
+5. Onglet « Comptes rendus médicaux », sur une vignette de document cliquer le bouton
+   d'édition (icône crayon), remplacer le titre par `Titre jamais enregistre`, puis
+   cliquer le bouton d'annulation (icône croix). Demander à quitter la page.
+   Attendu : la vignette revient en lecture avec son titre d'origine, et **aucun
+   avertissement** ne s'affiche — l'abandon est un geste du praticien, il n'y a plus rien
+   à perdre.
+6. Sur le titre de la fiche, cliquer le nom de famille `Picard`, le remplacer par le nom
+   d'un homonyme exact — même prénom, même date de naissance — créé au préalable, puis
+   valider par le bouton ✓.
+   Attendu : le refus s'affiche dans la cellule (« Ce patient existe déjà »), la cellule
+   **reste en saisie** avec la valeur refusée. Demander à quitter la page : l'avertissement
+   **est affiché**. Un refus serveur ne désarme pas la garde — la saisie est toujours là,
+   et toujours pas enregistrée. Rester sur la page, rétablir `Picard`.
+7. Onglet « Historique », « Éditer », saisir quelque chose, puis **couper le réseau**
+   (outils de développement → onglet Réseau → mode « Hors ligne ») et cliquer « Fin
+   d'édition ». Rétablir le réseau, puis demander à quitter la page.
+   Attendu : l'enregistrement n'aboutit pas, et l'avertissement **est affiché**. C'est le
+   moment où la garde est la plus utile, et c'est précisément celui où une première
+   écriture la laissait tomber : `XMLHttpRequest` porte le statut `0` quand la requête
+   n'aboutit pas. Rester sur la page, cliquer « Fin d'édition » à nouveau pour enregistrer
+   réellement.
+8. Onglet « Historique », « Éditer », saisir quelque chose, puis supprimer le cookie de
+   session (outils de développement → Application → Cookies → supprimer `sessionid`,
+   même geste qu'à `R-AUTH-06`) et cliquer « Fin d'édition ».
+   Attendu : rien n'est enregistré, et le navigateur **avertit avant de partir** vers
+   l'écran de connexion — le pont de session répond `204` puis demande la navigation, et
+   ce `204` est le seul `2xx` qui ne désarme pas la garde. Confirmer la sortie mène à
+   « Identifiez-vous sur LibreOsteo » ; y renoncer laisse la saisie à l'écran, sur une
+   session déjà expirée. Se reconnecter, et remonter l'état E2.
+
+**Constat** : la garde est armée par une **saisie** et désarmée par une **écriture
+réussie**. Les quatre cas où elle doit rester armée — lecture, refus serveur, panne
+réseau, session expirée — sont chacun le résultat d'un défaut mesuré pendant la migration,
+et non des précautions théoriques. Le seul désarmement qui ne suive pas un enregistrement
+est l'abandon explicite d'une vignette de document (étape 5) : c'est le seul bouton
+d'abandon du dossier, et il est inconditionnel — si sa propre requête échouait, la garde
+tomberait alors que le formulaire est encore à l'écran. Constat versé à `KANBAN.md`, non
+corrigé : l'abandon est demandé par le praticien.
+
 ### Documents patient
 
 ### R-DOC-01 — Joindre un document au patient
@@ -2181,16 +2291,68 @@ de quand à quand.
 
 Cette fiche ne redate qu'en arrière (étape 2) — sens déjà permis avant le
 renversement de la borne du 2026-09-06. Redater au-delà de la date de la
-facture, que ce renversement autorise désormais (`examination.js:358-366`),
+facture, que ce renversement autorise désormais,
 n'a pas d'équivalent manuel jouable ici : la consultation facturée de l'état E2
 est datée du jour de sa construction (chapitre 1, note « Ne pas modifier la
-date d'une consultation » qui suit l'étape E2.3), déjà à la borne haute
-(`maxExaminationDate`, fin du jour courant) — aucune date postérieure n'est
-saisissable depuis cet état. Le cas
+date d'une consultation » qui suit l'étape E2.3), déjà à la borne haute — la
+fin du jour courant, qui est **depuis D6e une règle serveur** et non plus une
+borne posée par le navigateur
+(`libreosteoweb/api/views/pages/consultation.py`, `fin_du_jour` et
+`valider_date_de_consultation`) : aucune date postérieure n'est
+saisissable depuis cet état, et une date postérieure forgée hors interface est
+refusée par « La date est invalide ». Le cas
 est couvert automatiquement, sans cette contrainte de date du jour :
 tests/functional/test_consultation.py::test_date_posterieure_a_la_facture_acceptee
 (la consultation et sa facture y sont d'abord reculées de 40 jours, laissant
 la marge nécessaire pour redater vers l'avant tout en restant dans le passé).
+
+### R-CON-05 — Reprendre la saisie d'une consultation en cours
+
+- **Domaine** : Consultation
+- **Couverture auto** : oui —
+  tests/functional/test_consultation.py::test_une_consultation_en_cours_se_reprend_en_edition
+  (ouvre une consultation, la saisit, l'enregistre par « Fin d'édition », constate que le
+  volet est repassé en lecture, le rouvre par « Éditer », saisit une seconde fois dans le
+  motif **et** dans l'examen médical, enregistre, et relit les deux colonnes en base.
+  **Ne regarde pas** : la mise en forme du volet, les autres champs, la chronologie, ni ce
+  qu'il advient de la consultation à la clôture — c'est `R-CON-01` qui couvre la clôture)
+- **État requis** : E2. Cette fiche crée durablement une **troisième** consultation chez le
+  patient Picard, clôturée « Non facturée » à l'étape 5 : remonter l'état E2 (chapitre 1)
+  avant de jouer une autre fiche qui en dépend.
+
+**Ce que cette fiche garde.** Une consultation en cours naît en édition, et le praticien
+peut l'enregistrer sans la clôturer — par « Fin d'édition », ou simplement en changeant
+d'onglet, ce qui enregistre aussi. Le volet repasse alors en **lecture**. Le rouvrir doit
+être possible : une consultation en cours se saisit en plusieurs fois, et la clôture n'est
+pas un passage obligé pour enregistrer. Le filet ne traversait pas ce chemin — il enchaîne
+toujours saisie puis clôture, sans jamais enregistrer au milieu — et le défaut qui s'y
+cachait laissait le praticien **capable de clôturer, mais plus de saisir**.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations », bouton « Démarrer une
+   consultation ». Saisir `Motif de consultation` dans le champ Motif et `Examen normal`
+   dans la zone « Examen médical ».
+   Attendu : l'onglet « Consultation en cours » est actif ; les deux valeurs sont
+   affichées dans leurs champs de saisie.
+2. Cliquer « Fin d'édition » — **sans clôturer**.
+   Attendu : le volet repasse en lecture : le champ de saisie du motif disparaît au profit
+   du texte `Motif de consultation` ; le bouton « Fin d'édition » est remplacé par
+   « Éditer » ; le bouton « Clôturer » reste visible.
+3. Cliquer « Éditer ».
+   Attendu : le volet repasse en saisie — le champ Motif redevient un champ de saisie
+   prérempli, la zone « Examen médical » redevient éditable. **C'est ici que le produit
+   était mort** : le bouton réapparaissait, et le clic ne chargeait rien.
+4. Remplacer le motif par `Motif repris` et l'examen médical par `Examen repris`, cliquer
+   « Fin d'édition », puis recharger complètement la page et rouvrir l'onglet
+   « Consultations ».
+   Attendu : le volet de la consultation en cours affiche `Motif repris` et
+   `Examen repris` — preuve d'une persistance réelle de la **seconde** saisie.
+5. Cliquer « Clôturer », choisir « Non facturée », saisir `Reprise` dans le champ qui
+   apparaît, cliquer « Valider ».
+   Attendu : la consultation se clôture normalement ; l'onglet « Consultation en cours »
+   disparaît. L'étape existe pour vérifier qu'un cycle saisie/enregistrement/reprise ne
+   laisse pas la consultation dans un état qui empêcherait sa clôture.
 
 ### Facturation
 
@@ -2419,9 +2581,11 @@ l'émission puis figée — y compris après une redatation ultérieure des deux
 dates ensemble. Cette fiche simule par une intervention hors interface
 (étape 2) ce que produirait une facturation différée : aucun écran ne permet
 aujourd'hui de facturer une consultation déjà close « Non facturée »
-(le bouton « Facturer », `examination.html:39`, ne s'affiche que pour
-`model.status` strictement compris entre `0` et `3`, jamais pour
-`EXAMINATION_NOT_INVOICED = 3`) — c'est la fiche, et non le produit, qui
+(le bouton « Facturer » vit dans l'encart de facture,
+`libreosteoweb/templates/pages/fragments/consultation-facture.html`, qui ne
+s'affiche que pour un statut strictement compris entre `0` et `3`, jamais pour
+`EXAMINATION_NOT_INVOICED = 3` — condition reprise à l'identique de l'écran
+d'avant D6e) — c'est la fiche, et non le produit, qui
 tenait pour jouable un parcours qui ne l'est pas. Une fois les deux dates
 reculées, c'est la date de séance qui gagne — sur le document imprimé comme
 dans le filtre de période de la Comptabilité. C'est un changement visible :
@@ -2828,10 +2992,10 @@ deux dates.
    `Picard Jean-Luc` est retrouvé (l'index couvre aussi bien le nom que le prénom).
 3. Cliquer sur le résultat `Picard Jean-Luc`.
    Attendu : la fiche du patient s'affiche, onglet « Infos générales » actif, date de
-   naissance `13/07/1935`. **Le navigateur charge un document entier** — l'écran de
-   recherche est servi par le serveur depuis D6c, la fiche patient est encore rendue par
-   la coquille : le passage de l'un à l'autre recharge la page au lieu de changer d'état
-   dans la même. Une barre de chargement, un bref écran blanc ou un clignotement du
+   naissance `13/07/1935`. **Le navigateur charge un document entier** — les deux écrans
+   sont désormais servis par le serveur (la recherche depuis D6c, la fiche patient depuis
+   D6e), et le résultat de recherche est un lien ordinaire : le passage de l'un à l'autre
+   recharge la page. Une barre de chargement, un bref écran blanc ou un clignotement du
    bandeau sont **attendus** et ne constituent pas un défaut.
 4. Revenir sur le champ de recherche, saisir un terme absent de la base, ex.
    `Zzznotfound`, valider.
@@ -2991,6 +3155,24 @@ un geste du produit, et qui ne peuvent donc pas en décrire un.
   seraient entrés cassés : les deux gabarits livrés par T5 ne fonctionnaient pas, le banc
   l'a établi et le correctif `dfb2473` l'a fermé.
 
+- `tests/functional/test_socle_composants.py::test_la_modale_videe_rend_la_page_defilable`
+- `tests/functional/test_socle_composants.py::test_une_modale_qui_en_remplace_une_autre_garde_la_page_bloquee`
+
+  Les deux gardent, **sur le banc d'essai**, un défaut que D6e a trouvé dans le composant
+  de modale et corrigé pour tous ses consommateurs : une modale fermée **par vidage** de
+  son conteneur — le geste de fermeture de tous les écrans htmx — disparaissait du document
+  sans jamais retirer l'occultation posée sur la page, qui restait non défilable jusqu'au
+  rechargement suivant. Le défaut touchait le profil (D6c) et les paramètres du cabinet
+  (D6d), déjà livrés ; le second test garde le cas symétrique, une modale qui en remplace
+  une autre, où la page doit **rester** bloquée.
+  Ils vivent ici et non sur un écran parce que c'est le **composant** qui portait la fuite,
+  et que les trois écrans ferment par un geste octet pour octet identique : une preuve
+  d'écran n'aurait rien mesuré de plus, et elle aurait disparu à la première réécriture du
+  fichier de test qui l'aurait hébergée. Aucune fiche ne les cite : le défilement d'une
+  page après fermeture d'une modale n'est le geste d'aucune étape de recette, et il se
+  constate sur n'importe quelle fiche qui ouvre une modale (`R-DOC-03`, `R-DOC-04`,
+  `R-CAB-05`, `R-FAC-07`).
+
 - `tests/functional/test_socle_composants.py::test_le_texte_riche_non_touche_soumet_la_valeur_a_l_octet`
 - `tests/functional/test_socle_composants.py::test_le_texte_riche_commet_la_frappe`
 - `tests/functional/test_socle_composants.py::test_le_texte_riche_commet_le_collage`
@@ -3006,6 +3188,19 @@ un geste du produit, et qui ne peuvent donc pas en décrire un.
   saisie est écoutée, que la voie « aucune saisie » n'écrit rien, et que le quatorzième
   bouton de la barre — `block`, le seul qui soit un menu et non une commande directe —
   applique bien un bloc.
+
+- `tests/functional/test_socle_composants.py::test_seule_la_barre_du_champ_actif_est_visible`
+
+  Il mesure, **sur le banc d'essai**, que la barre d'outils du texte riche n'est visible
+  que sur le champ actif — un seul jeu de boutons à tout instant, quel que soit le nombre
+  de zones de la page —, et que sa bascule ne décale rien : elle garde sa place dans le
+  flux, donc le contenu situé dessous ne bouge pas à la prise de focus.
+  Ce n'est le geste d'aucune fiche, et c'en est pourtant la condition : `R-PAT-09` décrit
+  « une barre d'outils apparaît au-dessus de la zone », au singulier, et le dossier patient
+  porte **neuf** zones de texte riche, la consultation **dix-huit**. Sans cette propriété,
+  le recetteur en verrait neuf ou dix-huit à la fois. Ce test ne regarde ni la position de
+  la barre à l'écran, ni le fait qu'elle appartienne visuellement au bon champ — cela ne se
+  constate qu'à l'œil, en jouant `R-PAT-09`.
 
 - `tests/functional/test_socle_composants.py::test_l_onglet_conditionnel_et_l_activation_programmatique`
 
