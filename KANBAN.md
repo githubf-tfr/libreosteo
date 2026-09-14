@@ -1093,6 +1093,74 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   opposable par `--frozen-lockfile`, tarball yarn vérifié par SHA-256, Node, npm,
   `rcssmin` et `rjsmin` épinglés.
 
+## En cours — D6f, interrompu à la tâche 9 sur 13 (2026-09-14)
+
+**Reprise** : le lot D6f s'exécute par `superpowers:subagent-driven-development`. Le registre de
+progression vit dans `.superpowers/sdd/2026-09-13-d6f-mort-de-la-coquille-plan/progress.md`,
+**git-ignoré** : il survit à une extinction mais pas à un `git clean -fdx`. Cette section porte
+ce qu'il faut pour reprendre sans lui.
+
+- **Spec** : `docs/superpowers/specs/2026-09-13-d6f-mort-de-la-coquille-design.md` (autorité).
+- **Plan** : `docs/superpowers/plans/2026-09-13-d6f-mort-de-la-coquille-plan.md`, treize tâches.
+- **Base du lot** : `3c2473b`. Vingt commits depuis.
+
+### Ce qui est fait — neuf tâches closes
+
+| # | Tâche | Commits | Rounds |
+|---|---|---|---|
+| T1 | Matrice d'atteignabilité au clic (C11) | `3c2473b..bb730ac` | 2 |
+| T2 | Visite guidée décrite et couverte contre AngularJS | `bb730ac..2b4e63d` | 1 |
+| T3 | Mini-graphe SVG calculé au serveur (AR1) | `2b4e63d..f730b46` | 1 |
+| T4 | Fragment d'événements paginé et son URL | `f730b46..b026fbc` | 1 |
+| T5 | Visite guidée décidée au serveur, ancrée (AR2) | `b026fbc..51e61c3` | 1 |
+| T6 | Les six `goto` de hash du filet | `51e61c3..ee60486` | 0 |
+| T7 | **La bascule** : `/` devient un document Django | `ee60486..bd9ef82` | 2 |
+| T8 | Septième site de hash, cliquet d'adressage étendu | `bd9ef82..853fbb6` | 0 |
+| T9 | Un ancien signet ne casse ni ne blanchit | `853fbb6..a88c3aa` | 0 |
+
+**La coquille est morte** : `templates/index.html`, `partials/dashboard.html`,
+`partials/officeevent.html` et `partials/actions-coquille.html` sont supprimés.
+
+**Chiffres au dernier état mesuré** : `make check` **845 passed**, couverture **94,55 %**,
+périmètre `mypy` **171** ; suite fonctionnelle **123 passed** (120 + 3 de T9).
+
+**Deux cliquets de qualité neufs**, portant le dépôt à sept : `test_contrat_styles.py` (les
+règles CSS de la visite, propriété et valeur comprises) et `test_contrat_catalogue_compile.py`
+(le `.mo` ne perd aucune entrée du `.po`).
+
+### Ce qui reste — quatre tâches
+
+- **T10** — quatorze paquets et quatorze fichiers JavaScript sortent (`package.json`,
+  `yarn.lock`). ⚠️ **Ne supprimer aucune feuille de style** (A3) : `css/typeahead.css` et
+  `css/plugins/metisMenu/metisMenu.min.css` sont consommés par `404.html`.
+- **T11** — les deux liens `#/` de `404.html:258` et `:291`.
+- **T12** — la passe au navigateur, sept attendus nommés.
+- **T13** — clôture : les dix clauses constatées par exécution réelle.
+
+### Trois dettes à traiter avant la clôture
+
+1. **⚠️ Intermittence de plein-suite, non fermée.** Trois exécutions complètes pendant T9 ont
+   donné **un jeu de tests différent en échec à chaque passage** (cabinet, facturation,
+   import_csv, authentification), chacun vert isolément. Cause plausible avancée par la revue :
+   la course Alpine sur les parcours qui passent par le menu utilisateur, que le remède de T7
+   (`attendre_alpine_initialise`, adossé à `alpine:initialized`) ne couvrirait pas partout.
+   **La clause de sortie du lot exige vingt exécutions vertes consécutives : à fermer avant
+   T13**, sous peine de faire échouer la clôture.
+2. **Fragilité de minuit**, deux tests du journal d'événements : le semis s'appuie sur
+   `timezone.now()` moins zéro à neuf minutes, donc entre 00:00 et 00:09 locales la première
+   page chevauche deux jours et l'assertion tombe. À traiter **en une fois pour les deux** —
+   semis à heure fixe ou horloge injectée.
+3. **Le compilateur de catalogue reste faux** (cf. § Défauts versés) : le cliquet neuf constate
+   la perte, il ne l'empêche pas.
+
+### Neuf chiffres du plan et du journal mesurés faux pendant l'exécution
+
+Cinq corrigés au cadrage (cf. commit `0406139`), quatre pendant l'exécution : `menu.html` ne
+porte plus aucun `ui-sref` actif ; **16** occurrences de `components/jquery|angular` sous
+`templates/` et non 19, dont **15** dans `index.html` ; F8 attribuait la réouverture de la visite
+à un seul levier quand elle en a deux, indépendamment suffisants (commit `25bd57a`) ; le brief de
+T8 annonçait 816 tests là où le dépôt en comptait 844.
+
 ## Terminé
 
 - **2026-09-13 — passe de recette au navigateur sur l'écran migré : sept défauts, dont six
