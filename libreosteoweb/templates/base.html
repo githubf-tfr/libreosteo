@@ -43,21 +43,15 @@
         width: 276px; z-index: 1060; background: #fff; color: #333; text-align: left;
         white-space: normal; padding: 9px 14px; border: 1px solid rgba(0,0,0,.2);
         border-radius: 6px; box-shadow: 0 5px 10px rgba(0,0,0,.2); }
-      /* D6f, correctif D-1 (revue R1) : sous 768 px, l'ancrage « a gauche de la cible »
-         (`right: 100%` ci-dessus) n'a de place que si la cible est a plus de 286 px du
-         bord gauche ; en affichage replie, Bootstrap 3 empile le menu a x = 16, et
-         l'encart va de x = -270 a x = 6 (mesure B5 de la passe). Cette regle vit *ici*,
-         juste apres `.lo-visite-encart`, dans le meme `<style>` : a specificite egale,
-         elle gagne la cascade par son seul ordre, sans `!important`. */
-      @media (max-width: 767px) {
-        .lo-visite-encart { position: fixed; top: 30%; left: 50%; right: auto;
-          margin-right: 0; transform: translateX(-50%); }
-      }
       /* Repli (c) d'AR2, ecrit d'avance : la meme boite, centree, pour une cible absente.
          C'est ce que `orphan: true` aurait produit si le menu ne s'ouvrait pas — donc une
          forme que le produit sait deja rendre. Depuis la revue R1, le rendu etroit de la
          visite guidee (ci-dessous) porte aussi cette classe : elle n'est plus du code
-         mort. */
+         mort — c'est desormais le **seul** mecanisme qui centre l'encart sous 768 px.
+         Revue R2 : le `@media (max-width: 767px) { .lo-visite-encart { ... } }` qui
+         vivait ici a ete retire — redondant, meme selecteur `--centree`, memes valeurs,
+         et devenu sans objet une fois que `etroit` (ci-dessous, `<body>`) garantit que
+         le rendu imbrique ne s'affiche plus jamais sous ce seuil. */
       .lo-visite-encart--centree { position: fixed; top: 30%; left: 50%; right: auto;
         margin-right: 0; transform: translateX(-50%); }
     </style>
