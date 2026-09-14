@@ -36,9 +36,17 @@ lieu d'un effet**. Le nom de la classe est la forme ; `position: relative` est l
   ligne, par une regle plus specifique : il lit `base.html` seul ;
 - les valeurs de gout (largeur, ombre, marge). Seules sont exigees les proprietes sans
   lesquelles le comportement change, et la raison est ecrite a cote de chacune ;
-- un CSS imbrique (`@media`, `@supports`, imbrication native) : le socle n'en porte aucun,
-  et l'analyseur ci-dessous est volontairement plat. Le jour ou il en portera un, ce test
-  devra etre repris plutot qu'etendu a l'aveugle.
+- un CSS imbrique au-dela d'un niveau (`@supports`, ou un `@media` dans un `@media`) :
+  le socle n'en porte qu'un niveau, et l'analyseur ci-dessous ne deplie que celui-la.
+
+**Reprise du 2026-09-14 (revue R1, correctif D-1) :** le socle porte desormais un
+`@media` — `.lo-visite-encart` y change de regime sous 768 px, repli mesure par la passe
+(B5). L'analyseur plat d'origine le mesaurait : un bloc `@media { ... }` se retrouve
+scinde par le premier `}` qu'il contient (celui de sa regle interne), et ses proprietes
+atterrissent sous un faux selecteur (`"@media (...) { .lo-visite-encart"`) au lieu du
+vrai. `extraire_blocs_media` isole ces blocs par comptage de profondeur *avant* tout
+decoupage sur `}`, rend le reste strictement plat pour l'analyseur d'origine, et
+chaque bloc extrait lui est repasse independamment.
 """
 
 from __future__ import annotations
@@ -72,13 +80,66 @@ EXIGENCES: dict[str, dict[str, str]] = {
     },
 }
 
+# Memes exigences, mais a l'interieur d'un `@media` du socle : la cle est l'entete telle
+# qu'ecrite dans base.html (sans `@media`, ni parentheses ajoutees ni retirees).
+EXIGENCES_MEDIA: dict[str, dict[str, dict[str, str]]] = {
+    # D6f, correctif D-1 (revue R1) : le repli mesure par la passe (B5). `.lo-visite-encart`
+    # reste ancre a droite de sa cible au-dessus de 768 px (EXIGENCES ci-dessus) ; sous ce
+    # seuil, il bascule dans le meme regime que `.lo-visite-encart--centree` — `top` compris,
+    # dont l'omission a deja laisse passer un socle qui epinglait l'encart en haut de l'ecran
+    # (0 au lieu de 30 %) sans qu'aucune valeur ne le releve.
+    "(max-width: 767px)": {
+        ".lo-visite-encart": {
+            "position": "fixed",
+            "top": "30%",
+            "left": "50%",
+            "right": "auto",
+            "transform": "translateX(-50%)",
+        },
+    },
+}
+
 _COMMENTAIRE = re.compile(r"/\*.*?\*/", re.S)
 _BLOC_STYLE = re.compile(r"<style>(.*?)</style>", re.S)
+_ENTETE_MEDIA = re.compile(r"@media[^{]*\{")
 
 
 def styles_du_socle(source_html: str) -> str:
     """Le contenu des blocs `<style>` d'un gabarit, concatene."""
     return "\n".join(_BLOC_STYLE.findall(source_html))
+
+
+def extraire_blocs_media(source_css: str) -> tuple[str, dict[str, str]]:
+    """Isole les blocs `@media` d'un CSS : `(reste_plat, media -> contenu)`.
+
+    `declarations()` decoupe sur `}` sans savoir qu'un `@media { ... }` en porte deux,
+    la sienne et celle de la regle qu'il contient : lui passer du CSS imbrique tel quel
+    lui ferait associer les proprietes a un faux selecteur. Cette fonction retire donc
+    d'abord chaque bloc `@media`, par comptage de profondeur des accolades — la seule
+    methode fiable, le contenu du bloc en portant lui-meme —, et rend le texte restant
+    strictement plat. Chaque bloc extrait est repasse a `declarations()` independamment
+    par l'appelant.
+    """
+    reste: list[str] = []
+    medias: dict[str, str] = {}
+    position = 0
+    for correspondance in _ENTETE_MEDIA.finditer(source_css):
+        reste.append(source_css[position : correspondance.start()])
+        depart_contenu = correspondance.end()
+        profondeur = 1
+        indice = depart_contenu
+        while profondeur > 0 and indice < len(source_css):
+            if source_css[indice] == "{":
+                profondeur += 1
+            elif source_css[indice] == "}":
+                profondeur -= 1
+            indice += 1
+        contenu = source_css[depart_contenu : indice - 1]
+        media = correspondance.group()[len("@media") : -1].strip()
+        medias[media] = medias.get(media, "") + "\n" + contenu
+        position = indice
+    reste.append(source_css[position:])
+    return "".join(reste), medias
 
 
 def declarations(source_css: str) -> dict[str, dict[str, str]]:
@@ -210,6 +271,64 @@ def test_le_detecteur_lit_un_selecteur_groupe() -> None:
     }
 
 
+# --- Le detecteur mord aussi dans un `@media` (revue R1, 2026-09-14) --------------------
+
+_MEDIA_CONFORME = """
+      @media (max-width: 767px) {
+        .lo-visite-encart { position: fixed; top: 30%; left: 50%; right: auto;
+          margin-right: 0; transform: translateX(-50%); }
+      }
+"""
+
+
+def test_lextracteur_isole_un_bloc_media_et_rend_le_reste_plat() -> None:
+    """Le CSS conforme (flat) suivi du bloc `@media` conforme : le reste retrouve
+    exactement les memes declarations que le flat seul, et le bloc extrait porte les
+    siennes sous le bon selecteur — pas sous l'entete `@media` elle-meme."""
+    reste, medias = extraire_blocs_media(_CONFORME + _MEDIA_CONFORME)
+    assert declarations(reste) == declarations(_CONFORME)
+    assert set(medias) == {"(max-width: 767px)"}
+    assert declarations(medias["(max-width: 767px)"]) == {
+        ".lo-visite-encart": {
+            "position": "fixed",
+            "top": "30%",
+            "left": "50%",
+            "right": "auto",
+            "margin-right": "0",
+            "transform": "translateX(-50%)",
+        }
+    }
+
+
+def test_lextracteur_ne_signale_pas_un_bloc_media_conforme() -> None:
+    _, medias = extraire_blocs_media(_MEDIA_CONFORME)
+    assert (
+        manquantes(medias["(max-width: 767px)"], EXIGENCES_MEDIA["(max-width: 767px)"])
+        == []
+    )
+
+
+def test_le_detecteur_signale_top_omis_dans_un_bloc_media() -> None:
+    """Le defaut precis de la revue R1 : `top` reste au defaut du flat (`0`) au lieu de
+    `30%` — l'encart s'epingle en haut de l'ecran au lieu de se centrer."""
+    media_fautif = _MEDIA_CONFORME.replace(
+        ".lo-visite-encart { position: fixed; top: 30%; left: 50%; right: auto;\n"
+        "          margin-right: 0; transform: translateX(-50%); }",
+        ".lo-visite-encart { position: fixed; left: 50%; right: auto;\n"
+        "          margin-right: 0; transform: translateX(-50%); }",
+    )
+    _, medias = extraire_blocs_media(media_fautif)
+    assert manquantes(
+        medias["(max-width: 767px)"], EXIGENCES_MEDIA["(max-width: 767px)"]
+    ) == [(".lo-visite-encart", "top", "None au lieu de '30%'")]
+
+
+def test_le_detecteur_signale_un_bloc_media_absent() -> None:
+    reste, medias = extraire_blocs_media(_CONFORME)
+    assert medias == {}
+    assert reste == _CONFORME
+
+
 # --- Le cliquet -------------------------------------------------------------------------
 
 
@@ -219,10 +338,21 @@ def test_les_regles_de_la_visite_guidee_sont_dans_le_socle() -> None:
     # prouver — c'est exactement ce qui arriverait si le bloc `<style>` demenageait.
     assert declarations(source_css), "aucune regle lue dans le `<style>` de base.html"
 
+    plat, medias = extraire_blocs_media(source_css)
+
     fautives = [
         "%s { %s } : %s" % (selecteur, propriete, constat)
-        for selecteur, propriete, constat in manquantes(source_css, EXIGENCES)
+        for selecteur, propriete, constat in manquantes(plat, EXIGENCES)
     ]
+    for media, exigences_media in EXIGENCES_MEDIA.items():
+        contenu = medias.get(media)
+        if contenu is None:
+            fautives.append("@media %s : bloc absent du socle" % media)
+            continue
+        fautives.extend(
+            "@media %s : %s { %s } : %s" % (media, selecteur, propriete, constat)
+            for selecteur, propriete, constat in manquantes(contenu, exigences_media)
+        )
     assert not fautives, (
         "regle du socle absente ou changee — la classe reste posee dans le balisage, le "
         "comportement disparait, et aucun test de gabarit ne le voit :\n"

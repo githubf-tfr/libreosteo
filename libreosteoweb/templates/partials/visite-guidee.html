@@ -4,8 +4,19 @@
 {# #}
 {# Contrat d'appel : le contexte porte `etape`, un dictionnaire #}
 {#   {"cle": "therapeute"|"cabinet", "rang": 1|2, "total": 1|2, "ancree": True|False} #}
-{# et un ancetre porte un `x-data` declarant `visiteEtape`, `visiteTotal` et #}
-{# `menuUtilisateur`. `partials/menu.html` honore les trois. #}
+{# et un ancetre porte un `x-data` declarant `visiteEtape`, `visiteTotal`, #}
+{# `menuUtilisateur` et `etroit`. `base.html` (`<body>`) le porte desormais pour les #}
+{# deux inclusions de ce partiel. #}
+{# #}
+{# `pour_etroit` (optionnel, D6f correctif D-1, revue R1) : ce partiel est inclus deux #}
+{# fois avec la meme `etape` — imbrique dans le `<li>` qu'il designe (`partials/#}
+{# menu.html`, `pour_etroit` omis) pour l'affichage large, et frere de la barre #}
+{# (`base.html`, `pour_etroit=True`) pour l'affichage etroit, ou l'imbrique reste dans #}
+{# un ancetre `display: none` tant que l'utilisateur n'ouvre pas le hamburger. #}
+{# `etroit` (calcule par `matchMedia`) decide **lequel** des deux s'attache : sans #}
+{# cette garde, les deux s'attacheraient ensemble des que `visiteEtape` correspond, et #}
+{# `data-testid="visite-guidee"` resoudrait deux elements — exactement la violation de #}
+{# mode strict que `x-if` (plutot que `x-show`) evite deja pour les deux etapes. #}
 {# #}
 {# **`<template x-if>` et non `x-show`, et c'est une mesure, pas un gout.** Sous `x-show` #}
 {# les deux etapes restent attachees en meme temps, l'une masquee : chaque `data-testid` #}
@@ -19,8 +30,8 @@
 {# Les six `data-testid` sont le contrat de D6f T2, conserves **a l'octet** depuis le #}
 {# gabarit AngularJS : quatre tests fonctionnels les lisent, et ils ont ete ecrits contre #}
 {# le produit d'avant, expres. #}
-<template x-if="visiteEtape === {{ etape.rang }}">
-  <div class="lo-visite-encart{% if not etape.ancree %} lo-visite-encart--centree{% endif %}"
+<template x-if="visiteEtape === {{ etape.rang }} && {% if pour_etroit %}etroit{% else %}!etroit{% endif %}">
+  <div class="lo-visite-encart{% if pour_etroit or not etape.ancree %} lo-visite-encart--centree{% endif %}"
        data-testid="visite-guidee" role="dialog">
     {% if etape.cle == "therapeute" %}
     <h3 data-testid="visite-titre">{% trans "Therapist" %}</h3>

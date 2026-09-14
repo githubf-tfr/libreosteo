@@ -16,7 +16,7 @@ qu'il est ancre a gauche de l'entree de menu qu'il designe, ni qu'il tient dans 
 C'est exactement ce que la passe au navigateur de fin de lot regarde (D6f, clause 9).
 """
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import FloatRect, Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from tests.functional.conftest import Socle
@@ -129,10 +129,20 @@ def test_la_visite_se_rouvre_a_chaque_ouverture_du_tableau_de_bord(
     expect(page.get_by_test_id("visite-titre")).to_have_text("Thérapeute")
 
 
+def _se_recouvrent(a: FloatRect, b: FloatRect) -> bool:
+    """Deux rectangles `bounding_box()` se recouvrent-ils (intersection non vide) ?"""
+    return not (
+        a["x"] + a["width"] <= b["x"]
+        or b["x"] + b["width"] <= a["x"]
+        or a["y"] + a["height"] <= b["y"]
+        or b["y"] + b["height"] <= a["y"]
+    )
+
+
 def test_lencart_est_visible_et_dans_la_fenetre_en_affichage_etroit(
     page: Page, live_server: LiveServer, socle: Socle
 ) -> None:
-    """D-1, passe au navigateur du lot D6f (task-12-report.md, B5).
+    """D-1, passe au navigateur du lot D6f (task-12-report.md, B5) ; revue R1.
 
     A 400x800, **sans que l'utilisateur n'ouvre le hamburger de lui-meme** : la passe a
     mesure deux defauts cumules. D'abord, l'encart vit dans `#headerNavbar`
@@ -142,6 +152,12 @@ def test_lencart_est_visible_et_dans_la_fenetre_en_affichage_etroit(
     cible » (`right: 100%`) n'a de place que si la cible est a plus de 286 px du bord
     gauche : en affichage replie, Bootstrap 3 empile le menu a x = 16, et l'encart va de
     x = -270 a x = 6 (270 px hors ecran, 2 % visible).
+
+    **Revue R1** : le premier correctif ne poussait `!important` que sur deux des quatre
+    proprietes contestees (`position`, `right`), laissant `top` et `margin-right`
+    retomber a la regle inconditionnelle de `base.html` — l'encart s'epinglait alors en
+    haut de la fenetre (`top: 0`) plutot que de se centrer. Une simple boite « dans la
+    fenetre » ne l'aurait pas vu : celle-ci verifie aussi la position verticale reelle.
     """
     socle.therapeute.professional_id = ""
     socle.therapeute.save()
@@ -158,3 +174,49 @@ def test_lencart_est_visible_et_dans_la_fenetre_en_affichage_etroit(
     assert boite["y"] >= 0, f"deborde en haut : {boite!r}"
     assert boite["x"] + boite["width"] <= 400, f"deborde a droite : {boite!r}"
     assert boite["y"] + boite["height"] <= 800, f"deborde en bas : {boite!r}"
+
+    # `top: 30%` d'une fenetre de 800 px = 240 px. Une valeur proche de 0 rougirait ici
+    # si la cascade reprenait le dessus sur `top`, exactement le defaut de la revue R1.
+    assert abs(boite["y"] - 240) < 10, (
+        f"position verticale inattendue (top: 30% de 800 px = 240 px) : {boite!r}"
+    )
+
+    titre = page.get_by_test_id("titre-tableau-de-bord").bounding_box()
+    hamburger = page.get_by_role("button", name="Toggle navigation").bounding_box()
+    assert titre is not None
+    assert hamburger is not None
+    assert not _se_recouvrent(boite, titre), (
+        f"l'encart recouvre le titre : encart={boite!r} titre={titre!r}"
+    )
+    assert not _se_recouvrent(boite, hamburger), (
+        f"l'encart recouvre le hamburger : encart={boite!r} hamburger={hamburger!r}"
+    )
+
+
+def test_lencart_reste_ancre_a_gauche_de_sa_cible_en_affichage_large(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Revue R1 : le double rendu de D-1 ne doit rien changer au-dessus de 768 px —
+    l'encart reste ancre a gauche de l'entree de menu qu'il designe, sans la recouvrir
+    (B1/B3 de la passe). Coordonnees mesurees collees dans le rapport de correction.
+    """
+    socle.therapeute.professional_id = ""
+    socle.therapeute.save()
+
+    page.set_viewport_size({"width": 1280, "height": 800})
+    connexion(page, live_server)
+
+    encart = page.get_by_test_id("visite-guidee")
+    cible = page.locator("li#user-profile")
+    expect(encart).to_be_visible()
+
+    boite_encart = encart.bounding_box()
+    boite_cible = cible.bounding_box()
+    assert boite_encart is not None
+    assert boite_cible is not None
+    assert boite_encart["x"] + boite_encart["width"] <= boite_cible["x"] + 1, (
+        f"encart pas a gauche de la cible : encart={boite_encart!r} cible={boite_cible!r}"
+    )
+    assert not _se_recouvrent(boite_encart, boite_cible), (
+        f"encart et cible se recouvrent : encart={boite_encart!r} cible={boite_cible!r}"
+    )

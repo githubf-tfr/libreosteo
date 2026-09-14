@@ -43,9 +43,21 @@
         width: 276px; z-index: 1060; background: #fff; color: #333; text-align: left;
         white-space: normal; padding: 9px 14px; border: 1px solid rgba(0,0,0,.2);
         border-radius: 6px; box-shadow: 0 5px 10px rgba(0,0,0,.2); }
+      /* D6f, correctif D-1 (revue R1) : sous 768 px, l'ancrage « a gauche de la cible »
+         (`right: 100%` ci-dessus) n'a de place que si la cible est a plus de 286 px du
+         bord gauche ; en affichage replie, Bootstrap 3 empile le menu a x = 16, et
+         l'encart va de x = -270 a x = 6 (mesure B5 de la passe). Cette regle vit *ici*,
+         juste apres `.lo-visite-encart`, dans le meme `<style>` : a specificite egale,
+         elle gagne la cascade par son seul ordre, sans `!important`. */
+      @media (max-width: 767px) {
+        .lo-visite-encart { position: fixed; top: 30%; left: 50%; right: auto;
+          margin-right: 0; transform: translateX(-50%); }
+      }
       /* Repli (c) d'AR2, ecrit d'avance : la meme boite, centree, pour une cible absente.
          C'est ce que `orphan: true` aurait produit si le menu ne s'ouvrait pas — donc une
-         forme que le produit sait deja rendre. */
+         forme que le produit sait deja rendre. Depuis la revue R1, le rendu etroit de la
+         visite guidee (ci-dessous) porte aussi cette classe : elle n'est plus du code
+         mort. */
       .lo-visite-encart--centree { position: fixed; top: 30%; left: 50%; right: auto;
         margin-right: 0; transform: translateX(-50%); }
     </style>
@@ -53,9 +65,28 @@
 
 {# Le jeton passe par l'en-tete une fois pour toutes : {% csrf_token %} suffit a un #}
 {# formulaire poste par htmx, pas a un hx-post pose sur un bouton ou un lien (A17). #}
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+{# D6f, correctif D-1 (revue R1) : l'etat de la visite guidee (`visiteEtape`, #}
+{# `visiteTotal`) et celui du menu (`menuUtilisateur`, `menuAide`, `barreDeployee`) #}
+{# vivaient sur le `<nav>` de `partials/menu.html`. Ils remontent ici parce que #}
+{# l'encart de la visite guidee se rend desormais a deux endroits — imbrique dans le #}
+{# menu pour l'affichage large, frere de la barre pour l'etroit — et les deux doivent #}
+{# piloter la meme etape ; un seul ancetre commun peut porter l'etat partage. `etroit` #}
+{# decide **lequel** des deux rendus s'attache au DOM : sans lui, les deux s'attachent #}
+{# ensemble des que `visiteEtape` correspond, et `data-testid="visite-guidee"` resout #}
+{# alors deux elements (violation du mode strict de Playwright, meme mesure que celle #}
+{# qui a fait choisir `x-if` a la place de `x-show`, `partials/visite-guidee.html`). #}
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+      x-data="{ barreDeployee: false, menuUtilisateur: {% if visite %}true{% else %}false{% endif %}, menuAide: false, visiteEtape: {% if visite %}1{% else %}0{% endif %}, visiteTotal: {{ visite.total|default:0 }}, etroit: window.matchMedia('(max-width: 767px)').matches }">
 
   {% block menu %}{% if request.user.is_authenticated %}{% include "partials/menu.html" %}{% endif %}{% endblock %}
+  {# Le frere en affichage etroit du couple d'encarts imbriques dans le menu #}
+  {# (`partials/menu.html:60-67`). Meme partiel, meme etat Alpine partage (ci-dessus) ; #}
+  {# seul `pour_etroit` change, et decide a la fois la classe `--centree` et la garde #}
+  {# `etroit`/`!etroit` de `x-if`. Rendu ici, hors de `#headerNavbar`, il n'est jamais #}
+  {# dans un ancetre `display: none` : `position: fixed` n'en sort pas, la mesure D-1 #}
+  {# de la passe. #}
+  {% if visite.therapeute %}{% include "partials/visite-guidee.html" with etape=visite.therapeute pour_etroit=True %}{% endif %}
+  {% if visite.cabinet %}{% include "partials/visite-guidee.html" with etape=visite.cabinet pour_etroit=True %}{% endif %}
 
   {# Les deux regions existent avant qu'un message ou une modale ne naisse : une #}
   {# notification peut venir de n'importe quelle reponse htmx, et une region declaree #}

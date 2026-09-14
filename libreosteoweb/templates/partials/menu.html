@@ -3,13 +3,12 @@
 {# retire avec la coquille : plus aucun document ne charge le JavaScript de Bootstrap 3, #}
 {# donc `data-toggle` ne pilotait plus rien. Bootstrap 3 ne style **rien** sur cet #}
 {# attribut — verifie sur `css/bootstrap.min.css` et `css/sb-admin-2.css`. #}
-{# D6f, correctif D-1 (passe T12) : `barreDeployee` demarre a `true` quand la visite est #}
-{# due. Sans quoi l'encart, pose dans `#headerNavbar` ci-dessous, hesite dans un ancetre #}
-{# `display: none` en affichage etroit — `position: fixed` ne sort pas d'un ancetre #}
-{# masque — et n'est jamais visible tant que l'utilisateur n'ouvre pas le hamburger #}
-{# de lui-meme. #}
-<nav class="navbar navbar-default navbar-fixed-top" role="navigation" style="margin-bottom: 0"
-     x-data="{ barreDeployee: {% if visite %}true{% else %}false{% endif %}, menuUtilisateur: {% if visite %}true{% else %}false{% endif %}, menuAide: false, visiteEtape: {% if visite %}1{% else %}0{% endif %}, visiteTotal: {{ visite.total|default:0 }} }">
+{# D6f, correctif D-1 (revue R1) : l'etat Alpine (`barreDeployee` compris) est porte par #}
+{# `<body>` (`base.html`), pas par `<nav>` — l'encart de la visite guidee se rend aussi #}
+{# hors de ce gabarit (frere de la barre, en affichage etroit) et doit piloter la meme #}
+{# etape. `barreDeployee` ne demarre plus force : forcer l'ouverture de la barre changeait #}
+{# l'etat par defaut de l'ecran, pas seulement l'atteignabilite de l'encart. #}
+<nav class="navbar navbar-default navbar-fixed-top" role="navigation" style="margin-bottom: 0">
   <div class="d-flex flex-column">
     {% if request.has_multiple_office %}
       <a class="navbar-brand" href="/" style="max-width:13%;padding-top:5px">{{request.officesettings.office_name}}</a>
@@ -32,9 +31,7 @@
   </div>
 
     <!-- /.navbar-header -->
-  {# Le serveur marque `in` **avant** qu'Alpine ne demarre (`defer`), meme parite que #}
-  {# `open` ci-dessous sur le menu utilisateur (D6f, correctif D-1). #}
-  <div id="headerNavbar" class="navbar-collapse collapse{% if visite %} in{% endif %}" :class="{ 'in': barreDeployee }">
+  <div id="headerNavbar" class="navbar-collapse collapse" :class="{ 'in': barreDeployee }">
     <ul class="nav navbar-nav navbar-top-links navbar-left">
       <li>
         <a href="{% url 'nouveau-patient' %}"><i class="fa fa-pencil-square-o navbar-link"></i> {% trans 'New patient' %}</a>
