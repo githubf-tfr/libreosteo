@@ -60,7 +60,7 @@
                       {% for trace in graphes.nb_new_patient %}
                       <svg width="80" height="20" viewBox="0 0 80 20" x-show="actif === '{{ trace.periode }}'"{% if not trace.actif %} style="display: none"{% endif %}>
                         <polyline points="{{ trace.points }}" fill="none" stroke="currentColor" stroke-width="1"></polyline>
-                        {% for sommet in trace.sommets %}<circle cx="{{ sommet.x }}" cy="{{ sommet.y }}" r="2" fill="transparent"><title>{{ sommet.libelle }} - {{ sommet.valeur }}</title></circle>{% endfor %}
+                        {% for sommet in trace.sommets %}<circle cx="{{ sommet.x|stringformat:"g" }}" cy="{{ sommet.y|stringformat:"g" }}" r="2" fill="transparent"><title>{{ sommet.libelle }} - {{ sommet.valeur }}</title></circle>{% endfor %}
                       </svg>
                       {% endfor %}
                     </span>
@@ -83,7 +83,7 @@
                       {% for trace in graphes.nb_examination %}
                       <svg width="80" height="20" viewBox="0 0 80 20" x-show="actif === '{{ trace.periode }}'"{% if not trace.actif %} style="display: none"{% endif %}>
                         <polyline points="{{ trace.points }}" fill="none" stroke="currentColor" stroke-width="1"></polyline>
-                        {% for sommet in trace.sommets %}<circle cx="{{ sommet.x }}" cy="{{ sommet.y }}" r="2" fill="transparent"><title>{{ sommet.libelle }} - {{ sommet.valeur }}</title></circle>{% endfor %}
+                        {% for sommet in trace.sommets %}<circle cx="{{ sommet.x|stringformat:"g" }}" cy="{{ sommet.y|stringformat:"g" }}" r="2" fill="transparent"><title>{{ sommet.libelle }} - {{ sommet.valeur }}</title></circle>{% endfor %}
                       </svg>
                       {% endfor %}
                     </span>
@@ -106,7 +106,7 @@
                       {% for trace in graphes.nb_urgent_return %}
                       <svg width="80" height="20" viewBox="0 0 80 20" x-show="actif === '{{ trace.periode }}'"{% if not trace.actif %} style="display: none"{% endif %}>
                         <polyline points="{{ trace.points }}" fill="none" stroke="currentColor" stroke-width="1"></polyline>
-                        {% for sommet in trace.sommets %}<circle cx="{{ sommet.x }}" cy="{{ sommet.y }}" r="2" fill="transparent"><title>{{ sommet.libelle }} - {{ sommet.valeur }}</title></circle>{% endfor %}
+                        {% for sommet in trace.sommets %}<circle cx="{{ sommet.x|stringformat:"g" }}" cy="{{ sommet.y|stringformat:"g" }}" r="2" fill="transparent"><title>{{ sommet.libelle }} - {{ sommet.valeur }}</title></circle>{% endfor %}
                       </svg>
                       {% endfor %}
                     </span>

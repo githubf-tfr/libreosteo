@@ -832,3 +832,51 @@ class TestEchappementDuGraphe(TestCase):
 
         self.assertNotIn("<script>alert(1)</script>", rendu)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", rendu)
+
+
+class TestFormatDesCoordonneesDuGraphe(TestCase):
+    """`graphiques.serie` rend `x` et `y` en flottants ; le gabarit doit les recopier tels
+    quels dans `cx`/`cy`, sans les faire passer par la localisation Django (correctif
+    D6f T9, mesure a l'ecriture de `test_ancien_signet.py` : un premier passage plein sur
+    le tableau de bord y levait 198 erreurs de console, `<circle> attribute cx: Expected
+    length, "40,0"`).
+
+    Sous `LANGUAGE_CODE = "fr"`, `{{ valeur }}` sur un flottant rend une virgule decimale
+    — un attribut SVG numerique n'en accepte aucune. `_nombre()` (graphiques.py) protegeait
+    deja `points`, la polyligne ; le gabarit oubliait le second site qui lit les memes
+    donnees, les cercles de survol.
+    """
+
+    def test_les_coordonnees_des_cercles_ne_portent_aucune_virgule(self) -> None:
+        # Trois valeurs distinctes : le sommet median tombe sur une ordonnee non entiere
+        # (13,33 en notation francaise), le cas qui expose la virgule.
+        trace = serie(["a", "b", "c"], [1, 2, 4])
+        serie_unique = [
+            {
+                "periode": "week",
+                "actif": True,
+                "points": trace.points,
+                "sommets": trace.sommets,
+            }
+        ]
+        periode = {"nb_new_patient": 1, "nb_examination": 1, "nb_urgent_return": 1}
+        contexte = {
+            "statistiques": True,
+            "semaine": periode,
+            "mois": periode,
+            "annee": periode,
+            "graphes": {
+                "nb_new_patient": serie_unique,
+                "nb_examination": serie_unique,
+                "nb_urgent_return": serie_unique,
+            },
+            "evenements_actifs": False,
+            "visite": None,
+        }
+        gabarit = engines["django"].get_template("pages/tableau-de-bord.html")
+        requete = RequestFactory().get("/")
+        requete.user = AnonymousUser()
+        rendu = gabarit.render(contexte, requete)
+
+        self.assertIn('cx="40" cy="13.33"', rendu)
+        self.assertNotIn(",", "".join(re.findall(r'c[xy]="[^"]*"', rendu)))

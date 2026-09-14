@@ -209,6 +209,7 @@ files = [
     "tests/functional/fabrique.py",
     "tests/functional/helpers.py",
     "tests/functional/test_agenda.py",
+    "tests/functional/test_ancien_signet.py",
     "tests/functional/test_atteignabilite.py",
     "tests/functional/test_authentification.py",
     "tests/functional/test_cabinet.py",

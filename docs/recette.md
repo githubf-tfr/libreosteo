@@ -3315,6 +3315,31 @@ docstring du test :
    encodé, `/%2F`. L'inclure ferait échouer la fiche sur un défaut déjà instruit, hors
    périmètre.
 
+### R-NAV-02 — Un ancien signet mène au tableau de bord, sans erreur
+
+- **Domaine** : Navigation
+- **Couverture auto** : oui —
+  tests/functional/test_ancien_signet.py::test_un_ancien_signet_mene_au_tableau_de_bord_sans_erreur
+  (le test joue les trois fragments et collecte les erreurs de console ; il ne voit pas les
+  avertissements, ni un navigateur autre que Chromium)
+- **État requis** : E1
+
+**Contexte** : D6f retire le `#` des URL. Les signets pris avant la bascule cassent, et
+c'est **acté et non compensable** — aucun script de traduction d'anciens fragments n'est
+écrit. Ce que le produit doit garantir, c'est que la rupture est silencieuse et propre.
+
+**Étapes**
+
+1. Se connecter, puis saisir dans la barre d'adresse l'URL `<racine>/#/patient/1`.
+   Attendu : le tableau de bord s'affiche (titre de page « Tableau de bord »). Pas de page
+   blanche, pas de « 404 », pas de message d'erreur.
+2. Ouvrir la console du navigateur (F12, onglet « Console »), recharger.
+   Attendu : **aucune erreur** (les lignes rouges). Des avertissements sont tolérés.
+3. Recommencer avec `<racine>/#/addPatient`, puis `<racine>/#/office/rebuild-index`.
+   Attendu : dans les trois cas, le tableau de bord, sans erreur.
+4. Constater ce que l'utilisateur perd, et c'est le contrat : le signet ne mène **plus** où
+   il menait. Refaire le signet depuis l'écran voulu, dont l'URL ne porte plus de `#`.
+
 ### Pages d'erreur
 
 ### R-ERR-01 — Page inexistante
