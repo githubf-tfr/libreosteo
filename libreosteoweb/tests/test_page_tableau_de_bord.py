@@ -327,6 +327,14 @@ class TestVisiteGuidee(TestCase):
         gabarit = engines["django"].get_template("partials/menu.html")
         return gabarit.render(contexte or {}, self.requete)
 
+    def _rendre_le_corps(self, contexte: dict[str, Any] | None = None) -> str:
+        """Le socle entier plutot que le seul menu : `x-data` (D6f, correctif D-1, revue
+        R1) vit sur `<body>`, ancetre commun aux deux rendus de l'encart de la visite
+        guidee — imbrique dans le menu, frere de la barre — et ce partiel seul ne le
+        porte plus."""
+        gabarit = engines["django"].get_template("base.html")
+        return gabarit.render(contexte or {}, self.requete)
+
     def _profil_incomplet(self) -> None:
         self.reglages.professional_id = ""
         self.reglages.save()
@@ -429,7 +437,12 @@ class TestVisiteGuidee(TestCase):
         stockage** (`bootstrap-tour.js:216`, mesure de D6f T2). Recopier la seule option
         `storage` aurait donc reconduit un levier sans reconduire l'effet. Ici il n'y a
         aucun levier : la decision est une lecture pure, rejouee a chaque rendu de `/`, et
-        le `x-data` repart de l'etape 1 a chaque fois.
+        la garde Alpine qui lit l'etape repart de l'etape 1 a chaque fois.
+
+        `x-data` (donc `visiteEtape: 1`) vit desormais sur `<body>` (`base.html`), pas sur
+        ce partiel (D6f, correctif D-1, revue R1) : ce que ce gabarit porte encore
+        localement est la condition qui **lit** cette etape, `x-if="visiteEtape === 1 &&
+        !etroit"` — inchangee d'un rendu a l'autre, meme preuve.
         """
         self._profil_incomplet()
 
@@ -437,8 +450,9 @@ class TestVisiteGuidee(TestCase):
         second = etapes_de_visite(self.requete)
 
         self.assertEqual(premier, second)
-        self.assertIn("visiteEtape: 1", self._rendre_le_menu({"visite": premier}))
-        self.assertIn("visiteEtape: 1", self._rendre_le_menu({"visite": second}))
+        condition = 'x-if="visiteEtape === 1 && !etroit"'
+        self.assertIn(condition, self._rendre_le_menu({"visite": premier}))
+        self.assertIn(condition, self._rendre_le_menu({"visite": second}))
         # Et elle cesse le jour ou la condition cesse : l'absence de memorisation n'est pas
         # une visite eternelle.
         self.reglages.professional_id = "12345"
@@ -472,9 +486,13 @@ class TestVisiteGuidee(TestCase):
                 # Chaque etape dans le `<li>` qu'**elle** designe, et non l'inverse.
                 self.assertIn(titre, bloc)
         self.assertNotIn("lo-visite-encart--centree", corps)
-        # L'etat initial vient du serveur : premiere etape, total connu, menu deja ouvert.
-        self.assertIn("visiteEtape: 1", corps)
-        self.assertIn("visiteTotal: 2", corps)
+        # L'etat initial vient du serveur : premiere etape et deuxieme etape distinguees
+        # (donc total connu), menu deja ouvert. `x-data` (donc `visiteEtape`, `visiteTotal`)
+        # vit desormais sur `<body>` (base.html), ancetre commun aux deux rendus de
+        # l'encart (D6f, correctif D-1, revue R1) : ce gabarit porte encore localement la
+        # condition qui lit cette etape pour chacune, rang et garde `!etroit` compris.
+        self.assertIn('x-if="visiteEtape === 1 && !etroit"', corps)
+        self.assertIn('x-if="visiteEtape === 2 && !etroit"', corps)
         self.assertIn('class="dropdown open"', corps)
         # Le menu ne se referme pas sous un clic exterieur tant que la visite dure : c'est
         # la parite du rabonnement de `tour.js:51` sur `hidden.bs.dropdown`. *Ce que cette
@@ -488,20 +506,22 @@ class TestVisiteGuidee(TestCase):
         Deux encarts attaches en meme temps — ce que `x-show` produirait — donnent **deux**
         elements pour chaque `data-testid`, et Playwright refuse alors d'agir (« strict mode
         violation ») : mesure directe, `to_be_visible`, `to_have_text` et `not_to_be_visible`
-        echouent tous les trois, y compris quand le second encart porte `display: none`. Les
-        quatre tests de `tests/functional/test_visite_guidee.py`, qui doivent rester verts
-        **sans etre modifies**, rougiraient sans qu'une ligne du produit soit fausse.
+        echouent tous les trois, y compris quand le second encart porte `display: none`.
 
         Le contenu d'un `<template>` n'est pas attache au document — le navigateur n'y
-        descend pas — et Alpine ne clone que l'etape courante.
+        descend pas — et Alpine ne clone que l'etape courante. Depuis la revue R1
+        (correctif D-1), la garde porte aussi `!etroit` : ce partiel se rend deux fois
+        (imbrique ici, frere de la barre dans base.html), et sans cette seconde moitie de
+        garde les deux rendus s'attacheraient ensemble a la fois — le meme defaut, par une
+        cause nouvelle.
         """
         self._profil_incomplet()
         self._cabinet_incomplet()
 
         corps = self._rendre_le_menu({"visite": etapes_de_visite(self.requete)})
 
-        self.assertIn('<template x-if="visiteEtape === 1">', corps)
-        self.assertIn('<template x-if="visiteEtape === 2">', corps)
+        self.assertIn('<template x-if="visiteEtape === 1 && !etroit">', corps)
+        self.assertIn('<template x-if="visiteEtape === 2 && !etroit">', corps)
         # Le balayage **est** la preuve : compter les gabarits laisserait passer un encart
         # rendu a cote du sien.
         hors_gabarit = re.sub(r"<template\b.*?</template>", "", corps, flags=re.S)
@@ -554,8 +574,19 @@ class TestVisiteGuidee(TestCase):
         self.assertNotIn("lo-visite-cible", corps)
         # `class="dropdown"` seul ne prouverait rien : le menu d'aide en porte un aussi.
         self.assertNotIn('class="dropdown open"', corps)
+        # `visiteEtape: 0` / `visiteTotal: 0` ne se lisent plus ici : `x-data` vit sur
+        # `<body>` (base.html), pas sur ce partiel (D6f, correctif D-1, revue R1). Sans
+        # `visite`, aucune des deux inclusions de `partials/visite-guidee.html` ne se
+        # declenche (ni ici, ni dans base.html) : rien de plus a lire dans ce gabarit.
+
+    def test_le_corps_sans_visite_porte_l_etat_a_zero(self) -> None:
+        """L'etat par defaut de `x-data`, porte par `<body>` depuis la revue R1 (D-1) :
+        aucune visite due, aucune etape, aucun total."""
+        corps = self._rendre_le_corps()
+
         self.assertIn("visiteEtape: 0", corps)
         self.assertIn("visiteTotal: 0", corps)
+        self.assertNotIn("visite-guidee", corps)
 
     def test_les_libelles_de_la_visite_sont_traduits(self) -> None:
         """Ce test tombe si le `.mo` n'a pas ete recompile — c'est exactement ce qu'on veut.
