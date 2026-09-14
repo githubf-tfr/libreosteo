@@ -7,6 +7,7 @@ from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
 from tests.functional.helpers import (
+    attendre_alpine_initialise,
     cloturer_consultation,
     connexion,
     creer_patient,
@@ -120,6 +121,12 @@ def test_regroupement_et_navigation_depuis_le_tableau_de_bord(
         expect(entrees.nth(indice)).to_contain_text("Picard Jean-Luc")
         expect(entrees.nth(indice)).to_contain_text("Robot Tester")
 
+    # Barrieres ci-dessus immediatement satisfaites par le document rendu au `page.goto`
+    # ci-dessus : elles ne prouvent rien sur Alpine, qui pilote le filtre juste apres. Site
+    # non domine par la garde posee en fin de `creer_patient`/`connexion` (enquete-
+    # intermittence.md, rang 2, §2, tableau, ligne test_agenda.py:123-124) : la navigation
+    # qui precede ce geste est ce `page.goto` du test, pas un des quatre helpers d'atterrissage.
+    attendre_alpine_initialise(page)
     page.get_by_test_id("filtre-evenements").click()
     page.get_by_test_id("evenements-tout").click()
     entrees = panneau.get_by_test_id("evenement-cabinet")

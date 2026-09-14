@@ -53,6 +53,11 @@ def connexion(
     compteur = page.get_by_test_id("compteur-nouveaux-patients")
     expect(compteur).to_be_visible()
     expect(compteur).not_to_have_text("")
+    # Barriere ci-dessus immediatement satisfaite par le document (D6f) : elle ne prouve rien
+    # sur Alpine. `connexion()` est le premier atterrissage de tout test ; fermer la course
+    # ici couvre tout geste Alpine emis juste apres par un appelant (enquete-intermittence.md,
+    # rang 2), sans toucher aux sites d'appel eux-memes.
+    attendre_alpine_initialise(page)
 
 
 def ouvrir_menu_utilisateur(page: Page) -> None:
@@ -235,6 +240,11 @@ def creer_patient(
     page.check("#consent")
     page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
     expect(page.get_by_test_id("titre-patient")).to_contain_text(nom)
+    # Barriere ci-dessus immediatement satisfaite par le document : `ouvrir_nouvelle_
+    # consultation`, les onglets du dossier et `#medicalreports` sont pilotes par Alpine et
+    # cliques juste apres cet atterrissage par la plupart des appelants (enquete-
+    # intermittence.md, rang 2, §2).
+    attendre_alpine_initialise(page)
 
 
 def rechercher_patient(page: Page, nom: str) -> None:
@@ -253,6 +263,10 @@ def rechercher_patient(page: Page, nom: str) -> None:
     # d'appel. Attendre un titre non vide plutot que le nom cherche : l'appelant assert deja
     # sur le nom quand c'est ce qu'il observe.
     expect(page.get_by_test_id("titre-patient")).not_to_have_text("")
+    # Meme atterrissage qu'a la fin de `creer_patient` : cette navigation de document remet
+    # aussi le drapeau Alpine a zero, et les onglets du dossier cliques juste apres par la
+    # plupart des appelants sont pilotes par Alpine (enquete-intermittence.md, rang 2, §2).
+    attendre_alpine_initialise(page)
 
 
 def ouvrir_nouvelle_consultation(page: Page) -> None:

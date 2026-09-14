@@ -22,6 +22,7 @@ from libreosteoweb.models import (
 from tests.functional.conftest import Socle
 from tests.functional.fabrique import cree_facture
 from tests.functional.helpers import (
+    attendre_alpine_initialise,
     cloturer_consultation,
     confirmer_la_modale,
     connexion,
@@ -638,6 +639,10 @@ def ouvrir_la_comptabilite(page: Page) -> None:
     """
     page.get_by_role("link", name="Comptabilité").click()
     expect(page.get_by_test_id("titre-comptabilite")).to_contain_text("Comptabilité")
+    # Barriere ci-dessus immediatement satisfaite par le document (D6d T11) : elle ne prouve
+    # rien sur Alpine. Le menu d'actions de facture, clique juste apres cet atterrissage par
+    # les deux appelants, est pilote par Alpine (enquete-intermittence.md, rang 2, §2).
+    attendre_alpine_initialise(page)
 
 
 def test_periode_par_defaut_de_la_comptabilite(
