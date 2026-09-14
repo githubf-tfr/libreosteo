@@ -56,7 +56,7 @@
                     <i class="fa fa-plus-square fa-5x"></i>
                   </div>
                   <div class="col-xs-9 text-right">
-                    <span class="dashboard-sparkline">
+                    <span class="dashboard-sparkline" data-testid="mini-graphe-nouveaux-patients">
                       {% for trace in graphes.nb_new_patient %}
                       <svg width="80" height="20" viewBox="0 0 80 20" x-show="actif === '{{ trace.periode }}'"{% if not trace.actif %} style="display: none"{% endif %}>
                         <polyline points="{{ trace.points }}" fill="none" stroke="currentColor" stroke-width="1"></polyline>

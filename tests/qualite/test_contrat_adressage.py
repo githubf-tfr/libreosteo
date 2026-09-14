@@ -52,6 +52,12 @@ METHODES_DE_SELECTION = frozenset(
         # coute rien.
         "goto",
         "to_have_url",
+        # Resserrement D6f, revue R1 (correctif D-6, 2026-09-14) : `evaluate` passe une
+        # chaine JavaScript, dans laquelle un selecteur CSS interdit peut se cacher
+        # exactement comme dans un argument de `locator`. Le defaut qui l'a fait naitre :
+        # `.panel-primary` (motif Bootstrap) adresse dans un `page.evaluate`, invisible
+        # a ce cliquet tant que la methode n'y figurait pas.
+        "evaluate",
     ]
 )
 

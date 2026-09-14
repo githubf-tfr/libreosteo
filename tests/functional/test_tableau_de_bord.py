@@ -130,17 +130,30 @@ def test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol(
     chiffre du rapport). Un seul patient cree aujourd'hui donne une serie a deux
     valeurs (0 pendant dix semaines, 1 la semaine courante) : dix sommets au bord bas
     (`y = 20`) et le dernier au coin haut-droit (`y = 0, x = 80`) — le cas du rapport.
+
+    **Revue R1** : part du `data-testid="mini-graphe-nouveaux-patients"` (jamais de
+    `.panel-primary`, motif Bootstrap interdit par le cliquet d'adressage) et repere le
+    `<svg>` actif par `getComputedStyle(...).display`, jamais par l'absence de
+    l'attribut `style` (`svg:not([style])` s'appuyait sur un detail d'implementation
+    d'Alpine — `_x_doShow` retire l'attribut quand il ne porte que `display: none` —
+    qui rougirait sans que le produit ait change).
     """
     connexion(page, live_server)
     creer_patient(page)
     page.goto(f"{live_server.url}/")
 
-    resultats = page.evaluate(
+    conteneur = page.get_by_test_id("mini-graphe-nouveaux-patients")
+    resultats = conteneur.evaluate(
         """
-        () => {
-            const cercles = document.querySelectorAll(
-                '.panel-primary .dashboard-sparkline svg:not([style]) circle'
+        (conteneur) => {
+            const svgs = Array.from(conteneur.querySelectorAll('svg'));
+            const actif = svgs.find(
+                (svg) => getComputedStyle(svg).display !== 'none'
             );
+            if (!actif) {
+                return [];
+            }
+            const cercles = actif.querySelectorAll('circle');
             return Array.from(cercles).map((cercle, indice) => {
                 const rect = cercle.getBoundingClientRect();
                 const cx = rect.left + rect.width / 2;
