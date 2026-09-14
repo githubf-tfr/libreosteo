@@ -49,10 +49,10 @@
 <!-- /.navbar-header -->
 
 <ul class="nav navbar-top-links navbar-right">
-{# D6f, correctif D-4 (passe T12) : pose ici, hors du menu deroulant Bootstrap, comme #}
-{# "Nouveau patient" l'est dans la barre laterale. Le deroulant `menu-utilisateur`, #}
-{# ferme par defaut, n'est ouvert par aucun script sur cette page : l'entree y restait #}
-{# a une boite 0x0, inatteignable au clic (timeout mesure par la passe). #}
+{# D6f, correctif D-4 (passe T12) : pose ici, en entree directe de `navbar-top-links`, #}
+{# hors du menu deroulant Bootstrap. Le deroulant `menu-utilisateur`, ferme par defaut, #}
+{# n'est ouvert par aucun script sur cette page : l'entree y restait a une boite 0x0, #}
+{# inatteignable au clic (timeout mesure par la passe). #}
 <li><a href="{% url 'profil' %}"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
 </li>
 <!--
