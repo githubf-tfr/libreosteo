@@ -167,7 +167,7 @@ document.addEventListener('alpine:initialized', () => { window.__alpineInitialis
 
 
 @pytest.fixture(autouse=True)
-def _drapeau_alpine_initialise(page: Page) -> None:
+def _drapeau_alpine_initialise(transactional_db, page: Page) -> None:
     """Pose le drapeau **avant** toute navigation (D6f).
 
     `page.add_init_script` s'execute avant le premier script de **chaque** navigation
@@ -175,6 +175,11 @@ def _drapeau_alpine_initialise(page: Page) -> None:
     aucune course n'est possible entre l'ecoute et l'evenement. Il se repose (et se
     remet a `false`) a chaque nouvelle navigation, donc reste correct a travers les
     changements de document complets (`ouvrir_reglages_cabinet`, `ouvrir_profil_therapeute`).
+
+    `transactional_db`, inutilise ici, force pytest a demander cette fixture **avant**
+    `page` : sans lui, l'ordre de demontage s'inverse (`page` se demonte apres la base)
+    et le navigateur reste ouvert sur le `live_server` de session pendant que la base
+    est tronquee et `MEDIA_ROOT` / `HAYSTACK_CONNECTIONS` sont rendus au depot.
     """
     page.add_init_script(_SCRIPT_DRAPEAU_ALPINE)
 
