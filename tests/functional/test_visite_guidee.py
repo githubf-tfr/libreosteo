@@ -220,3 +220,41 @@ def test_lencart_reste_ancre_a_gauche_de_sa_cible_en_affichage_large(
     assert not _se_recouvrent(boite_encart, boite_cible), (
         f"encart et cible se recouvrent : encart={boite_encart!r} cible={boite_cible!r}"
     )
+
+
+def test_lattachement_suit_un_changement_de_viewport_en_cours_de_visite(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Revue R2 : `etroit` (matchMedia) n'etait evalue qu'a l'amorcage d'Alpine —
+    reserve du round 1, confirmee defaut par la re-revue, dans un seul sens.
+
+    Le rendu qui s'attache depend de `etroit`, evalue une fois ; le style de chacun
+    depend de la media query CSS, vivante. Sans ecoute, les deux divergent au premier
+    franchissement de 768 px : etroit -> large laisse le rendu etroit attache (encart
+    visible, seulement desancre, cosmetique) ; **large -> etroit** laisse le rendu
+    imbrique seul attache, dans `#headerNavbar` que Bootstrap met en `display: none`
+    sous ce seuil — boite 0x0, D-1 ressuscite par une cause neuve. Les deux ensemble
+    sont impossibles : `etroit` et `!etroit` sont complementaires sur la meme variable.
+
+    A aucun moment le compte ne doit valoir autre chose que 1, et l'encart doit rester
+    visible aux trois paliers.
+    """
+    socle.therapeute.professional_id = ""
+    socle.therapeute.save()
+
+    page.set_viewport_size({"width": 1280, "height": 800})
+    connexion(page, live_server)
+
+    encart = page.get_by_test_id("visite-guidee")
+    expect(encart).to_have_count(1)
+    expect(encart).to_be_visible()
+
+    # large -> etroit : c'est ce sens qui rougit sans l'ecoute (D-1 ressuscite).
+    page.set_viewport_size({"width": 400, "height": 800})
+    expect(encart).to_have_count(1)
+    expect(encart).to_be_visible()
+
+    # etroit -> large : deja visible sans l'ecoute (cosmetique seul), verifie quand meme.
+    page.set_viewport_size({"width": 1280, "height": 800})
+    expect(encart).to_have_count(1)
+    expect(encart).to_be_visible()

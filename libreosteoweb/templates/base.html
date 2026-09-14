@@ -69,8 +69,14 @@
 {# ensemble des que `visiteEtape` correspond, et `data-testid="visite-guidee"` resout #}
 {# alors deux elements (violation du mode strict de Playwright, meme mesure que celle #}
 {# qui a fait choisir `x-if` a la place de `x-show`, `partials/visite-guidee.html`). #}
+{# Revue R2 : `etroit` n'etait evalue qu'a l'amorcage d'Alpine (reserve du round 1, #}
+{# confirmee defaut) — un franchissement de 768 px en cours de visite ne re-attachait #}
+{# pas l'autre rendu. `x-init` abonne `etroit` au changement, une fois : `visiteEtape` #}
+{# restant sur ce meme `<body>`, le rendu qui s'attache a la bascule reprend l'etape en #}
+{# cours, rien n'est perdu. #}
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-      x-data="{ barreDeployee: false, menuUtilisateur: {% if visite %}true{% else %}false{% endif %}, menuAide: false, visiteEtape: {% if visite %}1{% else %}0{% endif %}, visiteTotal: {{ visite.total|default:0 }}, etroit: window.matchMedia('(max-width: 767px)').matches }">
+      x-data="{ barreDeployee: false, menuUtilisateur: {% if visite %}true{% else %}false{% endif %}, menuAide: false, visiteEtape: {% if visite %}1{% else %}0{% endif %}, visiteTotal: {{ visite.total|default:0 }}, etroit: window.matchMedia('(max-width: 767px)').matches }"
+      x-init="window.matchMedia('(max-width: 767px)').addEventListener('change', (e) => etroit = e.matches)">
 
   {% block menu %}{% if request.user.is_authenticated %}{% include "partials/menu.html" %}{% endif %}{% endblock %}
   {# Le frere en affichage etroit du couple d'encarts imbriques dans le menu #}
