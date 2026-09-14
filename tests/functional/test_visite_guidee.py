@@ -228,13 +228,19 @@ def test_lattachement_suit_un_changement_de_viewport_en_cours_de_visite(
     """Revue R2 : `etroit` (matchMedia) n'etait evalue qu'a l'amorcage d'Alpine —
     reserve du round 1, confirmee defaut par la re-revue, dans un seul sens.
 
-    Le rendu qui s'attache depend de `etroit`, evalue une fois ; le style de chacun
-    depend de la media query CSS, vivante. Sans ecoute, les deux divergent au premier
+    Le rendu qui s'attache depend de `etroit`, evalue une fois ; ce qui les fait
+    diverger est vivant, lui, mais ce n'est pas une media query pour l'encart — le
+    socle n'en porte plus depuis `22ea098`, `--centree` y est posee cote serveur. C'est
+    celle de Bootstrap sur `.navbar-collapse.collapse`
+    (`static/css/bootstrap.css:3797`, `@media (min-width: 768px) { display: block
+    !important }`, donc `display: none` en dessous) qui fait disparaitre le rendu
+    imbrique quand la fenetre retrecit. Sans ecoute, les deux divergent au premier
     franchissement de 768 px : etroit -> large laisse le rendu etroit attache (encart
     visible, seulement desancre, cosmetique) ; **large -> etroit** laisse le rendu
-    imbrique seul attache, dans `#headerNavbar` que Bootstrap met en `display: none`
-    sous ce seuil — boite 0x0, D-1 ressuscite par une cause neuve. Les deux ensemble
-    sont impossibles : `etroit` et `!etroit` sont complementaires sur la meme variable.
+    imbrique seul attache, dans `#headerNavbar` que cette regle de Bootstrap met en
+    `display: none` sous ce seuil — boite 0x0, D-1 ressuscite par une cause neuve. Les
+    deux ensemble sont impossibles : `etroit` et `!etroit` sont complementaires sur la
+    meme variable.
 
     A aucun moment le compte ne doit valoir autre chose que 1, et l'encart doit rester
     visible aux trois paliers.
