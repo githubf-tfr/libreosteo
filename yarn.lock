@@ -9,76 +9,10 @@
   dependencies:
     "@vue/reactivity" "~3.5.40"
 
-"@components/angular-animate@angular/bower-angular-animate#ac17971fdc62d7ea816a079401084e6da2af3e3e":
-  version "1.5.11"
-  resolved "https://codeload.github.com/angular/bower-angular-animate/tar.gz/ac17971fdc62d7ea816a079401084e6da2af3e3e"
-
-"@components/angular-bootstrap@angular-ui/bootstrap-bower#752d6a79f500391a7efb06d80f37405c920a6f2b":
-  version "2.5.0"
-  resolved "https://codeload.github.com/angular-ui/bootstrap-bower/tar.gz/752d6a79f500391a7efb06d80f37405c920a6f2b"
-
-"@components/angular-cookies@angular/bower-angular-cookies#a443bb1d7edc1688acf8d820932f27b4b19b89bc":
-  version "1.5.11"
-  resolved "https://codeload.github.com/angular/bower-angular-cookies/tar.gz/a443bb1d7edc1688acf8d820932f27b4b19b89bc"
-
-"@components/angular-growl@marcorinck/angular-growl#9eb745aeeeca8f600e0e6afea9a88bb488940cfa":
-  version "0.4.0"
-  resolved "https://codeload.github.com/marcorinck/angular-growl/tar.gz/9eb745aeeeca8f600e0e6afea9a88bb488940cfa"
-
-"@components/angular-i18n@angular/bower-angular-i18n#c2083adc17be7cdcc9ae68e698d35cb2fdb9e690":
-  version "1.5.11"
-  resolved "https://codeload.github.com/angular/bower-angular-i18n/tar.gz/c2083adc17be7cdcc9ae68e698d35cb2fdb9e690"
-
-"@components/angular-loading-bar@chieffancypants/angular-loading-bar#d734873e52ded18fa27d67f52272ae43267dfd63":
-  version "0.9.0"
-  resolved "https://codeload.github.com/chieffancypants/angular-loading-bar/tar.gz/d734873e52ded18fa27d67f52272ae43267dfd63"
-
-"@components/angular-resource@angular/bower-angular-resource#9c261ab3b6afb7d6ac5b09d0d2191ed7d6c77f80":
-  version "1.5.11"
-  resolved "https://codeload.github.com/angular/bower-angular-resource/tar.gz/9c261ab3b6afb7d6ac5b09d0d2191ed7d6c77f80"
-
-"@components/angular-scroll@oblador/angular-scroll#ce0b3e6bfd0d7fff98702cdb8dc83998ed32861a":
-  version "1.0.2"
-  resolved "https://codeload.github.com/oblador/angular-scroll/tar.gz/ce0b3e6bfd0d7fff98702cdb8dc83998ed32861a"
-
-"@components/angular-toArrayFilter@petebacondarwin/angular-toArrayFilter#9715ece12f759a76070ed51f24c953e08d714633":
-  version "1.0.3"
-  resolved "https://codeload.github.com/petebacondarwin/angular-toArrayFilter/tar.gz/9715ece12f759a76070ed51f24c953e08d714633"
-
-"@components/angular-ui-router@angular-ui/angular-ui-router-bower#74e2197736dda6aedd2cbc32375ea986fbc1e5d0":
-  version "1.0.30"
-  resolved "https://codeload.github.com/angular-ui/angular-ui-router-bower/tar.gz/74e2197736dda6aedd2cbc32375ea986fbc1e5d0"
-  dependencies:
-    "@uirouter/core" "6.0.8"
-
-"@components/angular@angular/bower-angular#0f57428c3ffe2f486264ab7fbee3968dccc7b720":
-  version "1.5.11"
-  resolved "https://codeload.github.com/angular/bower-angular/tar.gz/0f57428c3ffe2f486264ab7fbee3968dccc7b720"
-
-"@components/bootstrap-tour@sorich87/bootstrap-tour#1a06475e27f852bb642b9353574638d51673b0d5":
-  version "0.12.0"
-  resolved "https://codeload.github.com/sorich87/bootstrap-tour/tar.gz/1a06475e27f852bb642b9353574638d51673b0d5"
-  dependencies:
-    bootstrap "~3"
-    jquery ">=1.8"
-
 "@components/htmx@npm:htmx.org@2.0.10":
   version "2.0.10"
   resolved "https://registry.yarnpkg.com/htmx.org/-/htmx.org-2.0.10.tgz#62442b0e2952a885ae2e50a7654b8b20d0981134"
   integrity sha512-kdeJe7ZVwaS6QMz/ebBIVtZdpwen6L0OQ5GOhPV9MKBb196TCZeZu4yA7ZIQsaLKv7EpXz+So7KSXNuHXhj7Cw==
-
-"@components/jquery@git+https://github.com/jquery/jquery-dist.git#5e89585e0121e72ff47de177c5ef604f3089a53d":
-  version "1.12.4"
-  resolved "git+https://github.com/jquery/jquery-dist.git#5e89585e0121e72ff47de177c5ef604f3089a53d"
-
-"@components/ng-infinite-scroll@ng-infinite-scroll/ng-infinite-scroll-bower#e689fd22738e743091e58929061ec4a135325af1":
-  version "0.0.0"
-  resolved "https://codeload.github.com/ng-infinite-scroll/ng-infinite-scroll-bower/tar.gz/e689fd22738e743091e58929061ec4a135325af1"
-
-"@uirouter/core@6.0.8":
-  version "6.0.8"
-  resolved "https://registry.yarnpkg.com/@uirouter/core/-/core-6.0.8.tgz#a1e919a4743be729751aafc4ce353d0dc0ffd26c"
-  integrity sha512-Gc/BAW47i4L54p8dqYCJJZuv2s3tqlXQ0fvl6Zp2xrblELPVfxmjnc0eurx3XwfQdaqm3T6uls6tQKkof/4QMw==
 
 "@vue/reactivity@~3.5.40":
   version "3.5.42"
@@ -91,13 +25,3 @@
   version "3.5.42"
   resolved "https://registry.yarnpkg.com/@vue/shared/-/shared-3.5.42.tgz#a413cf21262502662354cda3b65ab31bca979202"
   integrity sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==
-
-bootstrap@~3:
-  version "3.4.1"
-  resolved "https://registry.yarnpkg.com/bootstrap/-/bootstrap-3.4.1.tgz#c3a347d419e289ad11f4033e3c4132b87c081d72"
-  integrity sha512-yN5oZVmRCwe5aKwzRj6736nSmKDX7pLYwsXiCj/EYmo16hODaBiT4En5btW/jhBF/seV+XMx3aYwukYC3A49DA==
-
-jquery@>=1.8:
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/jquery/-/jquery-4.0.0.tgz#95c33ac29005ff72ec444c5ba1cf457e61404fbb"
-  integrity sha512-TXCHVR3Lb6TZdtw1l3RTLf8RBWVGexdxL6AC8/e0xZKEpBflBsjh9/8LXw+dkNFuOyW9B7iB3O1sP7hS0Kiacg==

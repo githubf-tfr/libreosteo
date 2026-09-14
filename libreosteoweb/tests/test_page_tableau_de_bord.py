@@ -31,9 +31,11 @@ from __future__ import annotations
 
 import re
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.db import connection
 from django.template import engines
@@ -786,6 +788,25 @@ class TestPage(TestCase):
             with self.subTest(nom=nom):
                 self.assertIs(page_tableau_de_bord, callback)
                 reverse(nom)
+
+    def test_aucun_gabarit_ne_charge_jquery_ni_angularjs(self):
+        """C8, la clause d'existence du lot. Un paquet qui reste est un lot qui n'est pas fait.
+
+        Ce test balaie les gabarits, pas `node_modules` : il prouve que **le produit** ne
+        sert plus ces bibliotheques, pas qu'elles ont disparu du disque. Le second point est
+        la clause 2 du critere d'arret, constatee par `yarn install --frozen-lockfile`.
+        """
+        racine = Path(settings.BASE_DIR) / "libreosteoweb" / "templates"
+        fautifs = [
+            f"{chemin}:{numero}"
+            for chemin in sorted(racine.rglob("*.html"))
+            for numero, ligne in enumerate(
+                chemin.read_text(encoding="utf-8").splitlines(), start=1
+            )
+            if "components/jquery" in ligne or "components/angular" in ligne
+            if not ligne.lstrip().startswith("{#")
+        ]
+        self.assertEqual(fautifs, [])
 
 
 class TestEchappementDuGraphe(TestCase):
