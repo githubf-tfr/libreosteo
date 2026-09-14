@@ -588,6 +588,36 @@ class TestVisiteGuidee(TestCase):
         self.assertIn("visiteTotal: 0", corps)
         self.assertNotIn("visite-guidee", corps)
 
+    def test_le_corps_avec_visite_porte_le_total_et_les_deux_rendus_etroits(
+        self,
+    ) -> None:
+        """Revue R2 (points mineurs) : deux trous laisses par la reecriture D-1.
+
+        `visiteTotal` a une valeur non nulle pilote `:disabled="visiteEtape >=
+        visiteTotal"` (`partials/visite-guidee.html`) — seul `visiteTotal: 0` restait
+        asserte apres le deplacement de l'etat vers `<body>`. Et les deux inclusions
+        `pour_etroit=True` de `base.html` (le rendu frere de la barre, pour l'affichage
+        etroit) n'etaient lues par aucun test unitaire : les supprimer ne faisait
+        rougir qu'un test navigateur.
+        """
+        self._profil_incomplet()
+        self._cabinet_incomplet()
+
+        corps = self._rendre_le_corps({"visite": etapes_de_visite(self.requete)})
+
+        self.assertIn("visiteTotal: 2", corps)
+        # Les deux rendus etroits, un par etape, chacun avec sa propre garde et sa
+        # propre classe de repli centre — jamais `!etroit`, jamais celle du rendu
+        # imbrique dans le menu.
+        self.assertIn('x-if="visiteEtape === 1 && etroit"', corps)
+        self.assertIn('x-if="visiteEtape === 2 && etroit"', corps)
+        # `corps.count("lo-visite-encart--centree")` compterait aussi la regle CSS du
+        # `<style>` de tete (une occurrence de plus, non liee au balisage) : on compte
+        # l'attribut de classe complet, tel qu'un `<div>` le porte.
+        self.assertEqual(
+            2, corps.count('class="lo-visite-encart lo-visite-encart--centree"')
+        )
+
     def test_les_libelles_de_la_visite_sont_traduits(self) -> None:
         """Ce test tombe si le `.mo` n'a pas ete recompile — c'est exactement ce qu'on veut.
 
