@@ -795,6 +795,13 @@ class TestPage(TestCase):
         Ce test balaie les gabarits, pas `node_modules` : il prouve que **le produit** ne
         sert plus ces bibliotheques, pas qu'elles ont disparu du disque. Le second point est
         la clause 2 du critere d'arret, constatee par `yarn install --frozen-lockfile`.
+
+        `pages/fragments/facturation-modale.html:9` echappe a ce test : elle cite
+        `@components/angular-bind-html-compile` dans un commentaire Django `{# ... #}` dont
+        le `{#` est colle en tete de ligne, sans espace, ce que la garde
+        `lstrip().startswith("{#")` reconnait. Si ce commentaire est un jour reformate
+        (espace insere, commentaire scinde), ce test rougira a tort pour une ligne morte —
+        adresser alors la ligne par son commentaire complet plutot que d'assouplir la garde.
         """
         racine = Path(settings.BASE_DIR) / "libreosteoweb" / "templates"
         fautifs = [
