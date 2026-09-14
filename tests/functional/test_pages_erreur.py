@@ -71,13 +71,14 @@ def test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent(
     """A10 : les deux seules dependances au routage par hash qui vivaient **hors** de la
     coquille. Les laisser, c'est livrer deux liens qui menent silencieusement ailleurs.
 
-    « Profil utilisateur » ne se clique pas ici : ce lien vit dans le menu deroulant
-    Bootstrap `menu-utilisateur`, ferme par defaut et jamais ouvert sur cette page (aucun
-    script charge par `404.html`) — meme constat, deja documente dans ce fichier, que pour
-    le lien de deconnexion. Le test lit donc l'attribut `href` (accessible meme menu ferme,
-    l'element restant dans le DOM) pour prouver la destination, puis `goto` dessus pour
-    prouver que la cible existe vraiment. Seul le geste d'ouverture du menu reste hors
-    preuve — socle visuel, donc D6g.
+    « Profil utilisateur » se clique desormais reellement (D-4, passe D6f T12) : le lien
+    vivait dans le menu deroulant Bootstrap `menu-utilisateur`, ferme par defaut et
+    jamais ouvert sur cette page (aucun script charge par `404.html`) — timeout apres 5 s
+    au clic, meme constat que celui deja documente ici pour le lien de deconnexion. Le
+    correctif sort l'entree du menu deroulant et la pose directement dans
+    `ul.nav.navbar-top-links`, comme « Nouveau patient » l'est dans la barre laterale :
+    elle se clique desormais au meme titre. Le controle du `href` est garde, c'est lui
+    qui prouve l'absence de fragment de hash, motif interdit par le cliquet d'adressage.
 
     Ce que ce test ne voit pas : les autres liens figes de `404.html` (recherche laterale,
     menu lateral). Ils ne fonctionnaient deja pas, et ce lot n'y change rien — socle visuel,
@@ -87,14 +88,12 @@ def test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent(
     settings.DEBUG = False
 
     page.goto(f"{live_server.url}/cette-route-n-existe-pas")
-    lien_profil = page.locator(
-        '[data-testid="menu-utilisateur"] a:has-text("Profil utilisateur")'
-    )
+    lien_profil = page.get_by_role("link", name="Profil utilisateur")
     href_profil = lien_profil.get_attribute("href")
     assert href_profil == reverse("profil"), (
         f"le lien pointe vers {href_profil!r}, pas vers la route 'profil'"
     )
-    page.goto(f"{live_server.url}{href_profil}")
+    lien_profil.click()
     expect(page.get_by_test_id("titre-profil")).to_contain_text("Profil utilisateur")
 
     page.goto(f"{live_server.url}/cette-route-n-existe-pas")
