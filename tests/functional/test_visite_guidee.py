@@ -127,3 +127,34 @@ def test_la_visite_se_rouvre_a_chaque_ouverture_du_tableau_de_bord(
     page.reload()
     expect(page.get_by_test_id("visite-guidee")).to_be_visible()
     expect(page.get_by_test_id("visite-titre")).to_have_text("Thérapeute")
+
+
+def test_lencart_est_visible_et_dans_la_fenetre_en_affichage_etroit(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """D-1, passe au navigateur du lot D6f (task-12-report.md, B5).
+
+    A 400x800, **sans que l'utilisateur n'ouvre le hamburger de lui-meme** : la passe a
+    mesure deux defauts cumules. D'abord, l'encart vit dans `#headerNavbar`
+    (`partials/menu.html`), un `DIV.navbar-collapse.collapse` que Bootstrap 3 met en
+    `display: none` avant toute ouverture — sa boite y est **0x0**, quelle que soit sa
+    regle `position`. Ensuite, une fois la barre ouverte, l'ancrage « a gauche de la
+    cible » (`right: 100%`) n'a de place que si la cible est a plus de 286 px du bord
+    gauche : en affichage replie, Bootstrap 3 empile le menu a x = 16, et l'encart va de
+    x = -270 a x = 6 (270 px hors ecran, 2 % visible).
+    """
+    socle.therapeute.professional_id = ""
+    socle.therapeute.save()
+
+    page.set_viewport_size({"width": 400, "height": 800})
+    connexion(page, live_server)
+
+    encart = page.get_by_test_id("visite-guidee")
+    expect(encart).to_be_visible()
+    boite = encart.bounding_box()
+    assert boite is not None, "boite introuvable : l'encart n'est pas rendu a l'ecran"
+    assert boite["width"] > 0 and boite["height"] > 0, f"boite 0x0 : {boite!r}"
+    assert boite["x"] >= 0, f"deborde a gauche : {boite!r}"
+    assert boite["y"] >= 0, f"deborde en haut : {boite!r}"
+    assert boite["x"] + boite["width"] <= 400, f"deborde a droite : {boite!r}"
+    assert boite["y"] + boite["height"] <= 800, f"deborde en bas : {boite!r}"

@@ -474,3 +474,23 @@ input.ng-invalid:focus {
   line-height: 18px;
   vertical-align: baseline;
 }
+
+/* D6f, correctif D-1 (passe T12, B5) : sous 768 px, l'ancrage « a gauche de la cible »
+   (`right: 100%` de `.lo-visite-encart`, base.html) n'a de place que si la cible est a
+   plus de 286 px du bord gauche. En affichage replie, Bootstrap 3 empile le menu a
+   x = 16 : l'encart va de x = -270 a x = 6, 270 px hors ecran. On lui applique le repli
+   (c) d'AR2 -- deja ecrit pour une cible absente, `.lo-visite-encart--centree` --,
+   centre et detache de toute cible, quel que soit le champ `ancree`.
+   `!important` : la regle inconditionnelle de `base.html` est chargee *apres* cette
+   feuille (elle vit dans le `<style>` de tete, place apres `{% block css_page %}`) et,
+   a specificite egale, gagnerait sinon la cascade sur cette regle. */
+@media (max-width: 767px) {
+  .lo-visite-encart {
+    position: fixed !important;
+    top: 30%;
+    left: 50%;
+    right: auto !important;
+    margin-right: 0;
+    transform: translateX(-50%);
+  }
+}
