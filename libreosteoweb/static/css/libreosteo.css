@@ -167,6 +167,15 @@ pre {
     margin-top: 10%;
     margin-left: 40%;
 }
+/* D6f, correctif D-6 : le navigateur rogne par defaut ce qui deborde du `viewBox` du
+   mini-graphe (`svg { overflow: hidden }`). Les cercles de survol (`r="2"`) sont poses
+   sur les bords du `viewBox="0 0 80 20"` : la moitie de leur zone de clic disparaissait,
+   et `elementFromPoint` a leur centre ne renvoyait le cercle que pour 1 point sur 11
+   (rapport task-12-report.md, D-6). Une regle unique, plutot qu'un correctif par gabarit,
+   couvre les trois mini-graphes des tuiles. */
+.dashboard-sparkline svg {
+    overflow: visible;
+}
 .jqstooltip {
   -webkit-box-sizing: content-box;
   -moz-box-sizing: content-box;

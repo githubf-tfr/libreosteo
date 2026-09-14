@@ -114,3 +114,50 @@ def test_statistiques_du_jour(page: Page, live_server: LiveServer) -> None:
 
     page.reload()
     expect(page.get_by_test_id("compteur-consultations")).to_have_text("2")
+
+
+def test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol(
+    page: Page, live_server: LiveServer
+) -> None:
+    """D-6, passe au navigateur du lot D6f (task-12-report.md).
+
+    Les cercles de survol (`r="2"`) sont poses sur les bords du `viewBox="0 0 80 20"` :
+    `y = 0` pour la valeur maximale, `y = 20` (hauteur) pour la minimale, `x = 80` pour
+    le dernier point. Le `<svg>` est en `overflow: hidden` (regle par defaut du
+    navigateur sur l'element `svg`, mesuree directement par la passe) : la moitie de
+    chaque cercle qui deborde du `viewBox` est rognee, et `elementFromPoint` au centre
+    exact du cercle ne renvoyait le cercle lui-meme que pour 1 point sur 11 (constat
+    chiffre du rapport). Un seul patient cree aujourd'hui donne une serie a deux
+    valeurs (0 pendant dix semaines, 1 la semaine courante) : dix sommets au bord bas
+    (`y = 20`) et le dernier au coin haut-droit (`y = 0, x = 80`) — le cas du rapport.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    page.goto(f"{live_server.url}/")
+
+    resultats = page.evaluate(
+        """
+        () => {
+            const cercles = document.querySelectorAll(
+                '.panel-primary .dashboard-sparkline svg:not([style]) circle'
+            );
+            return Array.from(cercles).map((cercle, indice) => {
+                const rect = cercle.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                return {
+                    indice: indice,
+                    cx: cx,
+                    cy: cy,
+                    atteint: document.elementFromPoint(cx, cy) === cercle,
+                };
+            });
+        }
+        """
+    )
+    assert len(resultats) == 11, f"attendu 11 sommets, obtenu {len(resultats)}"
+    manques = [resultat for resultat in resultats if not resultat["atteint"]]
+    assert not manques, (
+        "sommets non atteignables au centre de leur cercle (indice, x, y) : "
+        + str([(r["indice"], r["cx"], r["cy"]) for r in manques])
+    )
