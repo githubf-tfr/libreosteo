@@ -1,5 +1,6 @@
 """R-ERR-01 : la page 404 ne leve plus l'erreur du bundle JS fusionne."""
 
+from django.urls import reverse
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -62,3 +63,40 @@ def test_le_lien_de_deconnexion_de_la_page_404_fonctionne(
             "el => el.onclick()",
         )
     expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
+
+
+def test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent(
+    page: Page, live_server: LiveServer, settings
+) -> None:
+    """A10 : les deux seules dependances au routage par hash qui vivaient **hors** de la
+    coquille. Les laisser, c'est livrer deux liens qui menent silencieusement ailleurs.
+
+    « Profil utilisateur » ne se clique pas ici : ce lien vit dans le menu deroulant
+    Bootstrap `menu-utilisateur`, ferme par defaut et jamais ouvert sur cette page (aucun
+    script charge par `404.html`) — meme constat, deja documente dans ce fichier, que pour
+    le lien de deconnexion. Le test lit donc l'attribut `href` (accessible meme menu ferme,
+    l'element restant dans le DOM) pour prouver la destination, puis `goto` dessus pour
+    prouver que la cible existe vraiment. Seul le geste d'ouverture du menu reste hors
+    preuve — socle visuel, donc D6g.
+
+    Ce que ce test ne voit pas : les autres liens figes de `404.html` (recherche laterale,
+    menu lateral). Ils ne fonctionnaient deja pas, et ce lot n'y change rien — socle visuel,
+    donc D6g.
+    """
+    connexion(page, live_server)
+    settings.DEBUG = False
+
+    page.goto(f"{live_server.url}/cette-route-n-existe-pas")
+    lien_profil = page.locator(
+        '[data-testid="menu-utilisateur"] a:has-text("Profil utilisateur")'
+    )
+    href_profil = lien_profil.get_attribute("href")
+    assert href_profil == reverse("profil"), (
+        f"le lien pointe vers {href_profil!r}, pas vers la route 'profil'"
+    )
+    page.goto(f"{live_server.url}{href_profil}")
+    expect(page.get_by_test_id("titre-profil")).to_contain_text("Profil utilisateur")
+
+    page.goto(f"{live_server.url}/cette-route-n-existe-pas")
+    page.get_by_role("link", name="Nouveau patient").click()
+    expect(page.get_by_test_id("titre-nouveau-patient")).to_be_visible()

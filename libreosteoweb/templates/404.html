@@ -255,7 +255,7 @@
         <i class="fa fa-user fa-fw"></i> {{ request.user.username }} <i class="fa fa-caret-down"></i>
     </a>
     <ul class="dropdown-menu dropdown-user" data-testid="menu-utilisateur">
-        <li><a href="#/accounts/user-profile"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
+        <li><a href="{% url 'profil' %}"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
         </li>
         <!--li><a href="accounts/settings"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
         </li-->
@@ -288,7 +288,7 @@
                 <!-- /input-group -->
             </li>
             <li>
-                <a href="#/addPatient"><i class="fa fa-pencil-square-o"></i> {% trans 'New patient' %}</a>
+                <a href="{% url 'nouveau-patient' %}"><i class="fa fa-pencil-square-o"></i> {% trans 'New patient' %}</a>
             </li>
             <!--
             <li>
