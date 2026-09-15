@@ -28,6 +28,18 @@ def test_premiere_installation(page: Page, live_server: LiveServer) -> None:
     expect(page).to_have_title("Installer LibreOsteo")
 
     page.click("#register")
+    # L'input `username` porte `autofocus` (partials/register.html) : sur un fragment
+    # injecte par htmx, le navigateur ne le focalise pas au moment de l'insertion mais par
+    # une tache differee (« flush autofocus candidates », HTML Standard). Sans barriere,
+    # cette tache peut s'executer *apres* le `focus()` que Playwright pose pour le
+    # deuxieme `fill` (`password1`) et lui reprendre le focus avant l'ecriture : le texte
+    # atterrit alors sur `username` (qui le concatene a sa valeur deja saisie) et
+    # `password1` reste vide. Reproduit 7 fois sur 120 hors barriere (boucle de diagnostic
+    # jetable, exactement le triplet `username="testtest"`, `password1=""`,
+    # `password2="test"` de l'echec observe) ; 0 fois sur 80 avec cette barriere. Attendre
+    # que le focus soit reellement pose avant de saisir absorbe la tache differee au lieu
+    # de courir contre elle.
+    expect(page.locator("input[name=username]")).to_be_focused()
     page.fill("input[name=username]", "test")
     page.fill("input[name=password1]", "test")
     page.fill("input[name=password2]", "test")
