@@ -549,9 +549,18 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
   2026-09-01 est donc fermé —, mais rien à l'écran ne signale le travail en cours pendant
   ces presque deux minutes. Préexiste à D6d, qui n'a pas changé ce point.
 - **Un paragraphe du panneau d'archive n'est pas traduit.**
-  `libreosteoweb/templates/pages/import-export.html:43` porte `This file is the full
-  content of your database…` en clair, hors `{% trans %}`. Identique à l'octet dans le
-  gabarit d'avant : **défaut amont, pas régression**. Constaté par `R-SAU-01` étape 1.
+  `libreosteoweb/templates/pages/import-export.html:42-44` porte `This file is the full
+  content of your database…` **dans un `{% blocktrans %}`**, et la traduction française
+  existe : `locale/fr/LC_MESSAGES/django.po:762-775`, présente aussi dans le `.mo`
+  compilé. **La cause écrite ici jusqu'au 2026-09-18 — « en clair, hors `{% trans %}` » —
+  était fausse.** La vraie cause est une **désynchronisation d'indentation** : le gabarit
+  émet **24** espaces devant le texte là où le `msgid` du catalogue en porte **28**,
+  hérités du gabarit AngularJS d'origine ; la chaîne cherchée à l'exécution n'est donc
+  jamais celle du catalogue. Mesuré le 2026-09-18 : la clef à 28 espaces est bien dans le
+  `.mo`, celle à 24 n'y est pas. Le remède devient **une seule ligne à réaligner** —
+  régénérer le `msgid` par `makemessages`, ou aligner l'indentation du gabarit sur celle
+  du catalogue, l'un ou l'autre et pas les deux. Identique à l'octet dans le gabarit
+  d'avant : **défaut amont, pas régression**. Constaté par `R-SAU-01` étape 1.
 - **Un clic de plage prédéfinie perd le thérapeute sélectionné.** Les trois liens portent
   `hx-get="…?plage=mois"` sans `therapeut` : la vue retombe alors sur l'utilisateur connecté
   pendant que la liste déroulante continue d'afficher « Tous ». La liste filtrée et le
@@ -574,7 +583,13 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
   La fiche porte un cliquet de reproductibilité du build : **il ne se relâche pas depuis
   une session de recette**, et l'exécutant a eu raison de n'y pas toucher. À instruire hors
   passe — soit l'arbre a dérivé, soit la fiche doit être remise à jour, et seule une
-  lecture du chantier D5 peut le dire.
+  lecture du chantier D5 peut le dire. **Mesuré le 2026-09-18, l'écart s'est creusé** :
+  `package.json` ne porte plus que **deux** refs `@components/` (D6f T10, `6db03a8`), et
+  l'étape 4 de la fiche (`docs/recette.md:787-812`) falsifie une ref `@components/angular`
+  qui n'existe plus. ⚠️ **À traiter avec les trois autres entrées `R-INST-07` de ce
+  journal** — « État requis » hors énumération (§ Couverture du cahier de recette), seconde
+  passe à rejouer et portabilité de `.yarn-integrity` (§ Renvoyé par D5) : les quatre ne se
+  ferment que par une réécriture unique de la fiche.
 
 ### Défauts versés par D6d (2026-09-12, non corrigés, à trancher hors lot de migration)
 
@@ -609,10 +624,14 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
-- **La commande de recompilation du catalogue détruit des traductions, et rien ne le voit.**
-  `msgfmt` est absent de la machine ; le dépôt recompile `locale/fr/LC_MESSAGES/django.mo` par
-  le `msgfmt.py` d'exemple de CPython. **Ce script ne remet le drapeau `fuzzy` à zéro que sur
-  une ligne de commentaire** : toute entrée qui suit un bloc `#, fuzzy` sans commentaire
+- **Le catalogue compilé est produit par un faux `msgfmt` : il perd des traductions et il
+  perd sa table de hachage, et rien ne le voit.** `msgfmt` est absent de la machine ; le
+  dépôt recompile `locale/fr/LC_MESSAGES/django.mo` par le `msgfmt.py` d'exemple de CPython.
+  **Une seule cause, deux symptômes** — cette entrée absorbe le constat de table de hachage,
+  décrit séparément dans cette même section jusqu'au 2026-09-18.
+
+  **Symptôme 1 — des entrées disparaissent.** Ce script ne remet le drapeau `fuzzy` à zéro
+  que sur une ligne de commentaire : toute entrée qui suit un bloc `#, fuzzy` sans commentaire
   intercalaire hérite du drapeau et **disparaît du `.mo`**.
 
   **Mesuré le 2026-09-13**, sur le catalogue tel qu'il était au commit `b026fbc` : recompiler
@@ -622,6 +641,12 @@ décrits à l'entrée de clôture, pas ici.
   permission to perform this action. », « modify », « no », « yes ». Autrement dit, « oui » et
   « non » repassaient en anglais à l'écran.
 
+  **Symptôme 2 — le `.mo` est écrit sans table de hachage.** Django le lit sans broncher —
+  la table est facultative et Python l'ignore —, d'où un fichier qui **rétrécit en gagnant
+  vingt entrées** ; décompilé et vérifié par la revue : 340 → 360 entrées, zéro manquante,
+  zéro différente, en-tête, charset et pluriels intacts. À régénérer quand `msgfmt` sera
+  installé.
+
   **Aucun cliquet ne lit le `.mo`.** `tests/qualite/test_contrat_traductions.py` lit le `.po`,
   qui est la source versionnée, et reste vert pendant que le catalogue compilé se vide — c'est
   écrit noir sur blanc dans ses propres limites (« un `.mo` périmé »).
@@ -629,8 +654,10 @@ décrits à l'entrée de clôture, pas ici.
   **État au 2026-09-13** : le trou est bouché par une note de commentaire posée dans le `.po`
   (D6f T5), et la recompilation ne perd plus rien — mesuré, 373 entrées des deux côtés. **Mais
   le compilateur reste faux**, et le correctif tient à la présence d'une ligne de commentaire au
-  bon endroit. À trancher hors lot : installer un vrai `msgfmt`, ou poser le cliquet qui
-  compare le `.mo` au `.po`.
+  bon endroit. **À trancher hors lot, une seule décision pour les deux symptômes** :
+  installer un vrai `msgfmt`, ou poser le cliquet qui compare le `.mo` au `.po`. **Et les
+  `msgid` dupliqués `January`..`December` du `.po`, préalables, feront broncher un vrai
+  `msgfmt`** le jour où il tournera.
 - **`api/events` répond 500 dès qu'un événement du journal désigne un patient supprimé.**
   `libreosteoweb/api/serializers/administration.py:66` fait un `.get()` **nu** sur la branche
   `Patient`, là où la branche `Examination` est gardée. Et `OfficeEvent.reference` est un
@@ -651,7 +678,7 @@ décrits à l'entrée de clôture, pas ici.
   sous le préfixe vide de `Libreosteo/urls.py:298`. Mesuré :
   `reverse("officesettings-set")` rend **`/%2F`**, slash encodé compris, et
   `reverse("officesettings-reset")` de même. Deux consommateurs réels :
-  `middleware.py:196-197`, qui **redirige** vers cette URL, et `partials/menu.html:69`, le
+  `middleware.py:196-197`, qui **redirige** vers cette URL, et `partials/menu.html:74`, le
   lien « Changer de cabinet ».
 
   ⚠️ **La garde n'est pas celle que ce journal décrivait.** L'entrée du 2026-09-10 dit le
@@ -709,7 +736,7 @@ décrits à l'entrée de clôture, pas ici.
 - **Les motifs `responseHandling` de `base.html:16` ne sont pas ancrés.** `codeMatches`
   fait correspondre `"422"` à la règle `[23].*` **par son `2`**, avant d'atteindre
   `[45].*` : **72 codes 4xx/5xx échappent au marquage `error: true`**, dont `412`, que le
-  dépôt émet réellement (`administration.py:272,279`, écran de restauration). Latent —
+  dépôt émet réellement (`administration.py:285,292`, écran de restauration). Latent —
   rien ne consomme `htmx:responseError` aujourd'hui, et les deux règles échangent leur
   effet sans conséquence visible. Hors périmètre de D6e : ancrer les motifs change le
   comportement de codes réels sur des écrans livrés, et cela mérite sa propre décision.
@@ -766,11 +793,11 @@ décrits à l'entrée de clôture, pas ici.
   mesurés ; aucun n'a de conséquence fonctionnelle, et les corriger touche quatre gabarits
   livrés.
 - **Deux inexactitudes de documentation, relevées et non corrigées.**
-  `tests/functional/helpers.py:185` affirme encore que le contrat neutre de notification
+  `tests/functional/helpers.py:199` affirme encore que le contrat neutre de notification
   accepte `growl` « pendant la cohabitation » : c'est faux depuis T12, qui a retiré `growl`
-  du dossier patient. `libreosteoweb/tests/test_socle_gabarit_actions.py:29` cite
-  `base.html:39` pour un `{% include %}` qui est à `base.html:44`. Aucune des deux ne change
-  un comportement ; les deux mentent à qui les lit.
+  du dossier patient. `libreosteoweb/tests/test_socle_gabarit_actions.py:29` et `:110`
+  citent `base.html:39` pour un `{% include %}` qui est à `base.html:81`. Aucune des deux
+  ne change un comportement ; les deux mentent à qui les lit.
 - **Le dépôt n'a pas de `.gitattributes`.** Trois normalisations de fins de ligne ont dû
   être réparées à la main pendant le lot — un script de falsification qui réécrit un
   fichier avec `open(p, "w")` transforme ses CRLF en LF et produit des centaines de lignes
@@ -791,19 +818,17 @@ décrits à l'entrée de clôture, pas ici.
   onglet. Écran de D6d, relevé par T7. S'y ajoute le même symptôme mort d'un cran plus
   haut : `cabinet.py:213` pose `onglet_initial: "general"` qu'aucun gabarit ne lit
   (`cabinet.html:29,35` code tout en dur).
-- **`locale/fr/LC_MESSAGES/django.mo` a été recompilé sans table de hachage**, `msgfmt`
-  étant absent de la machine. Django le lit sans broncher — la table est facultative et
-  Python l'ignore —, d'où un fichier qui **rétrécit en gagnant vingt entrées** ; décompilé
-  et vérifié par la revue : 340 → 360 entrées, zéro manquante, zéro différente, en-tête,
-  charset et pluriels intacts. À régénérer quand `msgfmt` sera installé. **Et les `msgid`
-  dupliqués `January`..`December` du `.po`, préalables, feront broncher un vrai `msgfmt`**
-  le jour où il tournera.
 
 ### Dette technique (constat, pas action)
 
-- Frontend AngularJS 1.5, jQuery 1.12, Bootstrap 3 : tous en fin de support, sans
-  correctifs de sécurité. Une migration serait un chantier majeur et romprait la
-  compatibilité amont — à ne pas engager sans décision explicite.
+- **Bootstrap 3 vendorisé, en fin de support et sans correctifs de sécurité.**
+  `libreosteoweb/static/css/bootstrap.css` et `bootstrap.min.css`, 3.2.0 d'après leur
+  en-tête ; le thème SB Admin 2 et les feuilles de `css/plugins/` en dépendent. C'est le
+  **seul reliquat** de cette entrée : **AngularJS 1.5 et jQuery 1.12 sont sortis de
+  l'arbre** avec D6f T10 (`6db03a8`) — ni `package.json` ni aucun gabarit ne les nomme
+  plus, et `libreosteoweb/static/js/` ne porte plus qu'un fichier du dépôt. Le reliquat
+  est un socle **visuel**, pas un framework applicatif : le remplacer est une décision de
+  base visuelle (D6g), à ne pas engager sans décision explicite.
 - ~~Dépendances frontend référencées par branche ou tag Git chez des tiers (`#*` pour une
   dizaine d'entre elles) et `yarn.lock` ignoré par `.gitignore` : le build n'est pas
   reproductible.~~ — **corrigé le 2026-09-06**, D5 : 29 refs figées sur SHA 40-hex,
@@ -882,45 +907,55 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 ### Couverture du cahier de recette (à compléter, pas cette tâche)
 
-- **Le champ « État requis » de `R-INST-07`** (`docs/recette.md:712`) porte la valeur
-  `aucun`, hors de l'énumération E0 | E1 | E2 du chapitre 2 (`docs/recette.md:157`,
-  `:336`). Cohérent avec le contenu de la fiche — elle ne monte aucune instance, elle
-  bâtit et compare deux constructions — mais le schéma documenté ne prévoit pas cette
-  valeur. Constaté par la revue finale de D5, non traité.
+- **Le champ « État requis » de `R-INST-07`** (`docs/recette.md:753`) porte la valeur
+  `aucun`, hors de l'énumération E0 | E1 | E2 du chapitre 2 (`docs/recette.md:350-359`).
+  Cohérent avec le contenu de la fiche — elle ne monte aucune instance, elle bâtit et
+  compare deux constructions — mais le schéma documenté ne prévoit pas cette valeur.
+  Constaté par la revue finale de D5, non traité. ⚠️ **À traiter avec les trois autres
+  entrées `R-INST-07` de ce journal** — lectures statiques périmées (§ Défauts constatés
+  par la passe de recette du 2026-09-12), seconde passe à rejouer et portabilité de
+  `.yarn-integrity` (§ Renvoyé par D5) : les quatre ne se ferment que par une réécriture
+  unique de la fiche.
 
 ### Renvoyé par D4 (2026-09-06)
 
 - **`--processes 1 --threads 1` n'est pas levé.** Ce n'est plus un garde-fou
-  d'intégrité depuis D3 (`Docker/build/http-ready/Dockerfile`, bloc de commentaires
-  du `CMD`), c'est un **choix de capacité** — et sa levée demande une preuve de
+  d'intégrité depuis D3 — `Docker/build/http-ready/Dockerfile:169-171` le dit dans ces
+  termes mêmes —, c'est un **choix de capacité**, et sa levée demande une preuve de
   charge que ni la recette ni la suite Playwright ne portent. Candidat à un lot
-  ultérieur qui apportera sa propre preuve.
+  ultérieur qui apportera sa propre preuve. ⚠️ **Le réglage garde un second rôle,
+  distinct de l'intégrité** : le même bloc de commentaires l'appelle **garde-fou de
+  sérialisation** (`:165` et `:168`), et c'est à ce titre que `--offload-threads 1`
+  déplace un transfert « sans ajouter le moindre parallélisme applicatif ». Les deux
+  lectures ne se contredisent pas — intégrité et sérialisation ne sont pas la même
+  chose —, mais rien ne se lève ici sans traiter `--offload-threads` dans le même geste.
 - **Ménage des dépendances mortes.** `argparse==1.2.1` (dans la stdlib depuis
   Python 2.7), `setuptools-bower` (version unique de 2014, Bower mort),
   `cherrypy==18.10.0` (importé par le seul mode standalone, `server.py:24` et
   `winserver.py:37`, hors cible depuis S4), et l'usage direct de `pytz`
-  (`libreosteoweb/api/serializers/consultation.py:15,81,84`, que Django n'impose
+  (`libreosteoweb/api/serializers/consultation.py:15,82,85`, que Django n'impose
   plus depuis 5.0). **`Whoosh==2.7.4` mérite une mention à part** : dernière release
   2016, projet sans mainteneur depuis dix ans, et il porte la recherche du produit —
   c'est de la **dette de fond, pas du ménage**, et elle ne se solde pas dans un lot
   de montée de version.
 - **Sept mentions périmées du `README.rst`**, inventoriées par D4 et laissées en
   l'état parce que les corriger serait réécrire le chapitre « Installation » :
-  `:104-105` propose `make build` puis `make run`, cible qui lance le conteneur seul
+  `:113-114` propose `make build` puis `make run`, cible qui lance le conteneur seul
   avec des volumes nommés et **sans PostgreSQL** (`Makefile:22-23`), ce que le mode
-  conteneur refuse depuis D2 — la procédure ne peut plus aboutir ; `:110-118` donne
+  conteneur refuse depuis D2 — la procédure ne peut plus aboutir ; `:118-126` donne
   un bloc `.env` où manquent `LIBREOSTEO_IMAGE_TAG` (obligatoire depuis D2),
   `LIBREOSTEO_SECRET_KEY` (obligatoire depuis S6) et `LIBREOSTEO_ALLOWED_HOSTS`,
-  `Docker/deploy/pg/.env.example` étant désormais la seule source à jour ; `:120`
+  `Docker/deploy/pg/.env.example` étant désormais la seule source à jour ; `:133`
   décrit le volume `SETTINGS` sans dire que `__init__.py` **et** `local.py` y sont
-  tous deux obligatoires ; `:154` et `:220` conseillent le module de réglages
-  `standalone`, hors cible depuis S4 ; `:167-178` présente sqlite comme le moteur
+  tous deux obligatoires ; `:398` et `:464` conseillent le module de réglages
+  `standalone`, hors cible depuis S4 ; `:411` présente sqlite comme le moteur
   par défaut et PostgreSQL comme une variante, l'inverse de la décision de S4 ;
-  `:204-217` documente le serveur CherryPy `./server.py`, même mode hors cible ;
+  `:448-454` documente le serveur CherryPy `./server.py`, même mode hors cible ;
   `:10` porte un copyright arrêté en 2021. **Les deux premiers empêchent une
   installation de réussir en suivant le texte, les cinq autres décrivent des modes
-  abandonnés** : le tri appartient au lot qui prendra le `README.rst`. (Les numéros
-  de ligne sont ceux d'avant D4 ; ils ont bougé, repérer par le texte.)
+  abandonnés** : le tri appartient au lot qui prendra le `README.rst`. (Numéros de
+  ligne relevés dans l'arbre le 2026-09-18 ; les repérer par le texte s'ils bougent
+  encore.)
 - **`404.html` non exercé unitairement par le test de non-régression de la
   déconnexion.** `TestDeconnexion`
   (`libreosteoweb/tests/test_acces.py:371`) ne rejoue le contrôle que depuis la page
@@ -928,16 +963,12 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   corrigé de façon identique par construction (même formulaire caché, même POST),
   n'est touché par aucun test. Risque résiduel non mesuré : le rendu de
   `{% csrf_token %}` dans le contexte propre à `page_not_found`.
-- **Six lignes non figées dans `requirements/requirements.txt:10-16`** :
-  `setuptools-bower`, `sqlparse`, `netifaces2`, `decorator`, `packaging`, `pytz`.
-  L'argument qui a fait épingler `django-statici18n` dans ce même lot — une version
-  non figée dans un lot nommé Socle se contredit — vaut identiquement pour elles ;
-  ni la spec ni la clôture de D4 ne les nomment.
-- **Le champ `**Prérequis**` de `R-INST-06`** (`docs/recette.md:657`) est hors du
-  schéma de fiche du chapitre 2 (`docs/recette.md:327-383` : Domaine, Couverture
+- **Le champ `**Prérequis**` de `R-INST-06`** (`docs/recette.md:689`) est hors du
+  schéma de fiche du chapitre 2 (`docs/recette.md:350-361` : Domaine, Couverture
   auto, État requis, Étapes — pas de `Prérequis`). Sans urgence : le schéma est déjà
-  en retard sur l'usage, `**Constat**` étant dans le même cas sur cinq fiches
-  (`:641`, `:703`, `:1128`, `:1454`, `:1503`).
+  en retard sur l'usage, `**Constat**` étant dans le même cas sur **quatorze** fiches
+  (`grep -c '^\*\*Constat\*\*' docs/recette.md`, mesuré le 2026-09-18), et
+  `**Prérequis**` sur une seconde, `R-INST-07` (`:756`).
 
 ### Renvoyé par D5 (2026-09-06)
 
@@ -952,7 +983,12 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   2026-09-07T02:45:20+02:00 (commit `a29d205`) :
   `4f388c0a9c7a988e39ce4a58a98719370678e3a3daa501176c86946d2c3ed21e`, sur **huit** noms.
   Une seconde passe, à une date réellement différente, reste à jouer pour confirmer la
-  reproductibilité dans le temps.
+  reproductibilité dans le temps. ⚠️ **À traiter avec les trois autres entrées
+  `R-INST-07` de ce journal** — lectures statiques périmées (§ Défauts constatés par la
+  passe de recette du 2026-09-12), « État requis » hors énumération (§ Couverture du
+  cahier de recette) et portabilité de `.yarn-integrity` (ci-dessous) : les quatre ne se
+  ferment que par une réécriture unique de la fiche, et la passe ne se rejoue pas sur une
+  fiche périmée.
 - **`FROM python:3.14-alpine` reste le dernier intrant mobile de la chaîne de
   construction**, et c'est assumé, pas oublié : le couplage aux versions `apk` de
   `nodejs`/`npm` que ce même lot épingle est voulu, puisqu'il fait échouer la
@@ -965,15 +1001,25 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   lui-même. À rendre explicite dans un lot ultérieur.
 - **Aucune montée de version frontend.** A6 a gelé l'arbre du 2026-08-30, **CVE connues
   comprises** : c'est assumé et c'est l'objet de D6. Le gel des refs Angular perdra
-  d'ailleurs sa valeur avec AngularJS ; les **neuf familles vendorisées** — Bootstrap
-  3.2.0 et le thème SB Admin 2 en tête — sont le socle visuel et non le framework, et
-  sont le sous-ensemble de D5 dont la valeur ne s'évapore pas. Elles sont inventoriées
-  dans le `README.rst`, section « Vendored third-party assets ».
+  d'ailleurs sa valeur avec AngularJS ; les familles vendorisées — Bootstrap 3.2.0 et le
+  thème SB Admin 2 en tête — sont le socle visuel et non le framework, et sont le
+  sous-ensemble de D5 dont la valeur ne s'évapore pas. Elles sont inventoriées dans le
+  `README.rst`, section « Vendored third-party assets », qui en annonce **huit** — et non
+  neuf comme cette entrée l'écrivait — depuis le retrait d'`animatescroll`. Ce même
+  inventaire note que **DataTables n'a aucun consommateur** : vérifié le 2026-09-18,
+  aucun gabarit de `libreosteoweb/templates/` ne le nomme. ⚠️ **L'inventaire est
+  lui-même à relire** : D6f T10 (`6db03a8`) a supprimé le JavaScript de plusieurs de ces
+  familles sans toucher au tableau du `README.rst`, qui liste encore
+  `js/plugins/jquery.sparkline.min.js`, `js/sb-admin-2.js` et `js/plugins/timeAgo.js`.
 - **Les cinq lignes non figées restantes de `requirements/requirements.txt`** —
-  `sqlparse`, `netifaces2`, `decorator`, `packaging`, `pytz` — restent où D4 les a
-  renvoyées. Le critère de tri de D5 était mécanique : est dans D5 ce qui entre dans la
-  chaîne de production des actifs servis. Ces cinq-là n'y sont pas. `setuptools-bower`,
-  qui figurait dans la même liste, **est traité par D5** et sort donc de ce renvoi.
+  `sqlparse` (l. 20), `netifaces2` (l. 21), `decorator` (l. 22), `packaging` (l. 23) et
+  `pytz` (l. 25) — restent où D4 les a renvoyées. Le critère de tri de D5 était
+  mécanique : est dans D5 ce qui entre dans la chaîne de production des actifs servis.
+  Ces cinq-là n'y sont pas. `setuptools-bower`, qui figurait dans la même liste, **est
+  traité par D5** et sort donc de ce renvoi. **Cette entrée absorbe le renvoi de D4**,
+  qui décrivait les mêmes lignes en annonçant six entrées et `:10-16` — chiffre et
+  numéros périmés depuis le départ de `setuptools-bower` ; elle est la seule à jour, et
+  le renvoi de D4 a été retiré le 2026-09-18.
 - **L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
   Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
   lots restants »). Ce n'est pas une dette de D5 — le gel supprime la dérive dans le
@@ -982,12 +1028,16 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 Deux constats mineurs versés au passage par D5, sans rapport avec le périmètre du lot :
 
-- **`collectstatic` copie 1202 fichiers jamais servis** — documentations et exemples que
+- **`collectstatic` copie des fichiers jamais servis** — documentations et exemples que
   les paquets `@components/…` embarquent et que `collectstatic` recopie en bloc, sans
   qu'aucun gabarit ni JS n'y fasse référence. Constaté par contre-épreuve (T4, purge des
-  sept dépendances mortes) : le hachage global de `static/` change de 1202 fichiers sans
-  qu'aucun des neuf noms `output.<hash>` ne bouge. Alourdit l'image sans utilité, hors
-  périmètre de D5.
+  sept dépendances mortes) : **1202 fichiers** alors, le hachage global de `static/`
+  changeant de 1202 fichiers sans qu'aucun des neuf noms `output.<hash>` ne bouge.
+  ⚠️ **Le chiffre est caduc et la mesure est à refaire** : il venait des paquets
+  `@components/…`, ramenés à **deux** (`alpinejs`, `htmx`) par D6e T13 et D6f T10. Le
+  volume restant ne peut se connaître qu'en rejouant `collectstatic` — ce que la passe de
+  correspondance du 2026-09-18 n'a pas fait, et pourquoi elle n'a pas remplacé le chiffre
+  par un autre. Alourdit l'image sans utilité, hors périmètre de D5.
 - **La portabilité de `node_modules/.yarn-integrity` sur une autre architecture n'est
   pas vérifiée.** Son premier champ, `systemParams`, encode l'architecture et l'ABI de
   Node (`linux-x64-137`, mesuré ici) ; l'empreinte (a) de `R-INST-07` ne l'exclut pas.
@@ -995,7 +1045,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   machine), donc sans effet constaté ; un rejeu sur une autre architecture y verrait
   probablement diverger l'empreinte (a) pour une raison étrangère à l'arbre de
   dépendances lui-même — à vérifier alors, et à exclure de l'empreinte si la divergence
-  se confirme.
+  se confirme. ⚠️ **À traiter avec les trois autres entrées `R-INST-07` de ce journal** —
+  lectures statiques périmées (§ Défauts constatés par la passe de recette du
+  2026-09-12), « État requis » hors énumération (§ Couverture du cahier de recette) et
+  seconde passe à rejouer (ci-dessus) : les quatre ne se ferment que par une réécriture
+  unique de la fiche.
 
 ### Constats de facturation (2026-09-06)
 
