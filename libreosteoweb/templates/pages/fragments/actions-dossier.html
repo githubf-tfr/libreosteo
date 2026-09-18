@@ -36,7 +36,7 @@
 {# une seance qui vient de naitre. #}
 <ul class="nav navbar-top-links navbar-right" id="actions-dossier"{% if actions_hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
   <li>
-    <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition === null"
+    <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition === null"{% if consultation_en_cours %} style="display: none"{% endif %}
             @click="edition = actif; $dispatch('dossier-editer-' + actif)"><i class="fa fa-edit"></i> {% trans 'Edit' %}</button>
     <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition !== null" style="display: none"
             @click="$dispatch('dossier-fin-edition'); edition = null"><i class="fa fa-thumbs-o-up"></i> {% trans 'End of editing' %}</button>

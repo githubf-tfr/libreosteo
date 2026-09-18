@@ -19,7 +19,7 @@
     </h1>
 
     <div x-data="{ actif: '{{ onglet_initial }}' }">
-      {% include "partials/onglets.html" %}
+      {% include "partials/onglets.html" with actif_initial=onglet_initial %}
       <div class="tab-content">
 
         {% if allow_data_dump %}

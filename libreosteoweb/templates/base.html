@@ -13,7 +13,10 @@
     {# cible et l'utilisateur ne verrait rien. La zone d'erreur de la restauration est un #}
     {# conteneur neutre et vide, et c'est la reponse qui porte son role="alert" (A9, F7). #}
     {# 204 reste sans echange : c'est le code du pont de session (A5). #}
-    <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23].*","swap":true},{"code":"[45].*","swap":true,"error":true}]}'>
+    {# Motifs ancres (`^`) : `codeMatches` teste sans ancre, et "[23].*" matchait un code #}
+    {# comme 412 par son seul chiffre "2", avant d'atteindre "[45].*" (tests/qualite/ #}
+    {# test_contrat_response_handling.py). #}
+    <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"^[23].*","swap":true},{"code":"^[45].*","swap":true,"error":true}]}'>
 
     <title>{% block titre %}LibreOsteo{% endblock %}</title>
 

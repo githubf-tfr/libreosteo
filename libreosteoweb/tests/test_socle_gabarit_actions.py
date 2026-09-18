@@ -26,7 +26,7 @@ Ce fichier etablit trois choses :
    surcharge recopie la garde `{% if request.user.is_authenticated %}` du parent, sans
    quoi elle la supprime ;
 3. **une variable de contexte de vue le remplit aussi**, et c'est le fait que la mesure a
-   corrige : `base.html:39` inclut `partials/menu.html` **sans `only`**, donc l'include
+   corrige : `base.html:84` inclut `partials/menu.html` **sans `only`**, donc l'include
    herite du contexte de rendu complet. E8 annoncait que seule la surcharge de bloc
    fonctionnait ; c'est faux, et le troisieme test le fige pour que la correction ne se
    reperde pas.
@@ -107,7 +107,7 @@ class TestGabaritActions(TestCase):
 
     def test_le_contexte_de_vue_remplit_aussi_le_bandeau(self) -> None:
         # Meme gabarit que le test precedent, **sans** surcharge du bloc `menu` : seul le
-        # contexte de rendu change. L'include de `base.html:39` n'a pas de `only`, donc il
+        # contexte de rendu change. L'include de `base.html:84` n'a pas de `only`, donc il
         # voit la variable. Les deux tests forment la falsification l'un de l'autre.
         rendu = self._rendre(
             GABARIT_SANS_ACTIONS,

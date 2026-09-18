@@ -58,7 +58,7 @@
       <label for="addDocumentMedicalReport">{% trans 'Add document' %}</label>
       <input type="file" id="addDocumentMedicalReport" name="fichiers" multiple
              @change="choisi = $el.files.length > 0; nom = $el.files.length ? $el.files[0].name : ''">
-      <p class="help-block" x-show="!choisi">{% trans 'Add document as medical report. Could be image, pdf, text file, ...' %}</p>
+      <p class="help-block" x-show="!choisi"{% if choisi %} style="display: none"{% endif %}>{% trans 'Add document as medical report. Could be image, pdf, text file, ...' %}</p>
     </div>
     {% if formulaire.errors %}
     <div class="alert alert-danger" role="alert">

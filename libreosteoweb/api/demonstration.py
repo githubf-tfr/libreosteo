@@ -12,28 +12,22 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-from datetime import datetime
-
 from django.core.files.base import ContentFile
 
-from libreosteoweb import models
+TEXTE_DEMONSTRATION = (
+    "For security purpose, no document could be uploaded on this demonstration instance"
+)
 
 
-def get_demonstration_file():
-    demonstration_file = models.Document.objects.filter(title="demonstration").first()
-    if demonstration_file is None:
-        document_file = models.Document(
-            title="demonstration",
-            notes="This is a demonstration attached file",
-            internal_date=datetime.today(),
-        )
-        document_file.document_file.save(
-            "demonstration.txt",
-            ContentFile(
-                "For security purpose, no document could be uploaded on this demonstration instance"
-            ),
-        )
-        document_file.clean()
-        document_file.save()
-        demonstration_file = document_file
-    return demonstration_file.document_file
+def get_demonstration_file() -> ContentFile:
+    """Un contenu de remplacement, non commite, distinct a chaque appel.
+
+    Renvoyait auparavant le `FieldFile` d'un unique `Document` cree une fois pour toutes :
+    tout document attache en demonstration pointait donc **le meme chemin** sur le disque.
+    `Document.delete()` (models.py:681), appele par `receivers.py:103` a la suppression de
+    l'un, effacait ce chemin pour tous les autres. Un `ContentFile` non commite fait
+    ecrire, a chaque attachement, un fichier neuf sous un nom genere par
+    `chemin_de_stockage_du_document` (uuid4) : plus rien n'est partage. Verse au
+    `KANBAN.md`, defauts de D6e ; portee bornee a la seule instance de demonstration.
+    """
+    return ContentFile(TEXTE_DEMONSTRATION, name="demonstration.txt")

@@ -1210,6 +1210,54 @@ class TestSuppression(_SocleDuPatient):
         )
 
 
+class TestSuppressionEnDemonstration(_SocleDuPatient):
+    """Defaut verse par D6e : en demonstration, tous les documents partageaient un fichier.
+
+    `get_demonstration_file()` renvoyait le meme `FieldFile`, deja ecrit sur le disque, a
+    chaque document cree : les deux documents pointaient donc **le meme chemin**, et
+    `Document.delete()` (models.py:681), appele par `receivers.py:103` a la suppression de
+    l'un, effacait ce chemin pour l'autre aussi.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.remplacement = override_settings(DEMONSTRATION=True)
+        self.remplacement.enable()
+        self.addCleanup(self.remplacement.disable)
+        with translation.override("fr"):
+            self.depose_un_document(titre="Premier")
+            self.depose_un_document(titre="Second")
+        self.premier, self.second = PatientDocument.objects.order_by("document_id")
+
+    def test_deux_documents_en_demonstration_ont_des_fichiers_distincts(self) -> None:
+        self.assertNotEqual(
+            self.premier.document.document_file.name,
+            self.second.document.document_file.name,
+        )
+
+    def test_supprimer_un_document_en_demonstration_ne_supprime_pas_le_fichier_des_autres(
+        self,
+    ) -> None:
+        import os
+
+        chemin_du_second = self.second.document.document_file.path
+
+        with translation.override("fr"):
+            self.client.post(
+                reverse(
+                    "document-suppression",
+                    args=[self.patient.pk, self.premier.document.pk],
+                )
+            )
+
+        self.assertTrue(os.path.exists(chemin_du_second))
+        with open(chemin_du_second, "rb") as fichier:
+            self.assertIn(
+                b"For security purpose, no document could be uploaded",
+                fichier.read(),
+            )
+
+
 class TestPreservationDesSurfaces(_SocleDuPatient):
     """Le cliquet de D9 : **qui** declare un element preservable, et qui ne le declare pas.
 

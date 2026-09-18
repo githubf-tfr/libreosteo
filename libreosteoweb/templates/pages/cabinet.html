@@ -26,8 +26,8 @@
         {% trans 'Office settings' %}
     </h1>
 
-    <div x-data="{ actif: 'general' }">
-      {% include "partials/onglets.html" %}
+    <div x-data="{ actif: '{{ onglet_initial }}' }">
+      {% include "partials/onglets.html" with actif_initial=onglet_initial %}
       <div class="tab-content">
         <div id="onglet-general" x-show="actif === 'general'">
           {% include "pages/fragments/cabinet-general.html" %}

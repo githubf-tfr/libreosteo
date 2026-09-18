@@ -195,9 +195,9 @@ def enregistrer_formulaire(page: Page, bouton: Locator) -> None:
     prouverait pas davantage sous htmx que sous Angular : l'echange de fragment a lieu
     des la reponse, notification comprise.
 
-    Elle vaut pour les deux implementations de notification pendant la cohabitation
-    (`growl` pour les ecrans de D6e, le composant de D6c pour ceux de D6d), le contrat
-    neutre acceptant les deux (D6d, A18).
+    La cohabitation a pris fin a D6e T12 : `growl` est retire du dossier patient, et seul
+    le composant de D6c (`partials/notification.html`) produit la notification que cette
+    barriere attend, via le contrat neutre pose par D6d (A18).
     """
     attendre_notification_de_succes(page, bouton.click)
 
