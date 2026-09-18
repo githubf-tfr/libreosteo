@@ -33,7 +33,12 @@ omit = [
 # 2026-08-31 : relevé à 89 à la clôture de S2 (lot 5), couverture constatée 89,24 %.
 # 2026-09-02 : relevé à 90 à la clôture de S6, couverture restée au-dessus de 90 % sur
 # tout le sprint, constatée 90,57 % à la clôture.
-fail_under = 90
+# 2026-09-18 : relevé à 94 à la clôture de D6f, couverture constatée 94,50 % et tenue
+# au-dessus de 94,30 % depuis la clôture de D6e (94,30 puis 94,55 puis 94,50). La marge
+# laissée est d'environ 21 instructions sur 4 257 : de quoi absorber un module neuf
+# partiellement couvert sans faire rougir un commit honnête. 94,5 serait fragile, la
+# valeur ayant déjà oscillé d'un quart de point sans la moindre régression.
+fail_under = 94
 
 [tool.ruff]
 # Reste volontairement en retrait du plancher d'execution, qui est 3.14 (cf.
