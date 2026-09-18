@@ -403,6 +403,20 @@ vécu depuis.
   `Document.document_file` sans déplacer aucun fichier : les chemins déjà en base restent
   ceux de l'amont. Un document ancien doit donc encore être servi après reprise — non
   éprouvé, la première passe n'a pas regardé ce point.
+- ⚠️ **Une vérification de reprise de données est due, et elle porte sur une donnée
+  clinique écrite à tort** (ouverte le 2026-09-18 par D9, correctif `d1123e5`). La clôture
+  d'une consultation **depuis le volet en édition** préremplissait la **raison de
+  non-facturation** avec le **motif clinique de la consultation** — `Examination.reason` et
+  la raison de non-facturation portent le même nom `reason` —, et ce texte partait en base
+  si le praticien validait sans y toucher. **Le jeu de développement est sain** (aucune
+  consultation n'y porte une raison égale à son motif), **mais le défaut a pu tourner en
+  production** : la fenêtre s'étend de la mise en service du volet migré au 2026-09-18.
+  **À porter au diagnostic en lecture seule de l'étape 2** — un agrégat de plus, exécuté
+  par l'utilisateur sur son archive : le nombre de consultations dont la raison de
+  non-facturation est **égale** à `reason`, et leur liste d'identifiants. La donnée de santé
+  ne transite ni par la session ni par ses sous-agents. Une reprise éventuelle est un
+  effacement de champ, pas une conversion : ⚠️ **elle ne se décide pas sans l'utilisateur**,
+  une raison légitimement identique au motif étant possible.
 
 ### Passe de comparaison avec l'ancienne version (décidé le 2026-09-13, différé)
 
@@ -756,16 +770,30 @@ décrits à l'entrée de clôture, pas ici.
      **clic**, pas au résultat : si son `hx-get` échoue, le formulaire reste à l'écran avec
      la saisie et la garde est désarmée. L'abandon est demandé par le praticien, la perte
      est son geste. Décrit à `R-PAT-12` étape 5.
-  2. `dossier-corps.html:30` désarme aussi, par un `x-init` posé dans la réponse d'un
+  2. ~~`dossier-corps.html:30` désarme aussi, par un `x-init` posé dans la réponse d'un
      **`GET`** — le corps rafraîchi repose `modifie = false` en même temps que l'onglet
      actif. C'est voulu (une clôture ne doit pas laisser la garde armée) et `test_page_
-     dossier_patient.py::test_le_corps_rafraichi_desarme_la_garde` le fige.
-  3. **Le troisième chemin est une perte, pas seulement un désarmement** : `#dossier-corps`
+     dossier_patient.py::test_le_corps_rafraichi_desarme_la_garde` le fige.~~ — **fermé le
+     2026-09-18 par D9 T3** (`2111549`). Le `modifie = false` a quitté la ligne 30, et le
+     test qui figeait le comportement est **retourné, pas supprimé** :
+     `test_le_corps_rafraichi_ne_desarme_plus_la_garde`. **Ce qui était voulu ne l'est
+     plus**, et le motif du renversement est écrit : ce désarmement valait tant que la
+     saisie était détruite avec le corps ; D9 la conserve, donc la garde doit rester armée.
+  3. ~~**Le troisième chemin est une perte, pas seulement un désarmement** : `#dossier-corps`
      échangé en `outerHTML` **détruit** toute saisie en attente dans le bloc de
      téléversement, une vignette en édition ou un volet de commentaires — et désarme la
-     garde **dans le même geste**. Le praticien ne voit ni avertissement ni trace.
-  **Rangés plutôt que corrigés** : un drapeau par surface est la refonte déjà versée à
-  l'entrée de clôture de D6e, et elle seule fermerait le troisième chemin.
+     garde **dans le même geste**. Le praticien ne voit ni avertissement ni trace.~~ —
+     **fermé le 2026-09-18 par D9 T2 et T3** (`7b79d33`, `2111549`). Les trois surfaces
+     permanentes portent `hx-preserve` au seul rendu du corps, donc la saisie survit ; et
+     le désarmement de `siEcritureReussie` est borné aux requêtes **émises depuis une
+     surface de saisie**, donc le `POST` de « Démarrer une consultation » ne désarme plus.
+  **Ce qu'il reste de l'entrée** : le **chemin 1 seul**, et il est volontaire — l'abandon
+  d'une vignette est demandé par le praticien, la perte est son geste. Décrit à `R-PAT-12`
+  étape 5 et au constat de la fiche. ⚠️ **Le renvoi « rangés plutôt que corrigés » est
+  périmé** : il désignait « un drapeau par surface », la refonte versée à l'entrée de
+  clôture de D6e, comme le seul remède du troisième chemin. C'était faux — ce drapeau répare
+  l'avertissement et **jamais** la destruction. Le remède était ailleurs (`hx-preserve`), et
+  le drapeau par surface n'est plus qu'un raffinement. Cf. l'entrée de clôture de D9.
 - **La chronologie alterne ses panneaux gauche/droite, et elle ne l'avait jamais fait.**
   `chronologie.html:30` pose `timeline-inverted` une ligne sur deux ; `timeline.html:9`
   écrivait `ng-class="{'timeline-inverted': examination.order %2 == 0 }"`, et **`order`
@@ -1031,6 +1059,15 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 ### Défauts produit constatés en recette (à traiter, pas encore planifiés)
 
 - ~~**2026-09-09 — perte silencieuse de donnée médicale dans le dossier patient.** Un clic ou un `Tab` pendant l'édition soumettait l'éditable autonome `original_name` et le callback `$scope.patient = data` effaçait en bloc antécédents, traitement en cours et motifs.~~ — **corrigé le 2026-09-11 par le lot D8**, cliquet de gabarit posé. À retenir de ce défaut, indépendamment de son remède : **il a vécu en production, et c'est un filet de test qui l'a trouvé, pas une revue de code.** Il a été découvert en retirant une barrière d'attente écrite pour le contourner sans l'avoir nommé — donc par le geste même que D6b faisait. C'est l'argument le plus réutilisable du chantier D6 : le filet ne sert pas qu'à protéger la bascule, il révèle ce que le produit cache. **La passe de recette `R-PAT-08` reste due.**
+- **2026-09-18 — la passe de recette de D9 reste due, et c'est la huitième clause du lot**
+  (cf. « Terminé », entrée D9). `R-PAT-13` « Aucune saisie perdue quand l'écran se
+  recompose » (`docs/recette.md:2022`) doit être jouée **une fois à la main** sur le
+  déploiement de référence `Docker/deploy/pg/docker-compose.yml`, ses **cinq** attendus
+  constatés un par un, et `R-PAT-12` rejouée sur son **étape 6** neuve. Ni sqlite ni le mode
+  standalone ne sont recettés. **Ce que cette passe seule peut voir** : la boîte de dialogue
+  du navigateur elle-même (étape 2) — les tests lisent le marqueur que `beforeunload`
+  interroge, jamais sa conséquence — et le fait que la préservation n'empêche **aucune**
+  écriture d'aboutir (étape 5). Tout KO est **noté, jamais corrigé pendant la passe**.
 
 ### Couverture du cahier de recette (à compléter, pas cette tâche)
 
@@ -1262,6 +1299,178 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-18 — D9 : une saisie clinique en cours survit au rafraîchissement du dossier
+  patient ; sept clauses sur huit constatées, la passe de recette humaine reste due**
+  (cinq tâches ; spec
+  `docs/superpowers/specs/2026-09-18-d9-perte-de-saisie-du-dossier-design.md` ; plan
+  supprimé à la clôture, selon la convention du dépôt).
+  **Cinq commits `798d3be..7174661`**, **13 fichiers, +3 194/−49**. Les trois surfaces
+  permanentes du corps — bloc de téléversement, vignette de document en édition, volet de
+  commentaires de séance — portent désormais `hx-preserve`, **conditionné au seul rendu du
+  corps** par une variable de gabarit `preserver` posée aux trois `{% include %}`. Le corps
+  continue d'être recomposé d'un bloc : la décision de D6e n'est pas rouverte.
+
+  **Les cinq tâches et leurs commits**
+
+  | # | Tâche | Commit |
+  |---|---|---|
+  | T1 | **Spike au navigateur** : `hx-preserve` mesuré avant toute ligne de production | aucun, par construction |
+  | T2 | Les trois tests de survie rouges puis verts, `hx-preserve` et ses sept assertions d'attribut | `7b79d33` |
+  | T3 | La garde de sortie cesse d'être désarmée par la recomposition | `2111549` |
+  | T4 | Recette : `R-PAT-13` neuve, `R-PAT-12` retouchée d'une étape | `7174661` |
+  | T5 | Clôture : les huit clauses, cette entrée | cette entrée |
+
+  S'y ajoutent, hors tâche : `03dcf92` (spec et plan) et **`d1123e5`, hors plan** — la
+  corruption trouvée en chemin, décrite plus bas.
+
+  **Les huit clauses de sortie, rejouées ou attestées le 2026-09-18**
+
+  | # | Clause | Constat réel | Verdict |
+  |---|---|---|---|
+  | 1 | L'état de départ est celui que la spec suppose | sur `eb27039` : `hx-preserve` → **0** ; `modifie = false` → **une** occurrence, `dossier-corps.html:30` ; `data-surface-de-saisie` → **9** fichiers ; htmx **2.0.10** ; **126** `def test_` plus **un** `parametrize` sur trois fragments, soit **128** fonctionnels collectés | constatée (T1 Step 1, rejouée à la clôture) |
+  | 2 | Le mécanisme **constaté au navigateur**, non seulement lu | O1 (identité du nœud), O2 (état Alpine **et** sélection de fichier), O3 (chemin hors-bande) verts au spike de T1 ; O4 **relevé et remesuré à la clôture** : le Chromium du filet, **151.0.7922.34**, expose `moveBefore` — htmx prend donc la branche **garde-meuble** `#--htmx-preserve-pantry--` (`htmx.js:1538-1546`), jamais `replaceChild` (`:1548`) | constatée, **avec une réserve écrite** : le spike était jetable par construction et ses sorties `-s` n'ont pas été conservées. O4 a été remesuré ; O1 à O3 reposent sur l'attestation de `7b79d33` et sur le rouge→vert des trois tests de survie, qui mesurent les mêmes effets par un autre bout |
+  | 3 | Les trois tests de survie rouges avant, verts après | rouges attestés par `7b79d33` (« les trois tests de survie rouges avant correctif et verts apres ») ; rejoué à la clôture : **`3 passed, 26 deselected, 11 warnings in 15.97s`** | constatée |
+  | 4 | Aucune réponse d'autorité ne porte `hx-preserve`, et les trois fichiers d'autorité du filet n'ont pas bougé | **`7 passed, 1 warning in 9.14s`** ; `git diff --name-only 798d3be 7174661 -- tests/functional/test_documents.py tests/functional/test_consultation.py tests/functional/helpers.py` → **vide** | constatée |
+  | 5 | La garde survit à la recomposition ; les **six** preuves existantes vertes sans modification | rouge de T3 attesté par `2111549` ; `git diff 798d3be 7174661 -- tests/functional/test_patient.py \| grep -c '^-[^-]'` → **0** ligne supprimée | constatée |
+  | 6 | `make check` vert, cliquets tenus | **`884 passed, 8 warnings in 224.59s`** ; `Required test coverage of 94.0% reached. Total coverage: 94.90%` ; périmètre `mypy` **171** ; `ruff` `ignore = []` ; **zéro** `noqa`, `type: ignore`, `skip` ou `xfail` neuf | constatée, **sauf une sous-clause, et c'est assumé** : « zéro fichier Python de produit modifié » est **fausse** — `libreosteoweb/api/views/pages/consultation.py` (+26/−1) a été touché par `d1123e5`, le correctif hors plan. Les quatre commits du plan, eux, n'écrivent **aucun** Python de produit |
+  | 7 | **Vingt** lancements consécutifs verts de la suite fonctionnelle complète | **`132 passed, 24 warnings`** aux **vingt** exécutions (`repet-11.log`..`repet-30.log`, ledger du lot) ; durées min **466,69 s**, médiane **469,61 s**, max **472,65 s** | constatée |
+  | 8 | `R-PAT-13` jouée **une fois à la main** sur le déploiement de référence, `R-PAT-12` rejouée sur son étape neuve | **aucune passe jouée** : rien au dépôt, rien au journal | **non constatée** — versée en « À faire », § Défauts produit constatés en recette |
+
+  **Le lot n'est donc pas clos au sens de son propre critère**, qui exige les huit. Il est
+  clos sur les sept que le dépôt sait constater seul ; la huitième demande un humain devant
+  un navigateur et reste due.
+
+  **Les deux chiffres du plan qui étaient périmés, et pourquoi**
+
+  **Clause 6 : 884 et non 855.** Le plan écrivait 855 sur une base qui a bougé sous lui.
+  L'écart est nommable commit par commit : **857** à l'ouverture réelle (`798d3be`), **+12**
+  par D9 — les **sept** assertions d'attribut de T2 et les **cinq** de `d1123e5` —, soit
+  **869** à `7174661` ; les **quinze** derniers viennent de `7871258`, **hors lot**.
+  **Clause 7 : 132 et non 128.** Les quatre tests fonctionnels neufs du lot : les trois de
+  survie (T2) et la preuve de garde de T3.
+
+  **Le défaut, et l'argument le plus réutilisable du lot**
+
+  Une **perte de donnée médicale silencieuse a vécu dans `main` pendant cinq jours,
+  correctement versée et décrite au journal** (entrée D6e du 2026-09-13, troisième chemin de
+  la garde de sortie) **sans être corrigée** — parce que le remède qui lui avait été associé,
+  « un drapeau par surface », **ne la corrigeait pas** : il répare l'avertissement, jamais la
+  destruction. **Un défaut correctement décrit peut être rangé sous un remède qui ne le
+  referme pas**, et la description ne le signale pas d'elle-même. Le geste qui le
+  déclenchait ne demandait aucune manœuvre exotique : taper un commentaire sous une séance,
+  puis cliquer « Démarrer une consultation », bouton situé juste au-dessus sur le même écran.
+  C'était silencieux deux fois — le même `x-init` reposait `actif`, donc le praticien était
+  déplacé d'onglet et ne voyait pas le champ vide.
+
+  **L'inventaire des surfaces, qui n'existait nulle part sous forme de table avant le
+  cadrage** : **huit** surfaces de saisie portent `data-surface-de-saisie`, dont **sept**
+  vivent dans `#dossier-corps` et **trois** y sont **permanentes** — c'est-à-dire présentes
+  hors de tout geste d'édition, donc susceptibles de porter une saisie au moment où le corps
+  est échangé. Ce sont exactement les trois que le lot marque.
+
+  **La règle de conception que le lot inscrit**
+
+  *Un échange ne réécrit que les éléments dont il est l'autorité ; les autres sont déclarés
+  préservables à l'`{% include %}` qui renonce.* Elle est portée **dans le commentaire de
+  `dossier-corps.html`**, au-dessus des trois includes — à l'endroit exact où la faute se
+  commettrait —, et non dans un document que personne ne relit en éditant un gabarit. Son
+  corollaire est écrit au même endroit : **poser l'attribut sur une réponse d'autorité
+  l'empêcherait de rafraîchir son propre élément**, ce que sept assertions unitaires
+  (`TestPreservationDesSurfaces`) tiennent en cliquet.
+
+  **Le spike a sauvé le lot, et c'est la leçon de méthode n° 1**
+
+  `hx-preserve` n'avait **jamais été mesuré sur ce dépôt** : les faits qui le fondaient
+  étaient des lectures concordantes de la source vendue d'htmx et d'Alpine — une raison de
+  croire, pas une raison de savoir. T1 l'a mesuré **avant qu'une ligne de production ne soit
+  écrite**. Son premier passage a **rougi** — mais pour une raison **étrangère au lot** :
+  `helpers.cloturer_consultation` n'envoie `#reason` que si l'argument `raison` lui est
+  passé, et le chemin de clôture « en lecture » refuse alors en **422**. **Sans
+  l'instruction de cet échec, le lot se serait recadré sur le repli coûteux d'A1 — scinder
+  `#dossier-corps` en deux cibles — pour un défaut de test.** Un spike qui rougit s'instruit
+  avant d'être cru.
+
+  **La corruption trouvée en chemin, et corrigée : `d1123e5`**
+
+  L'instruction de ce rouge a déterré un défaut que personne ne cherchait. La clôture
+  **depuis le volet en édition** préremplissait la **raison de non-facturation** avec le
+  **motif clinique de la consultation** — `Examination.reason` et la raison de
+  non-facturation portent le même nom `reason` —, et ce texte **partait en base** si le
+  praticien validait sans y toucher. Ce n'était pas une collision de noms mais une confusion
+  de requête : `modale_de_facturation` supposait que `request` était toujours la soumission
+  de sa propre modale. ⚠️ **Une vérification de reprise de données reste due sur la base de
+  production** — le jeu de développement est sain, mais le défaut a pu tourner en
+  production. Versée en « À faire », § Reprise du parc.
+
+  **Le piège de framework qui a coûté la moitié de T3 : `detail.elt` n'est pas fiable**
+
+  La forme prescrite par le plan, `evenement.detail.elt.closest(...)`, **cassait trois des
+  six preuves de garde existantes**. Dès que la réponse remplace la **racine même** de la
+  surface, ou détruit l'élément déclencheur par un `hx-swap-oob` distinct, htmx **réécrit
+  `detail.elt`** sur un élément de secours arbitraire (`htmx.js:4581-4595`).
+  `detail.requestConfig.elt`, lui, est posé **une seule fois à l'émission et jamais
+  réécrit** : `closest()` y fonctionne encore sur un nœud détaché, la chaîne vers l'ancêtre
+  marqué survivant hors du document. Le fait est écrit **sur place**, en commentaire de
+  `dossier-patient.html`, et repris en « Pièges rencontrés ».
+
+  **Une asymétrie que la spec ne nommait pas, et qui rendrait une preuve rouge à tort**
+
+  `handlePreservedElements` lit `[hx-preserve]` **dans le fragment de réponse** et se
+  contente d'un `getElementById(id)` pour le nœud vivant (`htmx.js:1533-1536`). Après un
+  échange d'**autorité**, le nœud à l'écran est donc remplacé par un nœud **sans**
+  `hx-preserve` — et la préservation continue de fonctionner, parce qu'elle ne dépend que de
+  la réponse du corps. **Une preuve écrite à l'envers — « le nœud à l'écran doit porter
+  l'attribut » — serait rouge à tort après tout envoi.** Toutes les assertions du lot
+  interrogent la **réponse** ; les quatre tests fonctionnels mesurent l'**effet**, jamais
+  l'attribut.
+
+  **Une campagne de stabilité a dû être jetée, et c'est la leçon de méthode n° 2**
+
+  Une première campagne a été arrêtée à **trois vertes** (`repet-01.log`..`repet-04.log`)
+  parce qu'un **agent parallèle modifiait un gabarit pendant qu'elle tournait**. La règle du
+  dépôt « jamais deux suites en parallèle » ne suffisait pas à l'interdire : elle s'élargit
+  donc en **rien ne doit modifier l'arbre pendant une campagne de stabilité**, pas seulement
+  rien ne doit lancer une seconde suite. Le compteur est reparti de zéro sur un arbre gelé
+  (`7871258`), et les vingt suivantes sont vertes.
+
+  **Ce que D9 renvoie plus loin, avec son motif**
+
+  - **Le drapeau par surface** n'est plus un remède mais un **raffinement** de
+    l'avertissement : son motif principal — fermer la perte — lui a été retiré par
+    `hx-preserve`. Reste ce qu'il apporterait seul : une garde qui sait **quelle** surface
+    porte une saisie, donc un désarmement plus fin que l'actuel.
+  - **Les six cases hors diagonale d'A7.** Le filet éprouve **chaque déclencheur au moins
+    une fois et chaque surface au moins une fois** — trois tests au lieu de neuf. Les six
+    autres couples sont couverts **au niveau de l'attribut** par les assertions unitaires,
+    **jamais au niveau de l'effet**. Elles reposent sur le fait que le mécanisme est le
+    même : argument de lecture, pas de mesure.
+  - **L'absence de cliquet mécanique contre une future surface permanente** (A8), assumée.
+    La règle statique qui l'exprimerait — « toute surface de saisie incluse depuis
+    `dossier-corps.html` doit être préservable » — serait **fausse dès aujourd'hui** :
+    `consultation-edition.html` porte `data-surface-de-saisie` et ne doit **pas** être
+    préservé. Elle naîtrait avec une liste d'exceptions, c'est-à-dire fossilisée. Le
+    garde-fou est le commentaire, pas un test.
+  - **Le périmètre du marquage des vignettes est plus large que la surface visée** : A2 et
+    A3 posent la condition sur le gabarit de **lecture**, donc sur **toutes** les vignettes
+    du patient et pas seulement sur celle qui porte une saisie. Conséquence non dite et
+    assumée : après une recomposition, **aucune** vignette n'est réécrite. Le seul chemin
+    qui change un titre en base est déjà sa propre autorité, et rafraîchit sa vignette
+    lui-même.
+  - **`R-PAT-13` et l'étape neuve de `R-PAT-12` restent à jouer** (clause 8).
+
+  **Ce que cela change à la priorité des lots restants** : **D6g redevient le suivant**.
+
+  **Ce que cela change au chapeau** : D9 **ne figurait pas** au cadrage du 2026-09-04
+  (`docs/superpowers/specs/2026-09-04-dette-technique-design.md`), comme D8 n'y figurait pas
+  — il naît d'un défaut produit versé par D6e. Deux lots correctifs sur neuf sont nés
+  ainsi ; le cadrage de dette ne prédit pas les défauts que les lots de migration
+  découvrent.
+
+  **Le renvoi devenu périmé** : l'entrée D6e « La garde de sortie se désarme sur trois
+  chemins » rangeait le remède de ce défaut parmi les refontes (« un drapeau par surface »).
+  C'était vrai à sa date et ne l'est plus ; l'entrée est annotée en conséquence, ses chemins
+  **2** et **3** fermés, le **1** seul restant ouvert et volontaire.
 
 - **2026-09-18 — D6f clos : la coquille AngularJS est morte, les dix clauses constatées par
   exécution réelle** (treize tâches ; spec
@@ -4381,6 +4590,27 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   - **Trois défauts avérés corrigés**, cf. « Pièges rencontrés ».
 
 ## Pièges rencontrés
+
+- **2026-09-18 (D9, T3)** — **`detail.elt` n'est pas fiable dans un gestionnaire htmx ;
+  `detail.requestConfig.elt` l'est.** Dès que la réponse remplace la **racine même** de
+  l'élément déclencheur, ou le détruit par un `hx-swap-oob` distinct, htmx **réécrit
+  `detail.elt`** sur un élément de secours arbitraire (`htmx.js:4581-4595`) — un ancêtre qui
+  n'a plus rien à voir avec la surface d'origine. `detail.requestConfig.elt` est posé **une
+  seule fois à l'émission** et n'est **jamais** réécrit : `closest()` y fonctionne encore
+  après détachement, la chaîne interne vers l'ancêtre marqué restant intacte hors du
+  document. **Mesure** : écrit sous la forme `detail.elt.closest(...)`, un test d'ancrage de
+  la garde de sortie faisait rougir **trois des six** preuves existantes — exactement celles
+  dont la surface remplace sa propre racine en réponse. Tout gestionnaire `htmx:after-request`
+  ou `htmx:before-request` qui remonte l'arbre depuis le déclencheur est concerné. Le fait
+  est écrit sur place, en commentaire de `pages/dossier-patient.html`.
+
+- **2026-09-18 (D9, T5)** — **Rien ne doit modifier l'arbre pendant une campagne de
+  stabilité.** Une première campagne de vingt répétitions a dû être **jetée à la troisième
+  verte** parce qu'un agent parallèle modifiait un gabarit pendant qu'elle tournait : les
+  exécutions ne portaient plus sur le même arbre, et aucune des trois ne prouvait quoi que
+  ce soit. La règle du dépôt « jamais deux `pytest` simultanés » ne l'interdisait pas. Elle
+  s'élargit : **une campagne de stabilité gèle l'arbre**, commit compris, et le compteur
+  repart de zéro si quoi que ce soit y touche.
 
 - **2026-09-08 (recette conteneur)** — **La restauration d'une archive est une transaction
   unique, et son annulation laisse des artefacts qui font croire au succès.** Une première
