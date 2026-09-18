@@ -103,6 +103,23 @@ class SocleDuJournal(TestCase):
             for rang in range(nombre)
         ]
 
+    def _maintenant_loin_de_minuit(self):
+        """Midi **local**, recale depuis `timezone.now()`.
+
+        `timezone.now()` rend un aware **UTC** (`USE_TZ = True`) : un `replace(hour=12)` nu
+        viserait midi UTC, pas midi local — 14h a Paris l'ete. `timezone.localtime()` ramene
+        d'abord l'instant en heure locale avant le recalage.
+
+        `_seme` recule d'une minute par rang : pres de minuit, les rangs les plus anciens
+        franchiraient le jour civil precedent sans qu'un test n'ait seme deux jours. Recaler
+        l'ancre a midi local ecarte ce risque quelle que soit l'heure reelle du lancement.
+        Les transitions d'heure d'Europe/Paris ont lieu a 02h00 et 03h00 locales : midi n'est
+        jamais une heure ambigue, le `replace` est sur.
+        """
+        return timezone.localtime(timezone.now()).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+
 
 class TestPaginationDuJournal(SocleDuJournal):
     def test_la_premiere_page_rend_dix_entrees_et_un_declencheur(self):
@@ -158,7 +175,7 @@ class TestPaginationDuJournal(SocleDuJournal):
 class TestRegroupementParJour(SocleDuJournal):
     def test_le_regroupement_par_jour_rend_un_entete_par_jour(self):
         """Deux jours semes, deux en-tetes, au format que `test_agenda.py` assert deja."""
-        maintenant = timezone.now()
+        maintenant = self._maintenant_loin_de_minuit()
         self._seme(3, jour=maintenant)
         self._evenement(date=maintenant - timedelta(days=1))
 
@@ -184,7 +201,7 @@ class TestRegroupementParJour(SocleDuJournal):
 
     def test_une_page_suivante_ne_repete_pas_l_entete_du_jour_deja_ouvert(self):
         """Sans cette regle, le deroule afficherait deux fois la meme date."""
-        self._seme(12)
+        self._seme(12, jour=self._maintenant_loin_de_minuit())
 
         corps = self.client.get(URL, {"offset": 10}).content.decode()
 
@@ -200,7 +217,7 @@ class TestRegroupementParJour(SocleDuJournal):
         `jour_precedent`, la page qui arrive perdrait silencieusement sa date, et le
         deroule rangerait trois evenements de la veille sous l'en-tete du jour J.
         """
-        maintenant = timezone.now()
+        maintenant = self._maintenant_loin_de_minuit()
         self._seme(10, jour=maintenant)
         self._seme(3, jour=maintenant - timedelta(days=1))
 
@@ -215,7 +232,7 @@ class TestRegroupementParJour(SocleDuJournal):
 
     def test_un_groupe_inconnu_retombe_sur_le_regroupement_par_jour(self):
         """Un parametre d'URL public inconnu ne doit pas rendre une liste sans en-tete."""
-        self._seme(3)
+        self._seme(3, jour=self._maintenant_loin_de_minuit())
 
         corps = self.client.get(URL, {"groupe": "n-importe-quoi"}).content.decode()
 
