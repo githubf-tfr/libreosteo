@@ -879,7 +879,13 @@ def test_le_dossier_preserve_le_texte_riche_a_l_octet(
 
     page.goto(f"{live_server.url}/patient/{patient.id}")
     page.get_by_role("button", name="Éditer").click()
-    expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
+    # Barriere sur le fragment, pas sur le bouton : le bouton « Fin d'edition » est un
+    # x-show pose de facon synchrone par le clic sur « Editer », il est donc visible avant
+    # meme que le fragment d'edition ne soit arrive. Or c'est ce fragment
+    # (`#general-formulaire`) qui porte le seul ecouteur de `dossier-fin-edition` ; cliquer
+    # trop tot diffuse l'evenement dans un document ou personne ne l'ecoute et aucun POST
+    # ne part.
+    expect(page.locator("#general-formulaire")).to_be_attached()
     attendre_enregistrement_declenche(
         page,
         patient.id,
