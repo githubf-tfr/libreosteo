@@ -108,7 +108,8 @@ Tenu à la main.
   suspens » du 2026-09-05 sur le même sujet (cf. ci-dessous).
 - (2026-09-06) **Une consultation déjà facturée peut être redatée, à condition que la
   redatation soit tracée.** Tranche l'entrée « Points en suspens » du 2026-08-30 sur les
-  dates de consultation après facturation (cf. ci-dessous). Aucune trace n'existe
+  dates de consultation après facturation ; cette entrée est radiée depuis le 2026-09-18,
+  la décision ci-présente la remplace. Aucune trace n'existe
   aujourd'hui pour une modification de consultation : `receiver_examination`
   (`libreosteoweb/api/receivers.py:90-100`) n'a aucune branche de mise à jour, et aucun
   type d'`OfficeEvent` ne correspond à une modification de consultation — tracer la
@@ -153,7 +154,8 @@ Tenu à la main.
   sémantique de facture fausse.
 - (2026-09-07) **Arbitrage session centrale — périmètre de D7.** Retenu : les trois
   arbitrages de facturation du 2026-09-06 avec la reprise de parc que l'unicité exige, le
-  garde-fou de séquence passé en comparaison numérique (`Points en suspens` du 2026-09-05),
+  garde-fou de séquence passé en comparaison numérique (point clos par D7, radié le
+  2026-09-18),
   et le rattachement des ~~15~~ **14** tests Playwright qu'aucune fiche de
   `docs/recette.md` ne nomme (légué par D6a, et D7 tient déjà le cahier). Écartés, avec
   leur motif : les trois résidus frontend légués par D6a restent à D6b, qui réécrit ces
@@ -395,10 +397,8 @@ vécu depuis.
    construites depuis le fork, dossier hôte **hors dépôt**.
 4. **Passe de recette** sur les fiches d'installation et de facturation touchées.
 
-**Deux points neufs depuis le 2026-09-08, à vérifier pendant la passe :**
+**Un point neuf depuis le 2026-09-08, à vérifier pendant la passe :**
 
-- **Aucune migration n'a été ajoutée depuis `0060`** — D8 et tout le chantier D6 sont sans
-  effet sur le schéma. À reconstater plutôt qu'à supposer, au moment de la passe.
 - **Les documents médicaux antérieurs au fork.** `0056` change l'`upload_to` de
   `Document.document_file` sans déplacer aucun fichier : les chemins déjà en base restent
   ceux de l'amont. Un document ancien doit donc encore être servi après reprise — non
@@ -515,8 +515,6 @@ corrigé par ce lot ; chacun attend le chantier qui réécrit son écran.
   parenthèse au lieu d'un signe égal, l'attribut de classe n'est jamais posé.~~ — **fermé le
   2026-09-12 par D6d** : le gabarit est remplacé par `pages/reindexation.html`, dont aucune
   classe n'est écrite ainsi.
-- **La numérotation des `uib-tab` de `partials/patient-detail.html` saute l'index 4.** Sans
-  effet observable ; relevé pour que D6e ne le reproduise pas.
 - **Le job CI `quality` ne joue pas `make check`, il en réécrit les commandes**
   (`.github/workflows/main.yml`, étapes `Lint`, `Model migration status`, `Unit tests and
   coverage`). `CLAUDE.md` écrit que `make check` est « exactement le job `quality` » : c'est
@@ -811,17 +809,9 @@ décrits à l'entrée de clôture, pas ici.
   reproductible.~~ — **corrigé le 2026-09-06**, D5 : 29 refs figées sur SHA 40-hex,
   `yarn.lock` versionné et opposable par `--frozen-lockfile` aux trois appels. Cf.
   « Terminé ».
-- (S1) 18 `except:` nus et 10 imports hors en-tête, neutralisés par `ignore = ["E722",
-  "E402"]` dans la configuration `ruff`. Les corriger change la gestion d'erreurs sans
-  filet de test : c'est du ressort de S2.
 - (S1) **L'état des traductions n'est plus vérifié.** L'étape « Translations state » du
   workflow a été supprimée ; son contenu était déjà commenté en amont, elle ne vérifiait
   donc plus rien depuis longtemps. À reconstruire quand les traductions bougeront.
-- (S1) Périmètre `mypy` de départ : 14 modules sur ~60, ceux qui passaient déjà sans
-  annotation. Blocage levé le 2026-08-31 (résidu Python 2 dans `utils.py`,
-  `ManyToManyField` non annotés dans `models.py`, affectation indexée à caster dans
-  `dev.py`) : le périmètre est passé à 57 modules. Le reste, et sa raison, est consigné
-  dans le commentaire de `[tool.mypy] files` (`pyproject.toml`).
 - ~~(S3, tâches 4 et 7) Widget de date webshim : affiche en JOUR/MOIS/ANNÉE, lit en
   MOIS/JOUR/ANNÉE~~ — **corrigé le 2026-09-01**, défaut A de S3 bis, cf. « Terminé ».
 - ~~(S3, tâche 8) `#invoice_start_sequence` ignore silencieusement une saisie textuelle
@@ -890,20 +880,8 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 - ~~**2026-09-09 — perte silencieuse de donnée médicale dans le dossier patient.** Un clic ou un `Tab` pendant l'édition soumettait l'éditable autonome `original_name` et le callback `$scope.patient = data` effaçait en bloc antécédents, traitement en cours et motifs.~~ — **corrigé le 2026-09-11 par le lot D8**, cliquet de gabarit posé. À retenir de ce défaut, indépendamment de son remède : **il a vécu en production, et c'est un filet de test qui l'a trouvé, pas une revue de code.** Il a été découvert en retirant une barrière d'attente écrite pour le contourner sans l'avoir nommé — donc par le geste même que D6b faisait. C'est l'argument le plus réutilisable du chantier D6 : le filet ne sert pas qu'à protéger la bascule, il révèle ce que le produit cache. **La passe de recette `R-PAT-08` reste due.**
 
-- **2026-09-04 — le panneau « Démarrer une consultation » ne revient pas sans
-  rechargement.** Constaté à la passe de recette de D1, en montant l'état E2 : après avoir
-  clôturé une consultation, le panneau permettant d'en démarrer une nouvelle ne se
-  ré-affiche pas dans la même session Angular — `reloadExaminations`
-  (`libreosteoweb/static/js/app/patient.js`) recharge la consultation qui vient d'être
-  fermée dans `previousExamination.data` au lieu de la vider. Un rechargement complet de la
-  page suffit à retrouver le bouton. Hors périmètre de D1, non traité.
-
 ### Couverture du cahier de recette (à compléter, pas cette tâche)
 
-- (S4, tâche 10) Le champ « Nom de naissance » du formulaire patient (`R-PAT-01`
-  étape 1, placeholder vérifié) n'est rempli ni vérifié par aucune des 42 fiches
-  jouées à ce jour : une fiche couvrant un nom de naissance distinct du nom d'usage
-  manque au cahier. Ne pas renuméroter les fiches existantes pour la créer.
 - **Le champ « État requis » de `R-INST-07`** (`docs/recette.md:712`) porte la valeur
   `aucun`, hors de l'énumération E0 | E1 | E2 du chapitre 2 (`docs/recette.md:157`,
   `:336`). Cohérent avec le contenu de la fiche — elle ne monte aucune instance, elle
@@ -985,14 +963,6 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   vérification `sha256sum -c` et est donc auto-porteur. Comportement correct — vérifié —
   mais le caractère bloquant de cette garde n'est lisible nulle part dans le workflow
   lui-même. À rendre explicite dans un lot ultérieur.
-- **Faux ami `angular-timeago`.** Le paquet `@components/angular-timeago` est purgé par
-  D5 (dépendance morte), mais un module Angular du même nom vit dans le dépôt, sans
-  rapport : `libreosteoweb/static/js/plugins/timeAgo.js`, dont `app.js:28` dépend. La
-  purge est sûre — elle ne touche pas ce fichier — mais rien ne l'écrit noir sur blanc :
-  un lecteur futur qui verrait `angular-timeago` disparaître de `package.json` pourrait
-  vouloir « réparer » la purge en le cherchant dans les dépendances Git. Une clause dans
-  la ligne d'inventaire du `README.rst` (§ « Vendored third-party assets ») suffirait à
-  couper court ; non écrite par ce lot.
 - **Aucune montée de version frontend.** A6 a gelé l'arbre du 2026-08-30, **CVE connues
   comprises** : c'est assumé et c'est l'objet de D6. Le gel des refs Angular perdra
   d'ailleurs sa valeur avec AngularJS ; les **neuf familles vendorisées** — Bootstrap
@@ -1004,12 +974,6 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   renvoyées. Le critère de tri de D5 était mécanique : est dans D5 ce qui entre dans la
   chaîne de production des actifs servis. Ces cinq-là n'y sont pas. `setuptools-bower`,
   qui figurait dans la même liste, **est traité par D5** et sort donc de ce renvoi.
-- **Deux dépôts sources renommés, tenus par une redirection HTTP 301** :
-  `dangrossman/bootstrap-daterangepicker` → `dangrossman/daterangepicker` et
-  `danialfarid/angular-file-upload-bower` → `danialfarid/ng-file-upload-bower`. Les refs
-  de `package.json` portent l'ancien nom et le SHA figé, ce qui fonctionne tant que
-  GitHub sert la redirection. **Constaté, non corrigé** : le corriger serait toucher à
-  l'arbre gelé.
 - **L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
   Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
   lots restants »). Ce n'est pas une dette de D5 — le gel supprime la dérive dans le
@@ -1032,29 +996,6 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   probablement diverger l'empreinte (a) pour une raison étrangère à l'arbre de
   dépendances lui-même — à vérifier alors, et à exclure de l'empreinte si la divergence
   se confirme.
-
-### Renvoyé par D8 (2026-09-11)
-
-- **Le maillon 4 de la chaîne de perte reste en place** — `$scope.patient = data` (`libreosteoweb/static/js/app/patient.js:292`) remplace l'objet patient entier au retour d'un enregistrement, et efface du même geste les champs liés par `ng-model` que la réponse ne porte pas. D8 a coupé ses **déclencheurs**, pas le maillon : l'arbitrage A2 de la spec interdit de toucher à `savePatient()`, dont dépendent trois formulaires. Il tombera avec la réécriture de l'écran par **D6e** — consigné ici pour qu'il n'y soit pas redécouvert comme une surprise, et non comme une action à mener avant. **Complété le 2026-09-11** : ce même maillon effaçait aussi `medicalReportsDoc`, propriété purement cliente que la réponse du `PUT` ne porte pas, d'où un dédoublement transitoire de la tuile de document (~750 ms, animation de sortie ngAnimate superposée à l'entrée de la tuile rechargée). Le correctif `74a8942` **reporte la liste sur l'objet neuf** : la course est rendue inoffensive, elle n'est pas supprimée, et le maillon reste. Le déclencheur qui la rend possible est lui aussi toujours là — le `PUT` parasite émis par `form.medicalForm` (`save-on-lost-focus="true"`, `partials/patient-detail.html:270`), défaut de fond instruit par D8 et non corrigé : D8 a coupé les déclencheurs des **éditables autonomes**, pas l'enregistrement au flou d'un `editable-form` entier.
-- **`examination.html` partage ce maillon sans avoir de déclencheur aujourd'hui.** Aucun éditable autonome n'y porte `blur="submit"`, donc rien ne le soumet au flou ; le cliquet `tests/qualite/test_contrat_gabarits.py` le garde ainsi. **À revérifier si D6e y introduit un éditable autonome**, en particulier hors d'un `editable-form` nommé.
-
-### Renvoyé par le correctif du dédoublement de tuile (2026-09-11)
-
-> Correctif `74a8942`, hors lot : instruit à la demande de la session centrale sur un rouge
-> intermittent de `test_timeline_consultations_et_documents`. Rapport d'instruction et rapport
-> de rattachement sous `.superpowers/sdd/2026-09-10-d6c-socle-coexistence-plan/`.
-
-- **Le chemin d'erreur de `savePatient()` porte le même défaut, en pire**
-  (`libreosteoweb/static/js/app/patient.js:303-318`, numérotation d'après `74a8942`). Là
-  où le chemin nominal remplaçait
-  l'objet patient par la réponse du `PUT`, le rappel d'échec fait
-  `$scope.patient = PatientServ.get(…)` : une ressource **vide** est installée le temps
-  d'un aller-retour, donc c'est tout l'écran qui se vide, pas seulement la liste des
-  documents. **Non corrigé**, et délibérément : le remède du chemin nominal (reporter la
-  liste déjà affichée sur l'objet neuf) ne s'y transpose pas, ce chemin n'est jamais
-  emprunté quand l'enregistrement aboutit, et il sortait du mécanisme établi par
-  l'instruction. Écrit ici pour qu'il ne soit pas redécouvert comme une surprise. Tombe
-  avec la réécriture de l'écran par **D6e**, comme le maillon 4 ci-dessus.
 
 ### Constats de facturation (2026-09-06)
 
@@ -1208,6 +1149,76 @@ porte plus aucun `ui-sref` actif ; **16** occurrences de `components/jquery|angu
 T8 annonçait 816 tests là où le dépôt en comptait 844.
 
 ## Terminé
+
+- **2026-09-18 — treize entrées de backlog radiées après vérification dans l'arbre, aucune
+  ligne de code.** Passe de relecture portant sur le seul `KANBAN.md` : chaque entrée
+  ci-dessous a été confrontée à l'arbre avant d'être sortie de « À faire » et consignée ici.
+  **Pourquoi maintenant** : le lot D6f a supprimé la coquille AngularJS, et une part du
+  backlog décrivait un code qui n'existe plus — une entrée qui vise un fichier absent n'est
+  plus lisible comme une tâche, et elle encombrait la seule section dont le rôle est de dire
+  ce qui reste à faire.
+
+  - **Les 18 `except:` nus et 10 imports hors en-tête** (§ Dette technique) :
+    `pyproject.toml:61` porte `ignore = []`, et le commentaire des lignes 57-60 consigne la
+    dette soldée par S2, avec le seul `noqa: E402` justifié qui subsiste.
+  - **Le périmètre `mypy` de départ, 14 modules sur ~60** (§ Dette technique) : l'entrée
+    disait elle-même le blocage levé le 2026-08-31 ; le périmètre courant et sa seule
+    exclusion restante sont consignés dans le commentaire de `[tool.mypy] files`
+    (`pyproject.toml:67-76`).
+  - **Aucune fiche ne vérifie « Nom de naissance »** (§ Couverture du cahier de recette) :
+    `R-PAT-08` étape 5 saisit `Dupont` dans le champ `name="original_name"` et vérifie
+    l'affichage « Nom de naissance : Dupont ».
+  - **Reconstater qu'aucune migration n'a été ajoutée depuis `0060`** (§ Reprise du parc de
+    production) : constaté, la dernière migration de `libreosteoweb/migrations/` est bien
+    `0060_invoice_unique_facture_numero_par_cabinet.py`.
+  - **La numérotation des `uib-tab` saute l'index 4** (§ Défauts constatés au cadrage de
+    D6b) : `libreosteoweb/templates/partials/patient-detail.html` n'existe plus, et les
+    panneaux du dossier sont désormais nommés (`dossier-corps.html`).
+  - **Le maillon 4 de la chaîne de perte, `$scope.patient = data`** (§ Renvoyé par D8) :
+    `libreosteoweb/static/js/app/patient.js` n'existe plus. L'entrée annonçait « il tombera
+    avec D6e » ; c'est arrivé.
+  - **`examination.html` partage ce maillon sans déclencheur** (§ Renvoyé par D8) :
+    `libreosteoweb/templates/partials/examination.html` n'existe plus.
+  - **Le chemin d'erreur de `savePatient()` porte le même défaut, en pire** (§ Renvoyé par
+    le correctif du dédoublement de tuile) : même fichier supprimé, même échéance annoncée
+    et tenue.
+  - **Le panneau « Démarrer une consultation » ne revient pas sans rechargement**
+    (§ Défauts produit constatés en recette) : `patient.js` supprimé et l'écran réécrit —
+    `pages/fragments/chronologie.html:25` rend le bouton `disabled` d'après
+    `consultation_en_cours`, calculé au serveur à chaque rendu.
+  - **Le faux ami `angular-timeago`** (§ Renvoyé par D5) :
+    `libreosteoweb/static/js/plugins/timeAgo.js` est supprimé et `package.json` ne porte
+    plus que `@components/alpinejs` et `@components/htmx` — la confusion qu'il fallait
+    prévenir n'a plus de support.
+  - **Les deux dépôts sources renommés tenus par une redirection 301** (§ Renvoyé par D5) :
+    ni `daterangepicker` ni `file-upload` ne figurent dans `package.json`, réduit à ces deux
+    mêmes entrées.
+  - **Aucune contrainte sur `Invoice.number`, garde-fou comparant des textes** (§ Points en
+    suspens) : l'entrée portait déjà « Clos le 2026-09-07 par D7 ». Ses chemins ont dérivé
+    depuis, et voici les bons : `maximum_numerique_des_numeros` vit en
+    `libreosteoweb/api/utils.py:84`, et ses appelants sont
+    `libreosteoweb/api/services/facturation.py:58,71,81` et
+    `libreosteoweb/api/invoicing/reprise.py:120,134` — ni `views/administration.py` ni
+    `serializers/administration.py`, qui ne l'appellent plus.
+  - **Quelles dates de consultation sont permises après facturation** (§ Comportements figés
+    par S2) : tranché le 2026-09-06, une consultation facturée peut être redatée à condition
+    que la redatation soit tracée (cf. « Décisions actées »). Le reliquat — créer le type
+    d'`OfficeEvent` qui la trace — vit ailleurs, en « Constats de facturation ».
+
+  **Deux sous-sections ont disparu du même geste**, vidées de leur dernière entrée :
+  « Renvoyé par D8 (2026-09-11) » et « Renvoyé par le correctif du dédoublement de tuile
+  (2026-09-11) ».
+
+  **Ce que cette radiation ne couvre pas.** Les voisines des mêmes sous-sections restent
+  ouvertes et n'ont pas été touchées : en *Dette technique*, l'état des traductions qui
+  n'est plus vérifié et le domaine « Agenda » sans création manuelle ; en *Couverture du
+  cahier de recette*, l'« État requis » hors énumération de `R-INST-07` ; en *Reprise du parc
+  de production*, les quatre étapes à refaire et les documents médicaux antérieurs au fork ;
+  au *cadrage de D6b*, le job CI `quality` qui réécrit `make check` et les tests fonctionnels
+  orphelins ; en *Renvoyé par D5*, les six autres renvois ; en *Points en suspens*, les huit
+  autres points ; en *Comportements figés par S2*, la mise à jour de patient qui ne trace
+  aucun `OfficeEvent`. En *Défauts produit constatés en recette* il ne subsiste que l'entrée
+  barrée du 2026-09-09, dont la passe `R-PAT-08` reste due.
 
 - **2026-09-13 — passe de recette au navigateur sur l'écran migré : sept défauts, dont six
   fermés.** Première passe conduite **à l'écran** sur une instance de conteneur dédiée
@@ -3575,7 +3586,8 @@ T8 annonçait 816 tests là où le dépôt en comptait 844.
   - **Règle de date de consultation jamais spécifiée** (H) : `_validate_examination_date`
     est supprimée, pas réactivée — la question qu'elle prétendait trancher (quelles dates
     sont permises après facturation) n'a jamais été formulée nulle part dans le dépôt et
-    reste ouverte, cf. « Points en suspens ».
+    a été tranchée le 2026-09-06 (cf. « Décisions actées ») : la redatation est permise, à
+    condition d'être tracée.
 
   **Non fait** (acté au cadrage, cf. spec § Ce qui n'est pas fait) : reprise des données
   existantes pour la casse, `PAGE_SIZE` global sur `OfficeEventViewSet`,
@@ -4601,32 +4613,6 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   corriger »). L'attendu de la fiche n'est pas assoupli sur une preuve retirée : le
   KO reste consigné tel quel. Ce qui manque pour trancher : une reproduction
   contrôlée en mode attaché, consignée au moment où elle se produit.
-- **2026-09-05 — aucune contrainte sur `Invoice.number`, et le garde-fou de séquence
-  compare des textes.** Le champ est un `TextField` (`libreosteoweb/models.py`), et le
-  garde-fou qui interdit de repositionner la séquence trop bas
-  (`libreosteoweb/api/views/administration.py`, `perform_update`) compare le nombre
-  demandé à `Max("number")`, c'est-à-dire au maximum **lexicographique** d'un texte :
-  sur un parc portant `9999` à côté de `10002`, ce maximum vaut `9999` et la séquence se
-  laisse ramener sur des numéros déjà émis. Et un parc peut déjà porter des numéros en
-  double — précisément ceux que la course fermée par I2 (D3) a pu produire : poser la
-  contrainte transformerait cet historique en panne de facturation au démarrage. La
-  question — la numérotation doit-elle être unique par cabinet, et que faire des parcs
-  qui ne le sont pas ? — exigerait une reprise de parc que rien n'a instruite. Confirmé
-  hors périmètre par le contrôleur au cadrage du lot D3. **Tranché le 2026-09-06** :
-  l'unicité doit porter sur `(officesettings_id, number)`, avec la reprise de parc que
-  cela exige (cf. « Décisions actées » et « Candidats pour D7 » § Facturation) ; la
-  comparaison de ce garde-fou doit devenir numérique dans le même lot.
-  **Clos le 2026-09-07 par D7** : la contrainte `unique_facture_numero_par_cabinet` est
-  posée par la migration `0060` (`libreosteoweb/models.py:422-427`), qui renumérote
-  d'abord les parcs à doublons au lieu de refuser de monter (T3, T4) ; un second numéro
-  identique est désormais refusé en 400 avec un message métier sur les deux chemins
-  d'écriture (T5, T10) ; et les **trois** surfaces qui comparaient un maximum
-  lexicographique — le garde-fou de `perform_update`
-  (`libreosteoweb/api/views/administration.py:135-140`), la borne minimale exposée au
-  client (`libreosteoweb/api/serializers/administration.py:154`) et la valeur reposée
-  quand le praticien vide le champ (`:107-123`) — partagent maintenant
-  `maximum_numerique_des_numeros` (`libreosteoweb/api/utils.py:84`) et le même invariant
-  « prochain numéro à émettre, pas dernier émis » (T2, plus `57da812`).
 - **2026-09-05 — l'index Whoosh n'est pas transactionnel.** `RealtimeSignalProcessor`
   (`Libreosteo/settings/base.py`) écrit l'index à chaque `save()`, hors de toute
   transaction : sous `ATOMIC_REQUESTS` (D3), une requête annulée peut laisser dans
@@ -4678,14 +4664,4 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   `test_la_mise_a_jour_ne_trace_aucun_evenement` fige ce comportement pour que S2 ne le change
   pas par accident. À trancher avec l'utilisateur : journal exhaustif des modifications de
   dossier, ou journal des seules créations ?
-- **2026-08-30 — quelles dates de consultation sont permises après facturation ?**
-  `ExaminationViewSet._validate_examination_date`, appel mort commenté dans
-  `perform_update`, a été **supprimée** le 2026-09-02 (S6, défaut H) : c'était du code mort,
-  et sa logique paraissait inversée. Sa suppression ne tranche pas la question qu'elle
-  prétendait porter — une consultation peut être redatée après facturation sans qu'aucune
-  règle ne l'interdise ni ne l'autorise explicitement quelque part dans le dépôt. Toujours
-  à trancher avant tout travail sur la facturation. **Tranché le 2026-09-06** : une
-  consultation déjà facturée peut être redatée, à condition que la redatation soit tracée
-  (cf. « Décisions actées »). Ce qui manque pour tracer cette redatation est détaillé en
-  « Constats de facturation ».
 
