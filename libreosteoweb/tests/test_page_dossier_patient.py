@@ -1509,28 +1509,35 @@ class TestGardeDeSortie(_SocleDuDossier):
                     "%s rend un fragment de lecture qui armerait la garde" % nom,
                 )
 
-    def test_le_corps_rafraichi_desarme_la_garde(self) -> None:
-        """**Le seul chemin qui desarme la garde apres une cloture ou une facturation**, et
-        il n'avait aucune preuve (re-revue T12).
+    def test_le_corps_rafraichi_ne_desarme_plus_la_garde(self) -> None:
+        """**La decision de D6e, retournee sur un fait** (D9, A4).
 
-        Une cloture recompose le corps du dossier ; le drapeau `modifie`, lui, vit sur la
-        racine du document et **survit** a cet echange. Sans cette remise a zero, le
-        praticien qui a saisi une consultation puis l'a cloturee se verrait demander
-        confirmation en quittant la page — exactement le faux positif que la revue
-        precedente a fait fermer, revenu par l'autre bout et **sans qu'aucun test ne bouge**.
+        D6e faisait reposer `modifie = false` par le corps rafraichi, au motif qu'une
+        cloture ne doit pas laisser la garde armee. Ce motif valait tant que la saisie
+        etait **detruite** avec le corps : il n'y avait plus rien a garder. D9 la conserve
+        (`hx-preserve`), et la premisse tombe — reposer le drapeau ferait desormais partir
+        en silence une saisie **toujours presente**.
+
+        Le desarmement legitime est assure ailleurs, et sans cette ligne : une cloture
+        depuis l'edition soumet le volet **avant** que la modale ne s'ouvre
+        (`consultation.py:547-563`), et ce `POST` part de l'**interieur** de la racine
+        `x-data`, donc `siEcritureReussie` le voit et desarme.
 
         Ce que ce test regarde : l'expression posee par la reponse de rafraichissement. Ce
-        qu'il laisserait passer : ce qu'Alpine en fait.
+        qu'il laisserait passer : ce qu'Alpine en fait — c'est
+        `test_la_garde_reste_armee_apres_l_ouverture_d_une_consultation` qui le voit.
         """
         html = self.client.get(
             reverse("dossier-corps", args=[self.patient.pk])
         ).content.decode("utf-8")
-        # L'expression entiere, et non la seule remise a zero : `modifie = false` figure
-        # aussi dans le `@htmx:after-request` de la racine du document, et une recherche de
-        # sous-chaine y serait satisfaite sur toute reponse qui rend le document.
-        self.assertIn(
-            "x-init=\"actif = 'examinations'; edition = null; modifie = false\"", html
-        )
+        # L'expression entiere, et non l'absence seule : c'est elle qui dit que le bloc de
+        # bascule existe toujours et repose bien les deux autres variables.
+        self.assertIn("x-init=\"actif = 'examinations'; edition = null\"", html)
+        # **Sur la reponse du corps, `modifie = false` n'a aucune autre source.** Elle
+        # figure aussi dans le `@htmx:after-request` de la racine du document, mais cette
+        # reponse-ci ne rend que le corps et le bandeau d'actions : la recherche de
+        # sous-chaine est donc juste **ici**, et le resterait fausse sur le document entier.
+        self.assertNotIn("modifie = false", html)
 
     def test_le_premier_rendu_ne_repose_aucun_etat(self) -> None:
         """L'autre sens : le bloc `x-init` de bascule n'existe qu'au rafraichissement. Pose

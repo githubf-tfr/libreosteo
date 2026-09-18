@@ -1348,6 +1348,61 @@ def test_le_pont_de_session_laisse_la_garde_armee(
     assert Patient.objects.get(pk=identifiant).surgical_history in (None, "")
 
 
+def test_la_garde_reste_armee_apres_l_ouverture_d_une_consultation(
+    page: Page, live_server: LiveServer
+) -> None:
+    """La recomposition du corps ne désarme plus la garde de sortie.
+
+    **Ce que ce test regarde** : le marqueur que `beforeunload` interroge, avant et après
+    une recomposition de `#dossier-corps`. Il ne déclenche jamais la boîte de dialogue —
+    Playwright la rejetterait, et c'est le navigateur qui la dessine.
+
+    **Les deux défauts qu'il ferme, et ils sont dans la même réponse.**
+
+    1. `dossier-corps.html:30` reposait `modifie = false` à chaque recomposition. C'était
+       une décision prise, dont le motif était « une clôture ne doit pas laisser la garde
+       armée » — et le correctif de D9 T2 en a falsifié la prémisse : la saisie n'est plus
+       détruite, donc il y a de nouveau quelque chose à garder. Le désarmement légitime
+       reste assuré ailleurs : une clôture depuis l'édition soumet le volet **avant**
+       d'ouvrir la modale (`consultation.py:547-563`), et ce `POST` part de l'intérieur de
+       la racine `x-data`, donc `siEcritureReussie` le voit.
+    2. `siEcritureReussie` désarmait sur **toute** écriture réussie, d'où qu'elle vînt. Le
+       `POST` de `#new-examination-btn` répond `200` : la garde tombait alors que le
+       commentaire préservé est **toujours** en attente. L'armement était déjà borné aux
+       surfaces de saisie ; le désarmement ne l'était pas.
+
+    **Ce n'est pas le « drapeau par surface »** versé à `KANBAN.md:767-768` : aucun
+    comptage, aucun cycle de vie, aucun nom de surface — une seule condition, sur l'élément
+    qui a émis la requête.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    # `raison` : `_facturer` (`consultation.py`) exige un motif en mode `notinvoiced`,
+    # sans lien avec ce lot (deja rencontre par T1 et T2).
+    cloturer_consultation(page, mode="notinvoiced", raison="Non facture pour ce test")
+
+    patient = Patient.objects.get(family_name="Picard")
+    seance = Examination.objects.filter(patient=patient).first()
+    assert seance is not None
+    garde = page.locator("[data-modifications-non-enregistrees]")
+
+    page.click("#examinations")
+    page.get_by_test_id("compteur-commentaires").click()
+    champ = page.locator("#btn-input-%d" % seance.id)
+    expect(champ).to_be_visible()
+    champ.fill("Douleur cervicale persistante")
+    expect(garde).to_have_count(1)
+
+    page.click("#new-examination-btn")
+    expect(page.locator("#current-examination")).to_be_visible()
+
+    # La saisie est invisible tant qu'on n'est pas revenu sur son onglet (A9) — et c'est
+    # exactement pourquoi la garde doit rester armee : elle ne doit pas partir en silence.
+    expect(garde).to_have_count(1)
+
+
 def test_le_commentaire_survit_a_l_ouverture_d_une_consultation(
     page: Page, live_server: LiveServer
 ) -> None:

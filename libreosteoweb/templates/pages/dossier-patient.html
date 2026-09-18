@@ -55,6 +55,15 @@
 {% block menu %}{% endblock %}
 
 {% block contenu %}
+{# **`requestConfig.elt`, jamais `evenement.detail.elt`** (D9, A5). Sur un `hx-swap-oob` #}
+{# qui remplace l'ancetre marque `[data-surface-de-saisie]` (ou l'element lui-meme), htmx #}
+{# retrouve l'element **detache** et **reecrit `detail.elt`** sur un ancetre de secours #}
+{# encore attache au document (`htmx.js:4581-4595`) — un ancetre qui n'a plus rien a voir #}
+{# avec la surface d'origine. `requestConfig.elt`, lui, n'est pose qu'une fois, a l'emission #}
+{# de la requete, et n'est jamais reecrit : `closest()` y fonctionne encore apres #}
+{# detachement, car la chaine interne vers l'ancetre marque reste intacte meme hors du #}
+{# document. Mesure au navigateur (D9 T3) : sans ce choix, trois des six preuves de garde #}
+{# existantes rougissaient — celles dont la surface remplace sa propre racine en reponse. #}
 <div x-data="{
        actif: '{{ onglet_actif }}',
        edition: {% if consultation_en_cours %}'current-examination'{% else %}null{% endif %},
@@ -73,6 +82,7 @@
        siEcritureReussie(evenement) {
          const statut = evenement.detail.xhr ? evenement.detail.xhr.status : 0;
          if (evenement.detail.requestConfig.verb === 'get') { return; }
+         if (!evenement.detail.requestConfig.elt.closest('[data-surface-de-saisie]')) { return; }
          if (statut < 200 || statut >= 300) { return; }
          if (statut === 204) { return; }
          this.modifie = false;
@@ -97,22 +107,21 @@
 {# `ui-router`, clic hors formulaire, perte de focus) disparaissent avec le routage client ; #}
 {# il ne reste que la sortie de document, que seul cet evenement voit. #}
 {# #}
-{# **Limite assumee, et elle coute une saisie : le drapeau est unique pour huit surfaces.** #}
-{# Les cinq panneaux en edition s'excluent mutuellement — un seul formulaire a la fois —, #}
-{# mais le bloc de televersement, les vignettes et les volets de commentaires sont #}
-{# **permanents** et coexistent dans le meme onglet. Deux chemins effacent donc la garde #}
-{# alors qu'une saisie reste en attente ailleurs : #}
+{# **Limite assumee, et elle ne coute plus une saisie : le drapeau est unique pour huit #}
+{# surfaces.** Les cinq panneaux en edition s'excluent mutuellement — un seul formulaire a #}
+{# la fois —, mais le bloc de televersement, les vignettes et les volets de commentaires #}
+{# sont **permanents** et coexistent dans le meme onglet. Une ecriture reussie ailleurs #}
+{# efface donc la garde alors qu'une saisie reste en attente dans l'une d'elles : taper des #}
+{# notes dans le bloc de televersement sans envoyer, cliquer « Editer » sur le panneau #}
+{# voisin, « Fin d'edition » — cet enregistrement desarme, et quitter la page perd les #}
+{# notes sans avertissement. #}
 {# #}
-{# 1. **par enregistrement** — taper des notes dans le bloc de televersement sans envoyer, #}
-{#    cliquer « Editer » sur le panneau voisin, « Fin d'edition » : cet enregistrement #}
-{#    reussit et desarme la garde ; quitter la page perd les notes, sans avertissement ; #}
-{# 2. **par abandon** — meme depart, puis ouvrir une vignette de document et cliquer #}
-{#    « Annuler » : ce bouton desarme inconditionnellement (`document-edition.html`). #}
-{# #}
-{# **Ce n'est pas une regression** : avant D6e, aucune de ces saisies n'etait gardee. Un #}
-{# drapeau par surface est une refonte — nommer chaque surface, la compter a l'entree et a #}
-{# la sortie du DOM, decider ce que fait un echange hors-bande qui en remplace une pendant #}
-{# qu'une autre est sale — versee hors de cette tache. #}
+{# **Ce qui a change avec D9** : la saisie n'est plus **detruite** par la recomposition du #}
+{# corps (`hx-preserve`, `dossier-corps.html`), et le desarmement est borne aux requetes #}
+{# **emises depuis une surface** — un `POST` de « Demarrer une consultation » ne desarme #}
+{# plus rien. Ce qui reste est un defaut d'**avertissement**, jamais une perte : la saisie #}
+{# est toujours la. Le drapeau par surface — nommer chaque surface, la compter a l'entree #}
+{# et a la sortie du DOM — reste verse hors de ce lot, comme raffinement. #}
 {# #}
 {# **Elle s'arme sur une modification, jamais sur la presence d'un formulaire** (revue T12). #}
 {# Une premiere ecriture testait la presence d'un fragment d'edition dans le DOM : or le #}
