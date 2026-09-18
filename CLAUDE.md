@@ -31,10 +31,19 @@ entretenir, ne pas les recetter.
 cliquets, qui ne se desserrent jamais :
 
 - le plancher de couverture (`fail_under`) ne descend pas ;
-- le périmètre `mypy` (`files`) ne rétrécit pas ;
+- le périmètre `mypy` (`files`) ne rétrécit pas — **tout module `.py` créé y est ajouté
+  dans le même commit** ;
 - le jeu de règles `ruff` ne s'allège pas, et `ignore` ne s'allonge pas.
 
 Un cliquet se relève dans le commit qui l'a mérité, jamais pour faire passer un commit.
+
+**Suite fonctionnelle** : un lancement = un appel d'outil en avant-plan, jamais de boucle
+shell, jamais deux en parallèle (RAM). Le plafond se règle par le paramètre `timeout` de
+l'outil, pas par la commande shell `timeout`, qui fait basculer le lancement en arrière-plan.
+
+**L'arbre servi ment.** `collectstatic` n'enlève jamais : `static/` garde ce qu'une
+dépendance sortie y a laissé, et la suite passe alors sur du code que l'image ne contient
+pas. Avant toute mesure qui engage, `rm -rf static && make static`.
 
 ## Licence
 
