@@ -655,7 +655,12 @@ décrits à l'entrée de clôture, pas ici.
   (D6f T5), et la recompilation ne perd plus rien — mesuré, 373 entrées des deux côtés. **Mais
   le compilateur reste faux**, et le correctif tient à la présence d'une ligne de commentaire au
   bon endroit. **À trancher hors lot, une seule décision pour les deux symptômes** :
-  installer un vrai `msgfmt`, ou poser le cliquet qui compare le `.mo` au `.po`. **Et les
+  installer un vrai `msgfmt`, ou poser le cliquet qui compare le `.mo` au `.po`. ⚠️ **La
+  seconde branche est prise depuis le 2026-09-13** : D6f T5 a posé
+  `tests/qualite/test_contrat_catalogue_compile.py`, qui compare le `.mo` au `.po` et
+  rougit si une entrée s'y perd. **Cette entrée reste ouverte sur la première branche
+  seule** — un vrai `msgfmt` sur la machine —, le cliquet constatant la perte sans
+  l'empêcher. **Et les
   `msgid` dupliqués `January`..`December` du `.po`, préalables, feront broncher un vrai
   `msgfmt`** le jour où il tournera.
 - **`api/events` répond 500 dès qu'un événement du journal désigne un patient supprimé.**
@@ -818,6 +823,128 @@ décrits à l'entrée de clôture, pas ici.
   onglet. Écran de D6d, relevé par T7. S'y ajoute le même symptôme mort d'un cran plus
   haut : `cabinet.py:213` pose `onglet_initial: "general"` qu'aucun gabarit ne lit
   (`cabinet.html:29,35` code tout en dur).
+
+### Défauts versés par D6f (2026-09-18, non corrigés, à trancher hors lot de migration)
+
+Même règle que pour D6d et D6e : un lot de migration ne tranche pas un défaut de produit.
+Chacun vient avec son emplacement, sa mesure et ce qui l'a fait apparaître.
+
+- **L'`autofocus` de `partials/register.html:13` peut corrompre une saisie programmatique.**
+  Le champ `input[name="username"]` porte `autofocus=""` alors qu'il est **inséré après le
+  chargement du document**. Le navigateur ne pose pas ce focus de façon synchrone : il
+  planifie une tâche différée (« flush autofocus candidates », HTML Standard) qui **reprend**
+  le focus à un instant non garanti — y compris **entre** un `focus()` explicite et l'écriture
+  d'un second champ. Le texte destiné au champ suivant atterrit alors dans `username`.
+
+  **Mesuré** pendant la dette n° 1 de D6f, par une boucle de diagnostic jetable :
+  **7 anomalies sur 120 essais** (≈ 5,8 %) sans barrière, **0 sur 80** avec.
+
+  ⚠️ **Le remède posé est une barrière de *test*** (`expect(…).to_be_focused()` dans
+  `tests/functional/test_installation.py`, commit `d4646a6`) : **aucune ligne de production
+  n'a changé**. Le mécanisme n'est pas propre à Playwright — un gestionnaire de mots de passe
+  de navigateur qui remplit le formulaire par script au moment de son apparition percute le
+  même `autofocus` chez un praticien réel. C'est pour cela que le défaut est versé et non
+  clos.
+
+  **Réserve sur la mesure** : les 7/120 viennent d'une boucle qui réutilise le même contexte
+  de navigateur — c'est une mesure du *mécanisme*, pas du protocole du lot ; vingt lancements
+  isolés du fichier réel sont restés verts.
+
+  **Destinataire : D6g**, ou le lot qui rouvre l'installation. Remède le plus étroit : retirer
+  l'`autofocus` du gabarit, ou ne le poser qu'une fois le fragment inséré.
+
+- **Le bandeau d'actions du dossier annonce « Fin d'édition » avant que l'édition n'existe.**
+  `pages/fragments/actions-dossier.html:40` écrit `edition = actif` **de façon synchrone** au
+  clic sur « Éditer », et `:41` affiche aussitôt le bouton « Fin d'édition »
+  (`x-show="edition !== null"`). Or le seul écouteur de `dossier-fin-edition` arrive **plus
+  tard**, avec le fragment d'édition : `hx-trigger="submit, dossier-fin-edition from:body"`
+  sur `#general-formulaire` (`dossier-identite-edition.html:12-15`).
+
+  Un clic dans cette fenêtre diffuse `dossier-fin-edition` dans un document où personne ne
+  l'écoute : aucun POST ne part, `edition` retombe à `null`, puis le fragment arrive et
+  **repose** `edition = 'general'` (`dossier-identite-edition.html:11`). Le praticien qui
+  demande à sortir d'édition **s'y retrouve**.
+
+  ⚠️ **Qualification, arbitrée à la clôture : c'est une incohérence d'état, pas une perte de
+  données.** Dans cette fenêtre le formulaire n'est pas encore affiché — rien n'a pu être
+  saisi, donc rien ne peut être perdu. Ne pas la relire comme une perte.
+
+  **Fenêtre mesurée** côté test, entre la réponse du serveur et le geste suivant : **20 à
+  50 ms**. Étroite, mais franchie dès que la machine ralentit (cf. l'entrée de clôture de
+  D6f). **Destinataire : D6g.** Remède le plus étroit : conditionner l'affichage de « Fin
+  d'édition » à l'arrivée du fragment plutôt qu'à l'écriture synchrone d'`edition`.
+
+- **Aucune cible ne garantit que l'arbre statique servi localement corresponde à l'image.**
+  `collectstatic` **n'enlève jamais** ce qu'il a copié une fois, et rien dans le dépôt ne le
+  rejoue à blanc. Constaté par la clôture de D6f : `static/` portait **5 096 fichiers,
+  76 Mo**, dont **4 764 résiduels** — tout AngularJS, jQuery, hallo, bootstrap-tour, des
+  paquets que T10 avait pourtant sortis de `package.json`. Après purge et `make static` :
+  **332 fichiers, 7,7 Mo**, `static/components` ne portant plus qu'`alpinejs` et `htmx`.
+
+  **Remède le plus étroit** : purger l'arbre en tête de `make static` (ou une cible dédiée) —
+  et, mieux, un cliquet qui rougit quand l'arbre servi porte un fichier qu'aucune dépendance
+  déclarée ne produit. **Destinataire : D6g**, qui rouvre déjà la chaîne de construction pour
+  `COMPRESS_OFFLINE`.
+
+- **Une classe entière de tests fonctionnels est verte par accident** — le motif que
+  `0a8817b` a corrigé sur un seul site. Le motif : cliquer « Éditer », attendre le **bouton**
+  « Fin d'édition », puis agir. Cette barrière ne prouve rien, le bouton étant posé
+  synchronement par le clic précédent (cf. le défaut d'interface ci-dessus) ; ce qu'il faut
+  attendre est le **fragment**, qui porte le seul écouteur.
+
+  **Mesure de la classe, faite à la clôture** : **30** sites cliquent « Éditer » dans
+  `tests/functional/`. **Quatre** posent la barrière qui ne prouve rien —
+  `test_patient.py:239`, `test_texte_riche.py:44`, `test_code_postal.py:149`,
+  `test_consultation.py:465` (via `bouton_fin_d_edition`). Les autres n'en posent aucune. Tous
+  sont verts **parce que le geste suivant vise un élément du fragment** et que l'auto-attente
+  de Playwright leur sert de barrière **par accident** — jamais parce qu'ils l'auraient
+  prouvé. La liste est à reconstater avant correction, pas à recopier.
+
+  **Remède proposé** : un helper `entrer_en_edition(page, panneau)` dans
+  `tests/functional/helpers.py` qui clique « Éditer » **et attend le fragment**
+  (`expect(page.locator("#<panneau>-formulaire")).to_be_attached()`), puis la substitution
+  mécanique des sites. **Destinataire : un lot de dette de test**, pas un lot de migration.
+
+**Les quatre défauts de la passe au navigateur (T12) qui n'ont pas été corrigés.** Les trois
+premiers sont **préexistants** — antériorité établie par lecture comparative `3c2473b` →
+`ab854fe` (`git diff` vide sur `sb-admin-2.css`, `bootstrap.min.css` et `libreosteo.css`),
+pas par une passe sur le commit d'avant-lot.
+
+- **En affichage étroit, la barre déployée recouvre le titre et la première tuile** (D-2).
+  À 700 px comme à 400 px, hamburger ouvert : `nav.navbar-fixed-top` occupe y = 0 → **239**,
+  le `h1` « Tableau de bord » y = 90 → 140 — **entièrement recouvert**, 149 px — et la
+  première tuile y = 190 → 290, **recouverte sur 49 px**. Cause : `partials/menu.html:6`
+  (`navbar-fixed-top`, donc hors flux) et `libreosteo.css:20` (`body { padding-top: 50px }`,
+  décalage **constant**, dimensionné pour la barre repliée). Remède : `navbar-static-top`
+  sous media query étroite, ou un décalage qui suive la hauteur réelle. **D6g**, ou hors
+  chantier si l'affichage étroit n'est pas une cible produit.
+
+- **En affichage étroit, trois entrées du menu utilisateur ne sont pas atteignables — dont
+  « Déconnexion »** (D-3). À 400×800, menu ouvert, le `ul[data-testid="menu-utilisateur"]`
+  occupe y = 168 → 329 alors que `#headerNavbar` s'arrête à y = 238 : **91 px de
+  débordement**, et le conteneur **n'est pas défilable** (`scrollHeight` = `clientHeight`
+  = 187). `elementFromPoint` au centre de « Import/export », « Réindexer » et
+  « Déconnexion » renvoie un `DIV` de la page, pas le lien. Cause : `ul.dropdown-menu` en
+  `position: absolute` dans un `#headerNavbar` que Bootstrap 3 borne à `max-height: 340px`,
+  le menu vivant dans `navbar-top-links` et non `navbar-nav`. Remède : rendre le
+  `ul.dropdown-menu` statique sous media query étroite — quelques lignes de CSS.
+  **Sévère : la déconnexion est inatteignable sur téléphone. D6g.**
+
+- **La barre latérale de la page 404 recouvre son titre** (D-5). `.sidebar` occupe
+  x = 0 → 250, y = 101 → 207 ; le `h1` « Ooops ! » x = 131 → 1271, y = 169 → 238 :
+  **38 px de hauteur sur 119 px de largeur** masqués. Cause : `sb-admin-2.css:14-26`,
+  `#page-wrapper` sans `margin-left` alors que `.sidebar` est en surimpression sur 250 px.
+  Remède : une ligne, `#page-wrapper { margin: 0 0 0 250px }` sous `min-width: 768px` —
+  **à vérifier sur le tableau de bord, qui partage la feuille**. Amont, hors chantier, ou
+  D6g si l'on veut une page d'erreur propre.
+
+- **L'infobulle du mini-graphe affiche des horodatages bruts** (D-7). Texte relevé :
+  `2026-09-01 00:00:00+02:00 - 2026-09-14 13:32:14.311865+00:00 - 22` — la borne de fin est
+  l'instant du rendu, microsecondes comprises, dans un fuseau différent de celui de la borne
+  de début. Le format nommé par la spec (« début - fin - valeur ») est **tenu** : c'est de la
+  lisibilité, aucun contrat cassé. Cause : `{{ sommet.libelle }}` interpolé sans filtre
+  (`pages/tableau-de-bord.html:62` et ses deux jumeaux). Remède : un `|date:"j M Y"`, ou un
+  libellé déjà formaté côté vue. **D6g.**
 
 ### Dette technique (constat, pas action)
 
@@ -1134,75 +1261,209 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   opposable par `--frozen-lockfile`, tarball yarn vérifié par SHA-256, Node, npm,
   `rcssmin` et `rjsmin` épinglés.
 
-## En cours — D6f, interrompu à la tâche 9 sur 13 (2026-09-14)
-
-**Reprise** : le lot D6f s'exécute par `superpowers:subagent-driven-development`. Le registre de
-progression vit dans `.superpowers/sdd/2026-09-13-d6f-mort-de-la-coquille-plan/progress.md`,
-**git-ignoré** : il survit à une extinction mais pas à un `git clean -fdx`. Cette section porte
-ce qu'il faut pour reprendre sans lui.
-
-- **Spec** : `docs/superpowers/specs/2026-09-13-d6f-mort-de-la-coquille-design.md` (autorité).
-- **Plan** : `docs/superpowers/plans/2026-09-13-d6f-mort-de-la-coquille-plan.md`, treize tâches.
-- **Base du lot** : `3c2473b`. Vingt commits depuis.
-
-### Ce qui est fait — neuf tâches closes
-
-| # | Tâche | Commits | Rounds |
-|---|---|---|---|
-| T1 | Matrice d'atteignabilité au clic (C11) | `3c2473b..bb730ac` | 2 |
-| T2 | Visite guidée décrite et couverte contre AngularJS | `bb730ac..2b4e63d` | 1 |
-| T3 | Mini-graphe SVG calculé au serveur (AR1) | `2b4e63d..f730b46` | 1 |
-| T4 | Fragment d'événements paginé et son URL | `f730b46..b026fbc` | 1 |
-| T5 | Visite guidée décidée au serveur, ancrée (AR2) | `b026fbc..51e61c3` | 1 |
-| T6 | Les six `goto` de hash du filet | `51e61c3..ee60486` | 0 |
-| T7 | **La bascule** : `/` devient un document Django | `ee60486..bd9ef82` | 2 |
-| T8 | Septième site de hash, cliquet d'adressage étendu | `bd9ef82..853fbb6` | 0 |
-| T9 | Un ancien signet ne casse ni ne blanchit | `853fbb6..a88c3aa` | 0 |
-
-**La coquille est morte** : `templates/index.html`, `partials/dashboard.html`,
-`partials/officeevent.html` et `partials/actions-coquille.html` sont supprimés.
-
-**Chiffres au dernier état mesuré** : `make check` **845 passed**, couverture **94,55 %**,
-périmètre `mypy` **171** ; suite fonctionnelle **123 passed** (120 + 3 de T9).
-
-**Deux cliquets de qualité neufs**, portant le dépôt à sept : `test_contrat_styles.py` (les
-règles CSS de la visite, propriété et valeur comprises) et `test_contrat_catalogue_compile.py`
-(le `.mo` ne perd aucune entrée du `.po`).
-
-### Ce qui reste — quatre tâches
-
-- **T10** — quatorze paquets et quatorze fichiers JavaScript sortent (`package.json`,
-  `yarn.lock`). ⚠️ **Ne supprimer aucune feuille de style** (A3) : `css/typeahead.css` et
-  `css/plugins/metisMenu/metisMenu.min.css` sont consommés par `404.html`.
-- **T11** — les deux liens `#/` de `404.html:258` et `:291`.
-- **T12** — la passe au navigateur, sept attendus nommés.
-- **T13** — clôture : les dix clauses constatées par exécution réelle.
-
-### Trois dettes à traiter avant la clôture
-
-1. **⚠️ Intermittence de plein-suite, non fermée.** Trois exécutions complètes pendant T9 ont
-   donné **un jeu de tests différent en échec à chaque passage** (cabinet, facturation,
-   import_csv, authentification), chacun vert isolément. Cause plausible avancée par la revue :
-   la course Alpine sur les parcours qui passent par le menu utilisateur, que le remède de T7
-   (`attendre_alpine_initialise`, adossé à `alpine:initialized`) ne couvrirait pas partout.
-   **La clause de sortie du lot exige vingt exécutions vertes consécutives : à fermer avant
-   T13**, sous peine de faire échouer la clôture.
-2. **Fragilité de minuit**, deux tests du journal d'événements : le semis s'appuie sur
-   `timezone.now()` moins zéro à neuf minutes, donc entre 00:00 et 00:09 locales la première
-   page chevauche deux jours et l'assertion tombe. À traiter **en une fois pour les deux** —
-   semis à heure fixe ou horloge injectée.
-3. **Le compilateur de catalogue reste faux** (cf. § Défauts versés) : le cliquet neuf constate
-   la perte, il ne l'empêche pas.
-
-### Neuf chiffres du plan et du journal mesurés faux pendant l'exécution
-
-Cinq corrigés au cadrage (cf. commit `0406139`), quatre pendant l'exécution : `menu.html` ne
-porte plus aucun `ui-sref` actif ; **16** occurrences de `components/jquery|angular` sous
-`templates/` et non 19, dont **15** dans `index.html` ; F8 attribuait la réouverture de la visite
-à un seul levier quand elle en a deux, indépendamment suffisants (commit `25bd57a`) ; le brief de
-T8 annonçait 816 tests là où le dépôt en comptait 844.
-
 ## Terminé
+
+- **2026-09-18 — D6f clos : la coquille AngularJS est morte, les dix clauses constatées par
+  exécution réelle** (treize tâches ; spec
+  `docs/superpowers/specs/2026-09-13-d6f-mort-de-la-coquille-design.md`, plan
+  `docs/superpowers/plans/2026-09-13-d6f-mort-de-la-coquille-plan.md`).
+  **Quarante-trois commits `3c2473b..d78ed71`**, **66 fichiers, +3 689/−3 617**.
+  `templates/index.html`, `partials/dashboard.html`, `partials/officeevent.html` et
+  `partials/actions-coquille.html` sont supprimés ; la racine `/` est un document Django ;
+  `package.json` ne porte plus que `@components/alpinejs` et `@components/htmx`, et
+  `libreosteoweb/static/js/` plus qu'un seul fichier du dépôt.
+
+  **Les treize tâches et leurs commits**
+
+  | # | Tâche | Commits | Rounds |
+  |---|---|---|---|
+  | T1 | Matrice d'atteignabilité au clic (C11) | `3c2473b..bb730ac` | 2 |
+  | T2 | Visite guidée décrite et couverte contre AngularJS | `bb730ac..2b4e63d` | 1 |
+  | T3 | Mini-graphe SVG calculé au serveur (AR1) | `2b4e63d..f730b46` | 1 |
+  | T4 | Fragment d'événements paginé et son URL | `f730b46..b026fbc` | 1 |
+  | T5 | Visite guidée décidée au serveur, ancrée (AR2) | `b026fbc..51e61c3` | 1 |
+  | T6 | Les six `goto` de hash du filet | `51e61c3..ee60486` | 0 |
+  | T7 | **La bascule** : `/` devient un document Django | `ee60486..bd9ef82` | 2 |
+  | T8 | Septième site de hash, cliquet d'adressage étendu | `bd9ef82..853fbb6` | 0 |
+  | T9 | Un ancien signet ne casse ni ne blanchit | `853fbb6..a88c3aa` | 0 |
+  | T10 | Quatorze paquets et quatorze fichiers JavaScript sortent | `6db03a8`, `5b30916` | 1 |
+  | T11 | Les deux liens `#/` de `404.html` | `ab854fe` | 0 |
+  | T12 | Passe au navigateur, puis trois correctifs | `b2bb0f8`, `af0fc88`, `67c4947` + revues `ef744a9`, `df06a4e`, `e36f3d0`, `b99fe83`, `22ea098`, `3808685`, `9b49779`, `7c0acee` | 3 |
+  | T13 | Clôture : les dix clauses | cette entrée | — |
+
+  S'y ajoutent, hors tâche : `1e7f973`, `8025f59` et `d4646a6` (dette n° 1), `2ba4d6b`
+  (dette n° 2) et `0a8817b` (le test vert par marge, cf. plus bas).
+
+  **Les dix clauses de sortie, chacune rejouée le 2026-09-18**
+
+  | # | Clause | Constat réel | Verdict |
+  |---|---|---|---|
+  | 1 | L'état de départ est celui que la spec suppose | **16** paquets ; **aucun** `ui-sref` actif dans `menu.html` ; **7** sites `#/` dans `tests/functional/` ; **16** occurrences `components/jquery\|angular` sous `templates/`, dont **15** dans `index.html` | constatée (T6 Step 1) |
+  | 2 | `package.json` porte exactement deux dépendances, `yarn.lock` cohérent | `grep -c '"@components/'` → **2** ; `yarn install --frozen-lockfile` → `success Already up-to-date. Done in 0.42s` | constatée |
+  | 3 | Aucun gabarit ne charge jQuery, AngularJS ni le JS de Bootstrap 3 ; `static/js/app/` n'existe plus | **une seule** ligne, le commentaire `pages/fragments/facturation-modale.html:9` ; `ls .../static/js/app` → `No such file or directory` ; `find .../static/js -type f` → **1** fichier, `composants/texte-riche.js` | constatée |
+  | 4 | Les motifs AngularJS ne rendent que des commentaires | **71** occurrences : **62** commentaires Django, **1** commentaire CSS (`base.html:33`, dans le `<style>` de la page), **8** faux positifs (`ng-top`/`ng-bottom` extraits de `padding-top`/`padding-bottom`). **Zéro directive active** | constatée |
+  | 5 | Les deux routes de fragment répondent 404, prouvé par un test | `pytest -k ancienne_route` → **`2 passed, 45 deselected, 1 warning in 2.28s`** | constatée |
+  | 6 | La matrice d'atteignabilité est verte **et a été démontrée rouge** | **`1 passed, 15 warnings in 8.64s`** ; rouge recopié ci-dessous | constatée |
+  | 7 | `make check` vert, cliquets tenus | **`848 passed, 10 warnings in 200.27s`** ; `Required test coverage of 90.0% reached. Total coverage: 94.50%` ; périmètre `mypy` **171** ; `ruff` `ignore = []` ; **zéro** `noqa`, `type: ignore` ou `skip` neuf | constatée |
+  | 8 | Suite fonctionnelle verte en un seul lancement, vingt fois | **`128 passed, 24 warnings`** aux **vingt** exécutions consécutives sur `0a8817b` ; durées min **321,08 s**, médiane **324,46 s**, max **368,45 s** | constatée |
+  | 9 | Passe au navigateur, sept attendus constatés un par un | A 6/6, B 4 oui + 1 non (D-1), C 5/5 avec réserve, D 4/4, E 2/2, F 1/1, G 2 oui + 1 non (D-4) ; matrice R-NAV-01 rejouée à la main **15 oui / 0 non** ; TTFB médian **180,7 ms** (seuil d'une seconde non franchi, repli `hx-trigger="load"` non appliqué) | constatée |
+  | 10 | Trois fiches neuves, deux retouchées, couvertures vérifiées | neuves : R-TOU-01 (`docs/recette.md:3202`), R-NAV-01 (`:3253`), R-NAV-02 (`:3318`) ; retouchées : R-AGE-01 (`:2809`), R-AGE-02 (`:2837`). Les **huit** tests nommés en « Couverture auto » ont été ouverts un à un : tous existent et couvrent ce que la fiche décrit | constatée |
+
+  **Le rouge de la clause 6, recopié** — entrée « Comptabilité » commentée dans
+  `partials/menu.html`, `make static`, puis le test :
+
+  ```
+          # 6. Comptabilite — entree du menu du haut.
+  >       page.get_by_role("link", name="Comptabilité").click()
+  E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.
+  E           Call log:
+  E             - waiting for get_by_role("link", name="Comptabilité")
+  FAILED tests/functional/test_atteignabilite.py::test_chaque_ecran_est_joignable_au_clic[chromium]
+  1 failed, 48 warnings in 37.46s
+  ```
+
+  Le filet rougit **au clic lui-même**, pas sur une assertion en aval : un écran retiré du
+  menu ne peut pas passer inaperçu.
+
+  **Hors périmètre, vérifié (A9)** : `git diff --name-only origin/main -- Docker/ .github/
+  Makefile` rend **vide**. La chaîne de construction n'a pas bougé ; `statici18n` et
+  `compilejsi18n` se retiront dans D6g, sous une preuve d'image reconstruite.
+
+  **Les deux chiffres du plan qui étaient périmés, et pourquoi**
+
+  **Clause 7 : 848 et non 817.** Le plan a été écrit le 2026-09-13, avant que T3 à T13 ne
+  posent leurs tests. L'écart n'est pas une dérive : le journal mesurait déjà **845** à la
+  fermeture de T9, et les **trois** de plus sont nommables un à un —
+  `test_le_corps_sans_visite_porte_l_etat_a_zero` et
+  `test_le_corps_avec_visite_porte_le_total_et_les_deux_rendus_etroits` (revue R2 de D-1,
+  commit `9b49779`, qui redescend au niveau unitaire ce que la passe navigateur avait
+  mesuré à l'écran), et `test_aucun_gabarit_ne_charge_jquery_ni_angularjs`, le cliquet posé
+  par T10. **Couverture 94,50 %** contre les 94,31 % attendus, périmètre `mypy` **171**
+  contre les 168 attendus : les six modules neufs y sont, plus ceux de T3 à T5.
+
+  **Clause 8 : 128 et non 124.** Même cause, et les **cinq** tests qui séparent 123 (fin de
+  T9) de 128 sont ceux des correctifs de T12, tous postérieurs au plan :
+  `test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent` (D-4),
+  `test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol` (D-6),
+  `test_lencart_est_visible_et_dans_la_fenetre_en_affichage_etroit`,
+  `test_lencart_reste_ancre_a_gauche_de_sa_cible_en_affichage_large` et
+  `test_lattachement_suit_un_changement_de_viewport_en_cours_de_visite` (D-1 et ses deux
+  revues). Le plan le disait lui-même : « les comptes de tests sont des attendus, pas des
+  prédictions ».
+
+  **Les trois dettes ouvertes à la reprise, et leur sort**
+
+  1. **L'intermittence de plein-suite : fermée.** Trois exécutions complètes pendant T9
+     avaient donné un jeu de tests différent en échec à chaque passage. Cause instruite et
+     fermée en deux rangs (`1e7f973`, `8025f59`, `d4646a6`) ; la clause de stabilité est
+     ensuite passée **vingt fois de suite** sans reprise. ⚠️ **Le rang 3 a mis au jour un
+     défaut de production qui n'a pas été corrigé** — l'`autofocus` de `register.html:13`,
+     versé en « Défauts versés par D6f ».
+  2. **La fragilité de minuit : fermée par `2ba4d6b`** — mais **ce journal la décrivait
+     faux, et c'est le constat qui compte.** L'entrée annonçait **deux** tests, dont
+     `test_le_panneau_d_evenements_inclut_la_premiere_page`, qui n'a en réalité **aucun**
+     défaut de ce type. Il y en avait **quatre**, tous dans `TestRegroupementParJour`
+     (`libreosteoweb/tests/test_page_tableau_de_bord.py`). La fenêtre annoncée était fausse
+     aussi : mesurée minute par minute, elle va de **00:00:00 à 00:10:59** — et non
+     00:00–00:09 —, **plus les deux jours de bascule d'heure** pour le quatrième, qui semait
+     la veille par une soustraction de 24 h réelles sur un instant *aware* UTC. Remède
+     unique, `_maintenant_loin_de_minuit()`, qui ancre le semis à midi local.
+  3. **Le compilateur de catalogue : close par arbitrage, sans correctif de production.**
+     L'entrée versée par D6e posait une alternative — installer un vrai `msgfmt`, **ou**
+     poser le cliquet qui compare le `.mo` au `.po`. D6f a pris **la seconde branche** :
+     `tests/qualite/test_contrat_catalogue_compile.py` (T5). La dette **de D6f** est donc
+     close ; **l'entrée de D6e reste ouverte sur la première branche**, un vrai `msgfmt` sur
+     la machine, qui reste versée hors lot.
+
+  **L'arbre statique servi mentait — le constat le plus lourd du lot**
+
+  Mesuré à la clôture : `static/` portait **5 096 fichiers, 76 Mo**, dont **4 764
+  résiduels** — tout AngularJS, jQuery, hallo, bootstrap-tour, c'est-à-dire exactement les
+  paquets que T10 avait sortis de `package.json`. `collectstatic` **n'enlève jamais** ce
+  qu'il a copié une fois, et rien dans le dépôt ne le rejoue à blanc. Après purge et
+  `make static` : **332 fichiers, 7,7 Mo**, `static/components` ne portant plus
+  qu'`alpinejs` et `htmx`.
+
+  **La conséquence, écrite sans l'adoucir : toutes les campagnes fonctionnelles antérieures,
+  T12 comprise, ont tourné avec la coquille encore à portée de main.** Un test qui aurait
+  chargé jQuery ou AngularJS depuis l'arbre servi serait resté vert. La clause « la coquille
+  est morte » n'a été **réellement éprouvée** qu'à la vingtaine de répétitions finales, sur
+  un arbre purgé. Le manque d'outillage qui l'a permis — **aucune cible ne garantit un arbre
+  servi fidèle à l'image** — est versé en « Défauts versés par D6f ».
+
+  **Un test était vert par marge, pas par preuve — et sa classe entière l'est encore**
+
+  `test_le_dossier_preserve_le_texte_riche_a_l_octet` attendait le bouton « Fin d'édition »
+  avant de le cliquer. Cette barrière ne prouvait rien : le bouton est un
+  `x-show="edition !== null"` (`actions-dossier.html:41`) et `edition` est écrit
+  **synchronement** par le clic sur « Éditer » (`:40`). Le seul écouteur de
+  `dossier-fin-edition` arrive avec le fragment, plus tard. **Marge réelle mesurée : 20 à
+  50 ms.**
+
+  **Le test a basculé au rouge sans qu'une ligne du dépôt ne change** : la machine a ralenti
+  d'environ **43 %** — la même suite complète passant de **333 s à 475 s** —, tout ce qui est
+  côté serveur s'étirant quand la commande côté client, elle, ne s'étire pas. Corrigé par
+  `0a8817b`, qui attend `#general-formulaire` et non le bouton.
+
+  **Le même motif est écrit ailleurs**, et ces sites ne sont verts que parce que le geste
+  suivant vise un élément du fragment : l'auto-attente de Playwright les sauve **par
+  accident**. La classe entière est versée en « Défauts versés par D6f », avec le remède
+  proposé (`entrer_en_edition(page, panneau)`). Le même écart existe **côté production**, pour
+  un praticien : il y est versé aussi, qualifié **incohérence d'état et non perte de
+  données**.
+
+  **Les cinq chiffres que le cadrage a corrigés**
+
+  **Quatorze** paquets et non vingt-sept (F1) ; **zéro** `ui-sref` actif dans `menu.html` et
+  non trois (F2) ; **sept** sites de hash et non quinze (F11) ; `orphan: true` **inerte** et
+  les deux encarts **ancrés**, non centrés (F8) ; `bootstrap.js` **déjà orphelin** avant le
+  lot (F13). Les deux renvois périmés que le plan désignait — « `menu.html` porte encore ses
+  3 occurrences… deux `ui-sref` réels » et « quinze sites dépendent du routage par hash » —
+  portent déjà, dans ce journal, leur annotation ⚠️ de correction.
+
+  **Les trois changements de produit assumés**
+
+  1. **Le filtre de l'agenda recharge la liste depuis le serveur** et **perd le défilement
+     déjà acquis** (A7), là où il ne faisait auparavant que basculer un affichage sur des
+     données déjà chargées. Sensible au-delà de dix entrées. Écrit dans `R-AGE-02`.
+  2. **Le libellé d'ancienneté se dégrade sous la minute** (C5) : « il y a 0 minutes » au
+     lieu de « il y a moins d'une minute ».
+  3. **Les anciens signets cassent, sans rattrapage** (A5). Aucun script de traduction
+     d'anciens fragments n'est écrit — ce serait une table de routage JavaScript posée sur
+     la seule page qui peut s'en passer. Ce qui est garanti, et prouvé par `R-NAV-02`, c'est
+     que la rupture est **silencieuse et propre** : 200, tableau de bord, zéro erreur de
+     console.
+
+  **Ce que le lot n'a pas fait, et pourquoi**
+
+  **Aucune feuille de style supprimée** (A3) — `css/typeahead.css` et
+  `css/plugins/metisMenu/metisMenu.min.css` sont consommés par `404.html`. **Aucune ressource
+  DRF retirée** (A4), y compris celles que le lot orpheline. **`statici18n` et `compilejsi18n`
+  conservés** (A9) : ils se retirent dans D6g, sous une seule preuve d'image reconstruite.
+  **`404.html` non refondue** hors ses deux liens (A10). **La forme `path(r"/", …)` de
+  `libreosteoweb/urls.py` conservée à l'octet** (A1, multi-cabinet hors périmètre) : la
+  toucher serait réparer un garde-fou sans avoir cherché pourquoi il est ainsi.
+
+  **Les défauts de la passe au navigateur (T12)**
+
+  | n° | Défaut | Sort |
+  |---|---|---|
+  | D-1 | l'encart de visite guidée hors fenêtre, et invisible sous menu replié, en affichage étroit | **fermé**, `67c4947` + revues `e36f3d0`, `22ea098`, `3808685`, `9b49779` |
+  | D-2 | en affichage étroit, la barre déployée recouvre le titre et la première tuile | **versé**, antériorité établie par lecture comparative `3c2473b`→`ab854fe` — préexistant, destinataire D6g |
+  | D-3 | en affichage étroit, trois entrées du menu utilisateur — dont « Déconnexion » — ne sont pas atteignables | **versé**, préexistant, sévère, destinataire D6g |
+  | D-4 | le lien « Profil utilisateur » de la page 404 n'est pas cliquable | **fermé**, `af0fc88` |
+  | D-5 | la barre latérale de la page 404 recouvre son titre | **versé**, préexistant amont, hors chantier ou D6g |
+  | D-6 | la zone de survol des points du mini-graphe est réduite de moitié | **fermé**, `b2bb0f8` |
+  | D-7 | l'infobulle du mini-graphe affiche des horodatages bruts | **versé**, D6g |
+
+  Les quatre défauts versés (D-2, D-3, D-5, D-7) sont détaillés, avec leur mesure et leur
+  destinataire, en « Défauts versés par D6f ».
+
+  **Ce que la passe n'a pas pu constater** : l'apparition effective des infobulles natives à
+  l'écran (le navigateur les dessine hors du document, `screenshot` ne les capture pas — trois
+  mesures indirectes concordantes en tiennent lieu) ; l'antériorité de D-2, D-3 et D-5 par une
+  passe sur le commit d'avant-lot, établie par lecture du CSS et de l'historique seulement ;
+  le comportement sous un navigateur autre que Chromium.
 
 - **2026-09-18 — treize entrées de backlog radiées après vérification dans l'arbre, aucune
   ligne de code.** Passe de relecture portant sur le seul `KANBAN.md` : chaque entrée
