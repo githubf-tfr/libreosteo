@@ -65,12 +65,22 @@ class TestIsStaffOrReadOnlyTargetUser(TestCase):
         requete.user = self.simple
         self.assertTrue(self.permission.has_permission(requete, VueFactice()))
 
-    def test_ecriture_reservee_au_personnel(self):
+    def test_creation_reservee_au_personnel(self):
         requete = self.fabrique.post("/api/office-users")
         requete.user = self.simple
-        self.assertFalse(self.permission.has_permission(requete, VueFactice()))
+        self.assertFalse(self.permission.has_permission(requete, VueFactice("create")))
         requete.user = self.personnel
-        self.assertTrue(self.permission.has_permission(requete, VueFactice()))
+        self.assertTrue(self.permission.has_permission(requete, VueFactice("create")))
+
+    def test_ecriture_sur_un_objet_existant_se_reporte_au_controle_d_objet(self):
+        """A22 : `has_permission` refusait toute methode non sure a un non-personnel
+        **avant** que `has_object_permission` ait pu decider — et cette derniere sait
+        pourtant deja laisser la cible modifier ce qui lui appartient. Une action portant
+        sur un objet existant (update/partial_update/destroy) doit donc passer ici ; c'est
+        `has_object_permission` qui tranchera, pas cette methode."""
+        requete = self.fabrique.put("/api/office-users")
+        requete.user = self.simple
+        self.assertTrue(self.permission.has_permission(requete, VueFactice("update")))
 
     def test_un_utilisateur_est_proprietaire_de_lui_meme(self):
         requete = self.fabrique.put("/api/office-users")
@@ -395,6 +405,29 @@ class TestDeconnexion(APITestCase):
     def test_le_clic_sur_deconnexion_ferme_reellement_la_session(self):
         page = self.client.get("/").content.decode()
         agir, url_deconnexion = self._commande_de_deconnexion(page)
+
+        reponse = agir(url_deconnexion)
+        self.assertNotEqual(
+            reponse.status_code,
+            405,
+            "la deconnexion est refusee par la methode HTTP utilisee",
+        )
+
+        verification = self.client.get("/")
+        self.assertEqual(verification.status_code, 302)
+        self.assertTrue(verification.url.startswith(reverse("login")))
+
+    @override_settings(DEBUG=False)
+    def test_le_clic_sur_deconnexion_depuis_la_page_404_ferme_reellement_la_session(
+        self,
+    ):
+        """`404.html` porte son propre lien de deconnexion (meme formulaire cache, meme
+        POST que la page d'accueil), non couvert par le test ci-dessus qui ne part que
+        de `/`. `DEBUG=False` est la condition d'existence du test : sous `DEBUG=True`,
+        c'est la page technique de Django qui sort, sans ce lien."""
+        page_404 = self.client.get("/route-qui-n-existe-pas")
+        self.assertEqual(page_404.status_code, 404)
+        agir, url_deconnexion = self._commande_de_deconnexion(page_404.content.decode())
 
         reponse = agir(url_deconnexion)
         self.assertNotEqual(

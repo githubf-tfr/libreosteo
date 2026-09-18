@@ -16,17 +16,21 @@
 
 from __future__ import annotations
 
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
+from django.urls import reverse
 
 
 def page_reindexation(request: HttpRequest) -> HttpResponse:
     """Le document de reindexation. Aucun contexte : la page est statique.
 
-    **Aucune garde `is_staff` n'est posee ici, et c'est delibere.** `display_rebuild_index`
-    n'en avait pas ; seule l'action `internal/rebuild_index` est gardee, par
-    `StaffRequiredMixin`. Ajouter une garde serait reparer une permission, ce qu'A22 range
-    hors de ce lot : le fait est verse au `KANBAN.md` par T13, avec les deux autres.
-    L'authentification, elle, est garantie par `LoginRequiredMiddleware`.
+    **La garde `is_staff` reprend celle de l'action** : `RebuildIndex`
+    (`internal/rebuild_index`) est gardee par `StaffRequiredMixin`, qui renvoie un non-
+    personnel vers la connexion. La page ouvrait cette action sans le meme controle
+    (A22, tranche ici) ; meme refus, ici en ligne faute de pouvoir reutiliser un mixin de
+    vue a base de classe sur une vue fonction. L'authentification, elle, reste garantie par
+    `LoginRequiredMiddleware`.
     """
+    if not request.user.is_staff:
+        return HttpResponseRedirect(reverse("login"))
     return render(request, "pages/reindexation.html")

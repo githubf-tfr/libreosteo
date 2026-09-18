@@ -32,7 +32,16 @@ logger = logging.getLogger(__name__)
 
 class IsStaffOrReadOnlyTargetUser(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.method in permissions.SAFE_METHODS or request.user.is_staff
+        # A22 : cette methode ne connait pas encore l'objet vise, donc pas la cible d'une
+        # ecriture. Seule la creation (aucun objet a controler ensuite) se tranche ici, au
+        # personnel exclusivement ; une action sur un objet existant passe et se laisse
+        # trancher par has_object_permission, qui sait deja distinguer la cible du reste.
+        if request.method in permissions.SAFE_METHODS or request.user.is_staff:
+            return True
+        # `getattr` et non `view.action` : l'unique consommateur est un `ModelViewSet`, mais
+        # une `APIView` simple n'a pas d'attribut `action` et leverait une `AttributeError`
+        # au lieu de refuser.
+        return getattr(view, "action", None) != "create"
 
     def has_object_permission(self, request, view, obj):
         if request.user.is_staff:

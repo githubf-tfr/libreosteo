@@ -64,3 +64,20 @@ class TestPageReindexation(TestCase):
         corps = self.client.get(reverse("reindexation")).content.decode("utf-8")
         self.assertIn('<li id="rebuild-index"><a href="/office/rebuild-index">', corps)
         self.assertNotIn("/#/office/rebuild-index", corps)
+
+
+class TestPageReindexationRefuseeAUnNonAdministrateur(TestCase):
+    """La page n'avait aucune garde `is_staff`, alors que l'action qu'elle declenche en a
+    une (`RebuildIndex`, garde par `StaffRequiredMixin`, teste par
+    `TestStaffRequiredMixin.test_un_utilisateur_non_personnel_est_renvoye_vers_la_connexion`
+    dans `test_acces.py`). Meme garde, meme preuve, ici sur la page."""
+
+    def setUp(self):
+        with sans_receivers():
+            cree_praticien(username="simple", is_staff=False)
+        self.client.login(username="simple", password="testpw")
+
+    def test_un_praticien_non_administrateur_n_ouvre_pas_la_page(self):
+        reponse = self.client.get(reverse("reindexation"))
+        self.assertEqual(302, reponse.status_code)
+        self.assertEqual(reverse("login"), reponse.url)

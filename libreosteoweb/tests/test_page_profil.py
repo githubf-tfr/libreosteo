@@ -14,6 +14,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 """La page de profil : deux onglets, deux ecritures, une modale (D6d T7)."""
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
@@ -169,11 +170,11 @@ class TestPageProfil(TestCase):
         self.praticien.refresh_from_db()
         self.assertTrue(self.praticien.check_password("testpw"))
 
-    def test_un_non_administrateur_est_refuse_comme_il_l_est_deja_par_l_api(self):
-        """**Ne repare pas A22, le reproduit.** `IsStaffOrReadOnlyTargetUser` refuse toute
-        methode non sure a un non-`is_staff` **avant tout controle d'objet** : un praticien
-        ne peut pas changer son propre mot de passe. La vue de page oppose le meme refus,
-        et l'affiche — la ou l'API le laissait sans consommateur visible."""
+    def test_un_non_administrateur_change_son_propre_mot_de_passe(self):
+        """A22, tranche : cette page ne recoit jamais d'identifiant de cible, elle agit
+        toujours sur `request.user`. Le refus reserve au personnel etait donc un refus
+        indu, jamais une protection d'un compte tiers — celle-ci est prouvee separement par
+        `test_un_non_administrateur_ne_change_pas_le_mot_de_passe_d_un_autre`."""
         with sans_receivers():
             cree_praticien(username="simple", is_staff=False)
         self.client.logout()
@@ -182,8 +183,48 @@ class TestPageProfil(TestCase):
             reverse("profil-mot-de-passe"),
             data={"password1": "nouveaumdp", "password2": "nouveaumdp"},
         )
-        self.assertEqual(403, reponse.status_code)
-        self.assertIn('data-severite="erreur"', reponse.content.decode("utf-8"))
+        self.assertEqual(200, reponse.status_code)
+        self.assertIn('data-severite="succes"', reponse.content.decode("utf-8"))
+        simple = get_user_model().objects.get(username="simple")
+        self.assertTrue(simple.check_password("nouveaumdp"))
+
+    def test_un_non_administrateur_ne_change_pas_le_mot_de_passe_d_un_autre(self):
+        """Le risque du correctif : ouvrir le refus indu ne doit pas ouvrir une porte.
+        Cette vue ne lit jamais d'identifiant de cible dans le corps poste — meme un champ
+        qui en imiterait un (`identifiant`) reste sans effet — donc `set_password` ne peut
+        agir que sur `request.user`. Preuve directe : le mot de passe d'un tiers ne bouge
+        pas."""
+        with sans_receivers():
+            simple = cree_praticien(username="simple", is_staff=False)
+            victime = cree_praticien(username="victime", is_staff=False)
+        self.client.logout()
+        self.client.login(username="simple", password="testpw")
+        reponse = self.client.post(
+            reverse("profil-mot-de-passe"),
+            data={
+                "password1": "nouveaumdp",
+                "password2": "nouveaumdp",
+                "identifiant": victime.pk,
+                "username": "victime",
+            },
+        )
+        self.assertEqual(200, reponse.status_code)
+        simple.refresh_from_db()
+        victime.refresh_from_db()
+        self.assertTrue(simple.check_password("nouveaumdp"))
+        self.assertTrue(victime.check_password("testpw"))
+
+    def test_un_administrateur_change_toujours_son_propre_mot_de_passe(self):
+        """Non-regression : le personnel gardait deja ce chemin avant A22, et le garde
+        apres — le correctif retire un refus, il n'en ajoute aucun."""
+        reponse = self.client.post(
+            reverse("profil-mot-de-passe"),
+            data={"password1": "nouveaumdp", "password2": "nouveaumdp"},
+        )
+        self.assertEqual(200, reponse.status_code)
+        self.assertIn('data-severite="succes"', reponse.content.decode("utf-8"))
+        self.praticien.refresh_from_db()
+        self.assertTrue(self.praticien.check_password("nouveaumdp"))
 
     def test_les_modules_exposes_au_gabarit_portent_leur_valeur_courante(self):
         """`modules_du_profil` est la seule facon de rendre une case cochee : un gabarit

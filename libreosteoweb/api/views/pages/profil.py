@@ -226,24 +226,16 @@ def _modale_mot_de_passe(request: HttpRequest) -> HttpResponse:
 
 
 def _changer_mot_de_passe(request: HttpRequest) -> HttpResponse:
-    """Le changement de mot de passe, et le refus que le produit oppose deja.
+    """Le changement de mot de passe : toujours celui de `request.user`.
 
-    **Le refus d'un non-administrateur sur son propre mot de passe n'est pas repare
-    ici** (A22). `IsStaffOrReadOnlyTargetUser.has_permission` refuse toute methode non sure
-    a un non-`is_staff` **avant tout controle d'objet**, et
-    `libreosteoweb/tests/test_acces.py` le prouve deja unitairement. La vue reproduit ce
-    refus a l'identique : le bouton reste affiche pour tout le monde, et le refus s'affiche
-    en notification d'erreur — comportement observable identique. Le fait est verse au
-    `KANBAN.md` par T13.
+    **A22, tranche** : cette vue n'a jamais lu d'identifiant de cible dans la requete,
+    contrairement a `cabinet.py::mot_de_passe_utilisateur` (la modification par un
+    administrateur du mot de passe d'un tiers, elle, gardee par son propre controle
+    `is_staff`). Reserver ce chemin au personnel refusait donc a tout praticien de changer
+    **son propre** mot de passe, sans proteger personne d'autre. Meme regle que
+    `IsStaffOrReadOnlyTargetUser.has_object_permission` : le personnel garde ses
+    prerogatives, et chacun reste maitre de son propre mot de passe.
     """
-    if not request.user.is_staff:
-        return reponse_avec_notification(
-            request,
-            "",
-            "erreur",
-            _("You do not have permission to perform this action."),
-            status=403,
-        )
     mot_de_passe = request.POST.get("password2", "")
     if not mot_de_passe or mot_de_passe != request.POST.get("password1", ""):
         corps = render_to_string(
