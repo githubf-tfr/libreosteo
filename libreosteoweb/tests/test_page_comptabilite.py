@@ -326,3 +326,36 @@ class TestCoherenceDeLaPeriodeApresEchange(TestCase):
         url_export = _url_d_export(corps)
         self.assertIn("date__gte=2024-03-01", url_export)
         self.assertIn("date__lte=2024-03-31", url_export)
+
+
+class TestPlagePredefinieConserveLeTherapeute(TestCase):
+    """Defaut de recette : cliquer une plage predefinie (mois, annee, annee precedente)
+    perd le therapeute affiche par la liste deroulante, qui n'est jamais transmis par les
+    trois liens `hx-get`.
+
+    `comptabilite-echange.html` ne swap ni le formulaire ni la liste deroulante — c'est
+    delibere (voir son commentaire), pour ne pas rejouer une selection sur un rendu qui
+    ne la connait pas. La liste deroulante reste donc l'unique source de verite du
+    therapeute affiche a l'instant du clic ; c'est elle que le lien doit transmettre, pas
+    une valeur figee au rendu de la page (qui ignorerait un changement de selection fait
+    sans passer par « Rechercher »). `hx-include` sur chaque lien est le mecanisme qui lit
+    cette valeur au moment du clic.
+    """
+
+    def setUp(self):
+        with sans_receivers():
+            self.praticien = cree_praticien()
+            cree_reglages_praticien(self.praticien)
+            self.cabinet = regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def test_les_trois_liens_de_plage_incluent_le_therapeute_courant(self):
+        corps = self.client.get(reverse("comptabilite")).content.decode("utf-8")
+
+        for identifiant in ("plage-mois", "plage-annee", "plage-annee-precedente"):
+            with self.subTest(identifiant=identifiant):
+                balise = re.search(
+                    r'<a[^>]*data-testid="%s"[^>]*>' % identifiant, corps
+                )
+                self.assertIsNotNone(balise)
+                self.assertIn('hx-include="#therapeut"', balise.group(0))

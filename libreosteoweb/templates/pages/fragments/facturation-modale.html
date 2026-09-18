@@ -12,6 +12,14 @@
 {# champ hors-sujet masque — mais **ce n'est pas une autorite de validation** : le refus #}
 {# serveur, rendu ci-dessous, reste la seule (E4). Le formulaire n'a pas de `novalidate`, #}
 {# qui n'existait que parce qu'Angular validait a sa place. #}
+{# `hx-on:htmx:validation:halted` referme un silence propre a htmx (E4 bis) : le motif #}
+{# HTML5 sur `#amount` refuse deja la virgule, mais htmx **ne rapporte jamais** cette #}
+{# invalidite au navigateur — `htmx.config.reportValidityOfForms` vaut `false` par defaut #}
+{# (mesure dans `htmx.js:288`). Sans ce gestionnaire, l'evenement `htmx:validation:halted` #}
+{# se declenche, personne ne l'ecoute, et l'envoi est bloque **sans le moindre message** : #}
+{# le praticien ne voit rien, ne comprend pas pourquoi « 35,50 » ne part pas. Le motif #}
+{# lui-meme reste refuse (D6d, dette connue sur les trois decimales) — ce commentaire ne #}
+{# le change pas, il rend seulement le refus visible. #}
 {# **`hx-target="#modale"`, et non le volet.** C'est le patron pose par D6d #}
 {# (`comptabilite-annulation.html`, `utilisateur-nouveau.html`) : la reponse de succes ne #}
 {# porte que le volet **hors-bande**, donc la cible principale recoit du vide, `#modale` se #}
@@ -21,6 +29,7 @@
 {# la modale entiere sur un refus 422. #}
 <form id="formulaire-facturation" method="post"
       hx-post="{{ action }}" hx-target="#modale" hx-swap="innerHTML"
+      hx-on:htmx:validation:halted="event.detail.errors[0].elt.reportValidity()"
       {# **L'etat initial d'Alpine doit dire la meme chose que le HTML rendu.** En mode #}
       {# facturation seule, la seule radio presente est `invoiced` et le serveur la rend #}
       {# **deja cochee** : un `mode` vide masquerait alors le bloc de montant des le #}

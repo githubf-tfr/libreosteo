@@ -997,6 +997,26 @@ class TestModaleDeFacturation(_VoletRendu):
         )
         self.assertNotIn('value="notinvoiced"', reponse.content.decode())
 
+    def test_le_refus_du_montant_par_le_motif_se_voit(self) -> None:
+        """Defaut de recette : `#amount` porte deja un `pattern` et un `title`, mais htmx
+        n'affiche jamais la validation native (`htmx.config.reportValidityOfForms` vaut
+        `false` par defaut — mesure dans `htmx.js:288`). Un montant refuse par le motif
+        (« 35,50 ») bloquait donc l'envoi **en silence** : `htmx:validation:halted` se
+        declenche, personne ne l'ecoute, et rien ne s'affiche.
+
+        Le formulaire doit donc rapporter lui-meme la validite du premier champ fautif —
+        ce que `event.detail.errors[0].elt.reportValidity()` fait, sur l'evenement que
+        htmx emet deja quand il bloque l'envoi.
+        """
+        reponse = self.client.get(
+            reverse("consultation-cloture", args=[self.consultation.id])
+        )
+        html = reponse.content.decode()
+        formulaire = html[html.index('id="formulaire-facturation"') :]
+        gestionnaire = formulaire[: formulaire.index(">")]
+        self.assertIn("hx-on:htmx:validation:halted", gestionnaire)
+        self.assertIn("reportValidity()", gestionnaire)
+
 
 class TestVuesDuVolet(_VoletRendu):
     """Les trois validations non heritees d'`ExaminationInvoicingSerializer.validate`,

@@ -39,9 +39,15 @@
                         <a href="{% url 'db_dump' %}">{% trans 'get archive'%}</a>
                       </div>
                       <div class="col-md-10">
+                        {# **L'indentation qui suit n'est pas libre, ne la realigne pas.** Le #}
+                        {# `msgid` d'un `blocktrans` inclut litteralement l'espace du gabarit : #}
+                        {# le catalogue porte 28 espaces (herites du gabarit AngularJS), donc le #}
+                        {# gabarit doit en emettre 28. A 24, le `msgid` cherche a l'execution ne #}
+                        {# correspondait a aucune entree et le paragraphe restait en anglais. #}
+                        {# `test_page_import_export.py` le tient. #}
                         {% blocktrans %}
-                        This file is the full content of your database. It could only be used by LibreOsteo. Use it to restore your database or transfert the content to an other machine.
-                        {% endblocktrans %}
+                            This file is the full content of your database. It could only be used by LibreOsteo. Use it to restore your database or transfert the content to an other machine.
+                            {% endblocktrans %}
                       </div>
                     </div>
                   </div>

@@ -50,16 +50,21 @@
     {# Les trois plages predefinies, calculees par le serveur : le mois en cours, l'annee en #}
     {# cours, l'annee precedente — les trois de `invoice.js:96-111`. Ce sont des liens htmx, #}
     {# pas des entrees d'un greffon jQuery. #}
+    {# `hx-include="#therapeut"` : `comptabilite-echange.html` ne swap jamais la liste #}
+    {# deroulante (delibere, voir son commentaire), qui reste donc l'unique source de #}
+    {# verite du therapeute affiche a l'instant du clic. Sans lui, ces trois liens #}
+    {# retombaient sur le therapeute par defaut de la vue (l'utilisateur connecte), #}
+    {# perdant toute selection faite via la liste deroulante (defaut de recette). #}
     <div class="btn-group">
       <a class="btn btn-default" href="?plage=mois" data-testid="plage-mois"
          hx-get="{% url 'comptabilite' %}?plage=mois" hx-target="#liste-comptabilite"
-         hx-swap="outerHTML" hx-push-url="true">{{ libelle_mois }}</a>
+         hx-swap="outerHTML" hx-push-url="true" hx-include="#therapeut">{{ libelle_mois }}</a>
       <a class="btn btn-default" href="?plage=annee" data-testid="plage-annee"
          hx-get="{% url 'comptabilite' %}?plage=annee" hx-target="#liste-comptabilite"
-         hx-swap="outerHTML" hx-push-url="true">{{ libelle_annee }}</a>
+         hx-swap="outerHTML" hx-push-url="true" hx-include="#therapeut">{{ libelle_annee }}</a>
       <a class="btn btn-default" href="?plage=annee-precedente" data-testid="plage-annee-precedente"
          hx-get="{% url 'comptabilite' %}?plage=annee-precedente" hx-target="#liste-comptabilite"
-         hx-swap="outerHTML" hx-push-url="true">{{ libelle_annee_precedente }}</a>
+         hx-swap="outerHTML" hx-push-url="true" hx-include="#therapeut">{{ libelle_annee_precedente }}</a>
     </div>
 
     {% include "pages/fragments/comptabilite-export.html" %}
