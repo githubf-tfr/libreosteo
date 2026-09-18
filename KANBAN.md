@@ -562,35 +562,9 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
   répond en **114 s** et le navigateur reçoit bien la réponse — l'ancien défaut du
   2026-09-01 est donc fermé —, mais rien à l'écran ne signale le travail en cours pendant
   ces presque deux minutes. Préexiste à D6d, qui n'a pas changé ce point.
-- **Un paragraphe du panneau d'archive n'est pas traduit.**
-  `libreosteoweb/templates/pages/import-export.html:42-44` porte `This file is the full
-  content of your database…` **dans un `{% blocktrans %}`**, et la traduction française
-  existe : `locale/fr/LC_MESSAGES/django.po:762-775`, présente aussi dans le `.mo`
-  compilé. **La cause écrite ici jusqu'au 2026-09-18 — « en clair, hors `{% trans %}` » —
-  était fausse.** La vraie cause est une **désynchronisation d'indentation** : le gabarit
-  émet **24** espaces devant le texte là où le `msgid` du catalogue en porte **28**,
-  hérités du gabarit AngularJS d'origine ; la chaîne cherchée à l'exécution n'est donc
-  jamais celle du catalogue. Mesuré le 2026-09-18 : la clef à 28 espaces est bien dans le
-  `.mo`, celle à 24 n'y est pas. Le remède devient **une seule ligne à réaligner** —
-  régénérer le `msgid` par `makemessages`, ou aligner l'indentation du gabarit sur celle
-  du catalogue, l'un ou l'autre et pas les deux. Identique à l'octet dans le gabarit
-  d'avant : **défaut amont, pas régression**. Constaté par `R-SAU-01` étape 1.
-- **Un clic de plage prédéfinie perd le thérapeute sélectionné.** Les trois liens portent
-  `hx-get="…?plage=mois"` sans `therapeut` : la vue retombe alors sur l'utilisateur connecté
-  pendant que la liste déroulante continue d'afficher « Tous ». La liste filtrée et le
-  sélecteur se contredisent. **Même famille que l'export figé, sur une quatrième surface**,
-  et préexistant au correctif `2a75d2b` comme après lui — relevé par son auteur, laissé
-  hors de son périmètre. À trancher : soit les liens de plage transportent le thérapeute
-  courant, soit le sélecteur est rafraîchi hors-bande comme les dates l'ont été.
 - **Deux boutons de `R-SAU-02` commencent par « Restaurer », et viser le mauvais ne produit
   aucun message.** Le geste correct rend bien `412` et l'alerte attendue. Relevé comme
   piège de geste par l'exécutant ; ressemble à un défaut d'ergonomie, non instruit.
-- **Le champ de montant refuse la virgule en silence.** `55,55` rend le formulaire invalide
-  et désactive « Valider » sans aucun message, là où `55.55` passe — asymétrique avec le
-  refus des trois décimales, qui affiche une bannière. Préexiste à D6d. **Emplacement neuf
-  depuis D6e** : `libreosteoweb/templates/pages/fragments/facturation-modale.html`, dont le
-  `pattern` est repris à l'octet — le défaut est reproduit à l'identique, comme A23
-  l'exige, et il a changé de fichier sans changer de nature.
 - **`R-INST-07` : six de ses huit lectures statiques ne correspondent plus à l'arbre.**
   27 références `@components/` au lieu de 29, deux références `npm:` sans SHA40 (`alpinejs`
   et `htmx`, entrées avec D6c), `--frozen-lockfile` absent de `.github/workflows/main.yml`.
@@ -620,16 +594,6 @@ lot de migration ne change pas le produit. Chacun vient avec son emplacement et 
   à deux lignes d'intervalle. Basculer en virgule est un changement de produit que
   l'utilisateur n'a pas demandé ; le coût mesuré est de **deux assertions et deux étapes de
   fiche**.
-- **Un utilisateur non-administrateur ne peut pas changer son propre mot de passe.**
-  `libreosteoweb/api/permissions.py:34` — `IsStaffOrReadOnlyTargetUser.has_permission`
-  refuse toute méthode non sûre à un non-`is_staff` **avant tout contrôle d'objet**, et
-  `libreosteoweb/tests/test_acces.py` le prouvait déjà unitairement sans en tirer la
-  conséquence. D6d **reproduit** ce refus dans la vue de page
-  (`views/pages/profil.py::changer_mot_de_passe`) et l'**affiche**, là où il était
-  auparavant sans consommateur visible. À trancher hors D6d, comme le multi-cabinet.
-- **La page de réindexation n'a pas de garde `is_staff` ; seule son action en a une.**
-  `display_rebuild_index` n'en avait pas non plus : le fait est reproduit à l'identique, et
-  versé ici pour que la décision soit prise une fois.
 
 ### Défauts versés par D6e (2026-09-13, non corrigés, à trancher hors lot de migration)
 
@@ -747,20 +711,6 @@ décrits à l'entrée de clôture, pas ici.
   repointés sur cette route seraient passés au vert sans rien créer, le format de test par
   défaut étant `json` là où la vue lit `request.POST`. À trancher : refuser en `4xx` avec
   le motif rendu, comme le font les autres surfaces du lot.
-- **En démonstration, tous les documents partagent un seul fichier sur disque, et la
-  suppression de l'un l'efface pour tous.** Le `FieldFile` rendu par
-  `get_demonstration_file()` est déjà *committed*, Django ne le recopie pas ; le récepteur
-  `post_delete` de `PatientDocument` efface ce fichier partagé. **Identique sur la voie
-  DRF, donc antérieur à D6e** — mais il ne se manifeste que sur la seule instance publique.
-- **Les motifs `responseHandling` de `base.html:16` ne sont pas ancrés.** `codeMatches`
-  fait correspondre `"422"` à la règle `[23].*` **par son `2`**, avant d'atteindre
-  `[45].*` : **72 codes 4xx/5xx échappent au marquage `error: true`**, dont `412`, que le
-  dépôt émet réellement (`administration.py:285,292`, écran de restauration). Latent —
-  rien ne consomme `htmx:responseError` aujourd'hui, et les deux règles échangent leur
-  effet sans conséquence visible. Hors périmètre de D6e : ancrer les motifs change le
-  comportement de codes réels sur des écrans livrés, et cela mérite sa propre décision.
-  C'est ce défaut qui a coûté un tour de revue à T12, et c'est pourquoi la garde de sortie
-  lit le **statut** et non `$event.detail.successful`.
 - **La garde de sortie se désarme sur trois chemins qui ne sont pas des enregistrements, et
   l'inventaire écrit ici en annonçait un.** La revue de branche a mesuré les trois ; la
   phrase « c'est le seul endroit du dossier où la règle *seul un résultat réel désarme*
@@ -812,45 +762,6 @@ décrits à l'entrée de clôture, pas ici.
   propre réponse —, mais c'est un doublon d'autorité sur une donnée clinique. À trancher :
   exclure la séance en cours de la chronologie, comme `ng-if="previousExamination.data ==
   null"` le faisait par un autre chemin.
-- **La règle « apparier tout attribut serveur à son état Alpine » n'est tenue que là où on
-  l'a nommée.** **Quatre** sites la rompent : `actions-dossier.html:39` et
-  `dossier-titre-cellule.html:28` portent `x-show="edition === null"` sans le
-  `style="display: none"` correspondant — or `edition` naît à `'current-examination'` dès
-  qu'une consultation est ouverte, donc les deux éléments sont rendus visibles puis masqués
-  par Alpine ; `nouveau-patient-formulaire.html:36` porte `:disabled="!valide"` sans
-  l'attribut `disabled` rendu, alors que `valide` naît faux ; et
-  `document-televersement.html:61` porte `x-show="!choisi"` sans son `style`, sur le seul
-  chemin de refus — où `choisi` naît vrai. Effets **cosmétiques** — un
-  scintillement à chaque ouverture d'un dossier portant une consultation en cours, et un
-  bouton « Initialiser la fiche patient » brièvement actif. La revue de branche les a
-  mesurés ; aucun n'a de conséquence fonctionnelle, et les corriger touche quatre gabarits
-  livrés.
-- **Deux inexactitudes de documentation, relevées et non corrigées.**
-  `tests/functional/helpers.py:199` affirme encore que le contrat neutre de notification
-  accepte `growl` « pendant la cohabitation » : c'est faux depuis T12, qui a retiré `growl`
-  du dossier patient. `libreosteoweb/tests/test_socle_gabarit_actions.py:29` et `:110`
-  citent `base.html:39` pour un `{% include %}` qui est à `base.html:81`. Aucune des deux
-  ne change un comportement ; les deux mentent à qui les lit.
-- **Le dépôt n'a pas de `.gitattributes`.** Trois normalisations de fins de ligne ont dû
-  être réparées à la main pendant le lot — un script de falsification qui réécrit un
-  fichier avec `open(p, "w")` transforme ses CRLF en LF et produit des centaines de lignes
-  de diff pour une ligne ajoutée. Rattrapé chaque fois avant commit, jamais livré. Un
-  `.gitattributes` rendrait le rattrapage inutile, et c'est une décision de dépôt, pas de
-  lot.
-- **`zipcode_lookup/tests.py` ne passe que si un autre fichier est collecté avant lui.**
-  Seul, il échoue : `apps.py:ready()` n'importe que `models`, `libreosteoweb.api.receivers`
-  n'est tiré que par l'URLconf, chargé **après** le `login()`, et `middleware.py:221-223`
-  fait alors `logout()` puis redirige vers `/accounts/login/`. Le vert de `make check`
-  vient de `testpaths`, qui collecte `libreosteoweb/tests` d'abord. **Un test dont le vert
-  dépend de l'ordre de collecte.** Préexistant ; le réparer touche l'amorçage des
-  récepteurs, hors de tout écran de D6e.
-- **`import-export.html` ne passe pas `onglet_initial` au composant d'onglets comme
-  `actif_initial`.** Le composant retombe alors sur `forloop.first`, ce qui est sans effet
-  **uniquement** parce qu'`import_export.py:65` vaut toujours `onglets[0]["cle"]`. Latent
-  aujourd'hui, silencieux le jour où cette page ouvrirait ailleurs que sur son premier
-  onglet. Écran de D6d, relevé par T7. S'y ajoute le même symptôme mort d'un cran plus
-  haut : `cabinet.py:213` pose `onglet_initial: "general"` qu'aucun gabarit ne lit
-  (`cabinet.html:29,35` code tout en dur).
 
 ### Défauts versés par D6f (2026-09-18, non corrigés, à trancher hors lot de migration)
 
@@ -1120,13 +1031,6 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   abandonnés** : le tri appartient au lot qui prendra le `README.rst`. (Numéros de
   ligne relevés dans l'arbre le 2026-09-18 ; les repérer par le texte s'ils bougent
   encore.)
-- **`404.html` non exercé unitairement par le test de non-régression de la
-  déconnexion.** `TestDeconnexion`
-  (`libreosteoweb/tests/test_acces.py:371`) ne rejoue le contrôle que depuis la page
-  d'accueil (`self.client.get("/")`) ; le lien de déconnexion de `404.html:263-264`,
-  corrigé de façon identique par construction (même formulaire caché, même POST),
-  n'est touché par aucun test. Risque résiduel non mesuré : le rendu de
-  `{% csrf_token %}` dans le contexte propre à `page_not_found`.
 - **Le champ `**Prérequis**` de `R-INST-06`** (`docs/recette.md:689`) est hors du
   schéma de fiche du chapitre 2 (`docs/recette.md:350-361` : Domaine, Couverture
   auto, État requis, Étapes — pas de `Prérequis`). Sans urgence : le schéma est déjà
@@ -1175,15 +1079,6 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   lui-même à relire** : D6f T10 (`6db03a8`) a supprimé le JavaScript de plusieurs de ces
   familles sans toucher au tableau du `README.rst`, qui liste encore
   `js/plugins/jquery.sparkline.min.js`, `js/sb-admin-2.js` et `js/plugins/timeAgo.js`.
-- **Les cinq lignes non figées restantes de `requirements/requirements.txt`** —
-  `sqlparse` (l. 20), `netifaces2` (l. 21), `decorator` (l. 22), `packaging` (l. 23) et
-  `pytz` (l. 25) — restent où D4 les a renvoyées. Le critère de tri de D5 était
-  mécanique : est dans D5 ce qui entre dans la chaîne de production des actifs servis.
-  Ces cinq-là n'y sont pas. `setuptools-bower`, qui figurait dans la même liste, **est
-  traité par D5** et sort donc de ce renvoi. **Cette entrée absorbe le renvoi de D4**,
-  qui décrivait les mêmes lignes en annonçant six entrées et `:10-16` — chiffre et
-  numéros périmés depuis le départ de `setuptools-bower` ; elle est la seule à jour, et
-  le renvoi de D4 a été retiré le 2026-09-18.
 - **L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
   Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
   lots restants »). Ce n'est pas une dette de D5 — le gel supprime la dérive dans le
@@ -1299,6 +1194,52 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-18 — Cinq défauts versés par D6e soldés** (`7871258`, un seul commit, en TDD).
+  `make check` passe de `869` à **`884 passed`**, couverture **94,90 %** — plancher à 94,0 %
+  tenu. Trois fichiers de preuve neufs, dont un cliquet hors `libreosteoweb/`.
+
+  **Les quatre sites qui rompaient l'appariement serveur/Alpine sont appariés.**
+  `actions-dossier.html:39` et `dossier-titre-cellule.html:28` portent le
+  `style="display: none"` conditionné à `consultation_en_cours`,
+  `nouveau-patient-formulaire.html:36` porte le `disabled` rendu à côté de son
+  `:disabled="!valide"`, et `document-televersement.html:61` son `style` sur le seul chemin
+  de refus. `libreosteoweb/tests/test_appariement_alpine_serveur.py` tient les quatre.
+
+  **`import-export.html` et `cabinet.html` passent enfin `actif_initial`.** Les deux
+  `{% include "partials/onglets.html" %}` portent `with actif_initial=onglet_initial`, et
+  `cabinet.html` ne code plus son onglet actif en dur — son `x-data` lit
+  `{{ onglet_initial }}`. Le défaut était latent, les deux vues valant toujours le premier
+  onglet : `libreosteoweb/tests/test_actif_initial_onglets_pages.py` **force un onglet non
+  premier** pour le rendre mesurable.
+
+  **Les deux inexactitudes de documentation sont corrigées.** `tests/functional/helpers.py`
+  ne prétend plus que le contrat neutre de notification accepte `growl` « pendant la
+  cohabitation », finie depuis D6e T12 ; `libreosteoweb/tests/test_socle_gabarit_actions.py`
+  désigne l'`{% include %}` de `partials/menu.html` à sa ligne réelle, `base.html:84`.
+
+  **Les motifs `responseHandling` sont ancrés, et l'ancrage a trouvé plus que le défaut
+  signalé.** `templates/base.html` porte désormais `^[23].*` et `^[45].*`. Le journal ne
+  nommait que `412` ; la correction a établi que **`422` — émis par de nombreux écrans de
+  refus — était mal classé par le même défaut**, `codeMatches` le faisant correspondre à
+  `[23].*` par son `2` avant d'atteindre `[45].*`. Vérifié avant correction : rien ne
+  consomme `htmx:responseError`, le défaut était donc bien latent.
+  `tests/qualite/test_contrat_response_handling.py` **rejoue l'algorithme `codeMatches`
+  d'htmx sur le JSON réel du gabarit** — c'est un cliquet, pas une assertion de chaîne.
+
+  **En démonstration, deux documents ne partagent plus un fichier.**
+  `get_demonstration_file()` (`libreosteoweb/api/demonstration.py`) rend un `ContentFile`
+  **non commité, neuf à chaque appel**, que Django écrit sous un chemin uuid4 ; supprimer
+  l'un n'efface plus le fichier des autres. **Le remède est posé à la source du partage**,
+  et non dans `receivers.py`, qui reste un point de suppression unique et générique valable
+  hors démonstration. `libreosteoweb/tests/test_page_documents.py` prouve les deux moitiés :
+  fichiers distincts, et survie du fichier des autres à une suppression.
+
+  **Ce que ce commit ne ferme pas** : les autres entrées de « Défauts versés par D6e »
+  restent ouvertes — le faux `msgfmt`, les 500 d'`api/events` sur patient supprimé, l'URL
+  `/%2F` du choix de cabinet, les trois actions jointives de 10 px, la double autorité sur
+  `edition`, les placeholders d'adresse disparus, le « 200 muet » d'une vue de commentaires,
+  le chemin 1 de la garde de sortie, la chronologie alternée et le doublon de séance.
 
 - **2026-09-18 — D9 : une saisie clinique en cours survit au rafraîchissement du dossier
   patient ; sept clauses sur huit constatées, la passe de recette humaine reste due**
@@ -1471,6 +1412,92 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   chemins » rangeait le remède de ce défaut parmi les refontes (« un drapeau par surface »).
   C'était vrai à sa date et ne l'est plus ; l'entrée est annotée en conséquence, ses chemins
   **2** et **3** fermés, le **1** seul restant ouvert et volontaire.
+
+- **2026-09-18 — Quatre dettes d'outillage soldées** (`798d3be`). `857 passed`, couverture
+  **94,91 %**.
+
+  **`sauvegarde.py` ne rapporte plus une donnée invalide comme une panne de moteur.**
+  `decimal.InvalidOperation` rejoint la liste d'`except` qui convertissait déjà
+  `IntegrityError` en `ArchiveInvalide`, rendue en **412** : elle n'hérite ni de
+  `ValueError` ni de `DatabaseError` et retombait donc en 500. **Le cas est imminent** — la
+  reprise d'un parc de production antérieur au fork est planifiée, et un montant qui ne
+  rentre pas dans le `numeric(10,2)` posé par `0058` est exactement ce qui le déclenche. Le
+  défaut **n'est pas reproductible sous sqlite**, qui n'applique aucune contrainte
+  `numeric` : la preuve (`libreosteoweb/tests/test_exploitation.py`) procède donc par
+  injection de faute.
+
+  **`zipcode_lookup` ne dépend plus de l'ordre de collecte.** Mesuré d'abord — lancé seul,
+  il échouait bien —, puis corrigé à la cause : `libreosteoweb/apps.py::ready()` importe
+  désormais `libreosteoweb.api.receivers`, au lieu de laisser l'URLconf les enregistrer trop
+  tard pour le `login()` du test.
+
+  **Les cinq lignes non figées de `requirements/requirements.txt` le sont.** `sqlparse`,
+  `netifaces2`, `decorator`, `packaging` et `pytz`, **aux versions déjà installées** : on
+  fige l'existant, on ne monte aucune version.
+
+  **Le dépôt a un `.gitattributes`** (`* text=auto eol=lf`), sobre et **volontairement non
+  rétroactif** : les vingt fichiers déjà commités en CRLF ne sont pas réécrits, aucun
+  `git add --renormalize` n'a été lancé, et `git diff` reste vide après la pose.
+
+- **2026-09-18 — Trois défauts relevés en recette le 2026-09-12 fermés** (`544e086`).
+  `857 passed`, couverture **94,91 %**, les deux cliquets de traduction verts.
+
+  **Le paragraphe du panneau d'archive est traduit, et la cause écrite au journal était
+  fausse.** Le texte est bien dans un `{% blocktrans %}` et le `.po` porte sa traduction :
+  le `msgid` d'un `blocktrans` inclut **littéralement** l'espace du gabarit, et le catalogue
+  porte 28 espaces hérités du gabarit AngularJS quand `import-export.html` n'en émettait
+  plus que 24 — le `msgid` cherché à l'exécution ne correspondait donc à aucune entrée.
+  **C'est le gabarit qui est réaligné sur le catalogue**, non le catalogue régénéré :
+  `makemessages` toucherait des centaines d'entrées, et le dépôt a une dette connue sur son
+  compilateur `.mo`, qui propage le drapeau `fuzzy`. Un commentaire tient l'indentation
+  **sur place**, qu'un relecteur corrigerait sinon de bonne foi.
+
+  **Un clic de plage prédéfinie ne perd plus le thérapeute.** Les trois liens de
+  `comptabilite.html` portent `hx-include="#therapeut"`, qui lit la valeur **courante** de
+  la liste déroulante au clic. Un paramètre figé au rendu aurait manqué le cas où la
+  sélection change sans passer par « Rechercher » : l'échange ne rend jamais le sélecteur,
+  qui reste donc la seule source de vérité vivante.
+
+  **La virgule est toujours refusée — elle l'est désormais visiblement.** ⚠️ **Le motif de
+  validation n'a pas bougé** : il est délibéré, et ses commentaires disent pourquoi. Ce qui
+  est corrigé est le **silence**. `htmx.config.reportValidityOfForms` vaut `false` (mesuré,
+  `htmx.js:288`) : htmx bloquait l'envoi sans jamais appeler `reportValidity()`, et personne
+  n'écoutait `htmx:validation:halted`. Le praticien ne voyait rien.
+  `pages/fragments/facturation-modale.html` porte désormais son gestionnaire
+  `hx-on:htmx:validation:halted`, **local à ce formulaire** — la configuration globale n'est
+  pas touchée.
+
+  **Ce que ce commit ne ferme pas** : les trois entrées encore ouvertes du § Défauts
+  constatés par la passe de recette du 2026-09-12 — l'import de masse sans indicateur
+  d'attente, les deux boutons « Restaurer » de `R-SAU-02`, et les lectures statiques
+  périmées de `R-INST-07`.
+
+- **2026-09-18 — Le contrôle d'accès rendu juste sur trois surfaces** (`3cd4d5b` ; deux
+  défauts versés par D6d et un renvoi de D4, tous différés sous « A22 »). `857 passed`,
+  couverture **94,91 %**.
+
+  **Un praticien peut changer son propre mot de passe.**
+  `IsStaffOrReadOnlyTargetUser.has_permission` coupait sur `is_staff` **avant tout contrôle
+  d'objet**, alors que `has_object_permission` savait déjà distinguer la cible. La garde
+  **descend au niveau objet** ; seule la création, qui n'a aucun objet à contrôler ensuite,
+  reste tranchée au niveau vue. `getattr(view, "action", None)` et non `view.action` :
+  l'unique consommateur est un `ModelViewSet`, mais une `APIView` simple lèverait une
+  `AttributeError` au lieu de refuser. **Le risque de ce correctif était d'ouvrir une porte
+  en fermant un refus indu**, et il est couvert : un non-administrateur qui poste des champs
+  imitant une cible tierce ne change que son propre mot de passe, la victime garde le sien.
+
+  **La page de réindexation porte la garde `is_staff` de l'action qu'elle déclenche**
+  (`libreosteoweb/api/views/pages/reindexation.py`). Un praticien pouvait jusque-là l'ouvrir
+  et n'être refusé qu'au moment d'agir.
+
+  **La déconnexion depuis `404.html` est exercée, et aucun défaut n'a été trouvé.**
+  `TestDeconnexion` ne rejouait le contrôle que depuis `/` ; le cas part désormais d'un
+  `404` réel (`libreosteoweb/tests/test_acces.py`), rendu de `{% csrf_token %}` dans le
+  contexte propre à `page_not_found` compris. **Le risque était réel mais non réalisé** :
+  c'est un trou de preuve qui se referme, pas un correctif.
+
+  **Ce que ce commit ne ferme pas** : la ponctuation des montants, qui diverge entre l'écran
+  et la facture imprimée, reste la seule entrée ouverte du § Défauts versés par D6d.
 
 - **2026-09-18 — D6f clos : la coquille AngularJS est morte, les dix clauses constatées par
   exécution réelle** (treize tâches ; spec
@@ -5131,8 +5158,8 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   (`libreosteoweb/api/views/administration.py:243-250`) — « archive incorrecte », et non
   « panne de moteur ». `libreosteoweb/tests/test_exploitation.py:489-514` le prouve déjà
   pour la contrainte de `0057`, et D7 ne change rien à ce chemin. **Ce point n'est donc
-  pas une variante du défaut de `sauvegarde.py:158` consigné le 2026-09-05** pour
-  `decimal.InvalidOperation` : le défaut est bien rapporté comme défaut d'archive.
+  pas une variante du défaut de `sauvegarde.py:158`** pour
+  `decimal.InvalidOperation`, consigné le 2026-09-05 et clos le 2026-09-18 : le défaut est bien rapporté comme défaut d'archive.
   Il reste **théorique sur le parc diagnostiqué le 2026-09-07** (zéro doublon, cf.
   « Terminé ») : consigné, aucune tâche ouverte. Ce qui manque pour trancher : décider si
   une archive à doublons doit être reprise au chargement, à la manière de `0060`, ou
@@ -5170,12 +5197,6 @@ _(vide — prochain `git fetch upstream` à faire avant divergence significative
   l'`ALTER` sur `numeric field overflow` — bande d'environ `4,5e-8`, inatteignable en
   pratique (T11). Ne pas « corriger » : c'est un rétrécissement strict d'une fenêtre qui
   portait ~335 000 valeurs avant la garde, à 3 après.
-- **2026-09-05 — `sauvegarde.py:158` rapporte un défaut d'archive comme une panne de
-  moteur.** La restauration attrape `DatabaseError` (dont `IntegrityError` hérite) et le
-  rapporte en `BaseIndisponible` ; une archive antérieure à `0058` portant un montant
-  `>= 10^8` lève `decimal.InvalidOperation`, non capturée par ce bloc, avec le même
-  effet trompeur. Le fautif est l'archive rechargée, pas le moteur ; aucune donnée n'est
-  perdue (transaction de `f2cdc32`). Non corrigé, hors lot.
 - **2026-09-05 — `docs/recette.md` interprète `date -u` en heure locale au filtrage des
   journaux.** `docker compose logs --since` prend l'horodatage produit par `date -u`
   (naïf) et l'interprète en heure **locale** : sur un hôte Europe/Paris la borne recule
