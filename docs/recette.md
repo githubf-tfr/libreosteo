@@ -1968,7 +1968,15 @@ sur l'entrée en édition, ni sur une lecture, ni sur un refus, ni sur une panne
    Attendu : la vignette revient en lecture avec son titre d'origine, et **aucun
    avertissement** ne s'affiche — l'abandon est un geste du praticien, il n'y a plus rien
    à perdre.
-6. **Montage d'abord** : lien « Nouveau patient », saisir `Kirk` (Nom de famille),
+6. Onglet « Consultations », déplier le volet de commentaires d'une séance, y taper
+   `Commentaire non envoyé` **sans envoyer**, puis cliquer « Démarrer une consultation ».
+   L'écran bascule sur « Consultation en cours ». Demander à quitter la page.
+   Attendu : l'avertissement **est** affiché. La recomposition du dossier ne désarme plus
+   la garde, et le `POST` qui l'a déclenchée n'a pas été émis depuis une surface de saisie :
+   il n'y a donc rien d'enregistré à opposer à la saisie qui attend. Rester sur la page.
+   Revenir sur « Consultations » : le commentaire est **toujours là** (`R-PAT-13` étape 1).
+   Le supprimer du champ avant de poursuivre.
+7. **Montage d'abord** : lien « Nouveau patient », saisir `Kirk` (Nom de famille),
    `Jean-Luc` (Prénom), `13/07/1935` (date de naissance, **la même que Picard**), cocher le
    consentement, cliquer « Initialiser la fiche patient ».
    Attendu : la fiche s'ouvre directement, **sans aucun avertissement d'homonyme** — celui-ci
@@ -1982,7 +1990,7 @@ sur l'entrée en édition, ni sur une lecture, ni sur un refus, ni sur une panne
    l'avertissement **est affiché**. Un refus serveur ne désarme pas la garde — la saisie est
    toujours là, et toujours pas enregistrée. Rester sur la page, rétablir `Picard` et
    valider.
-7. Onglet « Historique », « Éditer », saisir quelque chose, puis **couper le réseau**
+8. Onglet « Historique », « Éditer », saisir quelque chose, puis **couper le réseau**
    (outils de développement → onglet Réseau → mode « Hors ligne ») et cliquer « Fin
    d'édition ». Rétablir le réseau, puis demander à quitter la page.
    Attendu : l'enregistrement n'aboutit pas, et l'avertissement **est affiché**. C'est le
@@ -1990,7 +1998,7 @@ sur l'entrée en édition, ni sur une lecture, ni sur un refus, ni sur une panne
    écriture la laissait tomber : `XMLHttpRequest` porte le statut `0` quand la requête
    n'aboutit pas. Rester sur la page, cliquer « Fin d'édition » à nouveau pour enregistrer
    réellement.
-8. Onglet « Historique », « Éditer », saisir quelque chose, puis supprimer le cookie de
+9. Onglet « Historique », « Éditer », saisir quelque chose, puis supprimer le cookie de
    session (outils de développement → Application → Cookies → supprimer `sessionid`,
    même geste qu'à `R-AUTH-06`) et cliquer « Fin d'édition ».
    Attendu : rien n'est enregistré, et le navigateur **avertit avant de partir** vers
@@ -2000,13 +2008,85 @@ sur l'entrée en édition, ni sur une lecture, ni sur un refus, ni sur une panne
    session déjà expirée. Se reconnecter, et remonter l'état E2.
 
 **Constat** : la garde est armée par une **saisie** et désarmée par une **écriture
-réussie**. Les quatre cas où elle doit rester armée — lecture, refus serveur, panne
-réseau, session expirée — sont chacun le résultat d'un défaut mesuré pendant la migration,
-et non des précautions théoriques. Le seul désarmement qui ne suive pas un enregistrement
-est l'abandon explicite d'une vignette de document (étape 5) : c'est le seul bouton
-d'abandon du dossier, et il est inconditionnel — si sa propre requête échouait, la garde
-tomberait alors que le formulaire est encore à l'écran. Constat versé à `KANBAN.md`, non
-corrigé : l'abandon est demandé par le praticien.
+réussie, émise depuis une surface de saisie**. Les cinq cas où elle doit rester armée —
+lecture, refus serveur, panne réseau, session expirée, et **écriture étrangère aux
+surfaces** (étape 6) — sont chacun le résultat d'un défaut mesuré, et non des précautions
+théoriques. Le désarmement par le corps rafraîchi, que D6e avait posé délibérément,
+**n'existe plus** : il valait tant que la saisie était détruite avec le corps, et D9 la
+conserve. Le seul désarmement qui ne suive pas un enregistrement est l'abandon explicite
+d'une vignette de document (étape 5) : c'est le seul bouton d'abandon du dossier, et il est
+inconditionnel — si sa propre requête échouait, la garde tomberait alors que le formulaire
+est encore à l'écran. Constat versé à `KANBAN.md`, non corrigé : l'abandon est demandé par
+le praticien.
+
+### R-PAT-13 — Aucune saisie perdue quand l'écran se recompose
+
+- **Domaine** : Patient
+- **Couverture auto** : oui —
+  tests/functional/test_patient.py::test_le_commentaire_survit_a_l_ouverture_d_une_consultation
+  (étape 1), ::test_le_televersement_survit_a_une_cloture (étape 3),
+  ::test_la_vignette_en_edition_survit_a_la_suppression_d_une_seance (étape 4),
+  ::test_la_garde_reste_armee_apres_l_ouverture_d_une_consultation (étape 2).
+  **Ce qu'aucun des quatre ne regarde, et que seule cette fiche vérifie** : la boîte de
+  dialogue du navigateur elle-même (étape 2) — les tests lisent le **marqueur** que
+  `beforeunload` interroge et n'en déclenchent jamais la conséquence —, et le fait que la
+  préservation n'empêche **aucune** écriture d'aboutir (étape 5), que les tests
+  d'autorité éprouvent chacun de son côté sans jamais les enchaîner sur le même écran.
+- **État requis** : E2. Cette fiche laisse en base **une consultation supplémentaire**
+  (ouverte à l'étape 1, supprimée à l'étape 4), **un document supplémentaire** (joint à
+  l'étape 4) et **un commentaire** (envoyé à l'étape 5) : remonter l'état E2 (chapitre 1)
+  avant de jouer une autre fiche qui en dépend.
+
+**Ce que cette fiche garde.** Une saisie clinique en cours ne doit pas être détruite par
+un écran qui se recompose. Trois surfaces du dossier sont **permanentes** — elles ne
+disparaissent jamais d'elles-mêmes — et trois gestes ordinaires recomposaient le dossier
+par-dessus elles : démarrer une consultation, clôturer, supprimer une séance. Avant
+correctif, la saisie partait **en silence** : aucune erreur, aucun message, et le praticien
+est déplacé d'onglet au moment même où son texte disparaît.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations ». Déplier le volet de
+   commentaires d'une séance (cliquer le compteur, « Aucun commentaire » ou « N
+   commentaires »), y taper `Douleur cervicale persistante` **sans envoyer**. Cliquer
+   « Démarrer une consultation ».
+   Attendu : l'écran bascule sur « Consultation en cours ». Revenir sur « Consultations » :
+   le volet est **toujours déplié** et **le texte est toujours là**. Avant correctif, le
+   champ revenait vide et le volet replié.
+2. **Sans rien enregistrer**, demander au navigateur de quitter la page (recharger par F5,
+   ou fermer l'onglet).
+   Attendu : le navigateur **affiche sa boîte de confirmation** (son libellé dépend du
+   navigateur, il n'est pas fourni par l'application). C'est la seconde moitié du
+   correctif : la saisie est invisible tant qu'on n'est pas revenu sur son onglet, et elle
+   ne doit pas partir en silence. Choisir de **rester**.
+3. Onglet « Comptes rendus médicaux ». Choisir un fichier, saisir le titre
+   `Radiographie lombaire`, la date `01/01/2024`, et `Notes non envoyées` dans la zone de
+   notes — **sans cliquer « Cliquez pour envoyer »**. Passer sur « Consultation en cours »,
+   clôturer la consultation en mode **non facturé**. Revenir sur « Comptes rendus
+   médicaux ».
+   Attendu : le bloc d'envoi est **toujours ouvert**, le fichier **toujours sélectionné**
+   (son nom est affiché au-dessus du bouton d'envoi), le titre, la date et les notes
+   **intacts**. Avant correctif, le bloc avait **entièrement disparu** — pas seulement
+   vidé.
+4. Toujours sur « Comptes rendus médicaux », envoyer le document, puis ouvrir la vignette
+   créée en édition (icône crayon) et remplacer son titre par `Titre jamais enregistre`.
+   Sans valider, démarrer une nouvelle consultation, aller sur « Consultation en cours »,
+   cliquer « Supprimer » et confirmer. Revenir sur « Comptes rendus médicaux ».
+   Attendu : la vignette est **toujours en édition**, avec `Titre jamais enregistre` dans
+   son champ de titre.
+5. Onglet « Consultations », envoyer un commentaire **réel** sur une séance (taper un
+   texte, cliquer « Envoyer »), puis recharger la page.
+   Attendu : le commentaire est en base — il est toujours affiché après le rechargement —
+   et le compteur est juste. **La préservation ne doit jamais empêcher une écriture
+   d'aboutir** : chacune des trois surfaces reste sa propre autorité, et seule la
+   recomposition du dossier renonce à la réécrire.
+
+**Constat** : la règle que ce lot inscrit est une règle de conception, pas un correctif de
+circonstance — *un échange ne réécrit que les éléments dont il est l'autorité ; les autres
+sont déclarés préservables à l'`{% include %}` qui renonce*. L'étape 2 est celle qui ne se
+mesure pas automatiquement, et elle porte la limite assumée du lot : après l'étape 1 la
+saisie est **conservée mais invisible** jusqu'au retour sur son onglet, et c'est
+l'avertissement de sortie — non la visibilité — qui ferme le silence.
 
 ### Documents patient
 
