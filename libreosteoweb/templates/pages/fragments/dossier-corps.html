@@ -67,10 +67,18 @@
           {# et `test_enregistrer_le_patient_ne_dedouble_pas_la_tuile` compte les etats #}
           {# traverses, pas seulement l'etat final. #}
           {% include "pages/fragments/dossier-comptes-rendus.html" with comptes_rendus=comptes_rendus %}
+          {# **`preserver=True` : un echange ne reecrit que les elements dont il est l'autorite.** #}
+          {# Le bloc de televersement, les vignettes et les volets de commentaires sont **permanents** #}
+          {# et chacun a deja sa propre autorite (`documents.py`) : le corps les detruisait sans les #}
+          {# gouverner, et une saisie en cours partait avec eux — en silence (D9). Ils sont donc #}
+          {# declares preservables **ici, et ici seulement** : htmx garde alors l'ancien noeud, donc #}
+          {# son identite, son etat Alpine et sa selection de fichier. Poser l'attribut sur une #}
+          {# reponse d'autorite l'empecherait de rafraichir son propre element. #}
+          {# **Une surface de saisie permanente ajoutee plus tard dans le corps se marque ici.** #}
           <div class="form-group">
-            {% include "pages/fragments/document-televersement.html" with patient=televersement.patient formulaire=televersement.formulaire choisi=televersement.choisi hors_bande=False %}
+            {% include "pages/fragments/document-televersement.html" with patient=televersement.patient formulaire=televersement.formulaire choisi=televersement.choisi hors_bande=False preserver=True %}
           </div>
-          {% include "pages/fragments/documents-liste.html" with patient=documents.patient documents=documents.documents hors_bande=False %}
+          {% include "pages/fragments/documents-liste.html" with patient=documents.patient documents=documents.documents hors_bande=False preserver=True %}
         </div>
       </div>
     </div>
@@ -86,7 +94,7 @@
       {# « fermer le volet » que trois tests devaient jouer pour redemarrer une consultation. #}
       {# Les deux coexistent desormais ; le bouton de fermeture reste, et reste un vrai lien. #}
       {% if volet_selectionne %}{% include "pages/fragments/consultation.html" with volet=volet_selectionne %}{% endif %}
-      {% include "pages/fragments/chronologie.html" with patient=chronologie.patient consultations=chronologie.consultations consultation_en_cours=chronologie.consultation_en_cours url_nouvelle_consultation=chronologie.url_nouvelle_consultation cible_nouvelle_consultation=chronologie.cible_nouvelle_consultation %}
+      {% include "pages/fragments/chronologie.html" with patient=chronologie.patient consultations=chronologie.consultations consultation_en_cours=chronologie.consultation_en_cours url_nouvelle_consultation=chronologie.url_nouvelle_consultation cible_nouvelle_consultation=chronologie.cible_nouvelle_consultation preserver=True %}
     </div>
 
     {# **Le jumeau du `{% if %}` de la barre d'onglets** : sans lui, l'onglet pointerait vers #}

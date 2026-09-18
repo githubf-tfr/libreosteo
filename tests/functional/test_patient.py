@@ -1348,6 +1348,157 @@ def test_le_pont_de_session_laisse_la_garde_armee(
     assert Patient.objects.get(pk=identifiant).surgical_history in (None, "")
 
 
+def test_le_commentaire_survit_a_l_ouverture_d_une_consultation(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Déclencheur 1 (`#new-examination-btn`), surface : le volet de commentaires.
+
+    **Ce que ce test regarde** : qu'un commentaire tapé et non envoyé soit **toujours là**
+    après que le corps du dossier a été recomposé par l'ouverture d'une consultation, et
+    que le volet soit **toujours déplié** — l'état Alpine du nœud préservé.
+
+    **Le défaut qu'il ferme, et c'est le geste d'ouverture du lot** : onglet
+    « Consultations », déplier le volet d'une séance, taper un commentaire clinique,
+    cliquer « Démarrer une consultation » — le bouton est juste au-dessus, sur le même
+    écran. Avant correctif, le commentaire était détruit **en silence** : aucune erreur,
+    aucun message, et le praticien est déplacé d'onglet au moment même où son texte
+    disparaît.
+
+    **Ce qu'il ne regarde pas** : la **visibilité**. Le corps rouvre sur « Consultation en
+    cours » (`dossier_patient.py:952-955`), et c'est le comportement demandé — on vient de
+    démarrer une consultation. La visibilité n'est pas la conservation ; c'est la garde de
+    sortie (T3) qui ferme le silence, et `R-PAT-13` étape 2 qui le recette.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    # `raison` : `_facturer` (`consultation.py`) exige un motif en mode `notinvoiced`,
+    # sans lien avec ce lot (deja rencontre par T1).
+    cloturer_consultation(page, mode="notinvoiced", raison="Non facture pour ce test")
+
+    patient = Patient.objects.get(family_name="Picard")
+    seance = Examination.objects.filter(patient=patient).first()
+    assert seance is not None
+    champ = page.locator("#btn-input-%d" % seance.id)
+
+    page.click("#examinations")
+    page.get_by_test_id("compteur-commentaires").click()
+    expect(champ).to_be_visible()
+    champ.fill("Douleur cervicale persistante")
+
+    # **Barrière causale** : l'entrée d'onglet « Consultation en cours » n'existe qu'une
+    # fois le corps recomposé. Aucune attente temporelle.
+    page.click("#new-examination-btn")
+    expect(page.locator("#current-examination")).to_be_visible()
+
+    page.click("#examinations")
+    expect(champ).to_have_value("Douleur cervicale persistante")
+    # **La visibilite du champ prouve le depliage**, et elle le prouve sans nommer une
+    # classe du theme : le champ vit a l'interieur du `x-show="deplie"`
+    # (`chronologie-commentaires.html:33`), donc il n'est visible que volet ouvert.
+    # `to_have_value` seul passerait sur un volet referme -- il lit la valeur, pas l'ecran.
+    expect(champ).to_be_visible()
+
+
+def test_le_televersement_survit_a_une_cloture(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Déclencheur 2 (`consultation-modifiee`), surface : le bloc de téléversement.
+
+    **Ce que ce test regarde** : que le bloc d'envoi soit **toujours ouvert**, que le
+    fichier soit **toujours sélectionné** et que le titre soit intact, après qu'une clôture
+    a fait partir `HX-Trigger-After-Swap: consultation-modifiee` et recomposé le corps.
+
+    **La sélection de fichier est ce qu'aucun autre remède ne peut rendre** : aucun serveur
+    et aucun script ne repeuple un `<input type="file">` (`document-televersement.html:40`).
+    C'est la seule assertion du filet qui l'éprouve, et elle est la raison pour laquelle
+    l'axe « préserver et restaurer par du JavaScript » a été écarté.
+
+    **Le second défaut qu'il ferme** : le bloc est monté par un `<template x-if="choisi">`
+    (`document-televersement.html:68`) et le corps recomposé le rend avec `choisi=False`
+    (`documents.py:354-372`, valeur par défaut). Avant correctif il ne revenait donc pas
+    seulement vide — **il n'existait plus**.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+
+    page.click("#medicalreports")
+    page.set_input_files("#addDocumentMedicalReport", CHEMIN_DOCUMENT)
+    expect(page.locator("div.document_create")).to_be_visible()
+    page.fill("input[placeholder*='Titre']", "Radiographie lombaire")
+
+    # `cloturer_consultation` porte ses deux barrières causales (`helpers.py:323-338`) :
+    # `#current-examination` masqué, et le volet antérieur rendu non vide.
+    # `raison` : `_facturer` exige un motif en mode `notinvoiced`, sans lien avec ce lot.
+    page.click("#current-examination")
+    cloturer_consultation(page, mode="notinvoiced", raison="Non facture pour ce test")
+
+    page.click("#medicalreports")
+    expect(page.locator("div.document_create")).to_have_count(1)
+    expect(page.locator("input[placeholder*='Titre']")).to_have_value(
+        "Radiographie lombaire"
+    )
+    # Le fichier choisi : la seule chose qu'aucune réponse serveur ne peut rendre.
+    assert (
+        page.evaluate(
+            "() => document.querySelector('#addDocumentMedicalReport').files.length"
+        )
+        == 1
+    )
+
+
+def test_la_vignette_en_edition_survit_a_la_suppression_d_une_seance(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Déclencheur 3 (échange **hors-bande**), surface : la vignette en édition.
+
+    **Ce que ce test regarde** : qu'une vignette de document ouverte en édition, avec un
+    titre saisi et non validé, soit **toujours en édition et toujours saisie** après que la
+    suppression d'une séance a rendu le corps en `hx-swap-oob`
+    (`dossier_patient.py:1005-1010`, `dossier-corps.html:23`).
+
+    **Pourquoi ce déclencheur valait un test à lui seul** : c'est le seul des trois qui
+    passe par `oobSwap` (`htmx.js:1500-1502`) et non par `swap` (`:1952-1954`). Ce sont deux
+    fonctions distinctes de la bibliothèque, et rien d'autre que cette mesure ne dit
+    qu'elles se comportent pareil.
+
+    **La consultation est ouverte AVANT le document, et ce n'est pas un détail** : ouvrir
+    une consultation *après* la saisie ferait passer le test par le déclencheur 1, et un
+    rouge ne dirait plus lequel des deux chemins a échoué.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+
+    page.click("#medicalreports")
+    joindre_document(
+        page,
+        CHEMIN_DOCUMENT,
+        "Radiographie lombaire",
+        "01/01/2024",
+        "Document de recette",
+    )
+    page.click("button.document-edit")
+    champ = page.locator("li.documenttile input[placeholder*='Titre']")
+    expect(champ).to_have_count(1)
+    champ.fill("Titre jamais enregistre")
+
+    page.click("#current-examination")
+    page.get_by_role("button", name="Supprimer").click()
+    confirmer_la_modale(page)
+    # **Barrière causale** : l'onglet disparaît avec la séance, et les deux viennent de la
+    # même réponse hors-bande.
+    expect(page.locator("#current-examination")).to_have_count(0)
+
+    page.click("#medicalreports")
+    expect(page.locator("li.documenttile input[placeholder*='Titre']")).to_have_value(
+        "Titre jamais enregistre"
+    )
+
+
 def test_le_titre_garde_sa_typographie_hors_edition(
     page: Page, live_server: LiveServer
 ) -> None:

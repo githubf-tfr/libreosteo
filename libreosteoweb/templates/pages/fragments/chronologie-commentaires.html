@@ -22,7 +22,7 @@
 {# HTML invalide. Aucun helper ni test fonctionnel ne les adresse (verifie par balayage de #}
 {# `tests/functional/`), et ils ne figurent pas dans la table globale des ancres du lot : #}
 {# les conserver nus n'aurait rien protege et aurait livre la duplication a T12. #}
-<div id="chronologie-commentaires-{{ entree.seance.id }}"
+<div id="chronologie-commentaires-{{ entree.seance.id }}"{% if preserver %} hx-preserve="true"{% endif %}
      x-data="{ deplie: {{ entree.deplie|yesno:'true,false' }} }">
   <div class="timeline-footer">
     <p><small class="text-muted">

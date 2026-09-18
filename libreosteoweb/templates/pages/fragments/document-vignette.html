@@ -29,7 +29,7 @@
 {# emploie pour *retirer* une classe posee en dur par le serveur, donc la seule qui evite #}
 {# de porter `col-md-3` et `col-md-12` en meme temps. #}
 {% trans 'Notes' as libelle_notes %}
-<li class="documenttile animate col-md-3" id="document-vignette-{{ entree.document.id }}"
+<li class="documenttile animate col-md-3" id="document-vignette-{{ entree.document.id }}"{% if preserver %} hx-preserve="true"{% endif %}
     x-data="{ deplie: false }"
     :class="{ 'col-md-12': deplie, 'col-md-3': !deplie }">
   <div class="thumbnail doc_thumbnail"

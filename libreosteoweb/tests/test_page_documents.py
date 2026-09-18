@@ -1208,3 +1208,138 @@ class TestSuppression(_SocleDuPatient):
         self.assertEqual(
             elements_de_classe(reponse.content.decode("utf-8"), "documenttile"), []
         )
+
+
+class TestPreservationDesSurfaces(_SocleDuPatient):
+    """Le cliquet de D9 : **qui** declare un element preservable, et qui ne le declare pas.
+
+    **Ce que ces preuves regardent** : l'attribut `hx-preserve`, dans la reponse qui le
+    porte. Le corps du dossier renonce a son autorite sur les trois surfaces permanentes ;
+    les reponses d'autorite, elles, ne renoncent a rien — un `hx-preserve` sur l'une
+    d'elles ferait preferer l'ancien noeud au neuf, et l'element ne se rafraichirait plus
+    jamais.
+
+    **Ce qu'elles ne regardent pas, et que seule la suite fonctionnelle voit** : ce que
+    htmx fait de l'attribut. Les trois tests de survie de `tests/functional/test_patient.py`
+    le mesurent, un par declencheur.
+
+    **Ce qu'aucun cliquet ne regarde, et c'est assume (A8)** : une surface permanente
+    ajoutee plus tard dans le corps, sans l'attribut. La regle statique qui l'exprimerait —
+    « toute surface de saisie incluse depuis `dossier-corps.html` doit etre preservable » —
+    serait **fausse des aujourd'hui** : `dossier-corps.html:107` inclut
+    `consultation-edition.html`, qui porte `data-surface-de-saisie` et ne doit **pas** etre
+    preserve. Elle naitrait avec une liste d'exceptions, c'est-a-dire fossilisee. Le garde
+    -fou est le commentaire de `dossier-corps.html`, a l'`{% include %}` ou la faute se
+    commettrait.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        with sans_receivers():
+            self.seance = cree_consultation(
+                self.patient, self.user, date=_a_paris(2024, 1, 1)
+            )
+        self.depose_un_document()
+        self.document = self.document_en_base()
+
+    def corps(self) -> str:
+        with translation.override("fr"):
+            return self.client.get(
+                reverse("dossier-corps", args=[self.patient.pk])
+            ).content.decode("utf-8")
+
+    # --- Le corps renonce : trois assertions ---
+
+    def test_le_corps_declare_le_bloc_de_televersement_preservable(self) -> None:
+        self.assertEqual(
+            element_par_id(
+                self.corps(), "document-televersement-%d" % self.patient.pk
+            ).get("hx-preserve"),
+            "true",
+        )
+
+    def test_le_corps_declare_la_vignette_preservable(self) -> None:
+        """**Sur le gabarit de lecture, jamais sur celui d'edition** (A3).
+
+        `handlePreservedElements` lit l'attribut dans la **reponse**, et la reponse du
+        corps rend toujours la vignette en lecture ; le noeud conserve est l'ancien,
+        c'est-a-dire, le cas echeant, le formulaire d'edition.
+        """
+        self.assertEqual(
+            element_par_id(self.corps(), "document-vignette-%d" % self.document.pk).get(
+                "hx-preserve"
+            ),
+            "true",
+        )
+
+    def test_le_corps_declare_le_volet_de_commentaires_preservable(self) -> None:
+        self.assertEqual(
+            element_par_id(
+                self.corps(), "chronologie-commentaires-%d" % self.seance.pk
+            ).get("hx-preserve"),
+            "true",
+        )
+
+    # --- Les reponses d'autorite ne renoncent pas (C3) ---
+
+    def test_le_bloc_de_televersement_hors_bande_ne_renonce_pas(self) -> None:
+        """`documents.py:375-397`. S'il renoncait, `div.document_create` ne sortirait
+        **jamais** du DOM apres un envoi, et la barriere `to_have_count(0)` de
+        `helpers.joindre_document` (`tests/functional/helpers.py:614`) expirerait."""
+        html = self.depose_un_document(titre="Second").content.decode("utf-8")
+
+        self.assertIsNone(
+            element_par_id(html, "document-televersement-%d" % self.patient.pk).get(
+                "hx-preserve"
+            )
+        )
+
+    def test_la_vignette_relue_apres_annulation_ne_renonce_pas(self) -> None:
+        """`documents.py:598-612` — la reponse de « Annuler »."""
+        with translation.override("fr"):
+            html = self.client.get(
+                reverse("document-vignette", args=[self.patient.pk, self.document.pk])
+            ).content.decode("utf-8")
+
+        self.assertIsNone(
+            element_par_id(html, "document-vignette-%d" % self.document.pk).get(
+                "hx-preserve"
+            )
+        )
+
+    def test_le_volet_de_commentaires_apres_envoi_ne_renonce_pas(self) -> None:
+        """`documents.py:695-699`."""
+        with translation.override("fr"):
+            html = self.client.post(
+                reverse("seance-commentaires", args=[self.seance.pk]),
+                data={"comment": "Patient revu a trois semaines"},
+            ).content.decode("utf-8")
+
+        self.assertIsNone(
+            element_par_id(html, "chronologie-commentaires-%d" % self.seance.pk).get(
+                "hx-preserve"
+            )
+        )
+
+    def test_la_vignette_enregistree_ne_renonce_pas(self) -> None:
+        """`documents.py:566-577` — la reponse d'un **enregistrement** de vignette.
+
+        **Cette quatrieme reponse d'autorite n'est pas nommee par A8**, qui en compte
+        trois ; elle figure bien dans la table de F8, et C3 exige qu'**aucune** reponse
+        d'autorite ne porte l'attribut. Contradiction relevee au plan, § du meme nom.
+        """
+        with translation.override("fr"):
+            html = self.client.post(
+                reverse("document-edition", args=[self.patient.pk, self.document.pk]),
+                data={
+                    "title": "Titre enregistre",
+                    "document_date": "2024-01-01",
+                    "notes": "Notes",
+                },
+            ).content.decode("utf-8")
+
+        self.assertIsNone(
+            element_par_id(html, "document-vignette-%d" % self.document.pk).get(
+                "hx-preserve"
+            )
+        )
