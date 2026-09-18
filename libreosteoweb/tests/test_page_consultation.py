@@ -1018,6 +1018,119 @@ class TestModaleDeFacturation(_VoletRendu):
         self.assertIn("reportValidity()", gestionnaire)
 
 
+class TestModaleDeClotureDepuisLEdition(_VoletRendu):
+    """Le defaut mesure : `#reason` de la modale de facturation et
+    `Examination.reason` (le motif clinique de la consultation) portent le meme nom.
+
+    `POST …/edit?puis=cloture` (le second soumetteur de `consultation-edition.html:146`)
+    enregistre le volet **et** rend la modale de facturation dans la meme reponse
+    (D6e T12). Cette modale reutilisait `request.POST` — celui du volet, pas le sien —
+    pour se repeupler apres un refus : `#reason` s'ouvrait donc deja rempli du motif de
+    consultation, et ce texte s'enregistrait tel quel comme raison de non-facturation si
+    le praticien validait sans y toucher.
+
+    Le chemin lecture (`GET consultation-cloture`) n'a jamais ce defaut : hors POST,
+    `request.POST` est vide et la modale s'ouvre a raison vide.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.client.force_login(self.praticien)
+
+    def _cloturer_depuis_l_edition(self, **remplacements: object) -> Any:
+        donnees: dict[str, object] = {
+            "prefixe": "current-examination",
+            "puis": "cloture",
+            "date": timezone.localdate().isoformat(),
+            "type": str(ExaminationType.NORMAL),
+            "reason": "Motif de consultation",
+            "medical_examination": "Examen normal",
+        }
+        donnees.update(remplacements)
+        return self.client.post(
+            reverse("consultation-edition", args=[self.consultation.id]), donnees
+        )
+
+    def _valeur_du_champ_raison(self, html: str) -> str:
+        champ = html[html.index('id="reason"') : html.index('id="reason"') + 400]
+        balise = champ[: champ.index(">") + 1]
+        trouve = re.search(r'value="([^"]*)"', balise)
+        return trouve.group(1) if trouve else ""
+
+    def _est_coche(self, html: str, nom: str, valeur: str) -> bool:
+        motif = 'name="%s" value="%s"' % (nom, valeur)
+        debut = html.index(motif)
+        fin = html.index(">", debut)
+        return "checked" in html[debut:fin]
+
+    def test_la_modale_ouverte_par_la_cloture_ne_preremplit_pas_avec_le_motif(
+        self,
+    ) -> None:
+        """Preuve directe, mesuree comme dans le rapport : `#reason` a l'ouverture."""
+        reponse = self._cloturer_depuis_l_edition()
+        self.assertEqual("", self._valeur_du_champ_raison(reponse.content.decode()))
+
+    def test_les_deux_chemins_de_cloture_rendent_la_meme_raison_vide(self) -> None:
+        """Les deux chemins doivent dire la meme chose : ni l'un ni l'autre ne
+        prereplit `#reason` avec le motif clinique de la consultation."""
+        depuis_edition = self._cloturer_depuis_l_edition().content.decode()
+        depuis_lecture = self.client.get(
+            reverse("consultation-cloture", args=[self.consultation.id])
+        ).content.decode()
+        for nom, html in (("edition", depuis_edition), ("lecture", depuis_lecture)):
+            with self.subTest(chemin=nom):
+                self.assertEqual("", self._valeur_du_champ_raison(html))
+
+    def test_sans_toucher_au_champ_la_cloture_n_ecrit_pas_le_motif_comme_raison(
+        self,
+    ) -> None:
+        """Preuve de bout en bout : la valeur que le navigateur soumettrait — celle que
+        le serveur vient de rendre, non retouchee — ne doit jamais devenir la raison de
+        non-facturation en base.
+
+        Avant correctif : la valeur rendue est le motif clinique, le serialiseur
+        l'accepte puisqu'elle n'est pas vide, et `status_reason` recoit le motif. Apres
+        correctif : la valeur rendue est vide, le serialiseur refuse (422, raison
+        obligatoire) et rien n'est ecrit.
+        """
+        reponse = self._cloturer_depuis_l_edition(reason="Motif de consultation")
+        valeur_rendue = self._valeur_du_champ_raison(reponse.content.decode())
+        self.client.post(
+            reverse("consultation-cloture", args=[self.consultation.id]),
+            {"status": "notinvoiced", "reason": valeur_rendue},
+        )
+        self.consultation.refresh_from_db()
+        self.assertNotEqual("Motif de consultation", self.consultation.status_reason)
+
+    def test_le_repeuplement_apres_refus_conserve_le_mode_et_le_moyen_de_paiement(
+        self,
+    ) -> None:
+        """Non-regression : le repeuplement de la modale par sa **propre** soumission
+        (celle qui poste vers `consultation-cloture`, refusee en 422) doit continuer de
+        fonctionner. C'est le risque principal du correctif : vider `donnees` partout
+        aurait ferme la corruption en rouvrant une perte de saisie.
+        """
+        reponse = self.client.post(
+            reverse("consultation-cloture", args=[self.consultation.id]),
+            {"status": "invoiced", "amount": "0", "paiment_mode": "cash"},
+        )
+        self.assertEqual(422, reponse.status_code)
+        html = reponse.content.decode()
+        self.assertTrue(self._est_coche(html, "status", "invoiced"))
+        self.assertTrue(self._est_coche(html, "paiment_mode", "cash"))
+
+    def test_le_repeuplement_apres_refus_conserve_la_raison_saisie(self) -> None:
+        """Meme non-regression, sur le champ meme du correctif : ce que le praticien a
+        saisi dans **la modale de facturation** — pas dans le volet — doit lui revenir a
+        l'identique apres un refus."""
+        reponse = self.client.post(
+            reverse("consultation-cloture", args=[self.consultation.id]),
+            {"status": "notinvoiced", "reason": "   "},
+        )
+        self.assertEqual(422, reponse.status_code)
+        self.assertEqual("   ", self._valeur_du_champ_raison(reponse.content.decode()))
+
+
 class TestVuesDuVolet(_VoletRendu):
     """Les trois validations non heritees d'`ExaminationInvoicingSerializer.validate`,
     prouvees **sur la route de page** et non sur le serialiseur : c'est la surface qui

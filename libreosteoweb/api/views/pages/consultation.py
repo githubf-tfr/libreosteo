@@ -558,6 +558,14 @@ def enregistrer_consultation(request: HttpRequest, identifiant: str) -> HttpResp
             consultation,
             facturation_seule=False,
             action=reverse("consultation-cloture", args=[consultation.pk]),
+            # **`donnees` vide, explicitement** : `request` est ici celui du volet
+            # d'edition, pas celui de la modale. `Examination.reason` (le motif
+            # clinique) et la raison de non-facturation portent le meme nom `reason` ;
+            # sans ce parametre, le defaut de `modale_de_facturation` reutiliserait
+            # `request.POST` du volet pour repeupler la modale, et `#reason` s'ouvrirait
+            # deja rempli du motif clinique. Cette premiere ouverture n'a rien a
+            # repeupler : aucune soumission de la modale n'a encore eu lieu.
+            donnees={},
         ).content.decode("utf-8")
         corps += '<div id="modale" hx-swap-oob="innerHTML">%s</div>' % modale
     return HttpResponse(corps)
@@ -615,6 +623,7 @@ def modale_de_facturation(
     erreurs: list[str] | None = None,
     statut: int = 200,
     action: str | None = None,
+    donnees: dict[str, Any] | None = None,
 ) -> HttpResponse:
     """La modale de facturation. `action` est l'URL que son formulaire poste.
 
@@ -622,6 +631,17 @@ def modale_de_facturation(
     cours passe d'abord par l'enregistrement du volet — `POST …/edit?puis=cloture` — et
     c'est bien vers `…/close` que la modale doit poster ensuite. Un `request.path` en dur
     renverrait le praticien vers l'enregistrement, qui ne cloture rien.
+
+    **`donnees` est explicite, et non toujours deduit de `request`.** Par defaut (les
+    appels depuis `_facturer`, `facturer_en_remplacement` et `regulariser_consultation`),
+    `request` est la soumission de **cette** modale, refusee en 422 : la repeupler avec
+    `request.POST` est correct, c'est le mecanisme de repeuplement lui-meme. Mais
+    `request` n'est pas toujours cette soumission — l'appelant depuis le volet d'edition
+    (`puis=cloture`) passe le `request` du volet, dont le POST porte les champs de la
+    consultation. `Examination.reason` (motif clinique) et la raison de non-facturation
+    partagent le nom `reason` : sans ce parametre explicite, cet appel-la repeuplerait
+    `#reason` avec le motif clinique. Un appelant qui n'a rien a repeupler doit donc
+    passer `donnees={}` plutot que de laisser le defaut deviner dans le mauvais POST.
     """
     cabinet = getattr(request, "officesettings", None)
     montant = None
@@ -654,7 +674,11 @@ def modale_de_facturation(
         "moyens": models.PaimentMean.objects.filter(enable=True),
         "montant": montant_affiche,
         "devise": cabinet.currency if cabinet else "",
-        "donnees": request.POST if request.method == "POST" else {},
+        "donnees": (
+            donnees
+            if donnees is not None
+            else (request.POST if request.method == "POST" else {})
+        ),
         "erreurs": erreurs,
     }
     corps = render_to_string("partials/modale.html", contexte, request=request)
