@@ -358,6 +358,52 @@ Tenu à la main.
 > discuté ni priorisé par un humain. Une sous-section portant une date de tri ultérieure
 > n'est pas concernée par ce bandeau.
 
+### Reprise du parc de production sur le fork (décidé le 2026-09-18, à faire)
+
+L'utilisateur migrera sa production — version **antérieure au fork** — vers une instance
+bâtie sur le fork. L'exercice a **déjà été mené une fois** (cf. « Terminé », 2026-09-07 et
+2026-09-08) mais il est **à refaire intégralement** : l'instance de recette et l'archive de
+production qui l'alimentait ont été détruites en fin de session le 2026-09-08, et le parc a
+vécu depuis.
+
+**Ce qui est acquis de la première passe, et reste vrai :**
+
+- Le chemin qui fonctionne n'est pas une conversion de schéma. La pile monte sur une base
+  **vide**, les 68 migrations s'appliquent, puis l'archive `dump.json` entre par la fonction
+  de restauration du produit dans un schéma **déjà à jour**. La reprise de parc de D7 et les
+  gardes de `0057` / `0060` ne s'exécutent donc jamais sur les lignes d'une archive
+  (cf. « Points en suspens », 2026-09-07).
+- Les seules migrations que le fork ajoute à l'amont sont `0056` à `0060`. Trois portent un
+  risque sur données réelles : `0057` (unicité patient nom/prénom/naissance), `0058`
+  (montants en `numeric(10,2)`) et `0060` (unicité `(officesettings_id, number)`).
+  Un parc non conforme se manifeste par un **412 « archive incorrecte »** sur `0057` /
+  `0060`, par un **500** sur un dépassement `0058`.
+- Au 2026-09-08 le parc réel les satisfaisait toutes les trois : 44 766 objets chargés sans
+  un rejet, zéro doublon de numéro de facture, aucun préfixe, plage contiguë.
+
+**Ce qui est à refaire, dans cet ordre :**
+
+1. **Export neuf depuis la production**, par la fonction d'archive du produit.
+2. **Diagnostic en lecture seule**, exécuté **par l'utilisateur lui-même** sur son archive,
+   par un script hors dépôt n'écrivant que des agrégats. ⚠️ **La donnée de santé ne transite
+   ni par la session ni par ses sous-agents** — règle tenue le 2026-09-07, à tenir de
+   nouveau. Le script est à réécrire : il n'a jamais été versionné, à dessein.
+   Agrégats attendus : nombre de factures, de cabinets, couples `(cabinet, numéro)` en
+   double, numéros non convertibles, préfixes, contiguïté de la plage,
+   `invoice_start_sequence`, et doublons `(nom, prénom, naissance)` pour `0057`.
+3. **Restauration sur instance conteneur** montée depuis `Docker/deploy/pg/`, images
+   construites depuis le fork, dossier hôte **hors dépôt**.
+4. **Passe de recette** sur les fiches d'installation et de facturation touchées.
+
+**Deux points neufs depuis le 2026-09-08, à vérifier pendant la passe :**
+
+- **Aucune migration n'a été ajoutée depuis `0060`** — D8 et tout le chantier D6 sont sans
+  effet sur le schéma. À reconstater plutôt qu'à supposer, au moment de la passe.
+- **Les documents médicaux antérieurs au fork.** `0056` change l'`upload_to` de
+  `Document.document_file` sans déplacer aucun fichier : les chemins déjà en base restent
+  ceux de l'amont. Un document ancien doit donc encore être servi après reprise — non
+  éprouvé, la première passe n'a pas regardé ce point.
+
 ### Passe de comparaison avec l'ancienne version (décidé le 2026-09-13, différé)
 
 Décision de l'utilisateur : une passe **avant/après** est nécessaire — l'écran migré a
