@@ -273,12 +273,18 @@ class TestEntreeDuJournal(SocleDuJournal):
         with sans_receivers():
             consultation = cree_consultation(self.patient, therapeut=self.praticien)
             disparue = cree_consultation(self.patient, therapeut=self.praticien)
+            patient_disparu = cree_patient(family_name="Fugace", first_name="Ada")
         identifiant_disparu = disparue.id
+        identifiant_patient_disparu = patient_disparu.id
         with sans_receivers():
             disparue.delete()
+            patient_disparu.delete()
 
         cas = {
             "patient": self._evenement(clazz="Patient", reference=self.patient.id),
+            "patient-supprime": self._evenement(
+                clazz="Patient", reference=identifiant_patient_disparu
+            ),
             "consultation": self._evenement(
                 clazz="Examination", reference=consultation.id
             ),

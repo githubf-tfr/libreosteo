@@ -63,8 +63,11 @@ class OfficeEventSerializer(WithPkMixin, serializers.ModelSerializer):
 
     def get_patient_name(self, obj):
         if obj.clazz == "Patient":
-            patient = Patient.objects.get(id=obj.reference)
-            return "%s %s" % (patient.family_name, patient.first_name)
+            try:
+                patient = Patient.objects.get(id=obj.reference)
+                return "%s %s" % (patient.family_name, patient.first_name)
+            except ObjectDoesNotExist:
+                pass
         if obj.clazz == "Examination":
             try:
                 examination = Examination.objects.get(id=obj.reference)
