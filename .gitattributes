@@ -1,0 +1,7 @@
+# Normalise les fins de ligne en LF dans le depot et au clone, quel que soit l'OS de qui
+# ecrit. Remede a une classe de defaut vecue plusieurs fois pendant D6 : un script qui
+# rouvre un fichier existant en mode texte (`open(p, "w")`) convertit ses CRLF en LF et
+# produit des centaines de lignes de diff pour un seul changement reel. Les fichiers deja
+# committes en CRLF ne sont pas touches par cette regle seule (aucun `git add
+# --renormalize` n'a ete lance) : elle ne vaut que pour ce qui est ecrit desormais.
+* text=auto eol=lf

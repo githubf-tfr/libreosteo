@@ -17,10 +17,10 @@ django_compressor==4.6.0
 # IDENTIQUE. Toute montee de django_compressor doit relever ces deux valeurs en meme temps.
 rcssmin==1.2.2
 rjsmin==1.2.5
-sqlparse
-netifaces2
-decorator
-packaging
+sqlparse==0.6.0
+netifaces2==0.0.22
+decorator==5.3.1
+packaging==26.3
 django-statici18n==2.8.0
-pytz
+pytz==2026.3.post1
 drf-excel==2.6.0

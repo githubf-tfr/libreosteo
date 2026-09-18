@@ -14,6 +14,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 """Le service de sauvegarde-restauration, appele sans passer par HTTP."""
 
+import decimal
 import logging
 import os
 import shutil
@@ -177,6 +178,10 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
         # contrainte violée par les objets de l'archive — PK dupliquée, FK rompue — est
         # un défaut de l'archive, pas de la base.
         IntegrityError,
+        # Un montant qui ne rentre plus dans `numeric(10,2)` (migration 0058) leve cette
+        # exception au rechargement, sous PostgreSQL, sans heriter de `DatabaseError` :
+        # le defaut est dans l'archive rechargee, pas dans le moteur.
+        decimal.InvalidOperation,
     ) as erreur:
         # La journalisation de l'échec appartient à l'appelant, qui seul sait ce qu'il en
         # fait : la journaliser ici aussi produirait deux traces pour un seul incident.
