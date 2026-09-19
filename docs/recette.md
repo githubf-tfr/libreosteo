@@ -4046,7 +4046,11 @@ capture versée, `capture_socle_visuel.py` ne les prenant pas.
 - **Domaine** : Socle visuel
 - **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
   de cet écran prouvent les gestes, jamais la mise en page.
-- **État requis** : E1
+- **État requis** : E1, complété par le patient de l'état E2 (chapitre 1, point E2.1 —
+  `Picard` / `Jean-Luc` / `13`/`07`/`1935`, case de consentement cochée), créé au préalable
+  par les gestes de l'écran lui-même (menu *Nouveau patient*). E1 ne porte aucun patient, et
+  l'étape 1 ci-dessous suppose qu'un homonyme existe déjà — sans ce patient, aucune modale
+  ne s'ouvre et l'attendu est faux.
 
 **Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/nouveau-patient-1280.png`
@@ -4054,8 +4058,8 @@ et `nouveau-patient-375.png`.
 
 **Étapes**
 
-1. Menu latéral → *Nouveau patient*, saisir un nom et un prénom déjà présents en base
-   (« Picard » / « Jean-Luc »), une date de naissance différente, cocher la case de
+1. Menu latéral → *Nouveau patient*, saisir le même nom et le même prénom que le patient déjà
+   en base (« Picard » / « Jean-Luc »), une date de naissance différente, cocher la case de
    consentement puis cliquer *Initialiser la fiche patient*, fenêtre à **1 280 px de
    large**.
    Attendu : la modale *Confirmer* s'ouvre par-dessus le document, centrée, entièrement
