@@ -37,7 +37,10 @@
     <button type="button" class="btn-close document-close" aria-label="Close"
             x-show="deplie" style="display: none;"
             @click="deplie = false"></button>
-    <button type="button" class="btn-close document-edit" aria-label="Edit"
+    {# `align-self-start` (D6g T15, correctif) : `.card` est une boite flex colonne #}
+    {# (Bootstrap 5), et sans lui ce bouton, enfant direct, s'etirait sur toute la #}
+    {# largeur -- seul `.btn-close` porte une largeur fixe qui l'en protegeait. #}
+    <button type="button" class="document-edit align-self-start" aria-label="Edit"
             hx-get="{{ entree.url_edition }}"
             hx-target="#document-vignette-{{ entree.document.id }}"
             hx-swap="outerHTML"><span aria-hidden="true"><i class="fa fa-edit"></i></span></button>

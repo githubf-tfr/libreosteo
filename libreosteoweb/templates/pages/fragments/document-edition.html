@@ -32,7 +32,7 @@
           hx-target="#document-vignette-{{ entree.document.id }}"
           hx-swap="outerHTML">
       {% csrf_token %}
-      <button type="submit" class="btn-close document-close document-edit document-edit-ok"
+      <button type="submit" class="document-close document-edit document-edit-ok"
               aria-label="{% trans 'Validate' %}" style="margin-left: 8px"><i class="fa fa-check"></i></button>
       {# **`modifie = false` : ce bouton est le seul abandon de saisie en `GET` du dossier** #}
       {# (4e revue T12). Le desarmement de la garde de sortie suit les **ecritures** — un #}
@@ -42,12 +42,12 @@
       {# dossier averti a la sortie alors qu'il n'y avait plus rien a perdre. Les **sept** #}
       {# autres surfaces de saisie n'ont aucun abandon en `GET`, et c'est pourquoi la regle #}
       {# est posee ici plutot que generalisee. #}
-      <button type="button" class="btn-close document-close document-edit document-edit-cancel"
+      <button type="button" class="document-close document-edit document-edit-cancel"
               aria-label="{% trans 'Cancel' %}" style="margin-left: 8px" @click="modifie = false"
               hx-get="{{ entree.url_vignette }}"
               hx-target="#document-vignette-{{ entree.document.id }}"
               hx-swap="outerHTML"><i class="fa fa-close"></i></button>
-      <button type="button" class="btn-close document-close document-edit document-edit-delete"
+      <button type="button" class="document-close document-edit document-edit-delete"
               aria-label="{% trans 'Delete' %}" style="margin-left: 8px"
               hx-get="{{ entree.url_suppression }}"
               hx-target="#modale"

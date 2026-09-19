@@ -1047,14 +1047,19 @@ class TestEdition(_SocleDuPatient):
         )
 
     def test_les_trois_actions_de_la_vignette_ont_un_nom_distinct(self) -> None:
-        """Defaut n°4 de la recette du 2026-09-18 (KANBAN.md) : les trois `button.btn-close`
+        """Defaut n°4 de la recette du 2026-09-18 (KANBAN.md) : les trois `button.document-close`
         de `document-edition.html` portaient le meme `aria-label="Close"`, a 10 px les uns
         des autres, dont une suppression irreversible -- un lecteur d'ecran annoncait trois
-        fois « Close » pour trois gestes differents."""
+        fois « Close » pour trois gestes differents.
+
+        `document-close`, pas `btn-close` (D6g T15, correctif) : ces trois boutons portent
+        une icone Font Awesome propre, pas le glyphe `&times;` -- `close` -> `btn-close`
+        (annexe A) ne les visait pas, et l'appliquer recouvrait l'icone du fond en croix de
+        Bootstrap 5."""
         with translation.override("fr"):
             html = self.client.get(self.url()).content.decode("utf-8")
 
-        boutons = elements_de_classe(html, "btn-close")
+        boutons = elements_de_classe(html, "document-close")
         self.assertEqual(len(boutons), 3)
         noms = [table.get("aria-label") for _, table in boutons]
         self.assertEqual(len(set(noms)), 3, "noms non distincts : %r" % noms)
@@ -1066,7 +1071,7 @@ class TestEdition(_SocleDuPatient):
         with translation.override("fr"):
             html = self.client.get(self.url()).content.decode("utf-8")
 
-        boutons = elements_de_classe(html, "btn-close")
+        boutons = elements_de_classe(html, "document-close")
         self.assertEqual(len(boutons), 3)
         for _, table in boutons:
             self.assertIn(

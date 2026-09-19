@@ -4167,13 +4167,13 @@ et `dossier-patient-375.png`.
 - les onglets *Antécédents*, *Compte-rendus médicaux* et *Consultations* : la capture de
   référence s'arrête sur *Infos générales* ;
 - les trois boutons d'action d'une vignette de document en édition (*Valider*, *Annuler*,
-  *Supprimer* — `document-edition.html`) : observés hors capture de référence pendant cette
-  tâche, ils combinent désormais `btn-close` (fond en croix, D6g annexe A) avec leur icône
-  Font Awesome propre (`fa-check`/`fa-close`/`fa-trash`) — les deux se superposent, et
-  l'icône devient difficile a distinguer sur *Valider* et *Supprimer*. Consequence directe
-  et mesuree du renommage litteral `close` → `btn-close` sur des boutons qui n'employaient
-  pas le glyphe `×` ; aucune des quatre regles de `libreosteo.css` qui appartiennent a
-  cette tache ne couvre ce cas, non corrige ici, verse en reserve du rapport de tache ;
+  *Supprimer* — `document-edition.html`) et le bouton *Éditer* d'une vignette en lecture
+  (`document-vignette.html`) : hors des deux captures de référence, l'onglet
+  *Compte-rendus médicaux* n'y étant pas montré. Vérifiés en passe complémentaire aux deux
+  largeurs : chacun porte sa **propre icône Font Awesome, pleinement visible, sans aucun
+  recouvrement**, et reste cliquable au même endroit. `close` → `btn-close` (annexe A) ne
+  leur est **pas** appliqué : ces boutons portent une icône propre, pas le glyphe `×` que
+  cette correspondance vise (cf. rapport de tâche) ;
 - les sept modales (facturation, suppressions, envoi de facture, nouveau médecin) : déjà
   passées à `btn-close` par T4, seulement rejouées ici, pas re-capturées ;
 - la position d'*Éditer*/*Supprimer* dans le menu mobile déployé (bouton hamburger cliqué)
