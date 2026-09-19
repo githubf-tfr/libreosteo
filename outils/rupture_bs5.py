@@ -170,8 +170,24 @@ RUPTURE = {
     # entiere en BS4+, la famille `chat` de SB Admin aussi. Regle d'admission tenue ici :
     # un jeton rejoint la table si (a) une feuille que D6g supprime le definit
     # (`css/bootstrap*.css`, `css/sb-admin-2.css`), ou (b) il appartient a une famille
-    # Bootstrap, quelle qu'en soit la version, que Bootstrap 5 ne connait plus. Une classe
-    # du produit que plus aucune regle ne stylle est une dette hors lot, pas une rupture.
+    # Bootstrap, quelle qu'en soit la version, que Bootstrap 5 ne connait plus.
+    #
+    # ⚠️ **Neuf jetons que plus aucune regle ne stylle sont volontairement HORS de cette
+    # table, et leur absence n'est pas un oubli** (arbitrage rendu a la revue de D6g T1,
+    # 2026-09-19) :
+    #
+    #     animate, custom-search-form, comment-content, document-edit-delete, helptext,
+    #     paiments, panel-sphere, primary-font, timeline-heading
+    #
+    # Le balayage par famille les a bien releves : aucune feuille du depot ne les definit,
+    # ils ne designent donc rien. Mais aucun n'appartient a une famille que Bootstrap ait
+    # jamais definie -- ce sont des classes inventees par le produit, restees derriere une
+    # regle CSS supprimee ou jamais ecrite. **D6g est une bascule de socle, pas une purge
+    # de CSS mort en general** : les verser ici ferait de la clause d'arret 4 un solde de
+    # dette generale, et rendrait le chiffre d'entree incomparable au chiffre de sortie,
+    # puisque les corriger ne doit rien a la migration. Ils partent au KANBAN.md comme
+    # constat separe. **Ne pas les ajouter ici sans rouvrir cet arbitrage** : le total de
+    # 593 en depend, et les clauses d'arret 1 et 4 avec lui.
     "btn-block": "w-100",  # BS5 : plus de bouton pleine largeur par classe ; `d-grid` sinon
     "well-md": "card",  # n'existe dans aucune version de Bootstrap (F9)
     "well-sm": "card",  # zero site aujourd'hui ; meme famille, meme sort
@@ -187,6 +203,12 @@ RUPTURE = {
     "fa-wrench-o": "fa-wrench",  # FA4 n'a pas de variante `-o` pour cette icone
 }
 
+# Les trois motifs sont ceux du script de cadrage, caractere pour caractere ; seul le
+# troisieme a change de forme, hisse d'un `re.fullmatch(motif, tok)` en ligne a une
+# constante nommee, sans que la chaine bouge d'un caractere. Ils reconnaissent donc, comme
+# au cadrage, les attributs `class` en guillemets **simples ou doubles** et les jetons
+# portant majuscules ou tiret bas -- ce qui n'est pas le cas du balayage jetable de l'etape
+# 2 bis du plan, plus etroit, et qu'il ne faut pas confondre avec celui-ci.
 RE_CLASS_ATTR = re.compile(r"""class\s*=\s*(?:"([^"]*)"|'([^']*)')""")
 RE_DJ = re.compile(r"\{[%{#].*?[%}#]\}", re.S)
 RE_JETON = re.compile(r"-?[_a-zA-Z][_a-zA-Z0-9-]*")
@@ -197,9 +219,18 @@ def _balayage(
 ) -> tuple[int, collections.Counter, collections.Counter]:
     """(total de jetons poses, jetons morts, gabarits) en une passe, ligne a ligne.
 
-    Le decoupage est celui du cadrage, a l'octet : un attribut `class` est reconnu sur
-    **une** ligne, les balises Django sont retirees de sa valeur avant decoupage, et seul
-    ce qui ressemble a un identifiant CSS compte.
+    Un attribut `class` est reconnu sur **une** ligne -- jamais a cheval sur deux --, les
+    balises Django sont retirees de sa valeur avant decoupage, et seul ce qui ressemble a
+    un identifiant CSS compte.
+
+    **Ce qui est verifiable, et ce qui ne l'est pas.** Ce module ne peut pas se dire fidele
+    « a l'octet » au script de cadrage : celui-ci vivait dans /tmp et ne survit pas a un
+    redemarrage de la machine, donc l'affirmation n'aurait bientot plus de temoin. Ce qui
+    se verifie, et qui l'a ete, est l'**equivalence de sortie** : les sept jetons ajoutes
+    par D6g T1 retires de `RUPTURE`, ce balayage rend les quatre chiffres publies en F2
+    (1647 occurrences, 580 non survivantes, 99 jetons, 60 gabarits sur 83, 134 occurrences
+    sans equivalent sur 38 jetons) **et** la ventilation par jeton, egale entree par
+    entree. C'est cette equivalence qui fait foi, pas une ressemblance de source.
     """
     total = 0
     jetons: collections.Counter = collections.Counter()

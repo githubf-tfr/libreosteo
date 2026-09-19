@@ -20,12 +20,13 @@ import json
 import re
 import sys
 import zipfile
+from typing import Any
 
 CHIFFRES = re.compile(r"^([A-Za-z]{0,3})(\d+)$")
 PLAFOND = decimal.Decimal(10) ** 8
 
 
-def _cle_patient(champs):
+def _cle_patient(champs: dict[str, Any]) -> tuple[str, str, str, Any]:
     return (
         (champs.get("family_name") or "").strip().lower(),
         (champs.get("original_name") or "").strip().lower(),
@@ -34,7 +35,9 @@ def _cle_patient(champs):
     )
 
 
-def _montants_hors_bornes(objets, modele, champ):
+def _montants_hors_bornes(
+    objets: list[dict[str, Any]], modele: str, champ: str
+) -> tuple[int, int]:
     trop_de_decimales = 0
     trop_grands = 0
     for objet in objets:
@@ -48,14 +51,23 @@ def _montants_hors_bornes(objets, modele, champ):
         except decimal.InvalidOperation:
             trop_de_decimales += 1
             continue
-        if -valeur.as_tuple().exponent > 2:
+        exposant = valeur.as_tuple().exponent
+        # `as_tuple().exponent` rend un entier pour tout nombre fini, et la chaine
+        # "n", "N" ou "F" pour NaN et l'infini -- que `Decimal(str(brut))` accepte
+        # sans lever `InvalidOperation`. Un montant non fini n'a pas de decimales a
+        # compter, et la comparaison a PLAFOND qui suit leverait sur lui : il est
+        # compte hors bornes ici, ce qui est son sort de toute facon.
+        if not isinstance(exposant, int):
+            trop_de_decimales += 1
+            continue
+        if -exposant > 2:
             trop_de_decimales += 1
         if abs(valeur) >= PLAFOND:
             trop_grands += 1
     return trop_de_decimales, trop_grands
 
 
-def main(chemin):
+def main(chemin: str) -> None:
     with zipfile.ZipFile(chemin) as archive:
         with archive.open("meta") as flux:
             version = flux.read().decode("utf-8").strip()
@@ -103,9 +115,9 @@ def main(chemin):
         for f in factures
     )
     doublons = {c: n for c, n in couples.items() if n > 1}
-    numeriques = []
+    numeriques: list[int] = []
     non_convertibles = 0
-    prefixes = collections.Counter()
+    prefixes: collections.Counter[str] = collections.Counter()
     for facture in factures:
         numero = (facture["fields"].get("number") or "").strip()
         correspondance = CHIFFRES.match(numero)
@@ -140,7 +152,7 @@ def main(chemin):
         ("libreosteoweb.paiment", "amount", None),
     ):
         decimales, grands = _montants_hors_bornes(objets, modele, champ)
-        bloquant = bloquant or decimales or grands
+        bloquant = bloquant or bool(decimales) or bool(grands)
     print(
         "VERDICT : %s"
         % (
@@ -153,6 +165,6 @@ def main(chemin):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print(__doc__.strip())
+        print((__doc__ or "").strip())
         raise SystemExit(2)
     main(sys.argv[1])

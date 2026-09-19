@@ -3823,6 +3823,15 @@ et `recherche-375.png`.
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/diagnostic-texte-riche-1280.png`
 et `diagnostic-texte-riche-375.png`.
 
+**⚠️ État d'avant, antérieur au lot — débordement horizontal à 375 px.** La capture de
+référence `diagnostic-texte-riche-375.png` fait **574 px de large**, et non 375 : en pleine
+page, cette largeur est celle du contenu. Le tableau « Par champ » et ses six colonnes
+débordent donc la fenêtre, et l'écran défile latéralement. **C'est l'état sous Bootstrap 3,
+mesuré le 2026-09-19 avant toute modification** : la tâche **T6**, propriétaire de cet
+écran, hérite d'une référence qui déborde et ne doit pas prendre ce débordement pour une
+régression qu'elle aurait introduite. Qu'elle le corrige ou le laisse est sa décision, mais
+elle le constate ici.
+
 **Étapes**
 
 1. Ouvrir `/office/rich-text-diagnostic`, connecté, fenêtre à **1 280 px de large**.
@@ -3902,6 +3911,14 @@ et `nouveau-patient-375.png`.
 **Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/comptabilite-1280.png`
 et `comptabilite-375.png`.
+
+**⚠️ État d'avant, antérieur au lot — débordement horizontal à 375 px.** La capture de
+référence `comptabilite-375.png` fait **551 px de large**, et non 375 : en pleine page,
+cette largeur est celle du contenu. Le tableau des factures et ses huit colonnes débordent
+la fenêtre, et l'écran défile latéralement. **C'est l'état sous Bootstrap 3, mesuré le
+2026-09-19 avant toute modification** : la tâche **T10**, propriétaire de cet écran, hérite
+d'une référence qui déborde et ne doit pas prendre ce débordement pour une régression
+qu'elle aurait introduite.
 
 **Étapes**
 
@@ -4042,6 +4059,14 @@ et `page-inexistante-375.png`.
 **Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/facture-1280.png`
 et `facture-375.png`.
+
+**⚠️ État d'avant, antérieur au lot — largeur fixe à 800 px, et ce n'est pas un défaut de
+socle.** La capture de référence `facture-375.png` fait **800 px de large**, exactement
+comme `facture-1280.png` : ce document ne charge pas Bootstrap (F3) et ne répond à aucune
+largeur de fenêtre — sa mise en page vient de `css/invoice-style.css` seul. Il déborde donc
+à 375 px, et **il débordait déjà avant le lot**, mesuré le 2026-09-19. La tâche **T16** ne
+doit ni le corriger ni le compter comme une régression : l'attendu de cette fiche est
+justement que le lot n'ait pas touché ce document.
 
 **Étapes**
 

@@ -48,11 +48,25 @@ FORMATS = ((1280, 800), (375, 812))
 
 
 def capturer(page: Page, slug: str) -> None:
-    """Ecrit `<slug>-1280.png` et `<slug>-375.png` sous le repertoire de reference."""
+    """Ecrit `<slug>-1280.png` et `<slug>-375.png` sous le repertoire de reference.
+
+    **`animations="disabled"` n'est pas un confort.** Sans lui, la meme page capturee deux
+    fois ne rend pas le meme fichier : mesure du 2026-09-19 sur `connexion-1280.png`, deux
+    rejeux consecutifs du module different de 14 octets, sur les lignes de pixels 120 a
+    122 -- le pourtour du champ `username` autofocalise, pris en cours de la transition
+    `border-color ease-in-out .15s` que Bootstrap 3 pose sur `.form-control:focus`. Une
+    reference qui bouge a chaque rejeu n'est pas une reference, et T2 a T16 rejouent ce
+    module quatorze fois. Playwright fige alors toute animation et toute transition CSS a
+    son etat final, ce qui est justement l'etat que la recette decrit.
+    """
     CAPTURES.mkdir(parents=True, exist_ok=True)
     for largeur, hauteur in FORMATS:
         page.set_viewport_size({"width": largeur, "height": hauteur})
-        page.screenshot(path=str(CAPTURES / f"{slug}-{largeur}.png"), full_page=True)
+        page.screenshot(
+            path=str(CAPTURES / f"{slug}-{largeur}.png"),
+            full_page=True,
+            animations="disabled",
+        )
     page.set_viewport_size({"width": FORMATS[0][0], "height": FORMATS[0][1]})
 
 
@@ -119,20 +133,26 @@ def test_captures_ecrans_du_socle(
     capturer(page, "page-inexistante")
 
 
-def test_captures_du_dossier_vivant(page: Page, live_server: LiveServer) -> None:
+def test_captures_du_dossier_vivant(
+    page: Page, live_server: LiveServer, tmp_path: Path
+) -> None:
     """R-VIS-14, R-VIS-04, R-VIS-09 et R-VIS-16 : l'etat E2, monte par les gestes."""
     connexion(page, live_server)
     creer_patient(page)
 
     page.click("#medicalreports")
     expect(page.locator("#panneau-medicalreports")).to_be_visible()
-    fichier = RACINE / "docs" / "recette" / "captures" / "d6g" / ".piece-jointe.txt"
-    fichier.parent.mkdir(parents=True, exist_ok=True)
+    # **La piece jointe vit dans `tmp_path`, jamais sous `docs/recette/captures/d6g/`.**
+    # Ce repertoire doit porter trente-deux fichiers et rien d'autre (clause d'arret 13) ;
+    # y ecrire un intermediaire, meme efface juste apres, laisserait un intrus derriere
+    # tout rejeu interrompu -- et T2 a T16 rejouent ce module quatorze fois. `tmp_path` est
+    # fourni par pytest, hors du depot, et disparait sans que ce module ait a supprimer
+    # quoi que ce soit.
+    fichier = tmp_path / "piece-jointe.txt"
     fichier.write_text("piece jointe de recette", encoding="utf-8")
     joindre_document(
         page, str(fichier), "Compte-rendu", "01/03/2026", "Notes du document"
     )
-    fichier.unlink()
 
     ouvrir_nouvelle_consultation(page)
     saisir_consultation(page)

@@ -204,6 +204,7 @@ files = [
     "libreosteoweb/urls.py",
     "manage.py",
     "outils/__init__.py",
+    "outils/diagnostic_archive.py",
     "outils/rupture_bs5.py",
     "outils/tests/__init__.py",
     "outils/tests/test_rupture_bs5.py",
