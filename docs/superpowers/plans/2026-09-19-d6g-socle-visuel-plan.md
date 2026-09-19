@@ -336,6 +336,13 @@ qui sait que seules six choses changent lit six choses.
 > `display:flex` ou ses marges négatives implicitement**, et rien ne le remplace. Après
 > chaque écran, **regarder les paires en-tête/contenu et les colonnes voisines à 1 280 px** :
 > si elles s'empilent, il manque un `.row` sur leur parent commun.
+> ⚠️ **Sixième piège, mesuré par T8 : une capture peut figer un état non stylé.** Le premier
+> lancement de l'instrument a versé une capture prise **avant que le CSS ne soit appliqué** ;
+> le second était stable. Une capture non stylée ressemble à un écran cassé et serait lue
+> comme tel par la recette. **Rejoue l'instrument une seconde fois et compare les sommes de
+> contrôle**, ou contrôle par `getComputedStyle` qu'une règle attendue est bien appliquée,
+> avant de verser une capture.
+>
 > ⚠️ **Et la précondition de `radio|checkbox → form-check` ne se tient pas toujours depuis le
 > gabarit** : le rendu par défaut de Django ne permet pas de classer le `<label>` d'un champ
 > de formulaire. T14 a dû passer par un gabarit de widget local
