@@ -59,7 +59,8 @@ AJOUTS_DE_T1 = {
     "badge-info": ("text-bg-info", 0),
     # 3 au 2026-09-19 (T1) ; repris par D6g T15 (document-edition.html).
     "fa-1": (None, 0),
-    "fa-wrench-o": ("fa-wrench", 1),
+    # 1 au 2026-09-19 (T1) ; repris par D6g T7 (reindexation.html, son seul porteur).
+    "fa-wrench-o": ("fa-wrench", 0),
 }
 
 
@@ -91,10 +92,11 @@ def test_la_mesure_du_depot_pese_les_occurrences_de_ces_sept_jetons() -> None:
     documents de compte ; **8** depuis D6g T3, qui a repris `well-md` (register.html,
     restore.html) et `badge-info` (menu.html) ; **6** depuis D6g T13, qui a repris deux
     des trois sites de `left` (`evenement.html`, `evenements-page.html`) -- le troisieme,
-    hors de son ecran, reste a reprendre.
+    hors de son ecran, reste a reprendre ; **5** depuis D6g T7, qui a repris
+    `fa-wrench-o` (reindexation.html, son seul porteur).
     """
     jetons, _ = occurrences(RACINE / "libreosteoweb" / "templates")
     releve = {jeton: jetons[jeton] for jeton in AJOUTS_DE_T1}
 
     assert releve == {jeton: n for jeton, (_, n) in AJOUTS_DE_T1.items()}
-    assert sum(releve.values()) == 2
+    assert sum(releve.values()) == 1

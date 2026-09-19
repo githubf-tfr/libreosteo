@@ -18,19 +18,23 @@
 
 {% block contenu %}
 <div id="page-wrapper">
-    <h1 class="page-header" data-testid="titre-reindexation">
+    {# D6g T7 : page-header disparait sans equivalent (comme T6, T12, T13). #}
+    <h1 data-testid="titre-reindexation">
         {% trans 'Rebuild index' %}
     </h1>
     <div class="row">
+    {# D6g T7 : `<p>` reste enfant direct de `.row` sans classe `col-*`, comme avant. #}
+    {# Verifie contre le piege du `.row` (patron du lot) : capture a 1280 px comparee #}
+    {# a celle d'avant T7, meme retour a la ligne, aucun chevauchement avec le panneau. #}
     <p>{% blocktrans %}This function helps to rebuild index when for different reason, searching does not work.
         Be sure that no body is adding new patient and examination before to do that.{% endblocktrans %}</p>
         <div class="col-md-12">
-            <div class="panel panel-default">
-                <div class="panel-heading">{% trans 'Rebuild index' %}</div>
-                <div class="panel-body">
+            <div class="card">
+                <div class="card-header">{% trans 'Rebuild index' %}</div>
+                <div class="card-body">
                     <div class="row">
                         <div class="col-md-3">
-                            <i style="font-size:24px" class="fa fa-wrench-o"></i>
+                            <i style="font-size:24px" class="fa fa-wrench"></i>
                             {# `hx-disabled-elt="this"` desactive le bouton pendant la #}
                             {# requete : la reindexation est synchrone et tient la #}
                             {# connexion, un second lancement concurrent n'a aucun sens. #}

@@ -3972,12 +3972,34 @@ et `reindexation-375.png`.
 
 **Étapes**
 
-1. Menu utilisateur → *Reconstruire l'index*, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T7>
+1. Se connecter avec un compte `is_staff` (le compte du socle en dispose), menu
+   utilisateur → *Reconstruire l'index*, fenêtre à **1 280 px de large**.
+   Attendu : le titre **« Réindexer »** est entièrement visible sous la barre de
+   navigation. En dessous, le paragraphe d'avertissement (« Cette fonction permet de
+   reconstruire l'indexation… ») s'étend sur toute la largeur, au-dessus de la carte, sans
+   chevauchement ni avec le titre ni avec la carte. La carte affiche un en-tête gris clair
+   **« Réindexer »** puis, dans son corps, une icône de clé à molette suivie du bouton vert
+   **« réindexer »**, sur une seule ligne ; à droite du bouton, les deux zones destinées au
+   bandeau de résultat et à l'indicateur de chargement restent vides et invisibles avant
+   tout clic. Aucune barre de défilement horizontale. Dans la barre, à droite, les trois
+   entrées **test**, **?** et le champ **Recherche…** restent atteignables au clic, comme
+   décrit en R-VIS-03.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T7>
+   Attendu : la barre de navigation se replie derrière le bouton hamburger, comme décrit en
+   R-VIS-03. Le titre, le paragraphe d'avertissement et la carte restent entièrement
+   visibles, la carte s'étirant sur toute la largeur disponible ; aucune barre de
+   défilement horizontale.
 
-**Ne couvre pas** : <écrit par T7>
+**Ne couvre pas** : l'état affiché **après** le clic sur « réindexer » — le bandeau de
+résultat (« Terminé » ou « Échoué ») que `pages/fragments/reindexation-resultat.html`
+renvoie par htmx. Les deux captures de référence montrent l'état **avant** ce clic : le
+script `tests/functional/capture_socle_visuel.py` ne déclenche pas l'action, et cette fiche
+ne le modifie pas. Le rendu du bandeau, sans classe de socle à reprendre (le fragment ne
+porte aucun jeton de l'annexe A), et le geste lui-même sont couverts par
+`tests/functional/test_recherche.py::test_reconstruction_de_l_index_depuis_le_menu`
+(fiche `R-RCH-02`). Ni le détail du bandeau et du menu utilisateur, qui appartiennent au
+socle commun et se recettent en R-VIS-03 — cette fiche n'en vérifie que la présence et
+l'atteignabilité sur cet écran précis.
 
 ### R-VIS-07 — Socle visuel : première installation
 
