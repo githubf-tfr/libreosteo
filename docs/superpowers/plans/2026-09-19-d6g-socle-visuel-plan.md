@@ -486,9 +486,13 @@ def test_un_gabarit_sans_classe_morte_ne_compte_rien(tmp_path: pathlib.Path) -> 
     assert fichiers == {}
 
 
-def test_un_jeton_de_la_table_est_compte_avec_son_fichier(tmp_path: pathlib.Path) -> None:
+def test_un_jeton_de_la_table_est_compte_avec_son_fichier(
+    tmp_path: pathlib.Path,
+) -> None:
     (tmp_path / "gabarits").mkdir()
-    (tmp_path / "gabarits" / "a.html").write_text('<div class="panel panel-body">x</div>')
+    (tmp_path / "gabarits" / "a.html").write_text(
+        '<div class="panel panel-body">x</div>'
+    )
     jetons, fichiers = occurrences(tmp_path)
     assert jetons["panel"] == 1
     assert jetons["panel-body"] == 1

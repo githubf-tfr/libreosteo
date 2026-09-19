@@ -19,7 +19,9 @@
 blanc. Mesure a la cloture : `static/` portait 5 096 fichiers, 76 Mo, dont 4 764 residuels
 — tout AngularJS, jQuery, hallo, bootstrap-tour, des paquets pourtant deja sortis de
 `package.json`. Apres purge et `make static` : 332 fichiers, 7,7 Mo, `static/components` ne
-portant plus qu'`alpinejs` et `htmx`.
+portant plus qu'`alpinejs` et `htmx`. **Depuis D6g T1 (2026-09-19), `bootstrap` s'y ajoute**
+et le jeu attendu compte trois composants : la mesure ci-dessus reste celle de D6f, elle
+n'est pas le contrat.
 
 **Ce que ce module verifie** : que chaque repertoire sous `static/components/` correspond a
 une entree `@components/<nom>` de `package.json`. Un paquet retire de `package.json` mais
@@ -77,7 +79,10 @@ def test_le_detecteur_signale_un_residu() -> None:
 
 
 def test_le_detecteur_ne_signale_pas_un_arbre_fidele() -> None:
-    assert residus({"htmx", "alpinejs"}, {"htmx", "alpinejs"}) == set()
+    assert (
+        residus({"htmx", "alpinejs", "bootstrap"}, {"htmx", "alpinejs", "bootstrap"})
+        == set()
+    )
 
 
 def test_aucun_residu_sous_static_components() -> None:

@@ -3,7 +3,7 @@
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "Libreosteo.settings"
-testpaths = ["libreosteoweb/tests", "zipcode_lookup", "tests/qualite"]
+testpaths = ["libreosteoweb/tests", "outils/tests", "zipcode_lookup", "tests/qualite"]
 python_files = ["test_*.py", "tests.py"]
 addopts = "--cov --cov-report=term-missing"
 # La suite fonctionnelle reste hors de testpaths : `make test` et le job CI `quality`
@@ -203,6 +203,10 @@ files = [
     "libreosteoweb/tests/test_utils.py",
     "libreosteoweb/urls.py",
     "manage.py",
+    "outils/__init__.py",
+    "outils/rupture_bs5.py",
+    "outils/tests/__init__.py",
+    "outils/tests/test_rupture_bs5.py",
     "patch.py",
     "server.py",
     "tests/__init__.py",
@@ -210,6 +214,7 @@ files = [
     "tests/functional/banc/__init__.py",
     "tests/functional/banc/urls.py",
     "tests/functional/banc/vues.py",
+    "tests/functional/capture_socle_visuel.py",
     "tests/functional/conftest.py",
     "tests/functional/fabrique.py",
     "tests/functional/helpers.py",

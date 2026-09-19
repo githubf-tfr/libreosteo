@@ -354,7 +354,7 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 ```
 ### <ID> — <Titre>
 
-- **Domaine** : <un des seize chapitres du cahier>
+- **Domaine** : <un des dix-sept chapitres du cahier>
 - **Couverture auto** : non | oui — tests/functional/test_xxx.py::identifiant_du_test
 - **État requis** : E0 | E1 | E2 | aucun
 
@@ -3709,6 +3709,348 @@ c'est **acté et non compensable** — aucun script de traduction d'anciens frag
    menu.
    Attendu : la barre latérale ne recouvre aucune partie du titre « Ooops ! » — les deux
    rectangles ne se chevauchent pas.
+
+### Socle visuel
+
+Domaine ouvert par le lot D6g (2026-09-19), qui remplace Bootstrap 3 et le thème SB Admin 2
+par Bootstrap 5. Ses seize fiches ne recettent **qu'une chose** : la mise en page telle
+qu'elle s'affiche, à deux largeurs de fenêtre — 1 280 px et 375 px. Aucun test ne peut
+tenir ce rôle, aucun n'assied un pixel ; c'est pourquoi chaque fiche porte
+« Couverture auto : non » sans que cela signale un manque.
+
+**Comment se lit une fiche de ce domaine.** Chacune nomme deux captures de référence sous
+`docs/recette/captures/d6g/`. Elles sont **l'état d'après**, réécrit par la tâche qui livre
+l'écran : le total reste de trente-deux fichiers, jamais davantage.
+
+**Comment on ressort l'état d'avant.** Les captures prises sur l'arbre Bootstrap 3 sont
+celles du commit de D6g T1 (2026-09-19), le plus ancien qui touche ce répertoire ; chaque
+tâche d'écran les écrase ensuite. Ce commit se retrouve sans rien connaître par avance :
+
+```bash
+git log --oneline --diff-filter=A -1 -- docs/recette/captures/d6g/
+# puis, avec le SHA obtenu :
+git show <sha>:docs/recette/captures/d6g/<fiche>-1280.png > /tmp/d6g-avant-<fiche>-1280.png
+```
+
+### R-VIS-01 — Socle visuel : page de connexion
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/connexion-1280.png`
+et `connexion-375.png`.
+
+**Étapes**
+
+1. Ouvrir l'URL racine de l'instance, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T2>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T2>
+
+**Ne couvre pas** : <écrit par T2>
+
+### R-VIS-02 — Socle visuel : création du premier compte
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E0
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/premier-compte-1280.png`
+et `premier-compte-375.png`.
+
+**Étapes**
+
+1. Ouvrir `/accounts/create-admin/` sur une base vierge, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T2>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T2>
+
+**Ne couvre pas** : <écrit par T2>
+
+### R-VIS-03 — Socle visuel : bandeau, menu latéral et gabarit commun
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/socle-bandeau-1280.png`
+et `socle-bandeau-375.png`.
+
+**Étapes**
+
+1. Se connecter, puis rester sur l'URL racine, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T4>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T4>
+
+**Ne couvre pas** : <écrit par T4>
+
+### R-VIS-04 — Socle visuel : résultats de recherche
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E2
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/recherche-1280.png`
+et `recherche-375.png`.
+
+**Étapes**
+
+1. Ouvrir `/search?q=Picard`, connecté, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T5>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T5>
+
+**Ne couvre pas** : <écrit par T5>
+
+### R-VIS-05 — Socle visuel : diagnostic du texte riche
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/diagnostic-texte-riche-1280.png`
+et `diagnostic-texte-riche-375.png`.
+
+**Étapes**
+
+1. Ouvrir `/office/rich-text-diagnostic`, connecté, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T6>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T6>
+
+**Ne couvre pas** : <écrit par T6>
+
+### R-VIS-06 — Socle visuel : reconstruction de l'index
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/reindexation-1280.png`
+et `reindexation-375.png`.
+
+**Étapes**
+
+1. Menu utilisateur → *Reconstruire l'index*, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T7>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T7>
+
+**Ne couvre pas** : <écrit par T7>
+
+### R-VIS-07 — Socle visuel : première installation
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E0
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/installation-1280.png`
+et `installation-375.png`.
+
+**Étapes**
+
+1. Ouvrir `/install/` sur une base vierge, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T8>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T8>
+
+**Ne couvre pas** : <écrit par T8>
+
+### R-VIS-08 — Socle visuel : nouveau patient
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/nouveau-patient-1280.png`
+et `nouveau-patient-375.png`.
+
+**Étapes**
+
+1. Menu latéral → *Nouveau patient*, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T9>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T9>
+
+**Ne couvre pas** : <écrit par T9>
+
+### R-VIS-09 — Socle visuel : comptabilité
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E2
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/comptabilite-1280.png`
+et `comptabilite-375.png`.
+
+**Étapes**
+
+1. Menu latéral → *Comptabilité*, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T10>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T10>
+
+**Ne couvre pas** : <écrit par T10>
+
+### R-VIS-10 — Socle visuel : import/export
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/import-export-1280.png`
+et `import-export-375.png`.
+
+**Étapes**
+
+1. Menu utilisateur → *Import/export*, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T11>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T11>
+
+**Ne couvre pas** : <écrit par T11>
+
+### R-VIS-11 — Socle visuel : profil utilisateur
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/profil-1280.png`
+et `profil-375.png`.
+
+**Étapes**
+
+1. Menu utilisateur → *Profil utilisateur*, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T12>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T12>
+
+**Ne couvre pas** : <écrit par T12>
+
+### R-VIS-12 — Socle visuel : tableau de bord
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/tableau-de-bord-1280.png`
+et `tableau-de-bord-375.png`.
+
+**Étapes**
+
+1. Se connecter, puis rester sur l'URL racine, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T13>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T13>
+
+**Ne couvre pas** : <écrit par T13>
+
+### R-VIS-13 — Socle visuel : paramètres du cabinet
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/cabinet-1280.png`
+et `cabinet-375.png`.
+
+**Étapes**
+
+1. Menu utilisateur → *Paramètres du cabinet*, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T14>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T14>
+
+**Ne couvre pas** : <écrit par T14>
+
+### R-VIS-14 — Socle visuel : dossier patient
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E2
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/dossier-patient-1280.png`
+et `dossier-patient-375.png`.
+
+**Étapes**
+
+1. Ouvrir le dossier d'un patient portant une consultation et un document, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T15>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T15>
+
+**Ne couvre pas** : <écrit par T15>
+
+### R-VIS-15 — Socle visuel : page inexistante
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E1
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/page-inexistante-1280.png`
+et `page-inexistante-375.png`.
+
+**Étapes**
+
+1. Ouvrir une URL inexistante, connecté, fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T16>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T16>
+
+**Ne couvre pas** : <écrit par T16>
+
+### R-VIS-16 — Socle visuel : facture imprimée
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
+  de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E2
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont `docs/recette/captures/d6g/facture-1280.png`
+et `facture-375.png`.
+
+**Étapes**
+
+1. Depuis la comptabilité, imprimer une facture (nouvel onglet), fenêtre à **1 280 px de large**.
+   Attendu : <écrit par T16>
+2. Ramener la fenêtre à **375 px de large**.
+   Attendu : <écrit par T16>
+
+**Ne couvre pas** : <écrit par T16>
 
 ## Chapitre 4 — Tests sans geste de recette
 
