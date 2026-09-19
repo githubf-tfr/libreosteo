@@ -1,399 +1,88 @@
+{% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 {% load compress %}
-{% get_current_language as LANGUAGE_CODE %}
-<!DOCTYPE html>
-<html lang="{{ LANGUAGE_CODE }}">
 
-<head>
+{# D6g T16 (A3, AR2) — `404.html` cesse d'etre autonome et herite du socle. #}
+{# #}
+{# **Ce que l'heritage change au produit, et c'est assume** : le menu du haut n'est plus une #}
+{# copie figee du theme SB Admin, c'est le vrai `partials/menu.html`, porte par le #}
+{# `{% block menu %}` de `base.html`. Il **devient fonctionnel** — Alpine ouvre desormais le #}
+{# menu utilisateur et le menu d'aide, qu'aucun script n'ouvrait ici depuis la mort de la #}
+{# coquille. Le cadre « memes ecrans, memes menus, memes libelles » protege contre la #}
+{# *disparition* d'un ecran ou d'un libelle, pas contre la reparation d'un menu mort ; et la #}
+{# direction est acquise depuis D-4, ferme par `af0fc88` pendant D6f. #}
+{# #}
+{# **Ce que l'heritage ne fait pas** : la barre laterale et son champ de recherche restent, #}
+{# portes par `{% block contenu %}` ci-dessous. Les retirer serait une refonte, ecartee. Le #}
+{# champ de recherche lateral reste inerte, comme avant la bascule (R-ERR-01, etape 5). #}
+{# #}
+{# **Les cinq `data-toggle` sont partis avec le menu fige.** C'etaient les cinq derniers du #}
+{# depot : plus aucun document ne charge le JavaScript de Bootstrap qui les lisait (A1). #}
+{# #}
+{# **Les trois menus deroulants de demonstration de SB Admin** (`dropdown-messages`, #}
+{# `-tasks`, `-alerts`) et **les sept entrees laterales de demonstration** (Dashboard, Flot #}
+{# Charts, Tables, Forms, UI Elements, Multi-Level Dropdown, Sample Pages) etaient du #}
+{# balisage mort en commentaire HTML, herite du theme amont, pointant vers des fichiers qui #}
+{# n'existent pas (`{{ STATIC_URL }}flot.html`, `morris.html`, `panels-wells.html`…). Ils #}
+{# partent : en commentaire ou non, leurs classes comptaient dans la mesure de sortie du lot #}
+{# (`outils/rupture_bs5.py` lit les attributs `class` sans distinguer un commentaire HTML). #}
 
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% block css_page %}
+{% compress css %}
+<link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
+{% endcompress %}
+{% endblock %}
 
-    <title>LibreOsteo</title>
-
-    {% compress css %}
-    <!-- Core CSS - Include with every page -->
-    <link href="{{ STATIC_URL }}css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ STATIC_URL }}font-awesome/css/font-awesome.min.css" rel="stylesheet">
-
-    <!-- Page-Level Plugin CSS - Blank -->
-     <link href="{{ STATIC_URL }}css/plugins/timeline/timeline.css" rel="stylesheet">
-     <!-- MetisMenu CSS -->
-    <link href="{{ STATIC_URL }}css/plugins/metisMenu/metisMenu.min.css" rel="stylesheet">
-
-    <!-- SB Admin CSS - Include with every page -->
-    <link href="{{ STATIC_URL }}css/sb-admin-2.css" rel="stylesheet">
-
-    <!-- TypeAHead component -->
-    <link href="{{ STATIC_URL }}css/typeahead.css" rel="stylesheet">
-    <!-- compatibility for date input with all browsers -->
-    {% endcompress %}
-
-
-</head>
-
-<body>
-
+{% block contenu %}
 <div id="wrapper">
 
-<nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
-<div class="navbar-header">
-    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".sidebar-collapse">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-    </button>
-    <a class="navbar-brand" href="/">LibreOsteo</a>
-</div>
-<!-- /.navbar-header -->
-
-<ul class="nav navbar-top-links navbar-right">
-{# D6f, correctif D-4 (passe T12) : pose ici, en entree directe de `navbar-top-links`, #}
-{# hors du menu deroulant Bootstrap. Le deroulant `menu-utilisateur`, ferme par defaut, #}
-{# n'est ouvert par aucun script sur cette page : l'entree y restait a une boite 0x0, #}
-{# inatteignable au clic (timeout mesure par la passe). #}
-<li><a href="{% url 'profil' %}"><i class="fa fa-user fa-fw"></i> {% trans "User Profile" %}</a>
-</li>
-<!--
-<li class="dropdown">
-    <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-        <i class="fa fa-envelope fa-fw"></i> <i class="fa fa-caret-down"></i>
-    </a>
-    <ul class="dropdown-menu dropdown-messages">
+  {# `sidebar` -> `lo-barre-laterale`, `sidebar-search` -> `lo-barre-laterale-recherche` #}
+  {# (AP6, annexe A) : les deux noms que T4 a poses dans `libreosteo.css`. #}
+  {# `navbar-default` -> `bg-light` : c'est la teinte que Bootstrap 3 donnait a la barre #}
+  {# (`#f8f8f8`), et `bg-light` rend `#f8f9fa`. #}
+  {# `sidebar-nav` et `sidebar-collapse` disparaissent **sans equivalent** : la seule regle #}
+  {# qui portait le premier exigeait `navbar-collapse` sur le meme element #}
+  {# (`.sidebar .sidebar-nav.navbar-collapse`, sb-admin-2.css:93), classe que ce gabarit n'a #}
+  {# jamais posee ; le second n'etait que la cible du `data-toggle="collapse"` retire. #}
+  <div class="bg-light lo-barre-laterale" role="navigation">
+    <div>
+      {# `flex-column` n'est pas decoratif : en Bootstrap 3 `.nav` etait une liste en bloc, #}
+      {# en Bootstrap 5 c'est une boite flex **en ligne**. Sans lui, les entrees de la barre #}
+      {# laterale se rangeraient cote a cote. `nav-link` reprend le `display: block` et le #}
+      {# rembourrage que `.nav > li > a` donnait en Bootstrap 3. #}
+      <ul class="nav flex-column" id="side-menu">
+        <li class="lo-barre-laterale-recherche">
+          <div class="search-container">
+            {# `input-group-btn` disparait sans equivalent (annexe A) : en Bootstrap 5 le #}
+            {# bouton d'un `input-group` est un enfant direct du groupe, le `<span>` qui #}
+            {# l'enveloppait casserait l'arrondi et la soudure des bords. #}
+            <div class="input-group custom-search-form">
+              <input type="search" class="form-control" placeholder="{% trans "Search..." %}">
+              <button class="btn btn-secondary" type="button">
+                <i class="fa fa-search"></i>
+              </button>
+            </div>
+          </div>
+        </li>
         <li>
-            <a href="#">
-                <div>
-                    <strong>John Smith</strong>
-                                    <span class="pull-right text-muted">
-                                        <em>Yesterday</em>
-                                    </span>
-                </div>
-                <div>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque eleifend...</div>
-            </a>
+          <a class="nav-link" href="{% url 'nouveau-patient' %}"><i class="fa fa-pencil-square-o"></i> {% trans 'New patient' %}</a>
         </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <strong>John Smith</strong>
-                                    <span class="pull-right text-muted">
-                                        <em>Yesterday</em>
-                                    </span>
-                </div>
-                <div>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque eleifend...</div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <strong>John Smith</strong>
-                                    <span class="pull-right text-muted">
-                                        <em>Yesterday</em>
-                                    </span>
-                </div>
-                <div>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque eleifend...</div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a class="text-center" href="#">
-                <strong>Read All Messages</strong>
-                <i class="fa fa-angle-right"></i>
-            </a>
-        </li>
-    </ul>
-    <!-- /.dropdown-messages
-</li> -->
-<!-- /.dropdown -->
-<!--
-<li class="dropdown">
-    <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-        <i class="fa fa-tasks fa-fw"></i> <i class="fa fa-caret-down"></i>
-    </a>
-    <ul class="dropdown-menu dropdown-tasks">
-        <li>
-            <a href="#">
-                <div>
-                    <p>
-                        <strong>Task 1</strong>
-                        <span class="pull-right text-muted">40% Complete</span>
-                    </p>
-
-                    <div class="progress progress-striped active">
-                        <div class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="40"
-                             aria-valuemin="0" aria-valuemax="100" style="width: 40%">
-                            <span class="sr-only">40% Complete (success)</span>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <p>
-                        <strong>Task 2</strong>
-                        <span class="pull-right text-muted">20% Complete</span>
-                    </p>
-
-                    <div class="progress progress-striped active">
-                        <div class="progress-bar progress-bar-info" role="progressbar" aria-valuenow="20"
-                             aria-valuemin="0" aria-valuemax="100" style="width: 20%">
-                            <span class="sr-only">20% Complete</span>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <p>
-                        <strong>Task 3</strong>
-                        <span class="pull-right text-muted">60% Complete</span>
-                    </p>
-
-                    <div class="progress progress-striped active">
-                        <div class="progress-bar progress-bar-warning" role="progressbar" aria-valuenow="60"
-                             aria-valuemin="0" aria-valuemax="100" style="width: 60%">
-                            <span class="sr-only">60% Complete (warning)</span>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <p>
-                        <strong>Task 4</strong>
-                        <span class="pull-right text-muted">80% Complete</span>
-                    </p>
-
-                    <div class="progress progress-striped active">
-                        <div class="progress-bar progress-bar-danger" role="progressbar" aria-valuenow="80"
-                             aria-valuemin="0" aria-valuemax="100" style="width: 80%">
-                            <span class="sr-only">80% Complete (danger)</span>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a class="text-center" href="#">
-                <strong>See All Tasks</strong>
-                <i class="fa fa-angle-right"></i>
-            </a>
-        </li>
-    </ul>
-    <!-- /.dropdown-tasks
-</li> -->
-<!-- /.dropdown -->
-<!--
-<li class="dropdown">
-    <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-        <i class="fa fa-bell fa-fw"></i> <i class="fa fa-caret-down"></i>
-    </a>
-    <ul class="dropdown-menu dropdown-alerts">
-        <li>
-            <a href="#">
-                <div>
-                    <i class="fa fa-comment fa-fw"></i> New Comment
-                    <span class="pull-right text-muted small">4 minutes ago</span>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <i class="fa fa-twitter fa-fw"></i> 3 New Followers
-                    <span class="pull-right text-muted small">12 minutes ago</span>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <i class="fa fa-envelope fa-fw"></i> Message Sent
-                    <span class="pull-right text-muted small">4 minutes ago</span>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <i class="fa fa-tasks fa-fw"></i> New Task
-                    <span class="pull-right text-muted small">4 minutes ago</span>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a href="#">
-                <div>
-                    <i class="fa fa-upload fa-fw"></i> Server Rebooted
-                    <span class="pull-right text-muted small">4 minutes ago</span>
-                </div>
-            </a>
-        </li>
-        <li class="divider"></li>
-        <li>
-            <a class="text-center" href="#">
-                <strong>See All Alerts</strong>
-                <i class="fa fa-angle-right"></i>
-            </a>
-        </li>
-    </ul>
-    <!-- /.dropdown-alerts
-</li> -->
-<!-- /.dropdown -->
-<li class="dropdown">
-    <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-        <i class="fa fa-user fa-fw"></i> {{ request.user.username }} <i class="fa fa-caret-down"></i>
-    </a>
-    <ul class="dropdown-menu dropdown-user" data-testid="menu-utilisateur">
-        <!--li><a href="accounts/settings"><i class="fa fa-gear fa-fw"></i> {% trans "Settings" %}</a>
-        </li-->
-        <li class="divider"></li>
-        <li><a href="#" onclick="document.getElementById('logout-form').submit(); return false;"><i class="fa fa-sign-out fa-fw"></i> {% trans "Logout" %}</a>
-            <form id="logout-form" method="post" action="{% url "logout" %}" style="display: none;">{% csrf_token %}</form>
-        </li>
-    </ul>
-    <!-- /.dropdown-user -->
-</li>
-<!-- /.dropdown -->
-</ul>
-<!-- /.navbar-top-links -->
-
-
-    <div class="navbar-default sidebar" role="navigation">
-    <div class="sidebar-nav sidebar-collapse">
-        <ul class="nav" id="side-menu">
-            <li class="sidebar-search">
-                <div class="search-container">
-                    <div class="input-group custom-search-form">
-                        <input type="search" class="form-control" placeholder="{% trans "Search..." %}">
-                            <span class="input-group-btn">
-                                <button class="btn btn-default" type="button">
-                                    <i class="fa fa-search"></i>
-                                </button>
-                            </span>
-                    </div>
-                </div>
-                <!-- /input-group -->
-            </li>
-            <li>
-                <a href="{% url 'nouveau-patient' %}"><i class="fa fa-pencil-square-o"></i> {% trans 'New patient' %}</a>
-            </li>
-            <!--
-            <li>
-                <a href="{{ STATIC_URL }}index.html"><i class="fa fa-dashboard fa-fw"></i> Dashboard</a>
-            </li>
-            <li>
-                <a href="#"><i class="fa fa-bar-chart-o fa-fw"></i> Charts<span class="fa arrow"></span></a>
-                <ul class="nav nav-second-level">
-                    <li>
-                        <a href="{{ STATIC_URL }}flot.html">Flot Charts</a>
-                    </li>
-                    <li>
-                        <a href="{{ STATIC_URL }}morris.html">Morris.js Charts</a>
-                    </li>
-                </ul>
-                <!-- /.nav-second-level -->
-            <!--
-            </li>
-            <li>
-                <a href="{{ STATIC_URL }}tables.html"><i class="fa fa-table fa-fw"></i> Tables</a>
-            </li>
-            <li>
-                <a href="{{ STATIC_URL }}forms.html"><i class="fa fa-edit fa-fw"></i> Forms</a>
-            </li>
-            <li>
-                <a href="#"><i class="fa fa-wrench fa-fw"></i> UI Elements<span class="fa arrow"></span></a>
-                <ul class="nav nav-second-level">
-                    <li>
-                        <a href="{{ STATIC_URL }}panels-wells.html">Panels and Wells</a>
-                    </li>
-                    <li>
-                        <a href="{{ STATIC_URL }}buttons.html">Buttons</a>
-                    </li>
-                    <li>
-                        <a href="{{ STATIC_URL }}notifications.html">Notifications</a>
-                    </li>
-                    <li>
-                        <a href="{{ STATIC_URL }}typography.html">Typography</a>
-                    </li>
-                    <li>
-                        <a href="{{ STATIC_URL }}grid.html">Grid</a>
-                    </li>
-                </ul>
-                <!-- /.nav-second-level -->
-           <!--
-            </li>
-            <li>
-                <a href="#"><i class="fa fa-sitemap fa-fw"></i> Multi-Level Dropdown<span class="fa arrow"></span></a>
-                <ul class="nav nav-second-level">
-                    <li>
-                        <a href="#">Second Level Item</a>
-                    </li>
-                    <li>
-                        <a href="#">Second Level Item</a>
-                    </li>
-                    <li>
-                        <a href="#">Third Level <span class="fa arrow"></span></a>
-                        <ul class="nav nav-third-level">
-                            <li>
-                                <a href="#">Third Level Item</a>
-                            </li>
-                            <li>
-                                <a href="#">Third Level Item</a>
-                            </li>
-                            <li>
-                                <a href="#">Third Level Item</a>
-                            </li>
-                            <li>
-                                <a href="#">Third Level Item</a>
-                            </li>
-                        </ul>
-                        <!-- /.nav-third-level -->
-                    <!--</li>
-                </ul>
-                <!-- /.nav-second-level -->
-            <!--</li>
-            <li class="active">
-                <a href="#"><i class="fa fa-files-o fa-fw"></i> Sample Pages<span class="fa arrow"></span></a>
-                <ul class="nav nav-second-level">
-                    <li>
-                        <a href="blank.html">Blank Page</a>
-                    </li>
-                    <li>
-                        <a href="account/login.html">Login Page</a>
-                    </li>
-                </ul>
-                <!-- /.nav-second-level -->
-            <!--/li-->
-        </ul>
-        <!-- /#side-menu -->
+      </ul>
     </div>
-    </div>
-    <!-- /.sidebar-collapse -->
-</nav>
-<!-- /.navbar-static-side -->
-<div id="page-wrapper">
-    <div growl></div>
-    <div class="jumbotron">
+  </div>
+
+  <div id="page-wrapper">
+    {# `jumbotron` disparait sans equivalent (annexe A) : **son style est repris**, pas #}
+    {# renomme. Bootstrap 3 posait `padding: 30px 15px; margin-bottom: 30px; #}
+    {# background-color: #eee` et, dans un `.container`, `border-radius: 6px` — d'ou #}
+    {# `p-4 mb-4 rounded bg-body-secondary` (`--bs-secondary-bg: #e9ecef`). Il agrandissait #}
+    {# aussi ce qu'il contenait (`h1` a 63px au-dela de 768px, `p` a 21px / graisse 200) : #}
+    {# `display-4` et `lead` rendent les memes ordres de grandeur en Bootstrap 5. #}
+    <div class="p-4 mb-4 rounded bg-body-secondary">
       <div class="container">
-        <h1>Ooops !</h1>
-        <p>You probably search something but by a wrong way. Are you maybe lost ?</p>
+        <h1 class="display-4">Ooops !</h1>
+        <p class="lead">You probably search something but by a wrong way. Are you maybe lost ?</p>
       </div>
     </div>
 
@@ -403,7 +92,7 @@
         <div class="col-md-4">
           <h2>Why 404 ?</h2>
           <p>The powerfull Wikipedia gives many answer.</p>
-          <p><a class="btn btn-default" href="http://en.wikipedia.org/wiki/HTTP_404" role="button">View details &raquo;</a></p>
+          <p><a class="btn btn-secondary" href="http://en.wikipedia.org/wiki/HTTP_404" role="button">View details &raquo;</a></p>
         </div>
         <div class="col-md-4">
           <h2>Not found page</h2>
@@ -418,21 +107,9 @@
       </footer>
     </div> <!-- /container -->
 
-    <!-- /.row -->
-</div>
-<!-- /#page-wrapper -->
+  </div>
+  <!-- /#page-wrapper -->
 
 </div>
 <!-- /#wrapper -->
-
-{% compress css %}
-<!--Specific libreosteo CSS -->
-<link href="{{ STATIC_URL }}css/libreosteo.css" rel="stylesheet"/>
-{% endcompress %}
-
-
-</body>
-
-</html>
-
-
+{% endblock %}

@@ -4,7 +4,11 @@ from django.urls import reverse
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
-from tests.functional.helpers import connexion, rectangles_se_recouvrent
+from tests.functional.helpers import (
+    connexion,
+    ouvrir_menu_utilisateur,
+    rectangles_se_recouvrent,
+)
 
 # Bruit reseau propre au code HTTP 404 de la page elle-meme (Chromium le journalise
 # comme une erreur de console des que la navigation principale repond en 4xx), releve
@@ -46,22 +50,22 @@ def test_la_page_404_ne_leve_aucune_erreur_de_console(
 def test_le_lien_de_deconnexion_de_la_page_404_fonctionne(
     page: Page, live_server: LiveServer, settings
 ) -> None:
-    """R-ERR-01 : le lien de deconnexion fonctionne par invocation directe.
+    """R-ERR-01 : le lien de deconnexion se clique, menu ouvert.
 
-    Le menu utilisateur qui revele ce lien ne s'ouvre pas sur cette page, faute de
-    jQuery (releve de T17, confirme avant comme apres ce retrait) : un test qui
-    passerait par un clic sur le toggle du menu echouerait pour une raison etrangere
-    a ce que X15 promet. On invoque donc directement le handler `onclick` du lien
-    (DOM natif), sans passer par l'ouverture du menu.
+    **D6g T16 : ce test ne passe plus par un contournement.** Il invoquait le handler
+    `onclick` du lien sans ouvrir le menu, parce que le menu fige de `404.html` ne
+    s'ouvrait pas — la page ne chargeait aucun script, et le deroulant Bootstrap qui
+    l'animait avait besoin de jQuery. Depuis que ce gabarit herite de `base.html`, le
+    menu est le vrai `partials/menu.html` : Alpine est charge, `ouvrir_menu_utilisateur`
+    le deploie, et le lien se clique au meme titre que sur n'importe quel autre ecran.
     """
     connexion(page, live_server)
     settings.DEBUG = False
     page.goto(f"{live_server.url}/cette-route-n-existe-pas")
-    with page.expect_navigation():
-        page.eval_on_selector(
-            '[data-testid="menu-utilisateur"] a:has-text("Déconnexion")',
-            "el => el.onclick()",
-        )
+    ouvrir_menu_utilisateur(page)
+    page.get_by_test_id("menu-utilisateur").get_by_role(
+        "link", name="Déconnexion"
+    ).click()
     expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
 
 
@@ -70,14 +74,22 @@ def test_la_barre_laterale_de_la_page_404_ne_recouvre_pas_son_titre(
 ) -> None:
     """D-5, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
 
-    A partir de 768 px, `.sidebar` (`sb-admin-2.css`) est en `position: absolute`,
-    largeur 250 px, et `#page-wrapper` ne porte aucun `margin-left` : la barre laterale
-    recouvre le debut du titre. Mesure : `.sidebar` x = 0 -> 250, y = 101 -> 207 ; le
-    titre x = 131 -> 1271, y = 169 -> 238.
+    A partir de 768 px, la barre laterale est en `position: absolute`, largeur 250 px, et
+    `#page-wrapper` ne porte aucun `margin-left` : elle recouvre le debut du titre. Mesure
+    d'origine (arbre Bootstrap 3) : barre x = 0 -> 250, y = 101 -> 207 ; titre
+    x = 131 -> 1271, y = 169 -> 238.
+
+    **D6g T16 : c'est ce test qui demontre le quatrieme selecteur d'affichage etroit.**
+    Le correctif a change de feuille — `.sidebar` venait de `css/sb-admin-2.css`, il vient
+    desormais de `#wrapper #page-wrapper { margin-left: 250px }` dans `libreosteo.css`
+    (bloc 2, porte par T4). T4 n'avait pas pu le demontrer rouge : `404.html` etait alors
+    autonome et recevait encore sa regle du theme. Depuis que ce gabarit herite de
+    `base.html` et charge `libreosteo.css`, retirer cette seule ligne fait rougir ce test,
+    et lui seul.
 
     `#wrapper` n'existe que dans `404.html` (aucun autre gabarit ne le porte) : le
     correctif y est scope, et ne peut pas deplacer `#page-wrapper` sur les autres pages
-    qui partagent `sb-admin-2.css`, dont le tableau de bord — cf. le test jumeau de
+    qui partagent `libreosteo.css`, dont le tableau de bord — cf. le test jumeau de
     `test_tableau_de_bord.py`.
     """
     connexion(page, live_server)
@@ -98,30 +110,51 @@ def test_la_barre_laterale_de_la_page_404_ne_recouvre_pas_son_titre(
     )
 
 
-def test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent(
+def test_les_entrees_de_menu_de_la_page_404_menent_ou_elles_disent(
     page: Page, live_server: LiveServer, settings
 ) -> None:
-    """A10 : les deux seules dependances au routage par hash qui vivaient **hors** de la
-    coquille. Les laisser, c'est livrer deux liens qui menent silencieusement ailleurs.
+    """Les entrees de menu de la page 404 menent ou elles disent (C10).
 
-    « Profil utilisateur » se clique desormais reellement (D-4, passe D6f T12) : le lien
-    vivait dans le menu deroulant Bootstrap `menu-utilisateur`, ferme par defaut et
-    jamais ouvert sur cette page (aucun script charge par `404.html`) — timeout apres 5 s
-    au clic, meme constat que celui deja documente ici pour le lien de deconnexion. Le
-    correctif sort l'entree du menu deroulant et la pose directement dans
-    `ul.nav.navbar-top-links`, comme « Nouveau patient » l'est dans la barre laterale :
-    elle se clique desormais au meme titre. Le controle du `href` est garde, c'est lui
-    qui prouve l'absence de fragment de hash, motif interdit par le cliquet d'adressage.
+    **Ce test a change de portee avec D6g T16**, et son nom avec elle. Il gardait les
+    **deux** seules entrees que la page rendait atteignables : « Profil utilisateur »,
+    sortie du deroulant et posee a plat dans la barre du haut par D6f T12 (D-4), et
+    « Nouveau patient », dans la barre laterale. Toutes les autres etaient figees : le
+    menu fige de `404.html` etait une copie du theme SB Admin, et rien ne l'ouvrait.
 
-    Ce que ce test ne voit pas : les autres liens figes de `404.html` (recherche laterale,
-    menu lateral). Ils ne fonctionnaient deja pas, et ce lot n'y change rien — socle visuel,
-    donc D6g.
+    Depuis que `404.html` herite de `base.html`, le menu du haut **est** celui des autres
+    ecrans et Alpine l'anime. Les entrees que l'heritage rend cliquables entrent donc ici :
+    les deux liens a plat de la barre (« Nouveau patient », « Comptabilite ») et les deux
+    premieres entrees du menu utilisateur deroulant (« Profil utilisateur »,
+    « Parametres »). Le controle du `href` de « Profil utilisateur » est garde tel quel :
+    c'est lui qui prouve l'absence de fragment de hash, motif interdit par le cliquet
+    d'adressage.
+
+    **Deux liens portent desormais le meme libelle** — « Nouveau patient » est a la fois
+    dans la barre du haut et dans la barre laterale. Chacun est adresse depuis son propre
+    conteneur (`#headerNavbar`, `#side-menu`), et les deux sont eprouves : un seul
+    `get_by_role` violerait le mode strict de Playwright, et n'en prouverait qu'un.
+
+    Ce que ce test ne voit pas : le champ de recherche de la barre laterale, qui reste
+    inerte (aucun formulaire, aucun `name`) — c'est l'etape 5 de `R-ERR-01`, et ce n'est
+    pas une regression : il l'etait deja.
     """
     connexion(page, live_server)
     settings.DEBUG = False
+    route_absente = f"{live_server.url}/cette-route-n-existe-pas"
 
-    page.goto(f"{live_server.url}/cette-route-n-existe-pas")
-    lien_profil = page.get_by_role("link", name="Profil utilisateur")
+    page.goto(route_absente)
+    page.locator("#headerNavbar").get_by_role("link", name="Nouveau patient").click()
+    expect(page.get_by_test_id("titre-nouveau-patient")).to_be_visible()
+
+    page.goto(route_absente)
+    page.locator("#headerNavbar").get_by_role("link", name="Comptabilité").click()
+    expect(page.get_by_test_id("titre-comptabilite")).to_contain_text("Comptabilité")
+
+    page.goto(route_absente)
+    ouvrir_menu_utilisateur(page)
+    lien_profil = page.get_by_test_id("menu-utilisateur").get_by_role(
+        "link", name="Profil utilisateur"
+    )
     href_profil = lien_profil.get_attribute("href")
     assert href_profil == reverse("profil"), (
         f"le lien pointe vers {href_profil!r}, pas vers la route 'profil'"
@@ -129,6 +162,19 @@ def test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent(
     lien_profil.click()
     expect(page.get_by_test_id("titre-profil")).to_contain_text("Profil utilisateur")
 
-    page.goto(f"{live_server.url}/cette-route-n-existe-pas")
-    page.get_by_role("link", name="Nouveau patient").click()
+    page.goto(route_absente)
+    ouvrir_menu_utilisateur(page)
+    # `exact=True` echouerait : Chromium inclut le contenu `::before` de l'icone Font
+    # Awesome dans le nom accessible du lien, qui n'est donc pas exactement « Parametres ».
+    # La recherche par sous-chaine (defaut) ne peut pas devenir ambigue ici : aucune autre
+    # entree du menu utilisateur ne porte ce mot.
+    page.get_by_test_id("menu-utilisateur").get_by_role(
+        "link", name="Paramètres"
+    ).click()
+    expect(page.get_by_test_id("titre-cabinet")).to_contain_text(
+        "Paramètres du cabinet"
+    )
+
+    page.goto(route_absente)
+    page.locator("#side-menu").get_by_role("link", name="Nouveau patient").click()
     expect(page.get_by_test_id("titre-nouveau-patient")).to_be_visible()

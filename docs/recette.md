@@ -3814,23 +3814,37 @@ c'est **acté et non compensable** — aucun script de traduction d'anciens frag
 - **Domaine** : Pages d'erreur
 - **Couverture auto** : oui —
   tests/functional/test_pages_erreur.py::test_la_page_404_ne_leve_aucune_erreur_de_console,
-  tests/functional/test_pages_erreur.py::test_le_lien_de_deconnexion_de_la_page_404_fonctionne,
-  tests/functional/test_pages_erreur.py::test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent
-  (ce dernier couvre l'étape 6 : il contrôle l'adresse du lien « Profil utilisateur »
-  — aucun fragment de hash — puis le clique réellement, et clique « Nouveau patient » ;
-  il ne regarde **aucune** des autres entrées figées de cette page)
+  tests/functional/test_pages_erreur.py::test_le_lien_de_deconnexion_de_la_page_404_fonctionne
+  (couvre les étapes 3 et 4 : il ouvre réellement le menu utilisateur, puis clique
+  « Déconnexion »),
+  tests/functional/test_pages_erreur.py::test_les_entrees_de_menu_de_la_page_404_menent_ou_elles_disent
+  (couvre les étapes 6 et 7 : il contrôle l'adresse du lien « Profil utilisateur »
+  — aucun fragment de hash —, le clique, clique « Paramètres » dans le même menu, puis
+  « Nouveau patient » et « Comptabilité » dans la barre du haut et « Nouveau patient »
+  dans la barre latérale ; il ne regarde **pas** le champ de recherche latéral)
   et ::test_la_barre_laterale_de_la_page_404_ne_recouvre_pas_son_titre (couvre l'étape 8 :
   il compare les rectangles de la barre latérale et du titre « Ooops ! » et exige
   qu'ils ne se chevauchent pas)
 - **État requis** : E1 — la page 404 ne dépend d'aucune donnée de cabinet ni de
-  patient.
+  patient. Une session ouverte est en revanche nécessaire : `LoginRequiredMiddleware`
+  redirige tout anonyme avant même la résolution de l'URL, et l'identifiant de recette
+  (`test` / `test`) suffit.
+
+**⚠️ Ce que D6g T16 a changé sur cette page, et qui traverse toute la fiche.** Jusqu'à ce
+lot, `404.html` était un document **autonome** : il portait une copie figée du bandeau du
+thème SB Admin, ne chargeait aucun script, et **aucune** de ses entrées de menu ne
+s'ouvrait. Depuis, il hérite de `base.html` : le bandeau du haut **est** celui de tous les
+autres écrans, Alpine l'anime, et ses menus déroulants s'ouvrent au clic. Les étapes 3, 4,
+6 et 7 ci-dessous décrivent cet état-là. Seul le champ de recherche de la barre latérale
+reste inerte (étape 5) : il n'a jamais été relié à quoi que ce soit, et ce lot n'y a pas
+touché.
 
 **Étapes**
 
 1. Depuis une session connectée (`test` / `test`), naviguer vers une route inexistante
    de l'instance (par exemple `/cette-route-n-existe-pas`).
-   Attendu : code HTTP `404` ; le chrome SB Admin (bandeau, menu latéral, pied de page)
-   se rend normalement ; aucun artefact d'interpolation `{$ ... $}` visible.
+   Attendu : code HTTP `404` ; le bandeau du haut, la barre latérale et le pied de page se
+   rendent normalement ; aucun artefact d'interpolation `{$ ... $}` visible.
 2. Ouvrir les outils de développement du navigateur (onglet Console) avant l'étape 1,
    ou les garder ouverts depuis une navigation précédente.
    Attendu : console vide de toute erreur de script — mesuré sur un montage conteneur
@@ -3839,31 +3853,32 @@ c'est **acté et non compensable** — aucun script de traduction d'anciens frag
    the server responded with a status of 404 ») : il est indépendant de tout script de
    la page et n'entre pas en ligne de compte.
 3. Cliquer sur le nom d'utilisateur en haut à droite pour ouvrir le menu utilisateur.
-   Attendu : le menu ne s'ouvre pas — cette page ne charge pas jQuery, dont dépend le
-   greffon Bootstrap qui anime ce menu ; ce n'est pas une régression de cette fiche.
-4. Invoquer directement le lien « Déconnexion » du menu (par exemple, depuis la
-   console du navigateur, son gestionnaire `onclick`), sans passer par l'ouverture du
-   menu.
+   Attendu : **le menu s'ouvre**, et montre « Profil utilisateur », « Paramètres »,
+   « Import/export » et « Reconstruire l'index » (compte administrateur), un séparateur,
+   puis « Déconnexion ».
+4. Cliquer « Déconnexion » dans le menu ouvert à l'étape 3.
    Attendu : déconnexion effective, redirection vers la page de connexion
    (« Identifiez-vous sur LibreOsteo »).
 5. Depuis une nouvelle session connectée, revenir sur la route inexistante, saisir un
-   texte dans le champ de recherche du menu latéral et cliquer sur le bouton associé.
-   Attendu : aucune navigation, aucune requête réseau déclenchée — le champ est inerte
-   sur cette page.
-6. Toujours sur la route inexistante, cliquer l'entrée « Profil utilisateur » du bandeau
-   du haut. Elle y est posée **directement**, hors du menu déroulant que l'étape 3 laisse
-   fermé : sans cela elle resterait à une boîte de taille nulle, inatteignable au clic.
+   texte dans le champ de recherche **de la barre latérale** (celui qui est sous le
+   bandeau, à gauche) et cliquer sur le bouton associé.
+   Attendu : aucune navigation, aucune requête réseau déclenchée — ce champ-là est inerte,
+   il l'était déjà avant la bascule de socle, et ce n'est pas une régression de cette
+   fiche. Le champ de recherche **du bandeau**, lui, fonctionne : ce n'est pas le même.
+6. Toujours sur la route inexistante, ouvrir le menu utilisateur et cliquer
+   « Profil utilisateur ».
    Attendu : la page « Profil utilisateur » s'ouvre (titre de page « Profil
-   utilisateur »).
-7. Revenir sur la route inexistante, cliquer « Nouveau patient » (menu latéral).
-   Attendu : la page de création de patient s'ouvre (titre de page « Nouveau patient »).
-   Ces deux entrées sont les **deux seules** de cette page qui mènent où elles disent ;
-   les autres — champ de recherche latéral (étape 5) et reste du menu latéral — sont
-   figées, et ce n'est pas une régression de cette fiche : c'est du socle visuel, instruit
-   à part.
+   utilisateur »). Recommencer avec « Paramètres » : la page « Paramètres du cabinet »
+   s'ouvre.
+7. Revenir sur la route inexistante, cliquer « Nouveau patient » puis, après retour,
+   « Comptabilité » dans le bandeau du haut ; revenir encore et cliquer
+   « Nouveau patient » dans la barre latérale.
+   Attendu : les trois ouvrent l'écran qu'elles nomment (« Nouveau patient »,
+   « Comptabilité », « Nouveau patient »). **« Nouveau patient » est présent deux fois**
+   — une entrée dans le bandeau, une dans la barre latérale : les deux mènent au même
+   écran.
 8. Revenir sur la route inexistante, observer le titre « Ooops ! » et la barre latérale
-   du bandeau SB Admin (déployée par défaut, largeur ≥768 px), sans cliquer ni ouvrir de
-   menu.
+   (déployée par défaut, largeur ≥768 px), sans cliquer ni ouvrir de menu.
    Attendu : la barre latérale ne recouvre aucune partie du titre « Ooops ! » — les deux
    rectangles ne se chevauchent pas.
 

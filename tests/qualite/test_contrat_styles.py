@@ -368,13 +368,14 @@ RENOMMAGES_DU_SOCLE: dict[str, tuple[str, ...]] = {
     "lo-barre-liens": ("libreosteoweb/templates/partials/menu.html",),
     # `dropdown-user` : le menu utilisateur, que cinq helpers du filet ouvrent.
     "lo-menu-utilisateur": ("libreosteoweb/templates/partials/menu.html",),
-    # `sidebar`, `sidebar-nav`, `sidebar-search` : la barre laterale de `404.html`.
-    # ⚠️ **Aucun gabarit ne la pose encore, et c'est voulu** : `404.html` est autonome — il
-    # n'etend pas `base.html`, ne charge pas cette feuille, et recoit toujours ces regles de
-    # `css/sb-admin-2.css`. C'est T16 qui l'y posera en le faisant heriter du socle. D'ici
-    # la, seul le cote feuille mord, et cette entree est ce qui le rappellera a T16 : la
-    # liste se remplit dans le commit qui migre le gabarit.
-    "lo-barre-laterale": (),
+    # `sidebar` et `sidebar-search` : la barre laterale de `404.html`, son unique porteur.
+    # D6g T16 : la liste, laissee vide par T4, est remplie par le commit qui fait heriter
+    # `404.html` de `base.html`. ⚠️ `sidebar-nav` **n'a pas de successeur** : la seule regle
+    # qui le portait exigeait `navbar-collapse` sur le meme element
+    # (`.sidebar .sidebar-nav.navbar-collapse`), classe que ce gabarit n'a jamais posee — la
+    # regle etait morte avant comme apres, et elle part avec le menage CSS de T16.
+    "lo-barre-laterale": ("libreosteoweb/templates/404.html",),
+    "lo-barre-laterale-recherche": ("libreosteoweb/templates/404.html",),
     # D6g T13 : `chat-panel`, le panneau des evenements du tableau de bord. Sans
     # equivalent Bootstrap 5 (annexe A), et le seul consommateur de la regle qui annule
     # le defaut de hauteur SB Admin (sb-admin-2.css:213-216).
