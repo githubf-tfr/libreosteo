@@ -627,11 +627,21 @@ Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
          -v "$PWD/yarn.lock:/mesure/yarn.lock:ro" \
          -w /mesure libreosteo/libreosteo-http:$TAG-build sh -c \
          'yarn install --frozen-lockfile --ignore-scripts >/dev/null 2>&1 \
-          && find node_modules -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | LC_ALL=C sort | sha256sum'
+          && find node_modules -type f -not -name .yarn-integrity -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > /tmp/empreinte-a \
+          && sed "/\"systemParams\"/d" node_modules/.yarn-integrity | sha256sum | sed "s# -#  node_modules/.yarn-integrity#" >> /tmp/empreinte-a \
+          && LC_ALL=C sort /tmp/empreinte-a | sha256sum'
 
    ``-type f`` skips symlinks on purpose: the ``postinstall`` link is created with an
    absolute target, so it is not comparable across working trees. ``--ignore-scripts`` only
    skips that same link creation, which ``-type f`` would not count anyway.
+
+   ``node_modules/.yarn-integrity`` is hashed apart from the rest of the tree, with its
+   ``systemParams`` line dropped first: that field encodes the platform and the Node ABI
+   of the machine that ran ``yarn install`` (``linux-x64-137`` measured here), not anything
+   about the resolved dependency tree — the two real fields, ``topLevelPatterns`` and
+   ``lockfileEntries``, stay in the hash. Precaution, not a measured fix: the divergence
+   this guards against has **not** been reproduced on another architecture, only reasoned
+   about from the field's own documented meaning.
 
 3. **Fingerprint (b), what is actually served.** This one *is* read from the delivered
    image::

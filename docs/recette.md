@@ -3274,11 +3274,11 @@ deux dates.
    restaurer une archive précédente de la base de données. Cette archive doit
    être obtenue depuis le logiciel avec la fonction Importer/Exporter/Archiver. » ;
    un champ de fichier (libellé « Fichier d'archive à restaurer ») et un bouton
-   « Restaurer ».
+   « Confirmer la restauration ».
 4. Avant de restaurer l'archive valide, éprouver le refus d'une archive tronquée :
    couper la seconde moitié du fichier téléchargé à l'étape 1
    (`head -c $(( $(stat -c%s FICHIER) / 2 )) FICHIER > FICHIER-tronque.db`), choisir
-   `FICHIER-tronque.db` dans le champ de fichier, cliquer « Restaurer ».
+   `FICHIER-tronque.db` dans le champ de fichier, cliquer « Confirmer la restauration ».
    Attendu : le panneau affiche « Ce fichier d'archive semble être incorrect. Impossible
    de le charger. » — même message qu'avant D6c, au mot près ; seul le procédé a changé,
    c'est désormais un fragment inséré dans le panneau (porteur de `role="alert"`) et non
@@ -3287,7 +3287,7 @@ deux dates.
    toujours et la page « Installer LibreOsteo » s'affiche avec ses deux boutons —
    l'échec n'a pas laissé l'instance dans un état inutilisable.
 5. Cliquer de nouveau « Restaurer la base de données », choisir le fichier téléchargé
-   à l'étape 1, cliquer « Restaurer ».
+   à l'étape 1, cliquer « Confirmer la restauration ».
    Attendu : retour à la page de connexion (`/accounts/login/?next=/`, titre de page
    « Identifiez-vous sur LibreOsteo »). Cette réussite prouve que l'échec de l'étape 4
    n'a rien laissé derrière lui : avant D3, il laissait la base vidée par le `sqlflush`

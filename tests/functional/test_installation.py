@@ -79,7 +79,7 @@ def televerser_l_archive(page: Page, chemin: str) -> None:
     l'appelant, et elle depend de ce qu'il observe (arbitrage A1). Les trois refus observent
     un message a l'ecran ; le succes observe la base, et attend donc la reponse HTTP."""
     page.set_input_files("#archive-file", chemin)
-    page.get_by_role("button", name="Restaurer", exact=True).click()
+    page.get_by_role("button", name="Confirmer la restauration", exact=True).click()
 
 
 @pytest.mark.sans_socle
@@ -88,7 +88,9 @@ def test_le_formulaire_de_restauration_s_affiche(
 ) -> None:
     """R-SAU-02, etape « Restaurer la base de donnees » de la page d'installation."""
     ouvrir_le_formulaire_de_restauration(page, live_server)
-    expect(page.get_by_role("button", name="Restaurer", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("button", name="Confirmer la restauration", exact=True)
+    ).to_be_visible()
     expect(page.get_by_role("alert")).to_have_count(0)
 
 
@@ -139,7 +141,9 @@ def test_la_restauration_reussie_recharge_la_base(
     # de la requete qui la recharge, jamais l'ecran (arbitrage A1).
     attendre_reponse(
         page,
-        lambda: page.get_by_role("button", name="Restaurer", exact=True).click(),
+        lambda: page.get_by_role(
+            "button", name="Confirmer la restauration", exact=True
+        ).click(),
         methode="POST",
         motif_url=r"/internal/restore$",
     )

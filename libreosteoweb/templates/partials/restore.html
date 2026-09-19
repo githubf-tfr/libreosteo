@@ -29,7 +29,11 @@
                                 {# pas sur ce `name` (E4, F6). #}
                                 <input type="file" id="archive-file" name="file" accept=".db" required>
                             </div>
-                            <button class="btn btn-default" type="submit">{% trans 'Restore' %}</button>
+                            {# Libelle distingue du bouton "Restore database" de install.html, #}
+                            {# visible en meme temps a l'ecran (htmx charge ce panneau a cote, #}
+                            {# sans le remplacer) : viser le mauvais ne doit plus se jouer sur #}
+                            {# un seul mot commun (KANBAN, recette 2026-09-12). #}
+                            <button class="btn btn-default" type="submit">{% trans 'Confirm restore' %}</button>
 
                             {# Le temoin d'attente devient l'indicateur htmx. Il n'y a plus #}
                             {# de pourcentage d'avancement calcule puis jete #}

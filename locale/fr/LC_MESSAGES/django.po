@@ -58,6 +58,14 @@ msgstr "L'analyse a échoué sur ce fichier"
 msgid "Cannot recognize the patient file"
 msgstr "Impossible de reconnaître le fichier patient"
 
+msgid "The patient file is missing, or the file provided is not a patient file."
+msgstr ""
+"Le fichier patient est manquant, ou le fichier fourni n'est pas un fichier "
+"patient."
+
+msgid "This file was not validated by the analyze step."
+msgstr "Ce fichier n'a pas été validé par l'étape d'analyse."
+
 msgid "Cannot read the content file. Check the encoding."
 msgstr "Impossible de lire le contenu du fichier. Vérifiez l'encodage."
 
@@ -126,6 +134,9 @@ msgstr "Les informations de chèque sont manquantes"
 msgid "Missing data to continue"
 msgstr "Données manquantes"
 
+msgid "Invoice start sequence should only contain digits"
+msgstr "La séquence de démarrage de facturation ne doit contenir que des chiffres"
+
 msgid "Prefix for invoicing sequence should have 3 char length maximum"
 msgstr ""
 "Le préfixe de séquence de facturation devrait avoir une longueur de 3 "
@@ -139,6 +150,14 @@ msgstr "Non réglée"
 
 msgid "This archive file seems to be incorrect. Impossible to load it."
 msgstr "Ce fichier d'archive semble être incorrect. Impossible de le charger."
+
+msgid "No archive file was sent."
+msgstr "Aucun fichier d'archive n'a été envoyé."
+
+msgid "The database failed while loading this archive. Restore a backup."
+msgstr ""
+"La base de données a échoué pendant le chargement de cette archive. "
+"Restaurez une sauvegarde."
 
 msgid "Family name"
 msgstr "Nom de famille"
@@ -418,6 +437,9 @@ msgstr "Préfixe de séquence de facturation"
 
 msgid "Invoice canceling by credit note"
 msgstr "Annulation de facture par avoir"
+
+msgid "Sending invoice"
+msgstr "Envoi de la facture"
 
 msgid "Statistics"
 msgstr "Statistiques"
@@ -1144,8 +1166,8 @@ msgstr ""
 msgid "Archive file to restore"
 msgstr "Fichier d'archive à restaurer"
 
-msgid "Restore"
-msgstr "Restaurer"
+msgid "Confirm restore"
+msgstr "Confirmer la restauration"
 
 msgid "Loading in progress"
 msgstr "Chargement en cours"

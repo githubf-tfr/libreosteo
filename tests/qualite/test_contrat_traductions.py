@@ -37,21 +37,38 @@ preuve, pas l'assertion sur un ecran.
   compile a la construction de l'image. Mesure faite le 2026-09-13, les deux coincident ;
 - les `msgid` construits dynamiquement (`{% trans variable %}`), que rien de statique ne
   peut resoudre ;
-- le catalogue JavaScript (`djangojs.po`) et les `msgid` poses hors gabarits ;
+- le catalogue JavaScript (`djangojs.po`) ;
 - un `msgid` **traduit mais faux** : le catalogue repond, la phrase est du charabia, ce
   cliquet est vert. Il mesure une absence, pas une qualite ;
 - un `msgid` absent d'ici mais traduit par le catalogue d'une **autre** application
-  installee (Django fusionne les catalogues au rendu). C'est le cas de l'unique exception
-  « fuzzy » ci-dessous, et la raison y est ecrite.
+  installee (Django fusionne les catalogues au rendu) — deux exceptions ci-dessous sont
+  de ce cas, la raison y est ecrite pour chacune.
+
+**Etendu le 2026-09-19 au code Python.** Le meme trou existait cote serveur : `_()`,
+`gettext()` et `gettext_lazy()` dans `libreosteoweb/**/*.py` (hors `migrations/` et
+`tests/`) n'etaient balayes par rien, alors que la dette « Etat des traductions non
+verifie » du `KANBAN.md` supposait une couverture large façon `makemessages`. Mesure a
+l'ecriture : six chaines anglaises visibles a l'ecran, dont l'erreur de restauration
+`views/administration.py` (« The database failed while loading this archive. »). Le
+balayage cote Python passe par `ast`, pas par une regex sur le texte brut : un
+commentaire (y compris du code mort commente, trouve dans
+`serializers/facturation.py`) ne doit pas se lire comme un appel reel.
 """
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
+from typing import Callable
 
 RACINE = Path(__file__).resolve().parents[2]
 GABARITS = RACINE / "libreosteoweb" / "templates"
+MODULES = RACINE / "libreosteoweb"
+# Ecartes du balayage Python : les migrations ne s'affichent jamais, et `tests/` porte des
+# commentaires et des docstrings qui citent des `msgid` en prose (`gettext("...")` entre
+# chevrons) sans etre des appels reels.
+MODULES_ECARTES = {"migrations", "tests"}
 CATALOGUE = RACINE / "locale" / "fr" / "LC_MESSAGES" / "django.po"
 
 # Dette constatee le 2026-09-13 en ecrivant ce cliquet, **hors perimetre de la correction
@@ -80,6 +97,18 @@ EXCEPTIONS: dict[str, str] = {
     "Destination email": (
         "Modale d'envoi de facture : **defaut visible**, trouve par ce cliquet."
     ),
+    "A user with that username already exists.": (
+        "Verifie le 2026-09-19 par `translation.gettext` sous `override('fr')` : rend "
+        "« Un utilisateur avec ce nom existe déjà. » — le catalogue de "
+        "`django.contrib.auth` repond a ce `msgid`, identique au message par defaut de "
+        "Django. Faux positif mesure cote Python, pas un defaut visible."
+    ),
+    "%(nombre)d ans": (
+        "Age affiche du dossier patient (`dossier_patient.py`) : le litteral source est "
+        "deja le francais attendu, aucune traduction ne changerait le rendu."
+    ),
+    "%(nombre)d mois": ("Meme cas que `%(nombre)d ans` : litteral deja francais."),
+    "%(nombre)d jours": ("Meme cas que `%(nombre)d ans` : litteral deja francais."),
 }
 
 # `{% trans %}` et son alias `{% translate %}`, sur un litteral entre guillemets simples ou
@@ -171,13 +200,43 @@ def msgids_du_gabarit(source: str) -> list[tuple[int, str]]:
     return sorted(trouves)
 
 
+_APPELS_PYTHON = {"_", "gettext", "gettext_lazy"}
+
+
+def msgids_du_module(source: str) -> list[tuple[int, str]]:
+    """Les `(ligne, msgid)` qu'un module Python demande a `_`, `gettext` ou `gettext_lazy`.
+
+    Passe par `ast`, pas par une regex sur le texte brut : un `msgid` cite dans un
+    commentaire ou du code mort commente (vu dans `serializers/facturation.py`) n'est pas
+    un noeud `Call` et n'est donc jamais retenu. Seul un premier argument litteral simple
+    (`Constant` str) compte ; une f-string ou une concatenation dynamique echappe au
+    detecteur, comme un `{% trans variable %}` echappe au gabarit.
+    """
+    try:
+        arbre = ast.parse(source)
+    except SyntaxError:
+        return []
+    return sorted(
+        (noeud.lineno, noeud.args[0].value)
+        for noeud in ast.walk(arbre)
+        if isinstance(noeud, ast.Call)
+        and isinstance(noeud.func, ast.Name)
+        and noeud.func.id in _APPELS_PYTHON
+        and noeud.args
+        and isinstance(noeud.args[0], ast.Constant)
+        and isinstance(noeud.args[0].value, str)
+    )
+
+
 def orphelins(
-    sources: dict[str, str], traductions: dict[str, str]
+    sources: dict[str, str],
+    traductions: dict[str, str],
+    extracteur: Callable[[str], list[tuple[int, str]]] = msgids_du_gabarit,
 ) -> list[tuple[str, int, str]]:
     """Les `(source, ligne, msgid)` auxquels le catalogue francais ne repond pas."""
     fautifs: list[tuple[str, int, str]] = []
     for nom in sorted(sources):
-        for ligne, msgid in msgids_du_gabarit(sources[nom]):
+        for ligne, msgid in extracteur(sources[nom]):
             if not traductions.get(msgid):
                 fautifs.append((nom, ligne, msgid))
     return fautifs
@@ -187,6 +246,14 @@ def _sources_des_gabarits() -> dict[str, str]:
     return {
         str(chemin.relative_to(RACINE)): chemin.read_text(encoding="utf-8")
         for chemin in sorted(GABARITS.rglob("*.html"))
+    }
+
+
+def _sources_des_modules_python() -> dict[str, str]:
+    return {
+        str(chemin.relative_to(RACINE)): chemin.read_text(encoding="utf-8")
+        for chemin in sorted(MODULES.rglob("*.py"))
+        if not MODULES_ECARTES & set(chemin.relative_to(MODULES).parts)
     }
 
 
@@ -236,6 +303,34 @@ def test_le_detecteur_lit_les_trois_formes_d_appel() -> None:
     ]
 
 
+def test_le_detecteur_python_lit_les_trois_alias() -> None:
+    """`_`, `gettext` et `gettext_lazy` : les trois formes vues dans le code serveur."""
+    source = "\n".join(
+        [
+            """_("un")""",
+            """gettext("deux")""",
+            """gettext_lazy("trois")""",
+        ]
+    )
+    assert msgids_du_module(source) == [(1, "un"), (2, "deux"), (3, "trois")]
+
+
+def test_le_detecteur_python_ignore_un_commentaire() -> None:
+    """Le defaut mesure dans `serializers/facturation.py` : du code mort commente.
+
+    Une regex sur le texte brut mordrait sur ce `msgid` cite en commentaire ; `ast` ne
+    voit dans un commentaire aucun noeud `Call`.
+    """
+    source = '# raise ValidationError(_("Bank information is missing"))\nx = 1'
+    assert msgids_du_module(source) == []
+
+
+def test_le_detecteur_python_ignore_un_argument_dynamique() -> None:
+    """Une f-string ou une variable comme premier argument echappe au detecteur statique."""
+    source = 'variable = "x"\n_(variable)\n_(f"{variable}")'
+    assert msgids_du_module(source) == []
+
+
 def test_le_catalogue_recolle_une_entree_sur_plusieurs_lignes() -> None:
     """Le `.po` reel coupe les longues chaines : un parseur mono-ligne les manquerait."""
     source_po = "\n".join(
@@ -264,7 +359,7 @@ def test_le_catalogue_ecarte_une_entree_contextuelle() -> None:
     assert catalogue(source_po) == {}
 
 
-# --- Les deux cliquets ------------------------------------------------------------------
+# --- Les trois cliquets -----------------------------------------------------------------
 
 
 def test_tout_msgid_de_gabarit_a_une_reponse_au_catalogue_francais() -> None:
@@ -288,6 +383,32 @@ def test_tout_msgid_de_gabarit_a_une_reponse_au_catalogue_francais() -> None:
     )
 
 
+def test_tout_msgid_python_a_une_reponse_au_catalogue_francais() -> None:
+    """Meme cliquet, cote code : `_()`, `gettext()` et `gettext_lazy()` du serveur.
+
+    Trou comble le 2026-09-19 : la dette « Etat des traductions non verifie » du
+    `KANBAN.md` supposait une couverture large façon `makemessages`, or seuls les
+    gabarits etaient balayes. Six chaines anglaises visibles trouvees a l'ecriture,
+    dont l'erreur de restauration de `views/administration.py`.
+    """
+    sources = _sources_des_modules_python()
+    traductions = catalogue(CATALOGUE.read_text(encoding="utf-8"))
+    assert traductions, "le catalogue francais n'a pas ete lu"
+    assert any(msgids_du_module(source) for source in sources.values()), (
+        "aucun module ne demande plus de traduction : le balayage est aveugle"
+    )
+
+    fautifs = [
+        "%s:%d : %r n'a pas de traduction francaise" % (nom, ligne, msgid)
+        for nom, ligne, msgid in orphelins(sources, traductions, msgids_du_module)
+        if msgid not in EXCEPTIONS
+    ]
+    assert not fautifs, (
+        "`msgid` sans entree au catalogue francais — le mot anglais s'affiche a "
+        "l'ecran, sans la moindre erreur :\n" + "\n".join(fautifs)
+    )
+
+
 def test_les_exceptions_sont_toujours_orphelines() -> None:
     """Une exception doit mourir avec sa raison d'etre.
 
@@ -299,12 +420,16 @@ def test_les_exceptions_sont_toujours_orphelines() -> None:
         msgid
         for source in _sources_des_gabarits().values()
         for _ligne, msgid in msgids_du_gabarit(source)
+    } | {
+        msgid
+        for source in _sources_des_modules_python().values()
+        for _ligne, msgid in msgids_du_module(source)
     }
     survivantes = [
         msgid for msgid in EXCEPTIONS if traductions.get(msgid) or msgid not in demandes
     ]
     assert not survivantes, (
         "ces exceptions n'ont plus lieu d'etre — traduites, ou plus demandees par aucun "
-        "gabarit — et doivent quitter EXCEPTIONS :\n"
+        "gabarit ni module — et doivent quitter EXCEPTIONS :\n"
         + "\n".join(repr(m) for m in survivantes)
     )

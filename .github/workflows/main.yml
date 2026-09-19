@@ -38,6 +38,13 @@ jobs:
           # Meme raison que dans Docker/build/http-ready/Dockerfile : le script amont
           # abandonne la signature en silence quand gpg manque, et il s'execute lui-meme
           # sans qu'un seul de ses octets ait ete verifie. Tarball + somme SHA-256 codee ici.
+          #
+          # La garde ci-dessous est bloquante : GitHub Actions execute un `run:` shell via
+          # `bash -eo pipefail`, donc un `sha256sum -c` qui echoue dans le pipe suivant fait
+          # echouer toute l'etape, avant `tar`. `set -eo pipefail` est repete ici en toutes
+          # lettres, bien que deja actif par defaut, pour que ce blocage se lise sans
+          # connaitre cette convention de GitHub Actions (renvoye par D5, KANBAN).
+          set -eo pipefail
           curl -fsSL -o /tmp/yarn.tar.gz https://github.com/yarnpkg/yarn/releases/download/v1.21.1/yarn-v1.21.1.tar.gz
           echo "d1d9f4a0f16f5ed484e814afeb98f39b82d4728c6c8beaafb5abc99c02db6674  /tmp/yarn.tar.gz" | sha256sum -c -
           tar -xzf /tmp/yarn.tar.gz -C /tmp
