@@ -15,6 +15,7 @@
 # -*- coding: utf-8 -*-
 import re
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.models import Session
 from django.db import connection
@@ -222,6 +223,28 @@ class TestMaintenanceAvailableBaseEnPanne(TransactionTestCase):
             with connection.cursor() as curseur:
                 curseur.execute("ALTER TABLE auth_user_absente RENAME TO auth_user")
         self.assertEqual(reponse.status_code, 403)
+
+
+class TestCreateAdminAccountView(TestCase):
+    """La route de création du compte administrateur est publique : elle figure dans
+    `NO_REROUTE_PATTERN_URL`, et `LoginRequiredMiddleware` la laisse donc passer avant
+    tout contrôle d'authentification. La garde portée par la vue est le seul obstacle
+    entre un anonyme et un superutilisateur."""
+
+    def test_un_post_anonyme_ne_cree_pas_de_compte_si_la_base_est_peuplee(self):
+        with sans_receivers():
+            cree_praticien()
+        comptes_avant = get_user_model().objects.count()
+        reponse = self.client.post(
+            reverse("accounts-create-admin"),
+            {
+                "username": "intrus",
+                "password1": "Ephemere-2026!",
+                "password2": "Ephemere-2026!",
+            },
+        )
+        self.assertEqual(reponse.status_code, 403)
+        self.assertEqual(get_user_model().objects.count(), comptes_avant)
 
 
 class TestStaffRequiredMixin(APITestCase):
