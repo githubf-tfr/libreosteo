@@ -5140,7 +5140,13 @@ prochain chantier repart de `superpowers:brainstorming`.
 
 Commits amont examinés et décision prise à leur sujet (repris / adapté / écarté).
 
-_(vide — prochain `git fetch upstream` à faire avant divergence significative)_
+- **2026-09-18 — ligne de base posée** (`git fetch upstream`, remote inchangé). Gel du fork
+  au commit `8e9e0e77d70` (2026-08-30). `upstream/master` est maintenant à `33753e0e1da7`
+  (2026-09-09), **un commit d'écart** : « fix: remove documents indexation, not usefull, and
+  corrupted with the multi accent support, fix issue when token sent by browser is corrupted,
+  force a logout clean cookies and redirect » — touche `Libreosteo/settings/base.py`,
+  `libreosteoweb/middleware.py`, `libreosteoweb/search_indexes.py`. Non examiné, non porté :
+  décision remise au prochain lot qui touchera ces fichiers.
 
 ## Points en suspens
 

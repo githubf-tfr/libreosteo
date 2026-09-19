@@ -8,7 +8,7 @@ from datetime import date
 from typing import Callable, Iterator
 
 from django.utils.formats import date_format
-from playwright.sync_api import Locator, Page, Request, expect
+from playwright.sync_api import FloatRect, Locator, Page, Request, expect
 from pytest_django.live_server_helper import LiveServer
 
 # Duree, en millisecondes, pendant laquelle l'editeur de texte riche protege le focus de sa
@@ -16,6 +16,16 @@ from pytest_django.live_server_helper import LiveServer
 # dans le produit, jamais choisie ici. `appliquer_mise_en_forme` l'utilise comme **borne
 # superieure** d'une attente toleree, jamais comme une temporisation.
 DELAI_PROTECTION_BARRE_D_OUTILS_MS = 300
+
+
+def rectangles_se_recouvrent(a: FloatRect, b: FloatRect) -> bool:
+    """Deux rectangles `bounding_box()` se recouvrent-ils (intersection non vide) ?"""
+    return not (
+        a["x"] + a["width"] <= b["x"]
+        or b["x"] + b["width"] <= a["x"]
+        or a["y"] + a["height"] <= b["y"]
+        or b["y"] + b["height"] <= a["y"]
+    )
 
 
 def attendre_alpine_initialise(page: Page) -> None:
