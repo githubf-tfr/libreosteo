@@ -273,6 +273,23 @@ class TestLoginRequiredMiddleware(APITestCase):
         self.assertEqual(reponse.status_code, 302)
         self.assertIn("authentication required", journal.output[0])
 
+    def test_deconnexion_sans_session_valide_atteint_le_logoutview(self):
+        """Portage du sujet 2/3 du commit amont `33753e0e1da7` (KANBAN, § Suivi amont,
+        2026-09-19) : une session qui expire pendant qu'un praticien clique sur
+        « deconnexion » ne doit pas etre interceptee par ce middleware avant
+        `LogoutView` - sans quoi la requete repart vers `login?next=` sans jamais
+        deconnecter. Un simple 302 ne discrimine rien : le chemin defaillant y mene
+        aussi. Seule la cle `title` du contexte, posee par `LogoutView.get_context_data`
+        et absente de celui de `LoginView`, prouve quelle vue a repondu ; le code 200
+        confirme qu'il n'y a pas eu de redirection vers la
+        connexion (`get_default_redirect_url` de `LogoutView` renvoie le chemin
+        courant en l'absence de `LOGOUT_REDIRECT_URL`, donc pas de redirection)."""
+        with sans_receivers():
+            cree_praticien()
+        reponse = self.client.post(reverse("logout"))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn("title", reponse.context)
+
 
 class TestTraceDesOperationsSuspectes(APITestCase):
     """Refus d'un hôte hors ALLOWED_HOSTS.

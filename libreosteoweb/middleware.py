@@ -143,8 +143,16 @@ class LoginRequiredMiddleware(MiddlewareMixin):
         if not request.user.is_authenticated:
             logger.info("user not authenticated")
             path = request.path.lstrip("/")
-            if get_logout_url().lstrip("/") == path:
-                request.path = ""
+            # Le geste `request.path = ""` qui visait `accounts/logout` a ete retire ici
+            # (portage KANBAN, § Suivi amont 2026-09-19) : il mutait `request.path`, pas
+            # la variable locale `path` testee juste en dessous, donc ne changeait jamais
+            # le resultat de `get_exempts()` - un geste mort. Depuis que `accounts/logout`
+            # entre dans `NO_REROUTE_PATTERN_URL` (Libreosteo/settings/base.py), cette
+            # branche n'est de toute facon plus jamais atteinte pour cette URL : la
+            # requete est court-circuitee plus haut par `no_reroute_pattern()`.
+            # ⚠️ La branche `"web-view" in path` juste en dessous partage exactement le
+            # meme defaut (mutation de `request.path`, jamais de `path`) et reste hors du
+            # perimetre de ce portage : non touchee, non corrigee ici.
             if "web-view" in path:
                 request.path = ""
             if not any(m.match(path) for m in get_exempts()):

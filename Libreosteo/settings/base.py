@@ -253,6 +253,13 @@ LOGIN_REDIRECT_URL = "/"
 INITIALIZE_ADMIN_URL_NAME = "install"
 NO_REROUTE_PATTERN_URL = [
     r"^accounts/create-admin/$",
+    # Portage du sujet 2/3 du commit amont `33753e0e1da7` (KANBAN, § Suivi amont,
+    # 2026-09-19) : sans cette exemption, une session deja perimee au clic sur
+    # « deconnexion » ne matchait jamais `libreosteoweb.middleware.get_exempts()`
+    # (le motif ne teste que `login`) et la requete repartait vers `login?next=`
+    # sans jamais atteindre `LogoutView` - la deconnexion pouvait donc echouer
+    # silencieusement precisement quand elle etait la plus utile.
+    r"^accounts/logout/$",
     r"^internal/restore",
     r"^jsi18n",
     r"^web-view/partials/restore",
