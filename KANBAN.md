@@ -673,6 +673,43 @@ décrits à l'entrée de clôture, pas ici.
   figer une expression morte reviendrait à la prendre pour une décision. Vérifié le
   2026-09-19 : `chronologie.html:30` pose toujours `forloop.counter|divisibleby:2`.
 
+### Lot correctif ouvert par la clôture de D6g et de D10 (2026-09-19, à faire)
+
+- ⚠️ **Les libellés des tuiles du tableau de bord se coupent au milieu d'un mot**
+  (`Consultati` / `ons` à 1 280 px, `Nouvea` / `ux patients` à 375). Visible sur
+  `docs/recette/captures/d6g/tableau-de-bord-1280.png`, versé dans `R-VIS-12`. **Cause mesurée,
+  et ce n'est pas celle qui a d'abord été écrite** : D6g T13 a retiré `class="huge"` des trois
+  compteurs **sans reprendre son style** — `sb-admin-2.css:298` donnait `font-size: 40px`. Le
+  chiffre est tombé à 16 px, le rythme vertical s'est effondré, et le flottant du mini-graphe
+  chevauche la ligne du **libellé** au lieu de celle du chiffre. ⚠️ **C'est un manquement à
+  l'annexe A** — « pour un jeton sans équivalent, le style est à reprendre » — pas un effet de
+  bord du socle : `.card-header` est **plus large** de 4 px que `.panel-heading`, l'hypothèse
+  inverse a été mesurée fausse.
+- ⚠️ **L'écran de restauration ne rend pas compte de la renumérotation des factures.** La
+  reprise journalise chaque changement en `warning`, mais **n'affiche rien**. La clause de
+  transparence est donc tenue par l'outil de diagnostic seul — que l'utilisateur exécute en
+  amont. **Qui restaure sans l'avoir lancé subit une renumérotation silencieuse de documents
+  fiscaux qui ont pu être remis à des patients**, sur le chemin le plus probable : l'interface.
+  ⚠️ **Un arbitrage avait été rendu le 2026-09-19 pour ouvrir cette tâche dans D10 ; il a été
+  abandonné en silence par la tâche suivante, qui l'a requalifié « hors périmètre » sans le
+  re-soumettre.** Il est ici, explicitement.
+- **Le catalogue de traduction est désaccordé avec un gabarit depuis D6d T8** (`bcbde5d`) : le
+  `msgid` ne porte pas le `data-testid` que le gabarit a gagné, donc `gettext` ne fait plus
+  correspondre et **le paragraphe de l'onglet *Importer* s'affiche en anglais**. Antériorité
+  vérifiée par deux chaînes indépendantes. Hors périmètre de D6g, qui ne touche pas au
+  catalogue.
+- **`block_disconnect_all_signal.__exit__` reconnecte aveuglément** — voir « Constats versés le
+  2026-09-19 » ci-dessous. L'appelant fautif est corrigé, l'aide ne l'est pas.
+- **Le test d'équivalence de l'outil de diagnostic reste aveugle au-dessus du plancher de
+  renumérotation** : son jeu n'a **aucun cabinet dont le maximum dépasse `PLANCHER`**, or c'est
+  l'état d'un parc **déjà repris une fois**. Une paire de doublons dans un cabinet à huit
+  chiffres ferme le trou. ⚠️ Corrigé depuis par `99ed014` — **à vérifier à la prochaine passe**,
+  l'entrée reste pour mémoire du mécanisme.
+- **L'écart `Lower()` PostgreSQL contre `.lower()` Python subsiste** dans l'outil de diagnostic,
+  désormais écrit dans sa docstring : sur un caractère exotique, l'outil compterait **distincts**
+  deux dossiers que la contrainte refuse — le mauvais sens. Le lever exigerait de faire tourner
+  l'outil contre une base, ce que son cahier des charges interdit.
+
 ### Portages amont dus (2026-09-19) — **faits le jour même**
 
 - ~~**`accounts/logout` doit entrer dans `NO_REROUTE_PATTERN_URL`**~~ — **fait** (`bde1f53`).
@@ -1027,6 +1064,98 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-19 — D6g clos : le socle visuel passe à Bootstrap 5.3.8, et le thème SB Admin
+  meurt** (seize tâches, `3f72c2d`..`9ddf16c`). Dernier lot du chantier D6. `make check` vert,
+  **980 passed**, couverture **94,93 %** ; suite fonctionnelle **140 passed** ; **32 captures**
+  de référence, 1,7 Mo ; image reconstruite qui sert un `200`.
+
+  **Ce que le lot a livré** : Bootstrap **5.3.8** par `yarn`, version épinglée à l'exact ;
+  `base.html` et les cinq partiels basculés ; les onze écrans migrés un par un ; `404.html`
+  qui hérite enfin du socle et retrouve un menu réel ; **huit feuilles et trente règles
+  mortes supprimées**, chacune avec sa commande de recherche de consommateur citée au commit ;
+  `COMPRESS_OFFLINE` posé ; `statici18n` et `compilejsi18n` sortis ; **seize fiches de recette
+  visuelle** à attendus nommés, deux largeurs chacune.
+
+  ⚠️ **Le pari du lot était faux, et c'est sa mesure la plus utile.** Le cadrage annonçait que
+  la charge de réadressage du filet était **nulle** — zéro site d'adressage portant une classe
+  de socle, grâce au cliquet posé en D6b. **T4 a dû reprendre huit sites**, dont
+  `custom-search-form`, **classe morte en CSS mais ancre vivante de dix-sept tests**. Le
+  mode d'échec réel du lot n'était donc pas « le filet casse » mais **« le filet reste vert
+  alors que l'écran se disloque »** — et il s'est produit : sur l'écran de réindexation, la
+  carte était **cassée depuis T4**, sans bordure ni icône, **sans qu'aucun test ne rougisse**,
+  jusqu'à ce que T7 la regarde. C'est l'argument le plus solide en faveur de la recette
+  visuelle, et il est mesuré, pas supposé.
+
+  **Six pièges mesurés en cours de lot, tous portés au patron pour les tâches suivantes** :
+  le script de mesure **ne lit que des `.html`**, donc les classes posées dans les
+  `widget.attrs` des vues Python lui sont invisibles — trois écrans en portaient ; `card` est
+  une **boîte flex**, donc tout `float` sur un enfant direct meurt en silence ; une
+  correspondance de la table porte une **précondition tacite** sur ce que l'élément *contient*
+  (`close → btn-close` ne vaut que pour un bouton dont le contenu **est** le glyphe `×`) ;
+  l'orphelinage des règles se vérifie **par construction**, et c'est le **delta** qui fait foi,
+  jamais le total ; **deux `col-*` frères sans `.row` commun restent des classes valides en
+  Bootstrap 5** et s'empilent sans que rien ne rougisse ; et une capture peut figer un état qui
+  n'est pas celui qu'on croit.
+
+  **Quatre chiffres du dépôt corrigés par la mesure** : 145 sites d'adressage sur 440 étaient
+  devenus **0** ; 580 occurrences de rupture étaient **593**, puis **592** une fois retirée du
+  compte une entrée de table qui se mappait sur elle-même ; `signin.css` portait **deux**
+  règles mortes et non une ; et le chiffre de couverture de la clause de sortie était périmé.
+  ⚠️ **Le chiffre du plan s'est révélé faux sur presque chaque écran** — 45 → 47, 256 → 257,
+  32 → 33, 5 → 6, 9 → 8, 68 → 68+1. **Seuls les chiffres réellement recomptés se sont avérés
+  exacts.**
+
+  **Ce que le lot laisse, et qui part ailleurs** : le défaut d'affichage des tuiles du tableau
+  de bord (cf. « À faire »), la dette de catalogue de traduction héritée de D6d, et
+  `css/plugins/timeline.css` non supprimée — le `diff` montre **45 lignes qu'elle seule
+  porte**, la réserve posée d'avance par le plan a joué.
+
+- **2026-09-19 — D10 clos : la reprise du parc de production est sûre** (huit tâches, plus une
+  revue finale et son correctif). `make check` vert, **980 passed**, couverture **94,93 %**.
+
+  **Ce que le lot a livré** : l'index de recherche sort de l'arbre de travail pour les tests ;
+  la restauration **ne pollue plus** l'index pendant son déroulement, prouvé **sur le chemin
+  d'échec** ; après un rechargement réussi l'index est **purgé sans être reconstruit**, et
+  aucun récepteur ne reconstruit — une reconstruction synchrone dans la requête serait une
+  panne qui attend son parc ; l'écran de restauration **nomme le chemin de menu** vers la
+  réindexation ; **les numéros de facture en double sont repris au chargement** au lieu de
+  faire échouer la restauration par un 412 ; l'outil de diagnostic **annonce chaque
+  renumérotation avant toute action** ; `outils/` entre sous le plancher de couverture **sans
+  desserrer le cliquet**.
+
+  ⚠️ **Le lot s'est infligé deux régressions et les a fermées le jour même.** La première est
+  la plus grave du jour : `restaurer()` passait **la même liste de récepteurs** aux deux blocs
+  de déconnexion, et `block_disconnect_all_signal.__exit__` **reconnecte ce qu'on lui donne
+  sans vérifier que `__enter__` l'avait déconnecté** — à la sortie, chaque récepteur était
+  branché sur les **deux** signaux, et **toute fiche enregistrée après une restauration
+  ressortait de l'index aussitôt entrée, jusqu'au redémarrage du processus**. Une seule
+  restauration suffisait. Trouvée par une suite fonctionnelle à sept rouges, fermée par
+  `77eb331`. ⚠️ **L'appelant est corrigé, pas l'aide** : le piège reste tendu, cf. « À faire ».
+
+  ⚠️ **La revue finale a refusé la clôture, et elle avait raison sur quatre points.** Le plus
+  grave : **l'outil de diagnostic rognait les espaces là où la contrainte `0057` ne les rogne
+  pas**, donc il pouvait déclarer **bloquant un parc parfaitement restaurable** — sur le seul
+  verdict dont il dit lui-même que la résolution est un **acte médical**. L'issue la plus
+  probable n'était pas de renoncer, c'était de **fusionner deux dossiers de patients
+  distincts**. Fermé par `98edcf9`, avec le cas `"Durand"` / `"Durand "` au jeu de tests.
+  Les trois autres : le journal de migration annonçait un 412 là où le produit renumérote
+  désormais ; aucune fiche de recette n'avait été jouée ; et un arbitrage rendu avait été
+  **abandonné en silence** (cf. « À faire »).
+
+  **Deux tests qui ne mordaient pas, démontrés par mutation** : le test d'équivalence entre les
+  deux implémentations de la règle de renumérotation **passait** sous la mutation « reproduction
+  naïve », parce que le plancher `999999` écrase la valeur numérique des petits numéros — il a
+  fallu le couper en **deux versants**. Et sa branche `max(maximum, PLANCHER)` restait aveugle,
+  le jeu n'ayant **aucun cabinet au-dessus du plancher** : c'est pourtant l'état d'un parc
+  **déjà repris une fois**. ⚠️ **Les deux implémentations n'ont aucun moyen de diverger
+  bruyamment** : une dérive ne casse rien, elle fait seulement **mentir l'outil sur ce que la
+  restauration fera**.
+
+  ⚠️ **Ce que seule la passe manuelle peut établir reste dû** : `R-SAU-02`, `R-SAU-03`,
+  `R-SAU-04` et `R-RCH-02` sont **écrites, pas jouées**, et `R-SAU-04` porte une **décision de
+  conception encore ouverte** — la clause de repli sur le coût de la reprise, arbitrée
+  d'avance mais non mesurée sur une instance réelle.
 
 - **2026-09-19 — Une restauration tuait l'indexation temps réel pour toute la durée du
   processus** (`77eb331`). Régression introduite le jour même par `c5c902a` (D10 T2), trouvée
