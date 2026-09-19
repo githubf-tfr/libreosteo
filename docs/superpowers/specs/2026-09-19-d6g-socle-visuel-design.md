@@ -23,12 +23,21 @@ Le cadre est acté et ne se rediscute pas ici (`KANBAN.md:216-345`) :
 
 L'utilisateur est absent. Les arbitrages de la section « Arbitrages » sont ceux du rédacteur,
 écrits comme tels avec leur motif et leur coût si faux ; ils ne se rejugent pas dans
-l'exécution du lot. **Cinq points ne sont pas tranchés ici** et sont réservés au contrôleur :
-ils ferment la spec, § « Arbitrages à rendre ». Aucun arbitrage n'invoque le temps, l'effort
-ou le volume comme motif.
+l'exécution du lot. **Cinq points lui ont été soumis et ont été tranchés par le contrôleur le
+2026-09-19** ; ils ferment la spec, § « Arbitrages rendus », avec le motif rendu. Aucun
+arbitrage n'invoque le temps, l'effort ou le volume comme motif.
 
-**Trois chiffres que le dépôt porte encore sont faux, et le premier commandait le
-dimensionnement du lot.** Ils sont corrigés en F1, F7 et F9.
+**Trois chiffres que le dépôt portait sont faux, et le premier commandait le dimensionnement
+du lot.** Ils sont corrigés en F1, F7 et F9. Le premier des trois **change la nature du risque
+de ce lot**, et c'est la phrase la plus importante de cette spec :
+
+> La charge de réadressage du filet est **nulle**. Le mode d'échec de D6g n'est donc pas
+> « le filet casse », c'est « **le filet reste vert alors que l'écran a changé** ». Aucun test
+> automatique ne verra cette classe de régression, par construction — le cadre interdit
+> `to_have_class` et `to_have_css`, et le cliquet d'adressage interdit d'ancrer un test à une
+> classe de socle. **La recette visuelle est la seule contre-mesure existante.** C'est pour
+> cela, et pour rien d'autre, qu'elle est une clause d'entrée du lot et non une option
+> (§ C9, § « Ce que le lot fait vérifier à l'écran »).
 
 Toutes les mesures ci-dessous ont été prises **après** `make static`, cible qui purge
 `static/` en tête — l'arbre servi ment sinon (`CLAUDE.md`, § Tests et qualité). Journal du
@@ -88,10 +97,24 @@ for c in custom-search-form document-edit-delete ; do
 `\.page-header` et `\.alert…` dans toute la suite. Il ne s'allège jamais.
 
 **Conséquence sur la conception** : la charge de réadressage du filet, budgétée à 145 sites,
-**est nulle**. D6g n'est pas un lot de filet ; c'est un lot de gabarits et de feuilles. Le
-coût annoncé au découpage tombe, et le risque change de nature : ce n'est plus « le filet ne
-compile plus », c'est « le filet reste vert alors que l'écran a changé » — ce que seule la
-recette visuelle voit (§ C9).
+**est nulle**. D6g n'est pas un lot de filet ; c'est un lot de gabarits et de feuilles.
+
+**Et le risque change de nature.** Le découpage de 2026-09-09 comptait sur un filet qui
+rougirait à la bascule : 145 sélecteurs morts avec leur classe, c'était 145 alarmes. Il n'y en
+a plus une seule. Ce qui reste est la moitié silencieuse du même problème — **un filet qui
+reste vert pendant qu'un écran se disloque** —, et elle n'a aucune parade automatique dans ce
+dépôt :
+
+| Ce qui pourrait l'attraper | Pourquoi il ne le fera pas |
+|---|---|
+| `to_have_class` / `to_have_css` | interdits par le cadre (`KANBAN.md:329`), et les rétablir déferait D6b |
+| `test_contrat_adressage.py` | interdit précisément d'ancrer un test à une classe de socle |
+| `test_contrat_styles.py` | lit une **déclaration**, pas un pixel, et ne voit pas une règle surchargée |
+| la suite fonctionnelle | adresse des identifiants, des rôles, des libellés et des `data-testid` — tous indifférents au socle |
+
+**La recette visuelle est donc la seule contre-mesure, et c'est ce qui en fait une clause
+d'entrée** (§ C9). Le lien entre F1 et C9 n'est pas de convenance : l'une est la raison de
+l'autre.
 
 ### F2 — 580 occurrences de classe ne survivent pas à Bootstrap 5, sur 60 gabarits
 
@@ -314,7 +337,14 @@ d'échec le plus probable de D6g** : aucun test fonctionnel n'assied un pixel, e
 `test_contrat_styles.py` ne lit aujourd'hui que le `<style>` en ligne de `base.html`. Deux
 tests fonctionnels existent pourtant, posés par `1ba00e9`, et ils interrogent
 `elementFromPoint` plutôt qu'ils ne cliquent : ils **survivent** au changement de socle et
-constituent le seul filet dur de ce point. Ils sont nommés en C5.
+constituent le seul filet dur de ce point. Ils sont nommés en C5, et **le portage de chacun
+des quatre sélecteurs mourants porte sa propre clause d'arrêt** (A4, clause 6 du critère
+d'arrêt).
+
+⚠️ **Le `KANBAN.md` est à jour, et ne se retouche pas depuis ce lot.** Le tableau de la passe
+au navigateur de D6f portait encore « destinataire D6g » pour les quatre défauts ; il a été
+annoté par le contrôleur le 2026-09-19 (`c978538`), chaque ligne portant désormais
+« ~~destinataire D6g~~ **fermé le 2026-09-18 par `1ba00e9`** ». D6g n'y touche pas.
 
 ### F8 — Trois rouages d'état d'Alpine reposent sur des noms de classe Bootstrap 3
 
@@ -361,8 +391,12 @@ de classe) ; en retirant les classes applicatives légitimes, il reste ceci :
 
 **Conséquence sur la conception** : `menu.html:12` est un **layout déjà écrit pour Bootstrap 5
 qui n'a jamais été appliqué**. La bascule du socle va le réveiller, et la barre de navigation
-changera de disposition sans qu'aucune ligne du gabarit n'ait bougé. Ce n'est pas une
-hypothèse à vérifier plus tard : c'est une clause de recette de l'écran de menu (§ C9).
+changera de disposition sans qu'aucune ligne du gabarit n'ait bougé.
+
+**C'est un piège de bascule, pas une curiosité.** Il appartient à la classe des changements
+qu'aucune revue de diff ne peut attraper — le diff est vide, c'est le socle sous le gabarit
+qui a bougé. Il porte donc **sa propre tâche** (A6, T3) et **sa propre exigence** (C13),
+jouées **avant** la bascule du socle partagé, et non une note de bas de page.
 
 ### F10 — La preuve d'image reconstruite est jouable ici
 
@@ -446,13 +480,23 @@ socle visuel, donc D6g ».
 ## Arbitrages
 
 Douze arbitrages du rédacteur. Chacun porte son motif et son coût s'il est faux. Ils ne se
-rejugent pas dans l'exécution.
+rejugent pas dans l'exécution. Cinq d'entre eux — A1, A3, A4, A6, A11 — et une exigence, C9,
+portent en outre une décision du contrôleur rendue le 2026-09-19 ; le § « Arbitrages rendus »
+en garde la trace et le motif, qui prime sur celui du rédacteur.
 
 ### A1 — Bootstrap 5 vient de `yarn`, comme htmx et Alpine ; les deux fichiers vendorisés partent
 
-`package.json` gagne `"@components/bootstrap": "npm:bootstrap@5.3.x"`, servi par le même
-`postinstall` que les deux autres, et lié par `{% static "components/bootstrap/dist/css/bootstrap.min.css" %}`.
+`package.json` gagne `"@components/bootstrap": "npm:bootstrap@<version exacte>"`, servi par le
+même `postinstall` que les deux autres, et lié par
+`{% static "components/bootstrap/dist/css/bootstrap.min.css" %}`.
 `libreosteoweb/static/css/bootstrap.css` et `bootstrap.min.css` sont **supprimés**.
+
+**La version est épinglée à l'exact, jamais par une plage** (AR3) : `5.3.x` désigne la
+branche, pas ce qui est écrit dans le fichier. `package.json` porte le numéro complet et
+`yarn.lock` le fige — c'est le cliquet posé par D5, qui a remplacé 29 références par branche
+ou tag Git par des SHA 40-hex et rendu `yarn.lock` opposable par `--frozen-lockfile` aux trois
+appels. **La tâche qui pose la dépendance relève le numéro obtenu et l'écrit dans son rapport
+et dans le `KANBAN.md`** ; la spec ne le prédit pas, elle exige qu'il soit nommé.
 
 **Motif** : c'est le mécanisme du dépôt depuis D5 — version figée par `yarn.lock`, opposable
 par `--frozen-lockfile` aux trois appels, et `tests/qualite/test_contrat_arbre_statique.py`
@@ -497,9 +541,19 @@ ment — `R-ERR-01` décrit aujourd'hui des entrées inertes que le produit, ail
 cliquables.
 
 **Ce que cela change au produit, et c'est assumé** : le menu de la page 404 **devient
-fonctionnel**. C'est une amélioration non demandée, mais son inverse — écrire à la main un
-menu inerte dans le vocabulaire Bootstrap 5 — serait du travail pur pour conserver un défaut.
-`R-ERR-01` est retouchée en conséquence.
+fonctionnel**. C'est une amélioration non demandée ; elle a été soumise au contrôleur et
+retenue (AR2), pour deux raisons qui entrent dans cette spec :
+
+- **le cadre « mêmes écrans, mêmes menus, mêmes libellés » protège contre la *disparition*
+  d'un écran ou d'un libellé, pas contre la réparation d'un menu mort.** Il interdit qu'une
+  migration fasse perdre quelque chose ; il n'oblige pas à reconduire un élément inerte ;
+- **la direction est déjà acquise sur cette page.** D-4 — « le lien *Profil utilisateur* de la
+  page 404 n'est pas cliquable » — a été fermé par `af0fc88` pendant D6f. Rendre ce menu
+  cliquable n'ouvre pas une voie nouvelle : elle est ouverte depuis un lot.
+
+Son inverse — écrire à la main un menu inerte dans le vocabulaire Bootstrap 5 — serait du
+travail pur pour conserver un défaut, c'est-à-dire le contraire de la directive de propreté du
+dépôt. `R-ERR-01` est retouchée en conséquence (C10).
 
 **Ce que cela ne fait pas** : la barre latérale `.sidebar` et son moteur de recherche restent
 en place, portés par `{% block %}` — les retirer serait une refonte, qui est écartée.
@@ -508,19 +562,35 @@ en place, portés par `{% block %}` — les retirer serait une refonte, qui est 
 page servie en 404 ; si un effet de bord apparaissait, le repli est de garder `404.html`
 autonome et de migrer ses 70 occurrences en place. Le coût du repli est borné et connu.
 
-### A4 — Les quatre correctifs d'affichage étroit sont portés, et **prouvés** avant d'être portés
+### A4 — Les quatre correctifs d'affichage étroit sont portés, et **prouvés sélecteur par sélecteur**
 
-Avant toute bascule, les deux tests fonctionnels posés par `1ba00e9` sont **exécutés et vus
-verts** sur l'arbre Bootstrap 3, puis **exécutés et vus verts** sur l'arbre Bootstrap 5. Entre
-les deux, ils sont **démontrés rouges** au moins une fois, en retirant le bloc porté.
+**Un sélecteur porté n'est déclaré porté qu'après avoir été démontré rouge.** La règle ne
+s'applique pas au bloc, elle s'applique à **chacun des quatre sélecteurs qui meurent avec le
+socle**, nommés ici pour qu'aucun ne se perde dans une preuve globale :
 
-**Motif** : F7 établit que ces correctifs sont le mode d'échec le plus probable du lot — trois
-sélecteurs sur cinq meurent avec le socle, et « l'affichage étroit est une cible produit » est
-une décision prise il y a un jour. Un test qui n'a jamais été vu rouge ne prouve rien ; c'est
-la cinquième cécité du même genre répertoriée dans ce dépôt (`test_contrat_styles.py`,
-docstring).
+| Sélecteur mourant | Origine | Preuve exigée |
+|---|---|---|
+| `nav.navbar-fixed-top { position: static }` | `libreosteo.css:36-38`, D-2/D-3 | son équivalent Bootstrap 5 retiré → le test d'affichage étroit **rougit** |
+| `#headerNavbar.in { max-height: none; overflow-y: visible }` | `libreosteo.css:40-43`, D-2/D-3 | idem, `in` étant devenu `show` |
+| `.navbar-top-links .dropdown-menu { position: static; … }` | `libreosteo.css:45-53`, D-3 | son équivalent retiré → le test `elementFromPoint` sur « Déconnexion » **rougit** |
+| `#wrapper #page-wrapper { margin-left: 250px }` | `sb-admin-2.css:34-36`, D-5 | son équivalent retiré → le test du titre de la 404 **rougit**, et le garde-fou de la forme non scopée reste en place |
 
-**Coût si faux** : nul. C'est trois lancements de plus.
+Séquence, pour chacun : **vert sur l'arbre Bootstrap 3**, puis **rouge, équivalent retiré, sur
+l'arbre Bootstrap 5**, puis **vert, équivalent en place, sur l'arbre Bootstrap 5**. Les trois
+lancements sont journalisés dans le rapport de la tâche.
+
+`.dashboard-sparkline svg { overflow: visible }` (D-6) n'entre pas dans cette liste : il ne
+dépend d'aucun socle et survit sans geste.
+
+**Motif** : F7 établit que la perte silencieuse de ces correctifs est le mode d'échec le plus
+probable du lot, et le contrôleur en a fait la clause d'arrêt nommée d'AR1. Une preuve prise
+sur le bloc entier laisserait passer la perte d'un sélecteur sur quatre, ce qui est exactement
+la granularité à laquelle le défaut se produit. Un test qui n'a jamais été vu rouge ne prouve
+rien : c'est la cinquième cécité du même genre répertoriée dans ce dépôt
+(`test_contrat_styles.py`, docstring).
+
+**Coût si faux** : nul. C'est douze lancements au lieu de trois, sur des tests de quelques
+secondes.
 
 ### A5 — Le `<style>` en ligne de `base.html` reste en ligne, et `test_contrat_styles.py` s'étend
 
@@ -538,20 +608,44 @@ silencieusement vidée — a déjà été payé une fois (D6f T5, revue).
 
 ### A6 — Le lot se découpe par **document servi**, puis par écran ; jamais par famille de classe
 
-Ordre : (1) `account/login.html` et `account/create_admin_account.html`, les deux plus petits
-documents et les seuls sur Bootstrap 3 non minifié ; (2) `base.html` et le socle partagé —
-menu, modale, notification, onglets, c'est-à-dire les six sites de F8 ; (3) les onze pages,
-une par tâche, de la plus légère à la plus lourde ; (4) `404.html`, qui hérite (A3) ;
-(5) le ménage CSS, `COMPRESS_OFFLINE`, `statici18n`.
+**Seize tâches**, dans cet ordre :
 
-**Motif** : la preuve de ce lot est visuelle et se prend **par écran**. Une passe globale
-`panel → card` sur soixante gabarits rend toute passe au navigateur inexploitable : on ne sait
-plus quel écran a régressé, et le rouge n'est imputable à rien. C'est la même logique que le
-découpage `D6b → D6c → …` lui-même (`KANBAN.md:269`).
+| # | Tâche | Ce qu'elle livre |
+|---|---|---|
+| T1 | La dépendance | `yarn add bootstrap`, version exacte relevée (A1), `yarn.lock` versionné, captures d'avant des seize fiches prises sur l'arbre Bootstrap 3 |
+| T2 | `account/login.html` + `account/create_admin_account.html` | les deux plus petits documents, les seuls sur Bootstrap 3 non minifié ; le bloc `compress` de `login.html` refermé avant `</head>` (F13) |
+| T3 | **Les quatre classes déjà posées et inertes** | F9, A11, C13 — avant le socle, parce qu'elles prennent effet **avec** lui |
+| T4 | `base.html` et le socle partagé | menu, modale, notification, onglets : les six sites d'état de F8, plus les quatre sélecteurs mourants de A4. **Passe au navigateur obligatoire avant T5.** |
+| T5–T15 | Les onze pages, une par tâche | de la plus légère à la plus lourde |
+| T16 | `404.html` | l'héritage (A3), puis le ménage CSS, `COMPRESS_OFFLINE` (A8), `statici18n` (A9), la preuve d'image (C8) |
 
-**Coût si faux** : le socle partagé (2) traverse tous les écrans ; si sa bascule est fausse,
-les tâches (3) héritent d'un socle faux. C'est pourquoi (2) porte sa propre passe au
-navigateur, avant que (3) ne commence.
+**Ce qui change d'une tâche d'écran à l'autre — et c'est tout** : le gabarit visé et ses
+inclusions ; le nombre d'occurrences à reprendre (F2) ; les feuilles que son `{% block css_page %}`
+charge (F3) ; les tests fonctionnels qui le couvrent ; sa fiche de recette visuelle et ses
+deux captures.
+
+**Ce qui est strictement identique aux onze** : la table de correspondance de F2, qui ne se
+rediscute pas d'un écran à l'autre ; l'interdiction d'introduire `tab-pane` ou toute classe
+portant un `display` sous un `x-show` (F8) ; l'interdiction de toucher un identifiant, un
+`data-testid`, un libellé ou un `href` ; l'interdiction de déplacer un élément d'un panneau à
+un autre ; les deux largeurs de capture ; et la forme du rapport de tâche — occurrences avant
+et après, tests joués, deux captures, écarts constatés.
+
+**Pourquoi c'est écrit ici** : les onze revues doivent être **courtes**. Une revue qui
+redécouvre à chaque écran ce qui est permis coûte onze fois le même raisonnement ; une revue
+qui sait que seules six choses changent lit six choses. Un écart sur la colonne « strictement
+identique » est un rouge sans discussion.
+
+**Motif du découpage** : la preuve de ce lot est visuelle et se prend **par écran**. Une passe
+globale `panel → card` sur soixante gabarits rend toute passe au navigateur inexploitable : on
+ne sait plus quel écran a régressé, et le rouge n'est imputable à rien. C'est la même logique
+que le découpage `D6b → D6c → …` lui-même (`KANBAN.md:269`), et le contrôleur l'a retenue
+contre les deux variantes plus courtes (AR5).
+
+**Coût si faux** : le socle partagé (T4) traverse tous les écrans ; si sa bascule est fausse,
+T5 à T15 héritent d'un socle faux. C'est pourquoi T4 porte sa propre passe au navigateur,
+avant que T5 ne commence. Et T1 prend les captures d'avant **avant tout** : une fois
+`css/bootstrap.css` supprimé, l'arbre d'avant n'est plus reconstructible à l'identique.
 
 ### A7 — Aucune feuille n'est supprimée sans la commande de recherche de consommateur, citée
 
@@ -617,15 +711,20 @@ dépendance à Bootstrap.
 **Coût si faux** : le dépôt garde une dépendance en fin de support de plus. Elle est déjà
 inscrite au `KANBAN.md` et ne se dégrade pas.
 
-### A11 — Les quatre classes déjà écrites en Bootstrap 4/5 sont **traitées**, pas subies
+### A11 — Les quatre classes déjà écrites en Bootstrap 4/5 portent **leur propre tâche**
 
 `d-flex`, `flex-column` (`menu.html:12`), `badge-info` (`menu.html:89`) et `well-md`
-(`register.html:7`) sont examinés **avant** la bascule, à l'écran, pour établir ce qu'ils
-feront une fois réveillés (F9). Le résultat est écrit dans la fiche de recette du menu.
+(`register.html:7`) ne sont pas une note de bas de page de la tâche du socle : ils sont **T3**
+(A6), jouée **avant** T4, et ils portent leur propre exigence, **C13**. Le résultat est écrit
+dans la fiche de recette du menu et dans le rapport de T3.
 
 **Motif** : `d-flex flex-column` sur le conteneur de la marque et du bouton de repli **change
-la disposition de la barre de navigation** dès que Bootstrap 5 est servi. Le découvrir en
-recette, sans savoir que c'était écrit d'avance, coûterait une investigation là où une lecture
+la disposition de la barre de navigation** dès que Bootstrap 5 est servi. C'est un changement
+**à diff vide** : aucune ligne de gabarit ne bouge, aucune revue de diff ne peut l'attraper, et
+il apparaîtra au milieu de T4, où onze autres choses changent en même temps. Isolé dans sa
+propre tâche, il est décidé pour ce qu'il est — garder l'effet, ou retirer les classes. Le
+découvrir en recette, sans savoir que c'était écrit d'avance, coûterait une investigation là
+où une lecture
 suffit.
 
 **Coût si faux** : une surprise de plus en recette. Le lot la verrait, mais plus cher.
@@ -647,22 +746,28 @@ passé qui laisse entrer le présent — exactement la fossilisation que le seco
 
 ### Ce que D6g livre
 
-1. **Bootstrap 5 servi**, par `yarn`, aux quatre documents qui chargeaient Bootstrap 3 (A1) ;
-   `css/bootstrap.css` et `css/bootstrap.min.css` supprimés.
+1. **Bootstrap 5.3 servi**, par `yarn`, version **épinglée à l'exact** dans `package.json` et
+   `yarn.lock`, aux quatre documents qui chargeaient Bootstrap 3 (A1) ; `css/bootstrap.css` et
+   `css/bootstrap.min.css` supprimés.
 2. **580 occurrences de classe réécrites**, sur 60 gabarits (F2), dont les six sites d'état
    pilotés par Alpine (F8).
 3. **`css/sb-admin-2.css` supprimé**, ses quatre blocs vivants portés (A2).
-4. **Les quatre correctifs d'affichage étroit portés et prouvés** (A4, F7).
-5. **`404.html` héritant de `base.html`**, menu réel, `data-toggle` retirés (A3).
-6. **Le CSS mort supprimé** : 37 règles inatteignables, 3 feuilles sans consommateur, et une
+4. **Les quatre correctifs d'affichage étroit portés, et prouvés sélecteur par sélecteur**
+   (A4, F7).
+5. **Les quatre classes Bootstrap 4/5 inertes tranchées**, dans leur propre tâche et avant la
+   bascule du socle (A11, C13, F9).
+6. **`404.html` héritant de `base.html`**, menu réel, `data-toggle` retirés (A3).
+7. **Le CSS mort supprimé** : 37 règles inatteignables, 3 feuilles sans consommateur, et une
    quatrième sous réserve de `diff` (F4, A7).
-7. **`account/login.html` : le bloc `compress` refermé avant `</head>`** (F13).
-8. **`COMPRESS_OFFLINE = True`**, `--force` retiré des deux chaînes (A8).
-9. **`statici18n` et `compilejsi18n` retirés**, sous preuve d'image reconstruite (A9, F10).
-10. **La recette visuelle écrite** : cinq fiches de document et onze d'écran, à attendus
-    nommés et captures (C9).
-11. **Les cliquets étendus** : `adressage` (A12), `styles` (A5), `arbre_statique` (suit
+8. **`account/login.html` : le bloc `compress` refermé avant `</head>`** (F13).
+9. **`COMPRESS_OFFLINE = True`**, `--force` retiré des deux chaînes (A8).
+10. **`statici18n` et `compilejsi18n` retirés**, sous preuve d'image reconstruite (A9, F10).
+11. **La recette visuelle écrite** : cinq fiches de document et onze d'écran, à attendus
+    nommés et captures, sous la clause de garde des 8 Mo (C9).
+12. **Les cliquets étendus** : `adressage` (A12), `styles` (A5), `arbre_statique` (suit
     `package.json`).
+
+Le tout en **seize tâches**, dont onze mécaniquement semblables (A6).
 
 ### Périmètre explicitement exclu
 
@@ -681,6 +786,9 @@ passé qui laisse entrer le présent — exactement la fossilisation que le seco
 ---
 
 ## Exigences
+
+Treize exigences. Chacune est constatable par une commande ou par un attendu de recette ;
+aucune ne se satisfait d'une intention.
 
 ### C1 — Un seul socle servi, et il vient de `package.json`
 
@@ -760,12 +868,25 @@ Chaque fiche porte :
    au clic*, *les deux colonnes du formulaire sont côte à côte à 1 280 et empilées à 375*,
    *aucune barre de défilement horizontale* ;
 4. **une capture par largeur**, rangée sous `docs/recette/captures/d6g/`, nommée
-   `<fiche>-<largeur>.png` ;
+   `<fiche>-<largeur>.png`, **et la largeur de rendu nommée dans le texte de la fiche** — un
+   nom de fichier se recopie mal, la fiche doit se lire seule ;
 5. la mention explicite de ce que la fiche **ne** couvre **pas**.
+
+**Clause de garde, posée par le contrôleur (AR4)** : les 32 PNG sont versionnés, **sauf si
+leur total dépasse 8 Mo**. Le total est mesuré avant le `git add` —
+`du -sh docs/recette/captures/d6g/` — et, s'il dépasse, **rien n'est versé** : la tâche
+s'arrête et remonte au contrôleur, qui rebasculera sur des captures produites à la demande.
+On ne réduit pas la qualité des images pour passer sous le seuil, et on n'en verse pas une
+partie : le seuil est une condition, pas un budget à négocier.
 
 ⚠️ Les fiches existantes ne sont **pas** réécrites : la recette visuelle est une section
 nouvelle, parallèle aux 72 fiches fonctionnelles. Un geste de recette fonctionnelle qui
 changerait serait le signe que la migration a débordé.
+
+**Pourquoi cette section est une clause d'entrée et non une option** : F1. Le filet ne peut
+plus rougir sur un changement de socle, et aucun autre mécanisme du dépôt ne le peut. Ces
+seize fiches sont, littéralement, le seul endroit où une régression visuelle de D6g peut être
+constatée.
 
 ### C10 — Le menu de `404.html` devient réel, et `R-ERR-01` le dit
 
@@ -787,23 +908,44 @@ Reprise de A7. Pour les 37 règles, les 3 à 4 feuilles, les 2 fichiers Bootstra
 dépendance `statici18n` et les six sites de `setup.py`, le message de commit porte la commande
 et son résultat.
 
+### C13 — Les quatre classes inertes sont tranchées **avant** que le socle ne les réveille
+
+T3 (A6, A11) produit, pour chacune des quatre classes de F9, trois lignes dans son rapport :
+
+1. **ce qu'elle fait aujourd'hui** — rien, vérifié par
+   `grep -rn "\.<classe>" libreosteoweb/static/css/` qui ne rend aucune ligne ;
+2. **ce qu'elle fera sous Bootstrap 5**, constaté **à l'écran** sur une page servie avec le
+   socle cible, pas déduit d'une lecture de documentation ;
+3. **la décision** — garder l'effet, ou retirer la classe — avec son motif.
+
+`d-flex flex-column` (`menu.html:12`) est le cas qui commande : il change la disposition de la
+barre de navigation de tous les écrans. `badge-info` (`menu.html:89`) porte la pastille de
+nouvelle version, `well-md` (`register.html:7`) un encadré d'inscription ; `fa-1` et
+`fa-wrench-o` relèvent d'A10 et se corrigent dans la tâche de l'écran qui les porte.
+
+**La fiche de recette visuelle du menu porte le résultat**, quel qu'il soit : c'est le seul
+endroit où « la barre de navigation est disposée ainsi » devient un attendu opposable.
+
 ---
 
 ## Ce que le lot fait vérifier **à l'écran**, et non seulement par des tests
 
-Le filet ne mord pas sur ce lot, par construction (A12). Trois passes au navigateur sont donc
-des **clauses d'entrée**, pas des options :
+**Le filet ne mord pas sur ce lot, par construction** (F1, A12) — et c'est la raison, la seule,
+pour laquelle ce qui suit n'est pas négociable. Un lot où le filet rougit peut se permettre de
+traiter la passe au navigateur en confort ; celui-ci ne le peut pas : **rien d'autre ne verra
+une régression visuelle**. Quatre passes sont donc des **clauses d'entrée** :
 
-1. **Après la tâche « socle partagé »** (A6, étape 2), avant que les onze écrans ne
-   commencent : menu, modale, notification, onglets, aux deux largeurs. Six attendus nommés,
-   dont les quatre de F9 (A11).
-2. **Après chaque écran migré**, une capture aux deux largeurs, comparée à la capture d'avant
+1. **En T3, avant la bascule du socle** : les quatre classes inertes de F9 constatées à
+   l'écran, pas déduites (C13).
+2. **Après T4, la tâche du socle partagé**, avant que les onze écrans ne commencent : menu,
+   modale, notification, onglets, aux deux largeurs, plus les quatre sélecteurs mourants de A4.
+3. **Après chaque écran migré**, une capture aux deux largeurs, comparée à la capture d'avant
    prise sur l'arbre Bootstrap 3 — la comparaison est **humaine et qualitative** : on cherche
    un écran cassé, pas un pixel identique. L'aspect a le droit de changer (`KANBAN.md:243`).
-3. **À la clôture**, la passe complète des seize fiches (C9).
+4. **À la clôture**, la passe complète des seize fiches (C9).
 
-Les captures d'avant sont prises **en tête de lot**, sur l'arbre Bootstrap 3, et versées :
-sans elles, la comparaison n'existe pas, et l'arbre d'avant n'est plus reconstructible une fois
+Les captures d'avant sont prises **en T1**, sur l'arbre Bootstrap 3, et versées : sans elles,
+la comparaison n'existe pas, et l'arbre d'avant n'est plus reconstructible une fois
 `css/bootstrap.css` supprimé.
 
 ---
@@ -846,7 +988,8 @@ Un cliquet se relève dans le commit qui l'a mérité, jamais pour faire passer 
 ## Critère d'arrêt du lot
 
 Binaire, constaté par une **exécution réelle**, révisable sur un fait et jamais sur un coût.
-**Le lot est clos quand, et seulement quand, les douze clauses ci-dessous sont constatées.**
+**Le lot est clos quand, et seulement quand, les quatorze clauses ci-dessous sont
+constatées.**
 
 1. **L'état de départ est celui que cette spec suppose.** À jouer en premier, avant la
    première ligne de code :
@@ -865,7 +1008,10 @@ Binaire, constaté par une **exécution réelle**, révisable sur un fait et jam
    **aucune** ligne.
 
 2. **`package.json` porte exactement trois dépendances** — `@components/alpinejs`,
-   `@components/bootstrap`, `@components/htmx` — et `yarn install --frozen-lockfile` passe.
+   `@components/bootstrap`, `@components/htmx` —, **la version de Bootstrap y est écrite à
+   l'exact** (aucun `^`, aucun `~`, aucun `x`), `yarn.lock` la fige, et
+   `yarn install --frozen-lockfile` passe. Le numéro obtenu est **nommé** dans le rapport de
+   clôture et dans le `KANBAN.md` (A1, AR3).
 
 3. **Aucun gabarit ne référence `css/bootstrap*.css` ni `css/sb-admin-2.css`**, et ces trois
    fichiers n'existent plus (C1).
@@ -876,28 +1022,40 @@ Binaire, constaté par une **exécution réelle**, révisable sur un fait et jam
 5. **Les six sites d'état d'Alpine sont migrés, et chacun a été démontré rouge** (C2), la
    démonstration étant nommée test par test dans le rapport de tâche.
 
-6. **Les quatre correctifs d'affichage étroit sont portés, et les deux tests qui les prouvent
-   ont été vus rouges bloc retiré** (A4, C5).
+6. **Les quatre sélecteurs qui meurent avec le socle sont portés, et chacun a été démontré
+   rouge séparément** (A4, C5) — `nav.navbar-fixed-top`, `#headerNavbar.in`,
+   `.navbar-top-links .dropdown-menu`, `#wrapper #page-wrapper`. Le rapport nomme, **pour
+   chacun des quatre**, le test qui a rougi et la ligne retirée pour le faire rougir. Une
+   preuve prise sur le bloc entier ne satisfait pas cette clause.
 
-7. **`make check` est vert**, avec : couverture ≥ 94,94 %, périmètre `mypy` ≥ 172 entrées,
+7. **Les quatre classes inertes de F9 sont tranchées**, chacune avec ses trois lignes — ce
+   qu'elle fait, ce qu'elle fera, la décision — dans le rapport de T3 (C13), et le résultat est
+   porté à la fiche de recette du menu.
+
+8. **`make check` est vert**, avec : couverture ≥ 94,94 %, périmètre `mypy` ≥ 172 entrées,
    `ruff ignore = []`, zéro `noqa` neuf, zéro `# type: ignore` neuf, zéro `skip` neuf. Le
    compte de tests est relevé et versé.
 
-8. **La suite fonctionnelle est verte en un seul lancement en avant-plan**, à 138 tests plus
+9. **La suite fonctionnelle est verte en un seul lancement en avant-plan**, à 138 tests plus
    les tests neufs — le chiffre exact est relevé, pas prédit. Un échec n'est pas un aléa : il
    est instruit, corrigé à la source, et **le compte repart de zéro** sur l'arbre corrigé.
 
-9. **`COMPRESS_OFFLINE` est posé, `--force` a disparu des deux chaînes**, et `make static`
-   compile ses blocs sans erreur (C7).
+10. **`COMPRESS_OFFLINE` est posé, `--force` a disparu des deux chaînes**, et `make static`
+    compile ses blocs sans erreur (C7).
 
-10. **L'image est reconstruite, démarrée, et sert la page de connexion en 200** (C8), journal
+11. **L'image est reconstruite, démarrée, et sert la page de connexion en 200** (C8), journal
     versé.
 
-11. **`docs/recette.md` porte les seize fiches visuelles**, avec leurs captures aux deux
-    largeurs sous `docs/recette/captures/d6g/`, et chaque déclaration de couverture automatique
-    a été vérifiée contre le test qu'elle nomme (C9).
+12. **`docs/recette.md` porte les seize fiches visuelles** (C9), chacune nommant ses deux
+    largeurs de rendu dans son texte, et chaque déclaration de couverture automatique a été
+    vérifiée contre le test qu'elle nomme.
 
-12. **La passe au navigateur de clôture a été jouée**, ses attendus constatés un par un, et ses
+13. **Les 32 captures sont versées sous `docs/recette/captures/d6g/`, et
+    `du -sh docs/recette/captures/d6g/` rend 8 Mo ou moins.** Au-delà, **rien n'est versé** :
+    la tâche s'arrête et remonte au contrôleur (C9, AR4). Ni compression dégradée, ni versement
+    partiel.
+
+14. **La passe au navigateur de clôture a été jouée**, ses attendus constatés un par un, et ses
     défauts soit corrigés avec falsification, soit versés au `KANBAN.md` avec leur lot
     destinataire.
 
@@ -905,15 +1063,26 @@ Binaire, constaté par une **exécution réelle**, révisable sur un fait et jam
 
 ## Risques, et ce qu'on fait s'ils se réalisent
 
-**Une règle portée se perd en silence.** C'est le risque de tête, et il a déjà été payé une
-fois dans ce dépôt (`test_contrat_styles.py`, docstring : `.lo-visite-cible` vidée, 48 tests
-verts, l'arbitrage de l'utilisateur disparu). Parade : A2 nomme les quatre blocs vivants, A4
-exige la démonstration rouge, C6 les inscrit au cliquet. Si cela se produit malgré tout, la
-recette visuelle de l'écran concerné le voit — c'est sa raison d'être.
+**Le filet reste vert pendant qu'un écran se disloque.** C'est **le** risque du lot, et il
+naît de F1 : les 145 alarmes sur lesquelles le découpage comptait n'existent plus. Il n'a
+aucune parade automatique dans ce dépôt, et il ne peut pas en avoir une sans défaire D6b.
+Parade unique : la recette visuelle, en clause d'entrée (C9), et les quatre passes au
+navigateur ci-dessus. **Si l'une d'elles est sautée, le lot n'a plus de preuve du tout sur son
+objet principal** — ce n'est pas une dégradation, c'est une annulation.
 
-**Le socle partagé est faux et les onze écrans en héritent.** Parade : A6 fait de sa bascule
-une étape distincte, suivie d'une passe au navigateur avant que les écrans ne commencent. Si
-elle est fausse, on revient sur une étape, pas sur douze.
+**Une règle portée se perd en silence.** Cas particulier du précédent, et il a déjà été payé
+une fois dans ce dépôt (`test_contrat_styles.py`, docstring : `.lo-visite-cible` vidée, 48
+tests verts, l'arbitrage de l'utilisateur disparu). Parade : A2 nomme les quatre blocs vivants,
+A4 exige la démonstration rouge **sélecteur par sélecteur**, C6 les inscrit au cliquet. Si cela
+se produit malgré tout, la recette visuelle de l'écran concerné le voit.
+
+**Une classe inerte prend effet à diff vide.** F9, A11, C13 : le gabarit ne change pas, le
+socle sous lui change. Aucune revue de diff ne peut l'attraper. Parade : T3 la traite avant
+T4, à l'écran.
+
+**Le socle partagé est faux et les onze écrans en héritent.** Parade : A6 fait de T4 une tâche
+distincte, suivie d'une passe au navigateur avant que T5 ne commence. Si elle est fausse, on
+revient sur une tâche, pas sur douze.
 
 **`404.html` supporte mal l'héritage de `base.html`** — le `x-data` du `<body>`, la zone de
 notifications, le pont CSRF. Repli écrit d'avance (A3) : garder `404.html` autonome et migrer
@@ -930,8 +1099,17 @@ est conforme. La recette visuelle tranche, fiche par fiche.
 
 **Le registre yarn devient injoignable pendant le lot.** Mesuré joignable au cadrage (F10),
 mais la sandbox sort par un proxy MITM et coupe pendant les longs silences. Parade :
-`yarn add bootstrap` est joué **en première tâche**, et `yarn.lock` versionné dès ce
-commit — tout le reste du lot tourne alors sous `--frozen-lockfile`, hors réseau.
+`yarn add bootstrap` est joué **en T1**, et `yarn.lock` versionné dès ce commit — tout le reste
+du lot tourne alors sous `--frozen-lockfile`, hors réseau.
+
+**Les 32 captures pèsent plus de 8 Mo.** Parade écrite d'avance par le contrôleur (AR4, C9,
+clause 13) : la tâche **ne verse rien** et remonte ; le contrôleur rebascule sur des captures
+produites à la demande. Aucune décision locale n'est prise sur ce point — ni compression
+dégradée, ni versement partiel, ni fiches amputées.
+
+**Les onze revues d'écran deviennent onze redécouvertes du même raisonnement.** Parade : A6
+écrit ce qui change d'une tâche d'écran à l'autre et ce qui est strictement identique. Un écart
+sur la seconde colonne est un rouge sans discussion, et c'est ce qui rend la revue courte.
 
 ---
 
@@ -956,95 +1134,107 @@ commit — tout le reste du lot tourne alors sous `--frozen-lockfile`, hors rés
 
 ---
 
-## Arbitrages à rendre
+## Arbitrages rendus
 
-Cinq points ne sont **pas** tranchés par cette spec. Chacun est écrit ici avec ses options et
-la recommandation du rédacteur. **La spec ci-dessus pose partout l'option recommandée ; elle
-est provisoire jusqu'à la réponse du contrôleur.**
+Cinq points ont été soumis au contrôleur le 2026-09-19, dans le rapport de cadrage, chacun avec
+ses options et la recommandation du rédacteur. **Les cinq ont été tranchés le jour même**, et
+la spec ci-dessus intègre chaque décision à l'endroit qui la porte. Cette section garde la
+trace de ce qui a été demandé, de ce qui a été retenu, et du **motif rendu par le contrôleur**
+— qui n'est pas toujours celui que le rédacteur avait avancé, et qui prime.
 
-### AR1 — Le périmètre du dispatch nomme quatre défauts qui sont fermés
+### AR1 — Les quatre défauts nommés par le dispatch sont fermés → **(a) retenue**
 
-Le dispatch fait entrer `D-2`, `D-3`, `D-5`, `D-7` dans le périmètre de D6g. F7 établit qu'ils
-sont fermés depuis le 2026-09-18.
+**Demandé** : (a) D6g ne les rouvre pas et porte leurs correctifs avec preuve ; (b) il rejoue
+leur reproduction avant migration ; (c) le contrôleur dispose d'une information contraire et
+ils sont rouverts.
 
-- **(a)** D6g ne les rouvre pas et se charge du **portage** de leurs correctifs, avec sa preuve
-  (A4). *Recommandée.*
-- **(b)** D6g rejoue leur reproduction avant migration, pour établir une base de comparaison.
-- **(c)** Le contrôleur dispose d'une information contraire — une régression constatée depuis
-  — et D6g les rouvre.
+**Retenu : (a).** Le contrôleur a vérifié `1ba00e9` : les quatre sont bien fermés. Reproduire
+un défaut fermé coûte une passe pour établir ce qu'un `git show` établit.
 
-**Motif de (a)** : reproduire un défaut fermé coûte une passe pour établir qu'il est fermé, ce
-qu'un `git show` établit déjà. Le risque n'est pas leur retour, c'est la **perte** de leur
-correctif à la bascule, et c'est ce que A4 garde.
+**Ce que le motif rendu ajoute, et qui change la spec** : le risque réel est la **perte du
+correctif à la bascule**, et il doit porter **une clause d'arrêt nommée**. Chacun des quatre
+sélecteurs qui meurent avec le socle — `nav.navbar-fixed-top`, `#headerNavbar.in`,
+`.navbar-top-links .dropdown-menu`, `#wrapper #page-wrapper` — est **démontré rouge
+séparément** avant d'être déclaré porté. Une preuve prise sur le bloc entier ne satisfait pas
+la clause. → A4, C5, clause d'arrêt 6.
 
-**Ce qui doit être corrigé dans le dépôt quelle que soit la réponse** : le tableau
-`KANBAN.md:1695-1700` porte encore « destinataire D6g » pour quatre défauts fermés. Il est à
-annoter, et cette annotation n'appartient pas à D6g — c'est une ligne de journal.
+**Le `KANBAN.md` est déjà corrigé** par le contrôleur (`c978538`) : le tableau de la passe au
+navigateur de D6f porte l'annotation « ~~destinataire D6g~~ **fermé le 2026-09-18 par
+`1ba00e9`** ». **D6g n'y touche pas.** → F7.
 
-### AR2 — L'héritage de `404.html` rend son menu fonctionnel
+### AR2 — L'héritage de `404.html` rend son menu fonctionnel → **(a) retenue**
 
-A3 le tranche en faveur de l'héritage, ce qui **améliore le produit sans qu'on l'ait demandé**.
+**Demandé** : (a) héritage, menu réel, `R-ERR-01` retouchée ; (b) héritage avec un drapeau
+neutralisant les `href` ; (c) pas d'héritage, migration en place des 70 occurrences.
 
-- **(a)** Héritage, menu réel, `R-ERR-01` retouchée. *Recommandée.*
-- **(b)** Héritage, mais le menu reste inerte : `partials/menu.html` est inclus avec un drapeau
-  qui neutralise les `href`.
-- **(c)** Pas d'héritage : migration en place des 70 occurrences.
+**Retenu : (a)**, sur deux motifs rendus qui tranchent la question de fond — « est-ce un
+changement de produit interdit par le cadre ? » :
 
-**Motif de (a)** : (b) demande d'écrire du code pour conserver un défaut, et ajoute un
-paramètre à un partiel que cinq écrans partagent. (c) fait payer deux fois la migration du plus
-gros gabarit du lot et laisse la copie figée du menu vivre un lot de plus.
+- **le cadre « mêmes écrans, mêmes menus, mêmes libellés » protège contre la *disparition*
+  d'un écran ou d'un libellé, pas contre la réparation d'un menu mort.** Il interdit la perte,
+  il n'impose pas la reconduction d'un élément inerte ;
+- **la direction est déjà acquise sur cette page** : D-4, « le lien *Profil utilisateur* de la
+  page 404 n'est pas cliquable », a été fermé par `af0fc88` pendant D6f.
 
-**Coût de (a) si faux** : une page d'erreur dont le menu fonctionne. Difficile à qualifier de
-régression, mais c'est un changement de produit, et le cadre dit « mêmes menus ».
+Et sur deux motifs de coût : écrire du code pour conserver un défaut (b) est le contraire de la
+directive de propreté du dépôt ; payer deux fois le plus gros gabarit du lot (c) est un
+gaspillage sans contrepartie. → A3, C10.
 
-### AR3 — La version exacte de Bootstrap 5
+### AR3 — La version de Bootstrap 5 → **(a) retenue, avec une exigence d'épinglage**
 
-A1 pose `bootstrap@5.3.x`.
+**Demandé** : (a) `5.3.x`, seule branche maintenue, et `text-bg-*` couvre 40 occurrences en un
+jeton ; (b) `5.0.x`, plus proche de Bootstrap 3.
 
-- **(a)** `5.3.x`, dernière mineure. *Recommandée.*
-- **(b)** `5.0.x`, la plus proche de Bootstrap 4, donc de Bootstrap 3.
+**Retenu : (a).** Le motif rendu ajoute une exigence que la recommandation ne portait pas :
+**la version exacte est épinglée dans `package.json` et `yarn.lock`** — `5.3.x` désigne la
+branche, jamais ce qui est écrit dans le fichier. C'est le cliquet posé par D5, qui a remplacé
+29 références par branche ou tag Git par des SHA 40-hex et rendu `yarn.lock` opposable par
+`--frozen-lockfile`. **La spec nomme l'exigence ; la tâche nomme le numéro obtenu.** → A1,
+clause d'arrêt 2.
 
-**Motif de (a)** : 5.3 apporte `text-bg-*`, qui remplace les `panel-primary` et consorts en un
-jeton au lieu de deux, et c'est la seule branche qui reçoive encore des correctifs. 5.3
-déprécie `.text-muted` au profit de `.text-body-secondary` sans le retirer : les 20 occurrences
-ne sont donc pas en jeu.
+### AR4 — La forme des captures de recette → **(a) retenue, avec une clause de garde**
 
-**Coût de (a) si faux** : les classes `text-bg-*` n'existant pas avant 5.3, un retour à 5.0
-demanderait de réécrire les **40** occurrences qu'elles couvrent — 29 `panel-*` colorés et
-11 `label-*`.
+**Demandé** : (a) 32 PNG versionnés ; (b) captures produites à la demande, non versionnées ;
+(c) attendus nommés seuls.
 
-### AR4 — La forme des captures de recette
+**Retenu : (a)**, sur le motif du rédacteur — la recette est jouée par un humain, une référence
+est ce qui lui permet de dire « ce n'est plus ça » ; (c) est ce que le cadre a explicitement
+refusé (`KANBAN.md:332`).
 
-C9 exige une capture par fiche et par largeur, soit 32 images versionnées.
+**Deux ajouts du motif rendu** : **la largeur de rendu de chaque capture est nommée dans la
+fiche qui la porte**, et non seulement dans le nom du fichier — une fiche doit se lire seule. Et
+**une clause de garde** : si l'ensemble dépasse **8 Mo**, la tâche **ne verse rien** et remonte
+au contrôleur, qui rebasculera sur (b). Ni compression dégradée, ni versement partiel : le
+seuil est une condition, pas un budget à négocier. → C9, clause d'arrêt 13.
 
-- **(a)** Captures PNG versionnées sous `docs/recette/captures/d6g/`. *Recommandée.*
-- **(b)** Captures produites par Playwright à la demande, non versionnées, avec une commande
-  dans la fiche.
-- **(c)** Pas de captures : les attendus nommés seuls.
+### AR5 — Le découpage en tâches → **(a) retenue, avec une exigence sur les onze revues**
 
-**Motif de (a)** : la recette est jouée par un humain (`CLAUDE.md`, § Tests) ; une capture de
-référence est ce qui lui permet de dire « ce n'est plus ça ». (b) fait dépendre la recette de
-l'outillage de test, ce que le dépôt sépare volontairement. (c) est ce que le cadre a
-explicitement refusé (`KANBAN.md:332`, « à attendus nommés **et captures** »).
+**Demandé** : (a) seize tâches ; (b) cinq tâches, les onze écrans en une ; (c) une tâche par
+famille de classe.
 
-**Coût de (a) si faux** : environ 3 à 6 Mo dans le dépôt, et des captures à refaire au prochain
-changement de socle — qui ne devrait plus arriver.
+**Retenu : (a)**, sur le motif rendu : **la preuve est visuelle et par écran, un rouge doit
+rester imputable.**
 
-### AR5 — Le découpage en tâches, et le nombre de commits
+**Ce que le motif rendu ajoute** : les onze tâches d'écran étant mécaniquement semblables, la
+spec doit dire **ce qui change de l'une à l'autre et ce qui est strictement identique**, pour
+que leurs onze revues soient courtes. Une revue qui redécouvre à chaque écran ce qui est permis
+coûte onze fois le même raisonnement. → A6, qui porte les deux listes, et dont la seconde — la
+colonne « strictement identique » — vaut rouge sans discussion en cas d'écart.
 
-A6 découpe par document puis par écran, soit environ **seize tâches**.
+---
 
-- **(a)** Seize tâches, une passe au navigateur après l'étape « socle partagé » et une capture
-  par écran migré. *Recommandée.*
-- **(b)** Cinq tâches : les deux petits documents, le socle, les onze écrans **en une seule**,
-  la 404, le ménage.
-- **(c)** Une tâche par famille de classe (`panel → card`, `col-xs-* → col-*`, …), soit environ
-  dix.
+## Deux ajouts au périmètre, hors arbitrage
 
-**Motif de (a)** : la preuve de ce lot est visuelle et par écran ; (b) et (c) rendent le rouge
-non imputable. (c) est en outre le seul découpage qui interdise de vérifier quoi que ce soit en
-cours de route — un écran à demi migré n'est pas comparable.
+Portés par le contrôleur le 2026-09-19, en même temps que les cinq arbitrages.
 
-**Coût de (a) si faux** : seize rapports de tâche et seize passages de revue, sur un lot où
-onze des tâches sont mécaniquement semblables. C'est le coût que le dépôt a accepté à chacun
-des six lots précédents.
+**1. Le risque a changé de nature, et la spec le dit en toutes lettres.** La charge de
+réadressage du filet est nulle (F1) ; le mode d'échec n'est donc plus « le filet casse » mais
+« **le filet reste vert alors que l'écran a changé** ». La recette visuelle est la seule
+contre-mesure, et **c'est ce qui la rend clause d'entrée** — le lien entre les deux est
+explicite au préambule, en F1, en C9, au § « Ce que le lot fait vérifier à l'écran » et en tête
+des risques.
+
+**2. Les quatre classes Bootstrap 4/5 déjà posées et inertes portent leur propre tâche.** Elles
+prennent effet **sans qu'une ligne de gabarit ait bougé** : c'est un changement à diff vide,
+qu'aucune revue ne peut attraper et qui se noierait au milieu de la tâche du socle. Elles sont
+**T3**, jouée avant T4, et **C13**. → F9, A11.
