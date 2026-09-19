@@ -46,8 +46,9 @@ def test_une_balise_django_dans_l_attribut_class_ne_produit_pas_de_jeton(
 # par famille de l'etape 2 bis -- et ce sont ces quatre-la, les seuls qu'aucun document
 # anterieur ne nomme, qu'une garde a le plus de raisons de tenir.
 AJOUTS_DE_T1 = {
-    # 3 au 2026-09-19 (T1) ; 2 repris par D6g T2 (login.html, create_admin_account.html).
-    "btn-block": ("w-100", 1),
+    # 3 au 2026-09-19 (T1) ; 2 repris par D6g T2 (login.html, create_admin_account.html) ;
+    # le troisieme par D6g T8 (register.html, son dernier site).
+    "btn-block": ("w-100", 0),
     # 2 au 2026-09-19 (T1) ; les deux repris par D6g T3 (register.html, restore.html).
     "well-md": ("card", 0),
     "well-sm": ("card", 0),
@@ -92,11 +93,12 @@ def test_la_mesure_du_depot_pese_les_occurrences_de_ces_sept_jetons() -> None:
     documents de compte ; **8** depuis D6g T3, qui a repris `well-md` (register.html,
     restore.html) et `badge-info` (menu.html) ; **6** depuis D6g T13, qui a repris deux
     des trois sites de `left` (`evenement.html`, `evenements-page.html`) -- le troisieme,
-    hors de son ecran, reste a reprendre ; **5** depuis D6g T7, qui a repris
-    `fa-wrench-o` (reindexation.html, son seul porteur).
+    hors de son ecran, reste a reprendre ; **1** depuis D6g T7, qui a repris
+    `fa-wrench-o` (reindexation.html, son seul porteur) ; **0** depuis D6g T8, qui a
+    repris le dernier site de `btn-block` (register.html).
     """
     jetons, _ = occurrences(RACINE / "libreosteoweb" / "templates")
     releve = {jeton: jetons[jeton] for jeton in AJOUTS_DE_T1}
 
     assert releve == {jeton: n for jeton, (_, n) in AJOUTS_DE_T1.items()}
-    assert sum(releve.values()) == 1
+    assert sum(releve.values()) == 0

@@ -21,15 +21,16 @@
     <div class="container">
         <div class="row">
             <div class="col-md-9">
-                <div class="jumbotron">
+                {# D6g T8 : jumbotron disparait sans equivalent (annexe A), aucune regle ne le porte. #}
+                <div>
                     {% blocktrans %}
                     <h1>LibreOsteo</h1>
                     <p>Thank you to chose LibreOsteo as your software to manage your patients.</p>
                     <p>You successfully installed the software on your machine. Now you have to decide if you want to restore a previous backup of your patient file (performed from LibreOsteo) or use a new installation and register your first user on the softwarewhich will be the administrator of the software</p>
                     <p>Join the user community from the main <a href="https://www.libreosteo.org/" target="_blank">website</a> in order to share your experience with this software.</p>
                     {% endblocktrans %}
-                    <div class="center-block center">
-                        <button id="restore" class="btn btn-default" type="button"
+                    <div class="mx-auto center">
+                        <button id="restore" class="btn btn-secondary" type="button"
                                 hx-get="{% url 'partials-restore' %}"
                                 hx-target="#volet-installeur">{% trans 'Restore database' %}</button>
                         or
@@ -42,7 +43,7 @@
             {# Le volet qui portait `ui-view`. `signin.css` porte #}
             {# `.form-wrapper:empty {display: none}` : il doit donc rester reellement vide #}
             {# avant le premier hx-get, sans quoi un panneau vide s'affiche avec son ombre. #}
-            <div class="col-md-3 td-middle form-wrapper panel panel-default" id="volet-installeur"></div>
+            <div class="col-md-3 td-middle form-wrapper card" id="volet-installeur"></div>
         </div>
     </div> <!-- /container -->
 {% endblock %}

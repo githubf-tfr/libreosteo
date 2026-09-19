@@ -4015,11 +4015,31 @@ et `installation-375.png`.
 **Étapes**
 
 1. Ouvrir `/install/` sur une base vierge, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T8>
-2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T8>
+   Attendu : le titre *LibreOsteo* et les trois paragraphes d'accueil sont entièrement
+   visibles, sans recouvrement ; les deux boutons *Restaurer la base de données* et
+   *Enregistrer l'administrateur* sont côte à côte, séparés par « or », et atteignables au
+   clic ; le lien *site web* est visible et cliquable ; aucune barre de défilement
+   horizontale. Le panneau droit (`#volet-installeur`) est vide et n'affiche ni carte ni
+   ombre à l'ouverture (E0) : `signin.css` le masque tant qu'il est vide.
+2. Cliquer *Restaurer la base de données*, puis *Enregistrer l'administrateur* (dans deux
+   ouvertures séparées de `/install/`, pour ne recharger qu'un panneau à la fois).
+   Attendu, toujours à **1 280 px** : le panneau droit affiche une carte avec son titre
+   (« Restaurer la base de données » ou « Enregistrement »), son texte d'explication et son
+   formulaire (champ fichier ou champs de saisie), sans déborder de la carte ni recouvrir le
+   texte de gauche ; les boutons du formulaire (*Confirmer la restauration*,
+   *Enregistrer*) sont pleinement visibles.
+3. Ramener la fenêtre à **375 px de large**, sur `/install/` avec le panneau de
+   restauration ouvert.
+   Attendu : la colonne de texte et le panneau droit s'empilent (celui-ci sous les deux
+   boutons), le titre reste entièrement visible, les deux boutons restent côte à côte sans
+   se chevaucher, et aucune barre de défilement horizontale n'apparaît.
 
-**Ne couvre pas** : <écrit par T8>
+**Ne couvre pas** : le contenu des formulaires d'inscription et de restauration une fois
+soumis (validation, erreurs) — ce sont `tests/functional/test_installation.py` et
+`test_sauvegarde.py` qui les couvrent au niveau du geste. Les captures de référence
+(`installation-1280.png`, `installation-375.png`) ne montrent que l'état E0, panneau droit
+vide : les panneaux ouverts des étapes 2 et 3 ci-dessus s'observent au navigateur, sans
+capture versée, `capture_socle_visuel.py` ne les prenant pas.
 
 ### R-VIS-08 — Socle visuel : nouveau patient
 

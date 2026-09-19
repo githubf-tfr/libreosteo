@@ -28,7 +28,7 @@
                               hx-target="#erreur-restauration"
                               hx-indicator="#restauration-en-cours">
                           {% csrf_token %}
-                            <div class="form-group">
+                            <div class="mb-3">
                                 <label for="archive-file">{% trans 'Archive file to restore' %}</label>
                                 {# `name="file"` et non `archiveFile` : c'est le nom que #}
                                 {# `LoadDump.post` lit (`request.FILES["file"]`), et il #}
@@ -44,7 +44,7 @@
                             {# visible en meme temps a l'ecran (htmx charge ce panneau a cote, #}
                             {# sans le remplacer) : viser le mauvais ne doit plus se jouer sur #}
                             {# un seul mot commun (KANBAN, recette 2026-09-12). #}
-                            <button class="btn btn-default" type="submit">{% trans 'Confirm restore' %}</button>
+                            <button class="btn btn-secondary" type="submit">{% trans 'Confirm restore' %}</button>
 
                             {# Le temoin d'attente devient l'indicateur htmx. Il n'y a plus #}
                             {# de pourcentage d'avancement calcule puis jete #}
