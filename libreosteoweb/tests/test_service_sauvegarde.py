@@ -16,6 +16,7 @@
 
 import io
 import zipfile
+from datetime import date
 
 from django.core.files.base import ContentFile
 from django.core.management import call_command
@@ -30,8 +31,9 @@ from libreosteoweb.api.services.sauvegarde import (
     construire_archive,
     restaurer,
 )
+from libreosteoweb.api.signals import post_reload_db
 from libreosteoweb.models import Patient
-from libreosteoweb.tests.fixtures import archive_de_restauration
+from libreosteoweb.tests.fixtures import archive_de_restauration, sans_receivers
 
 
 def _archive(version, dump=b"[]"):
@@ -117,4 +119,66 @@ class TestIndexPendantLeRechargement(TransactionTestCase):
             len(resultats),
             0,
             "Un rechargement annule a laisse des entrees dans l'index de recherche.",
+        )
+
+
+class TestIndexApresRechargement(TransactionTestCase):
+    """Voir `TestIndexPendantLeRechargement` pour la raison de `TransactionTestCase` et
+    de `serialized_rollback`."""
+
+    serialized_rollback = True
+
+    def setUp(self):
+        call_command("clear_index", interactive=False)
+
+    def test_une_restauration_ne_laisse_dans_l_index_aucun_patient_absent_de_l_archive(
+        self,
+    ):
+        """Le defaut que ce test ferme : le vidage passe par un curseur brut (`sqlflush`,
+        `sauvegarde.py:135-153`), qui n'emet aucun `post_delete` -- les entrees de
+        l'ancien parc survivaient dans l'index, et une recherche rendait un lien vers un
+        patient qui n'existe plus."""
+        with sans_receivers():
+            Patient.objects.create(
+                family_name="Zzavant", first_name="Marie", birth_date=date(1980, 1, 1)
+            )
+        call_command("update_index", remove=True)
+        self.assertEqual(
+            len(SearchQuerySet().models(Patient).auto_query("Zzavant")),
+            1,
+            "Preparation : le patient d'avant doit etre dans l'index au depart.",
+        )
+
+        sauvegarde.restaurer(
+            archive_de_restauration(libreosteoweb.__version__, contenu_dump="[]"),
+            libreosteoweb.__version__,
+        )
+
+        self.assertEqual(
+            len(SearchQuerySet().models(Patient).auto_query("Zzavant")),
+            0,
+            "L'index rend encore un patient que l'archive restauree ne porte pas.",
+        )
+
+    def test_la_purge_ne_reconstruit_pas_l_index(self):
+        """A4 et A5 : le recepteur purge, il ne reconstruit pas. Une reconstruction
+        synchrone dans la requete de restauration heurte un plafond mesure -- 11 s pour
+        101 patients, lineairement, borne a 180 s (`docs/recette.md`, R-RCH-02) -- et
+        transformerait une restauration reussie en 504.
+
+        Ce que ce test regarde : apres l'emission du signal, un patient **present en
+        base** n'est pas dans l'index. Si le recepteur reconstruisait, il y serait."""
+        with sans_receivers():
+            Patient.objects.create(
+                family_name="Zzapres", first_name="Paul", birth_date=date(1975, 3, 2)
+            )
+        call_command("update_index", remove=True)
+
+        post_reload_db.send(sender=None)
+
+        self.assertEqual(Patient.objects.filter(family_name="Zzapres").count(), 1)
+        self.assertEqual(
+            len(SearchQuerySet().models(Patient).auto_query("Zzapres")),
+            0,
+            "Le recepteur de post_reload_db reconstruit l'index au lieu de le purger.",
         )
