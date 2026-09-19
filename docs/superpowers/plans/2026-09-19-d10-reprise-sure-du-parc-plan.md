@@ -538,9 +538,7 @@ class TestIndexPendantLeRechargement(TransactionTestCase):
 
         with self.assertRaises(sauvegarde.ArchiveInvalide):
             sauvegarde.restaurer(
-                archive_de_restauration(
-                    libreosteoweb.__version__, contenu_dump=dump
-                ),
+                archive_de_restauration(libreosteoweb.__version__, contenu_dump=dump),
                 libreosteoweb.__version__,
             )
 
@@ -1110,7 +1108,8 @@ def test_un_doublon_dans_un_cabinet_est_renumerote_dans_le_dump(
     """La plus ancienne (plus petit `pk`) garde son numero ; la suivante passe dans la
     bande a sept chiffres, et la sequence du cabinet avance."""
     chemin = _ecrire(
-        tmp_path, [_facture(1, 1, "10000"), _facture(2, 1, "10000"), _cabinet(1, "10001")]
+        tmp_path,
+        [_facture(1, 1, "10000"), _facture(2, 1, "10000"), _cabinet(1, "10001")],
     )
 
     plan = reprise_archive.reprendre_le_dump(chemin)
@@ -1139,7 +1138,8 @@ def test_un_meme_numero_dans_deux_cabinets_n_est_pas_touche(
 
 def test_le_prefixe_du_numero_est_conserve(tmp_path: pathlib.Path) -> None:
     chemin = _ecrire(
-        tmp_path, [_facture(1, 1, "AB10000"), _facture(2, 1, "AB10000"), _cabinet(1, None)]
+        tmp_path,
+        [_facture(1, 1, "AB10000"), _facture(2, 1, "AB10000"), _cabinet(1, None)],
     )
 
     plan = reprise_archive.reprendre_le_dump(chemin)
@@ -1152,7 +1152,8 @@ def test_rejouee_sur_un_dump_deja_repris_elle_n_ecrit_rien(
 ) -> None:
     """L'idempotence se detecte sur les lignes reelles, jamais dans un drapeau."""
     chemin = _ecrire(
-        tmp_path, [_facture(1, 1, "10000"), _facture(2, 1, "10000"), _cabinet(1, "10001")]
+        tmp_path,
+        [_facture(1, 1, "10000"), _facture(2, 1, "10000"), _cabinet(1, "10001")],
     )
     reprise_archive.reprendre_le_dump(chemin)
     apres_la_premiere = pathlib.Path(chemin).read_text(encoding="utf-8")
@@ -1381,52 +1382,58 @@ puis recharge la base dans une transaction à lui ; `Invoice` et `OfficeSettings
 importés.
 
 ```python
-    def test_archive_portant_deux_fois_le_meme_couple_cabinet_numero_est_restauree(self):
-        """Le point en suspens du 2026-09-07 (D10, C2, ARBITRAGE RENDU S2). Cette archive
-        rendait un 412 : `0060` ne voit jamais les lignes d'une archive, la base etant
-        vide quand les migrations passent. Elle est desormais **reprise au chargement**,
-        exactement comme `0060` reprend une base en place -- la plus ancienne garde son
-        numero, la suivante passe dans la bande a sept chiffres, la sequence avance."""
-        dump = json.dumps(
-            [
-                {
-                    "model": "libreosteoweb.officesettings",
-                    "pk": 1,
-                    "fields": {"invoice_start_sequence": "10001"},
-                },
-                {
-                    "model": "libreosteoweb.invoice",
-                    "pk": 1,
-                    "fields": {"officesettings_id": 1, "number": "10000",
-                               "amount": "55.00", "currency": "EUR"},
-                },
-                {
-                    "model": "libreosteoweb.invoice",
-                    "pk": 2,
-                    "fields": {"officesettings_id": 1, "number": "10000",
-                               "amount": "55.00", "currency": "EUR"},
-                },
-            ]
-        )
-
-        reponse = self.client.post(
-            reverse("load_dump"),
-            data={
-                "file": archive_de_restauration(
-                    libreosteoweb.__version__, contenu_dump=dump
-                )
+def test_archive_portant_deux_fois_le_meme_couple_cabinet_numero_est_restauree(self):
+    """Le point en suspens du 2026-09-07 (D10, C2, ARBITRAGE RENDU S2). Cette archive
+    rendait un 412 : `0060` ne voit jamais les lignes d'une archive, la base etant
+    vide quand les migrations passent. Elle est desormais **reprise au chargement**,
+    exactement comme `0060` reprend une base en place -- la plus ancienne garde son
+    numero, la suivante passe dans la bande a sept chiffres, la sequence avance."""
+    dump = json.dumps(
+        [
+            {
+                "model": "libreosteoweb.officesettings",
+                "pk": 1,
+                "fields": {"invoice_start_sequence": "10001"},
             },
-            format="multipart",
-        )
+            {
+                "model": "libreosteoweb.invoice",
+                "pk": 1,
+                "fields": {
+                    "officesettings_id": 1,
+                    "number": "10000",
+                    "amount": "55.00",
+                    "currency": "EUR",
+                },
+            },
+            {
+                "model": "libreosteoweb.invoice",
+                "pk": 2,
+                "fields": {
+                    "officesettings_id": 1,
+                    "number": "10000",
+                    "amount": "55.00",
+                    "currency": "EUR",
+                },
+            },
+        ]
+    )
 
-        self.assertEqual(reponse.status_code, 204)
-        self.assertEqual(
-            sorted(Invoice.objects.values_list("number", flat=True)),
-            ["10000", "1000000"],
-        )
-        self.assertEqual(
-            OfficeSettings.objects.get(pk=1).invoice_start_sequence, "1000001"
-        )
+    reponse = self.client.post(
+        reverse("load_dump"),
+        data={
+            "file": archive_de_restauration(
+                libreosteoweb.__version__, contenu_dump=dump
+            )
+        },
+        format="multipart",
+    )
+
+    self.assertEqual(reponse.status_code, 204)
+    self.assertEqual(
+        sorted(Invoice.objects.values_list("number", flat=True)),
+        ["10000", "1000000"],
+    )
+    self.assertEqual(OfficeSettings.objects.get(pk=1).invoice_start_sequence, "1000001")
 ```
 
 > **Si `loaddata` réclame un `NOT NULL` supplémentaire sur `libreosteoweb.invoice`**, le
@@ -1805,7 +1812,11 @@ def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str,
             compteur += 1
             prefixe = PREFIXE_ALPHABETIQUE.match(ancien)
             plan.append(
-                (identifiant, ancien, "%s%d" % (prefixe.group(0) if prefixe else "", compteur))
+                (
+                    identifiant,
+                    ancien,
+                    "%s%d" % (prefixe.group(0) if prefixe else "", compteur),
+                )
             )
     return sorted(plan)
 ```
@@ -1870,17 +1881,20 @@ VERSION_SUPPOSEE = "0.6.9.dev0"
 et, dans `main()`, juste après la ligne `Version de l'archive (meta)` :
 
 ```python
-    print("Version supposee par ce rapport   : %s" % VERSION_SUPPOSEE)
-    if version and version != VERSION_SUPPOSEE:
-        print(
-            "⚠️ L'archive a ete produite par %s, ce rapport raisonne sur %s."
-            % (version, VERSION_SUPPOSEE)
-        )
-        print("Deux consequences. La restauration refusera cette archive tant que")
-        print("l'instance ne portera pas exactement %s (412)." % version)
-        print("Et la section 0060 ci-dessous suppose la reprise des numeros au")
-        print("chargement, qui n'existe pas avant %s : sur une instance plus" % VERSION_SUPPOSEE)
-        print("ancienne, un doublon (cabinet, numero) BLOQUE toujours.")
+print("Version supposee par ce rapport   : %s" % VERSION_SUPPOSEE)
+if version and version != VERSION_SUPPOSEE:
+    print(
+        "⚠️ L'archive a ete produite par %s, ce rapport raisonne sur %s."
+        % (version, VERSION_SUPPOSEE)
+    )
+    print("Deux consequences. La restauration refusera cette archive tant que")
+    print("l'instance ne portera pas exactement %s (412)." % version)
+    print("Et la section 0060 ci-dessous suppose la reprise des numeros au")
+    print(
+        "chargement, qui n'existe pas avant %s : sur une instance plus"
+        % VERSION_SUPPOSEE
+    )
+    print("ancienne, un doublon (cabinet, numero) BLOQUE toujours.")
 ```
 
 Ajouter le test correspondant à `outils/tests/test_diagnostic_archive.py` :
@@ -1894,7 +1908,10 @@ def test_le_rapport_nomme_la_version_du_produit_qu_il_suppose(
     version il raisonne, sans quoi son « ne bloque pas » envoie sur un 412."""
     _, sortie = _diagnostiquer(tmp_path, [], capsys)
 
-    assert "Version supposee par ce rapport   : %s" % diagnostic_archive.VERSION_SUPPOSEE in sortie
+    assert (
+        "Version supposee par ce rapport   : %s" % diagnostic_archive.VERSION_SUPPOSEE
+        in sortie
+    )
 
 
 def test_une_archive_d_une_autre_version_est_signalee(
