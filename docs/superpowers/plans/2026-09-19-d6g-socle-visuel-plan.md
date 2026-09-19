@@ -5,7 +5,8 @@
 > use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Servir Bootstrap 5 à la place de Bootstrap 3 et du thème SB Admin 2, réécrire les
-580 occurrences de classe qui ne survivent pas, porter les quatre correctifs d'affichage
+les occurrences de classe qui ne survivent pas — **580 au cadrage, le chiffre complété par
+T1 faisant autorité** (AP1) —, porter les quatre correctifs d'affichage
 étroit avec une preuve rouge par sélecteur, et écrire la recette visuelle qui est la seule
 contre-mesure au risque de tête du lot.
 
@@ -27,7 +28,8 @@ Playwright (suite fonctionnelle), ruff + mypy.
 (1 240 lignes : F1–F14, A1–A12, C1–C13, AR1–AR5, quatorze clauses d'arrêt). Le plan argumente
 **comment** exécuter ; la spec tranche **quoi**. Le découpage en seize tâches est arbitré
 (A6, AR5) et ce plan le suit ; les points où il n'a pas pu l'appliquer littéralement sont en
-§ « Arbitrages demandés », avec une recommandation posée **provisoire** dans le corps du plan.
+§ « Arbitrages rendus » (AP1–AP7), **tranchés par le contrôleur le 2026-09-19** et intégrés
+au corps du plan avec leur motif rendu. Ils ne se rejugent pas dans l'exécution.
 
 ---
 
@@ -240,9 +242,13 @@ la route `/jsi18n/` (A9).
 - **T5 à T15 sont parallélisables entre elles sur le plan des fichiers**, à **une exception** :
   T12 et T14 partagent `pages/fragments/mot-de-passe.html` et sont donc strictement
   séquentielles, T12 d'abord.
-- **Elles ne le sont pas dans les faits** : chaque tâche d'écran lance la suite fonctionnelle,
-  et la contrainte de méthode interdit deux `pytest` simultanés. Le parallélisme utile porte
-  donc sur la **rédaction** (un sous-agent par écran), jamais sur l'**exécution** des suites.
+- ⚠️ **Elles ne le sont pas dans les faits, et ce point n'est pas une commodité.** Chaque
+  tâche d'écran lance la suite fonctionnelle, et **deux `pytest` simultanés se contaminent** :
+  règle du dépôt payée cher, la campagne de stabilité de D9 a été perdue une fois pour l'avoir
+  ignorée sous une forme voisine. **Le parallélisme de ce lot porte sur la rédaction — un
+  sous-agent par écran — et jamais sur l'exécution.** Un lancement = un appel d'outil en
+  avant-plan ; N lancements = N appels séparés. Aucune exception, aucun `run_in_background`,
+  aucun `Monitor`, aucune boucle shell, aucune commande shell `timeout`.
 - **T1, T4 et T16 ne se parallélisent avec rien.**
 
 ---
@@ -317,7 +323,7 @@ doit se lire seule. Et elle dit ce qu'elle **ne** couvre **pas**.
 Entre T4 et T16, `404.html` sert encore Bootstrap 3 et `sb-admin-2.css` existe encore sur le
 disque — mais **plus aucun des onze écrans ne le charge** : T4 retire le
 `<link href="css/sb-admin-2.css">` des onze `{% block css_page %}` en même temps qu'il porte
-ses quatre blocs vivants dans `libreosteo.css` (voir § Arbitrages demandés, point 2). Une
+ses quatre blocs vivants dans `libreosteo.css` (voir AP2, § Arbitrages rendus). Une
 capture d'écran prise entre T4 et T16 est donc **définitive** pour cet écran ; T16 ne change
 rien sous ses pieds. C'est ce qui rend la capture par tâche exploitable.
 
@@ -385,15 +391,18 @@ clôture, et T2 à T16 le consomment à chaque passe. Copier le script du cadrag
 RACINE = pathlib.Path(__file__).resolve().parents[1]
 ```
 
-2. la table `RUPTURE` gagne **les trois jetons manquants relevés au cadrage du plan** (voir
-   § Arbitrages demandés, point 1), ajoutés **après** que l'étape 1 a relevé 580 :
+2. la table `RUPTURE` gagne les jetons manquants, **ajoutés après que l'étape 1 a relevé
+   580** (AP1) :
 
 ```text
     # Ajouts du plan D6g (2026-09-19) : jetons Bootstrap 3 supprimes en BS4/BS5 que la
-    # table du cadrage ne portait pas. Mesures avant / apres ajout : 580 -> 583.
+    # table du cadrage ne portait pas. Elle a ete batie sur un vocabulaire **extrait des
+    # feuilles vendorisees**, donc aveugle par construction a ce qu'aucune feuille ne
+    # contenait : `well-md` n'existe dans aucune version de Bootstrap, il n'etait donc dans
+    # aucun vocabulaire. Mesures : 580 au cadrage du 2026-09-19, <releve> apres ajout.
     "btn-block": "w-100",   # BS5 : plus de bouton pleine largeur par classe ; `d-grid` sinon
-    "well-md": "card",      # n'existe dans aucune version de Bootstrap (F9) ; inerte
-    "well-sm": "card",
+    "well-md": "card",      # n'existe dans aucune version de Bootstrap (F9)
+    "well-sm": "card",      # zero site aujourd'hui ; meme famille, meme sort
 ```
 
 3. le corps du script est encapsulé dans des fonctions testables, et l'affichage sous un
@@ -403,6 +412,57 @@ RACINE = pathlib.Path(__file__).resolve().parents[1]
 def occurrences(racine: pathlib.Path) -> tuple[collections.Counter, collections.Counter]:
     """(jetons -> occurrences, gabarit -> occurrences) pour les classes qui ne survivent pas."""
 ```
+
+- [ ] **Step 2 bis : refaire le relevé par famille, pas par jeton isolé (AP1)**
+
+**C'est la leçon d'AP1, et elle ne se règle pas par trois lignes ajoutées à la table.** La
+famille `well` meurt **entière** en Bootstrap 4+, et la table n'en portait que trois quarts :
+`well` et `well-lg` y étaient, `well-md` non, `well-sm` non. Sites mesurés le 2026-09-19 :
+
+| Jeton | Sites | Était dans la table |
+|---|---|---|
+| `well` nu | `pages/import-export.html:73` | oui |
+| `well well-lg` | `account/login.html:37`, `account/create_admin_account.html:48` | oui |
+| `well well-md` | `partials/register.html:7`, `partials/restore.html:5` | **non** |
+| `btn-block` | `account/login.html:60`, `account/create_admin_account.html:60`, `partials/register.html:18` | **non** |
+
+Balayer **tous** les jetons que les gabarits posent et que **ni la table ni Bootstrap 5** ne
+connaissent, puis les classer famille par famille :
+
+```bash
+cd /home/vtramier/claude/libreosteo && ./.venv/bin/python - <<'EOF'
+import pathlib, re, collections, sys
+sys.path.insert(0, ".")
+from outils.rupture_bs5 import RUPTURE
+racine = pathlib.Path(".")
+bs5 = (racine / "libreosteoweb/static/components/bootstrap/dist/css/bootstrap.min.css").read_text()
+connus_bs5 = set(re.findall(r"\.([a-z][a-z0-9-]*)", bs5))
+poses = collections.Counter()
+for f in sorted((racine / "libreosteoweb/templates").rglob("*.html")):
+    for m in re.finditer(r'class\s*=\s*"([^"]*)"', f.read_text()):
+        for tok in re.sub(r"\{[%{#].*?[%}#]\}", " ", m.group(1)).split():
+            if re.fullmatch(r"[a-z][a-z0-9-]*", tok):
+                poses[tok] += 1
+inconnus = {t: n for t, n in poses.items() if t not in RUPTURE and t not in connus_bs5}
+for t, n in sorted(inconnus.items(), key=lambda kv: -kv[1]):
+    print(f"{n:4d}  {t}")
+EOF
+```
+
+**Lire la sortie jeton par jeton, et trancher chacun dans le rapport de tâche** en trois
+catégories, sans exception :
+
+1. **classe applicative du produit** — définie par `css/libreosteo.css` ou une feuille du
+   dépôt : elle reste, et **ne rejoint pas la table** ;
+2. **classe Bootstrap 3 ou SB Admin que le vocabulaire extrait a ratée** : elle **rejoint la
+   table**, avec son équivalent ou `None` ;
+3. **classe qui n'a jamais rien désigné** (`fa-1`, `fa-wrench-o`, `well-md`) : elle rejoint la
+   table avec son sort, et la tâche qui la rencontre la corrige.
+
+**Le plan porte les deux chiffres, et c'est le second qui fait autorité** : **580**, mesuré le
+2026-09-19 au cadrage de la spec, et **le chiffre complété par cette étape, qui devient la
+référence de la clause d'arrêt 1 et de la clause d'arrêt 4**. Les deux sont écrits dans le
+rapport de tâche, dans le message de commit et, en T16, dans le `KANBAN.md`.
 
 - [ ] **Step 3 : écrire le test unitaire du module, et le voir rouge**
 
@@ -582,7 +642,7 @@ Sur l'arbre **Bootstrap 3**, écran par écran, aux deux largeurs, en suivant la
 « URL / état de départ » ci-dessus. Ranger sous `docs/recette/captures/d6g/`, nommées
 `<fiche>-<largeur>.png` — le même nom que les captures d'après, qui les **écraseront** tâche
 par tâche : l'état d'avant reste récupérable par `git show`, et le total reste de 32 fichiers,
-comme la clause d'arrêt 13 l'exige (voir § Arbitrages demandés, point 3).
+comme la clause d'arrêt 13 l'exige (voir AP3, § Arbitrages rendus).
 
 ```bash
 cd /home/vtramier/claude/libreosteo && ls docs/recette/captures/d6g/ | wc -l && du -sh docs/recette/captures/d6g/
@@ -594,6 +654,21 @@ Attendu : **32**, et un total **de 8 Mo ou moins**.
 s'arrête et remonte au contrôleur, qui rebasculera sur des captures produites à la demande.
 **Ni compression dégradée, ni versement partiel** : le seuil est une condition, pas un budget
 à négocier. Aucune décision locale n'est prise sur ce point.
+
+**Ressortir une capture d'avant, exigence d'AP3.** Les avants ne sont pas perdus : ils sont
+dans **ce** commit, et chaque tâche d'écran les écrase. **Une référence qu'on ne sait pas
+ressortir n'est pas une référence** ; voici comment on la ressort, et cette commande est
+recopiée dans chaque fiche de recette visuelle :
+
+```bash
+cd /home/vtramier/claude/libreosteo && git log --oneline -1 -- docs/recette/captures/d6g/ | head -1
+# puis, avec le SHA du commit de T1 :
+git show <sha-de-T1>:docs/recette/captures/d6g/<fiche>-1280.png > /tmp/d6g-avant-<fiche>-1280.png
+```
+
+Le `<sha-de-T1>` est **relevé et écrit dans le rapport de cette tâche**, puis repris dans le
+`KANBAN.md` en T16 : sans lui, il faut fouiller un historique pour retrouver une référence, ce
+qui revient à ne pas l'avoir.
 
 - [ ] **Step 9 : `make check`, puis commit**
 
@@ -618,7 +693,10 @@ tourne sous --frozen-lockfile, hors reseau.
 
 Le script de mesure du cadrage quitte /tmp pour outils/ : la clause d'arret 4 exige de
 le rejouer tel quel a la cloture. Trois jetons manquants ajoutes a sa table
-(btn-block, well-md, well-sm) : 580 occurrences avant ajout, <releve> apres.
+(btn-block, well-md, well-sm), apres un releve **par famille** et non par jeton isole :
+la table du cadrage etait batie sur un vocabulaire extrait des feuilles, donc aveugle a ce
+qu'aucune feuille ne contenait. 580 occurrences au cadrage, <releve> apres ajout — c'est le
+second chiffre qui fait autorite pour les clauses d'arret 1 et 4.
 
 Aucun gabarit ne lie encore bootstrap 5 : les 32 captures d'avant sont prises sur
 l'arbre Bootstrap 3, seule fenetre de tir avant que css/bootstrap.css ne disparaisse.
@@ -843,11 +921,20 @@ well-md (register.html:7, restore.html:5)
   3. Decision : <…>
 ```
 
-**Recommandation posée, provisoire** (§ Arbitrages demandés, point 4) : retirer `d-flex
-flex-column`, qui n'a jamais été appliqué et dont l'effet serait un changement de disposition
-**non demandé** ; remplacer `badge-info` par `text-bg-info` ; remplacer `well well-md` par
-`card card-body`. Si l'observation de l'étape 2 contredit cette recommandation, **c'est
-l'observation qui prime** — c'est la raison d'être de la tâche.
+**Décision rendue par le contrôleur (AP4)** : **retirer `d-flex flex-column`**, remplacer
+`badge-info` par `text-bg-info`, remplacer `well well-md` par `card card-body`.
+
+**Motif rendu, et il décide** : **la classe est inerte aujourd'hui** — vérifié,
+`partials/menu.html:12`, et rien dans le socle Bootstrap 3 servi ne la définit. **La retirer
+laisse donc l'écran d'aujourd'hui identique, ce qui est exactement l'engagement du lot.** La
+garder reviendrait à introduire un changement de disposition sur **tous** les écrans sans que
+personne ne l'ait demandé, **par un diff vide**.
+
+⚠️ **Et si l'observation de l'étape 2 montre que son retrait change quelque chose, cela ne se
+passe pas en silence.** Cela voudrait dire qu'elle n'était **pas** inerte, donc que **F9 est
+faux** — et F9 est un constat de la spec, mesuré. **C'est alors un rapport au contrôleur, pas
+une décision de tâche** : la tâche s'arrête, écrit ce qu'elle a mesuré, et attend. Elle ne
+tranche ni dans un sens ni dans l'autre.
 
 - [ ] **Step 4 : appliquer, puis `make static` et la suite complète**
 
@@ -951,15 +1038,22 @@ Douze lancements, sur des tests de quelques secondes.
 | `.navbar-top-links .dropdown-menu { position: static; … }` | `libreosteo.css:45-53` | `.lo-barre-liens .dropdown-menu { … }` — `navbar-top-links` est **SB Admin** et meurt avec le thème | `test_authentification.py::test_deconnexion_est_atteignable_en_affichage_etroit` |
 | `#wrapper #page-wrapper { margin-left: 250px }` | `sb-admin-2.css:34-36` | identique — ce sont des **identifiants**, pas des classes de socle ; seul le fichier change | `test_pages_erreur.py::test_la_barre_laterale_de_la_page_404_ne_recouvre_pas_son_titre`, avec son garde-fou `test_tableau_de_bord.py::test_page_wrapper_ne_subit_aucun_decalage_de_la_feuille_partagee_avec_la_page_404` |
 
-⚠️ **`#headerNavbar.show` peut ne pas rougir.** Bootstrap 3 posait
-`.navbar-collapse { max-height: 340px }` ; **Bootstrap 5 ne pose aucun `max-height` sur
-`.navbar-collapse`**, donc le correctif pourrait être devenu sans objet et son retrait
-laisserait le test vert. La clause 6 exige pourtant une démonstration rouge. Traitement, posé
-**provisoire** (§ Arbitrages demandés, point 5) : **si le test reste vert équivalent retiré,
-la règle ne se réécrit pas** — elle est **supprimée**, et le rapport de tâche porte la mesure
-qui l'établit (`getComputedStyle` de `#headerNavbar` sous BS5, valeur de `max-height`) à la
-place de la démonstration rouge. Une règle qui ne réalise plus rien n'est pas un correctif
-perdu : c'est un correctif devenu inutile, et le garder serait du code mort.
+⚠️ **`#headerNavbar.show` peut ne pas rougir, et le contrôleur a tranché ce cas (AP5).**
+Bootstrap 3 posait `.navbar-collapse { max-height: 340px }` ; la règle `libreosteo.css:41`,
+`max-height: none`, **n'existe que pour annuler ce 340 px**. Bootstrap 5 ne pose aucun
+`max-height` sur `.navbar-collapse` : le correctif est probablement devenu sans objet, son
+retrait laisserait le test **vert**, et la clause 6 ne pourrait pas être satisfaite sur ce
+sélecteur — non par négligence, mais parce qu'il n'y a plus rien à démontrer.
+
+**Décision rendue : la règle se supprime.** Un correctif qui n'annule plus rien est du code
+mort, et le garder serait pire que le retirer — le prochain lot le supprimerait sans savoir
+pourquoi il était là.
+
+⚠️ **Exigence du motif rendu, et elle est le cœur de la décision : la suppression n'est pas
+fondée par « le test reste vert », elle est fondée par la citation de la source Bootstrap 5**
+montrant qu'aucun `max-height` n'est posé sur `.navbar-collapse`. **Le rapport de tâche porte
+les deux preuves — le test vert *et* la ligne de Bootstrap 5 —, sans quoi on supprime sur une
+impression.**
 
 **Ce que cette tâche a le droit de toucher** : les fichiers listés ci-dessus.
 **Ce qu'elle n'a pas le droit de toucher** : les **cinq identifiants** que cinq helpers du
@@ -1021,7 +1115,7 @@ Attendu après retrait : **une seule ligne**, `404.html:25` (T16).
    D-5**, scopé à `#wrapper`, qui n'existe que dans `404.html` ;
 3. `.navbar-top-links …` — `sb-admin-2.css:39-91` — la barre supérieure et son menu
    déroulant, dont **le correctif D-3** dépend ; **renommé `.lo-barre-liens`** (voir
-   § Arbitrages demandés, point 6) ;
+   AP6, § Arbitrages rendus) ;
 4. `.sidebar …` et son `@media` — `sb-admin-2.css:93-160` — la barre latérale de `404.html`
    seule ; **renommé `.lo-barre-laterale`**.
 
@@ -1123,18 +1217,29 @@ Pour **chacun** des quatre sélecteurs, dans cet ordre, en appels Bash séparés
 pour le faire rougir.** Une preuve prise sur le bloc entier ne satisfait pas la clause
 (clause d'arrêt 6).
 
-**Cas 2, `#headerNavbar.show`** : si le test reste **vert** équivalent retiré, ne pas le
-forcer. Mesurer :
+**Cas 2, `#headerNavbar.show` — la preuve est double (AP5)** : si le test reste **vert**
+équivalent retiré, ne pas le forcer, et **ne pas supprimer sur ce seul constat**. Les **deux**
+preuves entrent au rapport, l'une sans l'autre ne vaut rien :
+
+**Preuve 1, le test.** La sortie verte du lancement équivalent retiré, collée telle quelle.
+
+**Preuve 2, la source Bootstrap 5.** Que le socle servi ne borne pas `.navbar-collapse` :
 
 ```bash
-cd /home/vtramier/claude/libreosteo && grep -n "max-height" libreosteoweb/static/components/bootstrap/dist/css/bootstrap.min.css | head -5
+cd /home/vtramier/claude/libreosteo && grep -o "\.navbar-collapse{[^}]*}" libreosteoweb/static/components/bootstrap/dist/css/bootstrap.min.css ; echo "---" ; grep -c "max-height" libreosteoweb/static/components/bootstrap/dist/css/bootstrap.min.css
 ```
 
-et relever `getComputedStyle(document.getElementById('headerNavbar')).maxHeight` à 375 px sur
-l'arbre BS5. Si la valeur est `none`, la règle est **supprimée** et le rapport porte cette
-mesure à la place de la démonstration rouge, avec la phrase : *« Bootstrap 5 ne borne pas
-`.navbar-collapse` ; le correctif D-2/D-3 n'a plus d'objet sur ce sélecteur, il est supprimé
-et non porté. »*
+Plus le relevé de `getComputedStyle(document.getElementById('headerNavbar')).maxHeight` à
+375 px, barre déployée, sur l'arbre BS5 : attendu `none`.
+
+**Si et seulement si les deux preuves concordent**, la règle est **supprimée** — non portée —
+et le rapport porte la phrase : *« Bootstrap 5 ne borne pas `.navbar-collapse` (ligne citée
+ci-dessus) ; le correctif `libreosteo.css:41` n'existait que pour annuler le `max-height:
+340px` de Bootstrap 3 et n'a plus d'objet. Supprimé, non porté. »*
+
+**Si la preuve 2 montre un `max-height` sur `.navbar-collapse`**, alors le test aurait dû
+rougir et ne l'a pas fait : c'est le test qui est aveugle, et **c'est un rapport au
+contrôleur**, pas une suppression.
 
 - [ ] **Step 7 : reprendre `test_contrat_styles.py`, et étendre `test_contrat_adressage.py`**
 
@@ -1238,6 +1343,10 @@ point 2). Aux **deux largeurs**, sur le tableau de bord connecté :
    opposable ;
 2. **le menu utilisateur** — ouvert, ses six entrées, le séparateur, et **« Déconnexion »
    atteignable au clic à 375 px** ;
+2 bis. ⚠️ **le menu d'aide** — ouvert, ses six entrées, le séparateur, et la pastille de
+   nouvelle version si elle est active. **C'est le seul des six rouages d'état sans test
+   propre** : rien ne constatera par machine que son `show` a été mal descendu, et cette
+   observation **est** sa preuve (§ Risques). Ne pas la sauter, ni à 1 280 ni à 375 px ;
 3. **une modale** — ouvrir une suppression de document ; la croix n'est **pas doublée**,
    l'occultation est visible, `Échap` referme, la page redevient défilable ;
 4. **une notification** — déclencher un enregistrement ; le bandeau apparaît en haut à droite,
@@ -1458,10 +1567,33 @@ entièrement visible*.
 - Modify: `tests/functional/test_pages_erreur.py` (C10), `docs/recette.md` (`R-ERR-01`,
   `R-VIS-15`, `R-VIS-16`), `KANBAN.md`
 
-**Cette tâche porte six commits**, dans cet ordre. C'est **une** tâche au sens du découpage
-arbitré (A6, AR5) : sa preuve est une, l'image reconstruite qui sert un écran. Mais six
-gestes hétérogènes dans un seul commit rendraient chaque `git revert` impossible, et le dépôt
-demande le contraire (§ Arbitrages demandés, point 7).
+### Les six commits de T16
+
+**C'est une tâche au sens du découpage arbitré** (A6, AR5) : sa preuve est une, l'image
+reconstruite qui sert un écran. Mais six gestes hétérogènes dans un seul commit rendraient
+chaque `git revert` impossible — et A8 écrit explicitement que le retour arrière de
+`COMPRESS_OFFLINE` « est d'une ligne ». **Le contrôleur a retenu une tâche, six commits
+ordonnés, chacun avec son propre critère de vert** (AP7).
+
+| # | Commit | Critère de vert, par commande | Réversible seul |
+|---|---|---|---|
+| 1 | `404.html` hérite de `base.html` | suite fonctionnelle verte, `test_pages_erreur.py` en tête ; `rupture_bs5.py` rend **0** pour `404.html` | oui |
+| 2 | Le ménage CSS | `make static` vert après `rm -rf static` ; suite fonctionnelle verte ; chaque suppression cite son consommateur | oui |
+| 3 | `COMPRESS_OFFLINE` | `make static` rend `Compressed <n> block(s)` **sans `--force`** ; `test_la_page_sert_les_bundles_compresses` vert | **oui, d'une ligne** — c'est le repli d'A8 |
+| 4 | `statici18n` sort | `make check` vert ; `make static` vert sans `compilejsi18n` ; les deux tests de support ré-ancrés et verts | oui |
+| 5 | **La preuve d'image** | `docker compose build` aboutit ; `curl` rend **200** avec un `<link>` vers `/static/CACHE/css/output.*.css` | **non — point de non-retour** |
+| 6 | La clôture | les quatorze clauses constatées, chiffres relevés | oui (documentaire) |
+
+⚠️ **Le commit 5 est le point de non-retour du lot.** Avant lui, tout se reprend : un `git
+revert` d'un commit rend l'arbre exécutable et la suite verte. À partir de lui, le lot a
+engagé une preuve externe au dépôt — une image construite, démarrée, servie — et la reprendre
+coûte une reconstruction complète. **Les commits 1 à 4 se jouent donc dans l'ordre, chacun
+vert avant le suivant** ; si l'un d'eux ne l'est pas, on ne passe pas au suivant en espérant
+que la preuve d'image tranchera.
+
+⚠️ **Le commit 2 est celui où l'arbre servi ment le plus.** Les feuilles supprimées restent
+dans `static/` tant que la purge n'a pas eu lieu : un écran qui « marche encore » à ce moment
+est un écran dont on ne sait rien. `rm -rf static && make static` avant toute mesure.
 
 ### Commit 1 — `404.html` hérite de `base.html` (A3, C10)
 
@@ -1883,10 +2015,10 @@ exécution réelle**. Binaires ; révisables sur un fait, jamais sur un coût.
 
 | # | Clause | Chiffre attendu | Prouvée par |
 |---|---|---|---|
-| 1 | L'état de départ est celui que la spec suppose | `321 static files copied` ; **2** dépendances ; **460** sites, **0** Bootstrap 3 ; **580** occ. / **60** gabarits ; 0 ligne ×2 | T1 Step 1 |
+| 1 | L'état de départ est celui que la spec suppose | `321 static files copied` ; **2** dépendances ; **460** sites, **0** Bootstrap 3 ; **580** occ. / **60** gabarits **au cadrage**, puis le chiffre complété par T1 Step 2 bis, **qui fait autorité** (AP1) ; 0 ligne ×2 | T1 Step 1 et Step 2 bis |
 | 2 | `package.json` porte **3** dépendances, version de Bootstrap **exacte**, `--frozen-lockfile` passe | 3 ; aucun `^`/`~`/`x` ; numéro **nommé** | T1 Step 5, T16 Step 14 |
 | 3 | Aucun gabarit ne référence `css/bootstrap*.css` ni `css/sb-admin-2.css`, et les trois fichiers n'existent plus | 0 ligne ; 3 × `No such file` | T16 Step 14 |
-| 4 | `outils/rupture_bs5.py` rend **zéro** occurrence | **0** | T16 Step 14 |
+| 4 | `outils/rupture_bs5.py`, **table complétée par T1 Step 2 bis**, rend **zéro** occurrence | **0** | T16 Step 14 |
 | 5 | Les **six** sites d'état d'Alpine migrés, **chacun démontré rouge**, nommé test par test | 6/6 | T4 Step 6 et Step 8 |
 | 6 | Les **quatre** sélecteurs mourants portés, **chacun démontré rouge séparément** ; le rapport nomme, pour chacun, le test qui a rougi et la ligne retirée | 4/4, **12 lancements** | T4 Step 6 |
 | 7 | Les **quatre** classes inertes tranchées, trois lignes chacune, résultat porté à la fiche du menu | 4/4 | T3 Step 3 et Step 5 |
@@ -1903,165 +2035,162 @@ l'exécution, l'écart s'instruit — il ne s'absorbe pas.
 
 ---
 
-## Arbitrages demandés
+## Arbitrages rendus
 
-**Adressés au contrôleur.** Sept points que le plan n'a pas pu trancher seul. Pour chacun : ce
-que la spec dit, l'obstacle, les options, la **recommandation posée provisoire dans le corps
-du plan**. Le plan est exécutable en l'état ; une décision contraire se reporte localement.
+**Sept points ont été soumis au contrôleur le 2026-09-19, dans le rapport de rédaction du
+plan. Les sept ont été tranchés le jour même**, et le corps du plan ci-dessus intègre chaque
+décision à l'endroit qui la porte. Cette section garde la trace de ce qui a été demandé, de ce
+qui a été retenu, et du **motif rendu par le contrôleur** — qui n'est pas toujours celui que
+le rédacteur avait avancé, et **qui prime**. Aucun de ces sept points ne se rejuge dans
+l'exécution.
 
-### 1. La table de rupture de F2 est incomplète — trois jetons manquants
+### AP1 — La table de rupture de F2 est incomplète → **(a) retenue, et élargie**
 
-**Ce que la spec dit.** Clause d'arrêt 4 : « `rupture_bs5.py` rend zéro occurrence. Le script
-est rejoué **tel quel** ; c'est la mesure d'entrée qui devient la mesure de sortie. » Et
-clause 1 : l'état de départ vaut **580** occurrences.
+**Demandé** : (a) compléter la table en T1, après avoir relevé 580, et nommer les deux
+chiffres ; (b) traiter `btn-block` hors mesure ; (c) le ranger hors périmètre.
 
-**L'obstacle.** Mesuré sur l'arbre : **`btn-block` est posé trois fois**
-(`account/login.html:60`, `account/create_admin_account.html:60`, `partials/register.html:18`)
-et **n'est pas dans la table**. Il disparaît pourtant en Bootstrap 5 : un bouton pleine
-largeur s'y obtient par `w-100` ou par un parent `d-grid`. Même chose pour `well-md` (2 sites,
-F9 n'en nommait qu'un) et `well-sm` (0 site aujourd'hui, mais du même vocabulaire). « Rejoué
-tel quel » rendrait donc **zéro** avec trois classes mortes encore servies.
+**Retenu : (a).** Vérifié par le contrôleur, **et c'est plus large que ce que la rédaction
+avait trouvé** :
 
-**Options.** (a) Compléter la table en T1, **après** avoir relevé 580, et nommer les deux
-chiffres ; (b) laisser la table telle quelle et traiter `btn-block` hors mesure ; (c) traiter
-`btn-block` comme hors périmètre.
+| Jeton | Sites mesurés | État dans la table du cadrage |
+|---|---|---|
+| `btn-block` | `account/login.html:60`, `account/create_admin_account.html:60`, `partials/register.html:18` | **absent** |
+| `well-md` | `partials/register.html:7`, `partials/restore.html:5` | **absent** |
+| `well well-lg` | `account/login.html:37`, `account/create_admin_account.html:48` | présent |
+| `well` nu | `pages/import-export.html:73` | présent |
 
-**Recommandation, posée dans le plan (T1 Step 2) : (a).** Le but de la clause 4 est qu'aucune
-classe morte ne subsiste, pas qu'un script précis rende un chiffre précis ; (b) laisserait une
-classe morte que la clause est censée interdire, et (c) livrerait un bouton dont la largeur
-change en silence sur les deux documents les plus servis du produit. Le coût de (a) est deux
-chiffres à écrire au lieu d'un.
+**Ce que le motif rendu ajoute, et qui change la tâche** : **la famille `well` entière meurt
+en Bootstrap 4+**, et la table n'en portait que trois quarts. **La leçon est que la table de
+F2 a été bâtie sur un vocabulaire extrait des feuilles vendorisées, donc elle rate par
+construction ce que ce vocabulaire ne contenait pas** — `well-md` n'existe dans aucune version
+de Bootstrap, il n'était donc dans aucune feuille, donc dans aucun vocabulaire extrait.
 
-### 2. Quand `sb-admin-2.css` cesse d'être chargé par les onze écrans
+**T1 refait donc le relevé par famille, pas par jeton isolé** (T1 Step 2 bis). Et **le plan
+porte les deux chiffres** : **580**, mesuré le 2026-09-19 au cadrage, et le chiffre complété
+par T1, **qui devient la référence de la clause d'arrêt 1**.
 
-**Ce que la spec dit.** A2 : le fichier est supprimé, ses quatre blocs vivants migrent. A6
-range « le ménage CSS » en **T16**.
+### AP2 — Quand `sb-admin-2.css` cesse d'être chargé → **(a) retenue**
 
-**L'obstacle.** Si les onze `{% block css_page %}` chargent encore `sb-admin-2.css` jusqu'à
-T16, alors **chaque capture d'écran prise entre T4 et T15 est provisoire** : T16 retirera la
-feuille sous les pieds des onze écrans déjà recettés, et la comparaison « avant / après » de
-chaque tâche d'écran ne prouve plus rien. Il faudrait recetter onze écrans deux fois.
+**Demandé** : (a) T4 porte les quatre blocs **et** déréférence la feuille des onze écrans,
+T16 ne supprime que le fichier ; (b) suivre A6 littéralement, deux passes de recette par
+écran ; (c) déréférencer écran par écran.
 
-**Options.** (a) T4 porte les quatre blocs **et** retire le `<link>` des onze écrans ; T16 ne
-supprime que le fichier ; (b) suivre A6 littéralement et accepter deux passes de recette par
-écran ; (c) retirer le `<link>` écran par écran, dans chaque tâche.
+**Retenu : (a).** Motif rendu : vérifié, la feuille est référencée **écran par écran** —
+`pages/tableau-de-bord.html:15`, `pages/cabinet.html:10`, `pages/profil.html:10`,
+`pages/comptabilite.html:10`, `pages/nouveau-patient.html:10`, `pages/import-export.html:10`,
+`pages/diagnostic-texte-riche.html:10`, `search.html:14`, `404.html:25`. **La laisser vivre
+jusqu'à T16 rendrait provisoire *chaque* capture prise entre T4 et T15, et ferait recetter
+onze écrans deux fois. Recetter deux fois coûte plus cher que tout ce que ce lot économise
+ailleurs.** → T4 Step 2, T16 commit 2.
 
-**Recommandation, posée dans le plan (T4 Step 2) : (a).** A2 dit *que* les blocs migrent, pas
-*quand* ; A6 range en T16 « le ménage CSS », c'est-à-dire la **suppression des fichiers**, qui
-reste en T16 puisque `404.html` charge encore la feuille jusque-là. (a) rend chaque capture
-d'écran **définitive** dès sa tâche, ce qui est la condition pour que le rouge reste
-imputable — le motif même d'AR5. (c) disperserait le portage des quatre blocs sur onze tâches.
+### AP3 — Les captures d'avant et d'après portent le même nom → **(a) retenue, avec une exigence**
 
-### 3. Les captures d'avant et les captures d'après portent-elles le même nom
+**Demandé** : (a) 32 fichiers, l'avant écrasé par l'après, lisible par `git show` ; (b) 64
+fichiers, les avants dans un sous-répertoire ; (c) avants non versés.
 
-**Ce que la spec dit.** C9 : « une capture par largeur, nommée `<fiche>-<largeur>.png` ».
-Clause 13 : « **Les 32 captures** sont versées […] 8 Mo ou moins ». Et § « Ce que le lot fait
-vérifier à l'écran » : « Les captures d'avant sont prises en T1 […] **et versées** ».
+**Retenu : (a).** **Ce que le motif rendu ajoute** : **le plan écrit la commande exacte de
+relecture d'un avant, à côté de la clause. Une référence qu'on ne sait pas ressortir n'est pas
+une référence.** → T1 Step 8, encadré « Ressortir une capture d'avant ».
 
-**L'obstacle.** 16 fiches × 2 largeurs × 2 états = **64** fichiers, alors que la clause 13 en
-compte 32 et plafonne à 8 Mo. Les deux phrases ne peuvent être vraies littéralement ensemble.
+### AP4 — Que faire de `d-flex flex-column` → **retirer, sous réserve de l'observation**
 
-**Options.** (a) 32 fichiers ; T1 verse l'état d'avant sous ces noms, chaque tâche d'écran
-l'**écrase** par l'état d'après, et l'avant reste lisible par `git show <sha>:<chemin>` ;
-(b) 64 fichiers, les avants sous `docs/recette/captures/d6g/avant/`, et la clause 13 ne compte
-que les 32 d'après ; (c) captures d'avant non versées, gardées sous `/tmp`.
+**Demandé** : (a) retirer ; (b) garder l'effet si l'observation le montre meilleur ; (c)
+laisser T3 trancher seule, comme C13 l'écrit.
 
-**Recommandation, posée dans le plan (T1 Step 8) : (a).** Seule lecture qui satisfait les
-trois phrases à la fois — les avants sont bien « versées » (elles sont dans un commit), le
-total reste 32, et la référence de recette finale est l'état cible, ce qu'une fiche de recette
-doit montrer. (b) double le poids face à un seuil qui est « une condition, pas un budget à
-négocier ». (c) perd la comparaison dès que `/tmp` est purgé, ce qui est arrivé pendant ce
-cadrage.
+**Retenu : (a), sous réserve de l'observation à l'écran, qui prime.** Motif rendu : **la
+classe est inerte aujourd'hui** — vérifié, `partials/menu.html:12`, et rien dans le socle
+Bootstrap 3 servi ne la définit. **La retirer laisse donc l'écran d'aujourd'hui identique, ce
+qui est exactement l'engagement du lot.** La garder reviendrait à introduire un changement de
+disposition sur tous les écrans sans que personne ne l'ait demandé, **par un diff vide**.
 
-### 4. Ce qu'on fait des quatre classes inertes — la décision n'est pas dans la spec
+⚠️ **Et si l'observation montre que son retrait change quelque chose, cela ne se passe pas en
+silence** : cela voudrait dire qu'elle n'était **pas** inerte, donc que **F9 est faux**, et
+c'est **un rapport au contrôleur, pas une décision de tâche**. → T3 Step 3.
 
-**Ce que la spec dit.** C13 : T3 produit trois lignes par classe, dont « **la décision** —
-garder l'effet, ou retirer la classe — avec son motif », **constatée à l'écran**.
+### AP5 — `#headerNavbar.in` pourrait ne pas pouvoir rougir → **la règle se supprime, sous preuve double**
 
-**L'obstacle.** La décision est donc explicitement déléguée à la tâche. Mais `d-flex
-flex-column` « change la disposition de la barre de navigation **de tous les écrans** » : ce
-n'est pas une décision de tâche, c'est une décision de produit, et le cadre dit « mêmes
-écrans, mêmes menus ».
+**Demandé** : (a) supprimer la règle si le test reste vert, la mesure remplaçant la
+démonstration rouge ; (b) la porter quand même, en code mort défensif ; (c) fabriquer un cas
+qui la fasse rougir.
 
-**Options.** (a) retirer `d-flex flex-column` — la barre garde la disposition actuelle ;
-(b) garder l'effet si l'observation le montre meilleur ; (c) laisser T3 trancher seule, comme
-C13 l'écrit.
+**Retenu : la règle se supprime.** ⚠️ Les lettres d'option diffèrent entre la demande et la
+réponse ; **le fond est sans ambiguïté et c'est lui qui vaut** — la règle n'est ni portée ni
+gardée en défensive, elle est retirée. Vérifié côté fork : la règle est `libreosteo.css:41`,
+`max-height: none`, et **elle n'existe que pour annuler le `max-height: 340px` de
+Bootstrap 3**. Un correctif qui n'annule plus rien est du code mort, et le garder serait pire
+que le retirer.
 
-**Recommandation, posée dans le plan (T3 Step 3) : (a), sous réserve de l'observation.** Ces
-classes n'ont **jamais** été appliquées : leur effet n'est pas un choix du produit, c'est un
-accident de rédaction resté sans conséquence. Les activer serait une refonte de la barre de
-navigation, non demandée et écartée par le cadre. Si l'observation montre que les retirer
-**dégrade** l'écran sous Bootstrap 5, l'observation prime — c'est la raison d'être de la
-tâche, et le contrôleur est saisi.
+**Ce que le motif rendu ajoute, et c'est une exigence** : **la suppression n'est pas fondée
+par « le test reste vert », elle est fondée par la citation de la source Bootstrap 5** montrant
+qu'aucun `max-height` n'est posé sur `.navbar-collapse`. **Le rapport de tâche porte les deux
+preuves — le test vert et la ligne de Bootstrap 5 —, sans quoi on supprime sur une
+impression.** → T4 Step 6, cas 2.
 
-### 5. `#headerNavbar.in` pourrait ne pas pouvoir rougir
+### AP6 — Les classes SB Admin vivantes se renomment → **(a) retenue**
 
-**Ce que la spec dit.** A4 et clause d'arrêt 6 : chacun des quatre sélecteurs mourants est
-**démontré rouge séparément**, « son équivalent Bootstrap 5 retiré → le test d'affichage
-étroit rougit ». Une preuve prise sur le bloc entier ne satisfait pas la clause.
+**Demandé** : (a) renommer avec le préfixe `lo-` ; (b) retirer ces jetons de la table du
+script ; (c) garder les noms et amender la clause 4.
 
-**L'obstacle.** Le correctif `#headerNavbar.in { max-height: none; overflow-y: visible }`
-existe parce que **Bootstrap 3** posait `.navbar-collapse { max-height: 340px }`. Bootstrap 5
-ne pose aucun `max-height` sur `.navbar-collapse`. Il est donc probable que l'équivalent
-Bootstrap 5 soit **sans objet** : le retirer laisserait le test **vert**, et la clause 6 ne
-pourrait pas être satisfaite sur ce sélecteur — non par négligence, mais parce qu'il n'y a
-plus rien à démontrer.
+**Retenu : (a).** Motif rendu : c'est **la convention du dépôt**, le cliquet d'adressage
+interdit déjà ces motifs donc **le coût pour le filet est nul**, et **garder un nom de thème
+mort pour désigner une règle qui nous appartient désormais est la définition d'un piège de
+ménage — ce dépôt en a payé deux** (`angular-timeago` en D5, `ngRoute` en D6a). → T4 Step 3 et
+Step 5, annexe A.
 
-**Options.** (a) si le test reste vert équivalent retiré, **supprimer la règle** et porter au
-rapport la mesure (`getComputedStyle(#headerNavbar).maxHeight` sous BS5 et la recherche de
-`max-height` dans `bootstrap.min.css`) à la place de la démonstration rouge ; (b) porter la
-règle quand même, comme code mort défensif, et déclarer la clause 6 satisfaite sur trois
-sélecteurs sur quatre ; (c) fabriquer un cas de test qui la fasse rougir.
+### AP7 — T16 porte six gestes hétérogènes → **(a) retenue, avec une exigence de nommage**
 
-**Recommandation, posée dans le plan (T4, encadré et Step 6) : (a).** Une règle qui ne réalise
-plus rien n'est pas un correctif perdu, c'est un correctif devenu inutile — et le dépôt
-interdit précisément de garder ce qui ne fait rien. La mesure remplace la démonstration et
-reste falsifiable. (b) laisserait du code mort dans le socle, que le prochain lot supprimerait
-sans savoir pourquoi il était là. (c) fabriquerait une preuve, ce qui est pire que pas de
-preuve.
+**Demandé** : (a) une tâche, six commits ordonnés ; (b) scinder en T16…T21 ; (c) un seul
+commit.
 
-### 6. Les classes SB Admin vivantes se renomment-elles
+**Retenu : (a).** Motif rendu : **c'est ce qui rend jouable le repli d'A8, « retour arrière
+d'une ligne »**. **Ce que le motif ajoute** : **le plan nomme les six commits, dans l'ordre,
+chacun avec son propre critère de vert, et dit lequel est le point de non-retour.** → T16,
+§ « Les six commits de T16 ».
 
-**Ce que la spec dit.** A2 : les quatre blocs vivants « migrent, **réécrits dans le
-vocabulaire Bootstrap 5** ». Clause 4 : `rupture_bs5.py` rend zéro occurrence — or la table
-classe `navbar-top-links`, `dropdown-user`, `sidebar`, `sidebar-nav`, `sidebar-search`,
-`sidebar-collapse` en « sans équivalent ».
+### Les trois corrections sur pièce, retenues telles quelles
 
-**L'obstacle.** Garder le nom `navbar-top-links` comme simple crochet CSS **ferait échouer la
-clause 4**. Les deux exigences sont incompatibles telles quelles.
+Trois chiffres du dépôt que la rédaction du plan a mesurés faux, et que le contrôleur a
+vérifiés :
 
-**Options.** (a) renommer avec le préfixe `lo-` déjà employé par le dépôt
-(`lo-notifications`, `lo-visite-cible`, `lo-zone-texte-riche`) : `lo-barre-liens`,
-`lo-menu-utilisateur`, `lo-barre-laterale` ; (b) retirer ces jetons de la table du script ;
-(c) garder les noms et amender la clause 4.
-
-**Recommandation, posée dans le plan (T4 Step 3 et Step 5, annexe A) : (a).** Le préfixe `lo-`
-est la convention du dépôt pour « classe du produit, pas du socle », et le cliquet d'adressage
-interdit déjà `\.sidebar\b` et `\.navbar[a-z-]*\b` dans toute la suite : **aucun test
-n'adresse ces noms**, le renommage ne coûte donc rien au filet. (b) affaiblirait la mesure qui
-décide d'une clause d'arrêt. (c) laisserait le vocabulaire d'un thème supprimé dans un socle
-qui vient de le remplacer.
-
-### 7. T16 porte six gestes hétérogènes
-
-**Ce que la spec dit.** A6 : « T16 — `404.html` : l'héritage (A3), puis le ménage CSS,
-`COMPRESS_OFFLINE` (A8), `statici18n` (A9), la preuve d'image (C8) ». Plus la clôture des
-quatorze clauses.
-
-**L'obstacle.** Six gestes indépendants, dont deux touchent des fichiers hors
-`libreosteoweb/` (`setup.py`, `Dockerfile`), dans **un** commit rendraient tout retour arrière
-partiel impossible — alors que A8 écrit explicitement que le retour arrière de
-`COMPRESS_OFFLINE` « est d'une ligne ».
-
-**Options.** (a) garder **une** tâche T16, portant **six commits** ordonnés ; (b) scinder en
-T16…T21, ce qui déferait le découpage arbitré en seize tâches ; (c) un seul commit.
-
-**Recommandation, posée dans le plan (T16) : (a).** Le découpage arbitré porte sur les
-**tâches** — l'unité de revue et de preuve —, pas sur les commits ; D6f faisait déjà plusieurs
-commits par tâche. T16 a **une** preuve, l'image reconstruite qui sert un écran, ce qui en
-fait bien une tâche. (c) rendrait le repli d'A8 impossible à jouer.
+1. **Le cliquet d'adressage porte 22 familles interdites, pas 6** comme l'écrit le tableau des
+   cliquets de la spec. Le plan en ajoute 4 (A12), portant le total à 26 — les deux autres
+   qu'A12 nomme (`.btn-close`, `.text-bg-*`) sont **déjà** couvertes, et le vérifier fait
+   partie de T4 Step 7.
+2. **Le garde-fou de D-5 vit dans `tests/functional/test_tableau_de_bord.py`**, pas dans
+   `test_pages_erreur.py` : `test_page_wrapper_ne_subit_aucun_decalage_de_la_feuille_partagee_avec_la_page_404`.
+3. **Le menu d'aide est le seul des six rouages d'état sans test propre.** Le plan le dit
+   plutôt que de laisser croire à une couverture qui n'existe pas — et **cela mérite une ligne
+   de risque à soi seul** (§ Risques, ci-dessous) : c'est le seul des six sites d'état où le
+   filet ne mord pas, donc **le seul qui puisse casser sans qu'aucune machine ne le voie**.
 
 ---
+
+## Risques, et ce qu'on fait s'ils se réalisent
+
+Ceux de la spec restent vrais et ne se recopient pas ici. Trois s'ajoutent, propres à
+l'exécution.
+
+**Le menu d'aide casse et rien ne le voit.** Cinq des six rouages d'état d'Alpine sont couverts
+par un test fonctionnel existant ; **le sixième — `menu.html:84`, `menuAide` — ne l'est pas**.
+Sa liaison `:class` descend sur le `.dropdown-menu` comme celle du menu utilisateur, mais
+aucune machine ne constatera qu'elle a été mal descendue. **C'est le seul des six où le filet
+ne mord pas.** Parade : l'attendu est **nommément** dans `R-VIS-03`, et la passe au navigateur
+de T4 Step 9 l'ouvre explicitement, aux deux largeurs. Si un défaut apparaît en recette de
+clôture sur ce point, **c'est une régression de T4**, pas de la tâche qui la découvre.
+
+**Deux `pytest` simultanés se contaminent.** Règle du dépôt, payée cher : la campagne de
+stabilité de D9 a été perdue une fois pour l'avoir ignorée sous une forme voisine. **Le
+parallélisme de ce lot porte sur la rédaction — un sous-agent par écran — et jamais sur
+l'exécution.** Un lancement = un appel d'outil en avant-plan ; N lancements = N appels
+séparés. Aucune exception, aucun `run_in_background`, aucun `Monitor`, aucune boucle shell.
+
+**La table de rupture rate encore un jeton.** AP1 établit qu'elle a été bâtie sur un
+vocabulaire extrait, donc aveugle à ce qui n'était dans aucune feuille. T1 Step 2 bis la
+complète par famille, mais rien ne garantit l'exhaustivité d'un balayage manuel. Parade : la
+clause d'arrêt 4 rejoue le script **complété**, et **la recette visuelle des seize fiches est
+le dernier filet** — un jeton oublié est une classe qui ne style plus rien, donc un écran
+visiblement différent de sa capture d'avant.
+
 
 ## Auto-revue
 
@@ -2076,6 +2205,13 @@ A12 (T4 Step 7). Les cinq arbitrages rendus : AR1 (T4, tableau des quatre sélec
 AR2 (T16 commit 1), AR3 (T1 Step 5), AR4 (T1 Step 8, T16 Step 16), AR5 (§ Ce qui change /
 strictement identique). Les quatorze constats F1–F14 sont cités là où ils gouvernent une
 décision ; F1 gouverne la structure entière du plan, par le § « Ce que le filet ne voit pas ».
+
+**Les sept arbitrages rendus** sont intégrés à l'endroit qui les porte : AP1 (T1 Step 2 et
+Step 2 bis, clauses 1 et 4), AP2 (T4 Step 2, T16 commit 2), AP3 (T1 Step 8, encadré
+« Ressortir une capture d'avant »), AP4 (T3 Step 3, avec le garde-fou « si F9 est faux, c'est
+un rapport »), AP5 (T4, encadré et Step 6 cas 2, preuve double), AP6 (T4 Step 3 et Step 5,
+annexe A), AP7 (T16, § « Les six commits de T16 »). Les trois corrections sur pièce sont
+portées au tableau des six rouages (T4), à la démonstration rouge (T4 Step 1) et au § Risques.
 
 **Ce que le plan n'a pas assigné, et pourquoi.** Les deux replis écrits d'avance ne sont pas
 des tâches : celui d'A3 (`404.html` reste autonome) est conditionné à un effet de bord mesuré
