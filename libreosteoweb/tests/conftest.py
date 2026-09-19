@@ -24,6 +24,7 @@ import tempfile
 from typing import Any, cast
 
 from django.conf import settings as reglages_django
+from haystack import connections as connexions_recherche
 
 # La base de test par defaut de Django, sous sqlite3, est en memoire mais **a cache
 # partage entre threads** (`sqlite3/creation.py` la nomme
@@ -64,3 +65,25 @@ _base_par_defaut.setdefault("TEST", {})["NAME"] = os.path.join(
 # requetes reellement concurrentes doit en plus emettre `BEGIN IMMEDIATE` :
 # demonstration, mesures et monkeypatch dans `tests/functional/conftest.py` (l. 86-108).
 _base_par_defaut.setdefault("OPTIONS", {})["timeout"] = 20
+
+# L'index de recherche sort du depot, au meme titre que la base et pour les memes deux
+# raisons : `MAIN_WRITELOCK` bloque deux lancements simultanes, et un index partage entre
+# lancements rend non deterministe tout test qui compte des resultats de recherche. Sans
+# ces lignes, `HAYSTACK_CONNECTIONS["default"]["PATH"]` vaut
+# `os.path.join(DATA_FOLDER, "whoosh_index")` (`Libreosteo/settings/base.py:324`), soit
+# `./data/whoosh_index` dans l'arbre de travail. `tests/functional/conftest.py:140-152` a
+# bascule le premier, par test ; ici un seul repertoire par session suffit, la suite
+# unitaire ne partageant pas d'etat entre tests par ailleurs.
+_dossier_index_de_test = tempfile.mkdtemp(prefix="libreosteo-test-unitaire-index-")
+atexit.register(shutil.rmtree, _dossier_index_de_test, ignore_errors=True)
+# Mutation **en place** du sous-dictionnaire, jamais un remplacement : `haystack`
+# construit son `ConnectionHandler` a l'import (`haystack/__init__.py`) en gardant une
+# reference sur la structure de reglages. Remplacer `settings.HAYSTACK_CONNECTIONS` par un
+# dictionnaire neuf laisserait le handler sur l'ancien -- meme motif, a la lettre, que la
+# mise a jour en place du sous-dictionnaire `TEST` ci-dessus.
+cast("dict[str, Any]", reglages_django.HAYSTACK_CONNECTIONS["default"])["PATH"] = (
+    os.path.join(_dossier_index_de_test, "whoosh_index")
+)
+# Et le backend deja construit, s'il l'est, relit le chemin : `reload` reconstruit la
+# connexion « default » a partir des reglages courants.
+connexions_recherche.reload("default")
