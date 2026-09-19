@@ -57,3 +57,8 @@ Libreosteo/settings/local.py*
 
 # Export de production : donnees de sante nominatives, jamais versionnees
 export-test/
+
+# Worktrees isoles des agents : ils portent une copie complete du depot, que
+# `ruff format --check .` et `pytest` ramassent sinon -- un plan .md non formate
+# dans un worktree rendait `make check` rouge pour tout le monde (2026-09-19).
+.claude/
