@@ -8,10 +8,9 @@
 
 {% block css_page %}
 {% compress css %}
-{# La meme mise en page qu'aujourd'hui : `#page-wrapper` de sb-admin-2 pose le decalage #}
-{# sous le bandeau fixe, `libreosteo.css` porte `.search-entry` et `.extract`. Aucun #}
-{# fichier CSS n'est ajoute au depot : ce sont ceux que la coquille charge deja. #}
-<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
+{# La meme mise en page qu'aujourd'hui : `libreosteo.css` porte `#page-wrapper` (regle #}
+{# portee de `sb-admin-2.css` par D6g T4, qui a dereference cette feuille), le decalage #}
+{# sous le bandeau fixe, `.search-entry` et `.extract`. Aucun fichier CSS n'est ajoute. #}
 <link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
 {% endcompress %}
 {% endblock %}

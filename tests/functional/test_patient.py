@@ -167,7 +167,7 @@ def test_avertissement_d_homonyme_puis_creation(
     # La recherche ne voit toujours que les deux homonymes deja crees : la tentative
     # refusee n'a rien ajoute a l'index.
     page.fill("div.custom-search-form input", "Picard")
-    page.click("div.custom-search-form span > button")
+    page.click("div.custom-search-form button")
     expect(page.get_by_test_id("titre-recherche")).to_contain_text("Picard")
     expect(page.locator("div.search-entry")).to_have_count(2)
 

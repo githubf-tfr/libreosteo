@@ -38,10 +38,10 @@
 {% block titre %}{{ patient.family_name }} {{ patient.first_name }}{% endblock %}
 
 {% block css_page %}
-{# Les deux memes feuilles que les trois ecrans deja migres, et pour les memes raisons : #}
-{# `sb-admin-2.css` porte la mise en page de `#page-wrapper`, `libreosteo.css` le #}
-{# `padding-top: 50px` qui degage la barre fixe et les classes des vignettes #}
-{# (`.documenttile`, `.doc_thumbnail`). #}
+{# La meme feuille que les trois ecrans deja migres, et pour les memes raisons : #}
+{# `libreosteo.css` porte la mise en page de `#page-wrapper` (portee de `sb-admin-2.css` #}
+{# par D6g T4), le `padding-top: 50px` qui degage la barre fixe et les classes des #}
+{# vignettes (`.documenttile`, `.doc_thumbnail`). #}
 {# #}
 {# **Plus une troisieme, propre a cet ecran : `plugins/timeline/timeline.css`.** C'est la #}
 {# que vivent le rail vertical, les panneaux alternes et leurs fleches — les neuf classes #}
@@ -51,9 +51,8 @@
 {# chronologie tombe en `<ul>` nu. Les trois regles `.timeline*` de `libreosteo.css` sont #}
 {# des **surcharges** de celle-ci : elle vient donc avant. #}
 {# #}
-{# Aucun fichier CSS n'est ajoute au depot : les trois existent deja. #}
+{# Aucun fichier CSS n'est ajoute au depot : les deux existent deja. #}
 {% compress css %}
-<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
 <link href="{% static "css/plugins/timeline/timeline.css" %}" rel="stylesheet">
 <link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
 {% endcompress %}

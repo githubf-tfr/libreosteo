@@ -33,12 +33,30 @@ lieu d'un effet**. Le nom de la classe est la forme ; `position: relative` est l
 - que le navigateur applique la regle, ni ou l'encart atterrit reellement a l'ecran. Il lit
   une declaration, pas un pixel ; la passe manuelle au navigateur en repond ;
 - une regle **surchargee** ailleurs — par une feuille de style servie, par un style en
-  ligne, par une regle plus specifique : il lit `base.html` seul ;
+  ligne, par une regle plus specifique : il lit ses deux sources et rien d'autre, et ne
+  simule ni cascade ni specificite ;
 - les valeurs de gout (largeur, ombre, marge). Seules sont exigees les proprietes sans
   lesquelles le comportement change, et la raison est ecrite a cote de chacune ;
-- un CSS imbrique (`@media`, `@supports`, imbrication native) : le socle n'en porte
-  aucun, et l'analyseur ci-dessous est volontairement plat. Le jour ou il en portera un,
-  ce test devra etre repris plutot qu'etendu a l'aveugle.
+- un CSS imbrique autre que `@media` (`@supports`, imbrication native) : le socle n'en
+  porte aucun, et l'analyseur ci-dessous ne lit qu'un niveau d'imbrication. Le jour ou il
+  en portera un autre, ce test devra etre repris plutot qu'etendu a l'aveugle.
+
+**Reprise D6g T4 (2026-09-19), et c'est la clause ci-dessus qui la commande.** Les sept
+regles que la bascule Bootstrap 5 ajoute a ce cliquet vivent **toutes dans un `@media`** :
+le decalage sous la barre fixe, les trois correctifs d'affichage etroit et la mise en page
+de `#page-wrapper`. L'analyseur plat ne les aurait pas vues — il aurait lu leurs
+declarations **comme si elles etaient inconditionnelles**, confondant `body { padding-top:
+50px }` et le `body { padding-top: 0 }` de moins de 768 px. Trois changements, donc :
+
+1. `declarations()` decoupe les blocs `@media` **avant** son decoupage plat, et la clef
+   devient `"<condition> | <selecteur>"` — le selecteur nu restant la clef hors `@media`.
+   Deux tests de detecteur gardent cette forme neuve : un analyseur etendu sans test de
+   son extension est exactement la cecite que ce module existe pour empecher ;
+2. le module lit **deux** sources : le `<style>` de `base.html` **et**
+   `libreosteoweb/static/css/libreosteo.css`, ou D6g T4 a porte les quatre blocs vivants
+   de `sb-admin-2.css` (A2) et reecrit les correctifs d'affichage etroit (A4). Les deux
+   sont concatenees : ce qui est exige l'est du socle servi, pas d'un fichier nomme ;
+3. `EXIGENCES` gagne huit entrees, chacune avec la phrase qui dit ce qu'elle realise.
 
 **Revue R1 (2026-09-14, correctif D-1) :** le socle a porte un temps un `@media` pour
 `.lo-visite-encart`, et ce cliquet a ete etendu pour le lire. **Revue R2, le lendemain**
@@ -56,6 +74,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
 SOCLE = RACINE / "libreosteoweb" / "templates" / "base.html"
+FEUILLE = RACINE / "libreosteoweb" / "static" / "css" / "libreosteo.css"
 
 # Les proprietes sans lesquelles le comportement change, et **rien d'autre**. Chaque ligne
 # dit ce qu'elle realise ; une valeur de gout n'a rien a faire ici.
@@ -83,10 +102,37 @@ EXIGENCES: dict[str, dict[str, str]] = {
         "left": "50%",
         "transform": "translateX(-50%)",
     },
+    # Le blocage du defilement d'une modale ouverte. Bootstrap 5 ne porte plus de regle
+    # `.modal-open` : sa modale pose un style en ligne depuis un JavaScript que ce produit
+    # ne charge pas (D6g, A1). Sans cette ligne, `partials/modale.html` continuerait de
+    # poser et de retirer la classe sur <body> **sans que rien ne se passe**.
+    ".modal-open": {"overflow": "hidden"},
+    # Le decalage sous la barre fixe. Sans lui, le contenu demarre sous la barre.
+    "body": {"padding-top": "50px"},
+    # D-2 : sous 768 px la barre rentre dans le flux, et le decalage constant ci-dessus
+    # — dimensionne pour la barre repliee — ne la recouvre plus une fois deployee.
+    "(max-width: 767px) | body": {"padding-top": "0"},
+    "(max-width: 767px) | nav.fixed-top": {"position": "static"},
+    # D-3 : le menu deroulant reste dans le flux, donc la page defile jusqu'a
+    # « Deconnexion » ; en `absolute` il debordait d'un conteneur borne, sans barre de
+    # defilement visible, et le lien etait inatteignable au point rendu.
+    "(max-width: 767px) | .lo-barre-liens .dropdown-menu": {
+        "position": "static",
+        "float": "none",
+        "width": "auto",
+    },
+    # La mise en page des neuf ecrans, portee de sb-admin-2.css (A2, bloc 1).
+    "#page-wrapper": {"padding": "0 15px", "background-color": "#fff"},
+    "(min-width:768px) | #page-wrapper": {"padding": "0 30px"},
+    # D-5 : la barre laterale de la 404 est en `absolute` et recouvrait le titre. Scope a
+    # `#wrapper`, qui n'existe que dans 404.html : la forme non scopee deplacerait le
+    # tableau de bord, qui partage la feuille (garde-fou dans test_pages_erreur.py).
+    "(min-width:768px) | #wrapper #page-wrapper": {"margin-left": "250px"},
 }
 
 _COMMENTAIRE = re.compile(r"/\*.*?\*/", re.S)
 _BLOC_STYLE = re.compile(r"<style>(.*?)</style>", re.S)
+_MEDIA = re.compile(r"@media([^{]+)\{(.*?)\}\s*\}", re.S)
 
 
 def styles_du_socle(source_html: str) -> str:
@@ -94,15 +140,10 @@ def styles_du_socle(source_html: str) -> str:
     return "\n".join(_BLOC_STYLE.findall(source_html))
 
 
-def declarations(source_css: str) -> dict[str, dict[str, str]]:
-    """Selecteur → propriete → valeur, pour un CSS **plat**.
-
-    Les commentaires sont retires **avant** tout decoupage : une regle mise en commentaire
-    ne declare rien, et un analyseur qui la compterait rendrait le cliquet vert sur une
-    regle morte.
-    """
+def _plat(source_css: str) -> dict[str, dict[str, str]]:
+    """Selecteur → propriete → valeur, pour un CSS sans imbrication ni commentaire."""
     resultat: dict[str, dict[str, str]] = {}
-    for bloc in _COMMENTAIRE.sub(" ", source_css).split("}"):
+    for bloc in source_css.split("}"):
         if "{" not in bloc:
             continue
         selecteurs, corps = bloc.split("{", 1)
@@ -116,6 +157,35 @@ def declarations(source_css: str) -> dict[str, dict[str, str]]:
             nom = selecteur.strip()
             if nom:
                 resultat.setdefault(nom, {}).update(proprietes)
+    return resultat
+
+
+def declarations(source_css: str) -> dict[str, dict[str, str]]:
+    """Selecteur → propriete → valeur, un niveau d'imbrication `@media` compris.
+
+    La clef d'une regle posee dans un `@media` est `"<condition> | <selecteur>"` ; celle
+    d'une regle inconditionnelle est le selecteur nu. Les deux sont **distinctes** : le
+    meme selecteur des deux cotes porte deux exigences differentes, et les confondre
+    rendrait `body { padding-top: 50px }` indiscernable du `padding-top: 0` de l'affichage
+    etroit (D6g T4).
+
+    Les commentaires sont retires **avant** tout decoupage : une regle mise en commentaire
+    ne declare rien, et un analyseur qui la compterait rendrait le cliquet vert sur une
+    regle morte.
+    """
+    source = _COMMENTAIRE.sub(" ", source_css)
+    resultat: dict[str, dict[str, str]] = {}
+    hors_media: list[str] = []
+    fin = 0
+    for bloc in _MEDIA.finditer(source):
+        hors_media.append(source[fin : bloc.start()])
+        fin = bloc.end()
+        condition = " ".join(bloc.group(1).split())
+        for nom, proprietes in _plat(bloc.group(2)).items():
+            resultat.setdefault(f"{condition} | {nom}", {}).update(proprietes)
+    hors_media.append(source[fin:])
+    for nom, proprietes in _plat("".join(hors_media)).items():
+        resultat.setdefault(nom, {}).update(proprietes)
     return resultat
 
 
@@ -151,6 +221,19 @@ _CONFORME = """
       .lo-visite-encart { position: absolute; right: 100%; top: 0; width: 276px; }
       .lo-visite-encart--centree { position: fixed; top: 30%; left: 50%; right: auto;
         margin-right: 0; transform: translateX(-50%); }
+      .modal-open { overflow: hidden; }
+      body { padding-top: 50px; }
+      #page-wrapper { padding: 0 15px; min-height: 568px; background-color: #fff; }
+      @media (max-width: 767px) {
+          body { padding-top: 0; }
+          nav.fixed-top { position: static; }
+          .lo-barre-liens .dropdown-menu { position: static; float: none; width: auto;
+            margin-top: 0; background-color: transparent; border: 0; box-shadow: none; }
+      }
+      @media(min-width:768px) {
+          #page-wrapper { position: inherit; padding: 0 30px; }
+          #wrapper #page-wrapper { margin-left: 250px; }
+      }
 """
 
 
@@ -223,14 +306,60 @@ def test_le_detecteur_lit_un_selecteur_groupe() -> None:
     }
 
 
+def test_le_detecteur_lit_une_regle_dans_un_media() -> None:
+    source = "@media (max-width: 767px) { nav.fixed-top { position: static; } }"
+    assert declarations(source) == {
+        "(max-width: 767px) | nav.fixed-top": {"position": "static"}
+    }
+
+
+def test_le_detecteur_ne_confond_pas_une_regle_de_media_et_une_regle_nue() -> None:
+    """Le meme selecteur dans et hors `@media` porte deux exigences distinctes."""
+    source = "body { padding-top: 50px; } @media (max-width: 767px) { body { padding-top: 0; } }"
+    assert declarations(source) == {
+        "body": {"padding-top": "50px"},
+        "(max-width: 767px) | body": {"padding-top": "0"},
+    }
+
+
+def test_le_detecteur_lit_plusieurs_regles_dans_un_meme_media() -> None:
+    """Le `@media` du socle en porte trois : s'arreter a la premiere serait une cecite."""
+    source = (
+        "@media (max-width: 767px) { body { padding-top: 0; }\n"
+        "  nav.fixed-top { position: static; }\n"
+        "  .lo-barre-liens .dropdown-menu { position: static; } }"
+    )
+    assert declarations(source) == {
+        "(max-width: 767px) | body": {"padding-top": "0"},
+        "(max-width: 767px) | nav.fixed-top": {"position": "static"},
+        "(max-width: 767px) | .lo-barre-liens .dropdown-menu": {"position": "static"},
+    }
+
+
+def test_le_detecteur_signale_une_regle_de_media_absente() -> None:
+    """La forme neuve mord comme l'ancienne : un correctif d'affichage etroit retire est
+    exactement le mode d'echec que D6g a nomme le plus probable du lot (A4)."""
+    source = _CONFORME.replace("nav.fixed-top { position: static; }", "")
+    assert (
+        "(max-width: 767px) | nav.fixed-top",
+        "*",
+        "selecteur absent",
+    ) in manquantes(source, EXIGENCES)
+
+
 # --- Le cliquet -------------------------------------------------------------------------
 
 
-def test_les_regles_de_la_visite_guidee_sont_dans_le_socle() -> None:
-    source_css = styles_du_socle(SOCLE.read_text(encoding="utf-8"))
-    # Garde de cecite : un balayage qui ne lirait plus aucun style serait vert sans rien
-    # prouver — c'est exactement ce qui arriverait si le bloc `<style>` demenageait.
-    assert declarations(source_css), "aucune regle lue dans le `<style>` de base.html"
+def test_les_regles_de_socle_qui_font_un_comportement_sont_presentes() -> None:
+    en_ligne = styles_du_socle(SOCLE.read_text(encoding="utf-8"))
+    feuille = FEUILLE.read_text(encoding="utf-8")
+    # Garde de cecite, **par source** : un balayage qui ne lirait plus aucun style serait
+    # vert sans rien prouver — c'est exactement ce qui arriverait si le bloc `<style>`
+    # demenageait, ou si la feuille changeait de chemin. Les deux gardes sont separees :
+    # une seule couvrirait l'autre source par le seul fait que la premiere est lue.
+    assert declarations(en_ligne), "aucune regle lue dans le `<style>` de base.html"
+    assert declarations(feuille), "aucune regle lue dans libreosteo.css"
+    source_css = en_ligne + "\n" + feuille
 
     fautives = [
         "%s { %s } : %s" % (selecteur, propriete, constat)

@@ -61,7 +61,7 @@ def test_un_terme_absent_n_affiche_aucun_resultat(
     """
     connexion(page, live_server)
     page.fill("div.custom-search-form input", "Zzznotfound")
-    page.click("div.custom-search-form span > button")
+    page.click("div.custom-search-form button")
     expect(page.get_by_test_id("titre-recherche")).to_contain_text("Zzznotfound")
     expect(page.locator("div.search-entry")).to_have_count(0)
     expect(page.get_by_text("Aucun résultat trouvé.")).to_be_visible()
@@ -76,7 +76,7 @@ def test_la_pagination_change_de_page(page: Page, live_server: LiveServer) -> No
     semer_patients(12)
     connexion(page, live_server)
     page.fill("div.custom-search-form input", "Picard")
-    page.click("div.custom-search-form span > button")
+    page.click("div.custom-search-form button")
     expect(page.get_by_test_id("titre-recherche")).to_contain_text("Picard")
     expect(page.locator("div.search-entry")).to_have_count(10)
 
@@ -108,7 +108,7 @@ def test_la_session_expiree_renvoie_a_la_connexion(
     semer_patients(12)
     connexion(page, live_server)
     page.fill("div.custom-search-form input", "Picard")
-    page.click("div.custom-search-form span > button")
+    page.click("div.custom-search-form button")
     expect(page.get_by_test_id("page-suivante")).to_be_visible()
 
     # La session est invalidee cote navigateur : la requete htmx suivante partira sans

@@ -1,11 +1,25 @@
 {% load i18n %}
-{# Modale Bootstrap 3 **sans jQuery**. Le CSS seul ne suffit pas a afficher une modale : #}
-{# `.modal` est `display:none` et c'est le JS de Bootstrap qui pose `display:block`, la #}
-{# classe `in`, et cree l'element `.modal-backdrop` separe. Or ce JS exige jQuery #}
-{# (`static/js/bootstrap.js:7` leve « Bootstrap's JavaScript requires jQuery »), que les #}
-{# pages htmx ne chargent pas. Alpine pose donc lui-meme l'affichage, l'occultation et la #}
-{# classe `modal-open` du <body>, en reutilisant les classes de mise en forme de #}
-{# Bootstrap 3 : meme apparence, aucune ligne de jQuery (reconnaissance, § F.3). #}
+{# Modale Bootstrap **sans son JavaScript**. Le CSS seul ne suffit pas a afficher une #}
+{# modale : `.modal` est `display:none` et c'est le JS de Bootstrap qui pose #}
+{# `display:block`, la classe d'etat et l'element `.modal-backdrop` separe. Aucun #}
+{# JavaScript de Bootstrap n'est charge par ce produit — D6f a retire celui de la #}
+{# version 3 avec jQuery, et D6g n'apporte pas celui de la version 5 (A1). Alpine pose #}
+{# donc lui-meme l'affichage, l'occultation et la classe `modal-open` du <body>, en #}
+{# reutilisant les classes de mise en forme de Bootstrap : meme apparence, aucune ligne #}
+{# de JavaScript de framework (reconnaissance, § F.3). #}
+{# #}
+{# **D6g T4 — trois bascules, et une regle qui demenage.** `in` devient `show` sur #}
+{# l'occultation (sans `show`, Bootstrap 5 rend `.modal-backdrop` **opaque**, et non #}
+{# translucide : c'est `.modal-backdrop.show` qui pose `opacity: .5`). `close` devient #}
+{# `btn-close`, dont la croix est une **image de fond** : le `&times;` part, sans quoi #}
+{# elle serait doublee. Et la croix passe **apres** le titre dans le balisage, parce que #}
+{# `.modal-header` est desormais une boite flex et que `.modal-header .btn-close` porte #}
+{# `margin-left: auto` : placee avant, elle pousserait le titre a sa droite. #}
+{# ⚠️ **`.modal-open { overflow: hidden }` n'existe plus dans Bootstrap 5** — sa version 5 #}
+{# pose un style en ligne depuis son JavaScript, que ce produit ne charge pas. La regle #}
+{# vit desormais dans le `<style>` de `base.html`, seule feuille que **toutes** les pages #}
+{# portent, banc de composants compris. Le nom de classe, lui, ne bouge pas : il n'est #}
+{# dans aucune table de correspondance du lot. #}
 {# **`destroy()` n'est pas une precaution, il ferme une fuite mesuree** (revue D6e T8) : #}
 {# une modale se referme de deux facons, et une seule passait par `ouverte`. Le bouton #}
 {# « Annuler », la croix et la touche Echap posent `ouverte = false`, et le `$watch` retire #}
@@ -45,15 +59,15 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" aria-label="{% trans 'Close' %}"
-                  data-testid="fermer-modale" @click="ouverte = false">&times;</button>
           <h4 class="modal-title" id="titre-modale" data-testid="titre-modale">{{ titre }}</h4>
+          <button type="button" class="btn-close" aria-label="{% trans 'Close' %}"
+                  data-testid="fermer-modale" @click="ouverte = false"></button>
         </div>
         <div class="modal-body" data-testid="corps-modale">
           {% if gabarit_corps %}{% include gabarit_corps %}{% else %}{{ corps }}{% endif %}
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-testid="annuler-modale"
+          <button type="button" class="btn btn-secondary" data-testid="annuler-modale"
                   @click="ouverte = false">{{ libelle_annuler|default:_("Cancel") }}</button>
           {# `formulaire_confirmer` : identifiant d'un `<form>` que ce bouton soumet, #}
           {# declare par le corps de modale (D6d, E9). L'attribut HTML5 `form` sur un #}
@@ -71,5 +85,5 @@
       </div>
     </div>
   </div>
-  <div class="modal-backdrop in" x-show="ouverte" data-testid="occultation-modale"></div>
+  <div class="modal-backdrop show" x-show="ouverte" data-testid="occultation-modale"></div>
 </div>

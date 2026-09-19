@@ -20,29 +20,41 @@
 body { padding-top: 50px; }
 
 /* En dessous de 768 px (D-2, D-3 : KANBAN.md, Defauts verses par D6f) : la barre
-   "navbar-fixed-top" sort du flux et un decalage constant (`body` ci-dessus, dimensionne
+   "fixed-top" sort du flux et un decalage constant (`body` ci-dessus, dimensionne
    pour la barre repliee) ne suit pas sa hauteur reelle une fois deployee — elle recouvre
    alors le titre. Son menu utilisateur deroulant, en `position: absolute`, deborde en
-   plus du conteneur que Bootstrap 3 borne a 340 px, sans qu'aucun scrollbar visible ne le
+   plus du conteneur, sans qu'aucun scrollbar visible ne le
    signale : "Deconnexion" y est inatteignable au point rendu. Sous cette largeur, la barre
    et ses menus deroulants restent dans le flux normal du document : la page defile
    normalement jusqu'a n'importe quelle entree, et la hauteur reservee suit toujours la
-   hauteur reelle de la barre. */
+   hauteur reelle de la barre.
+
+   D6g T4 — ce que la bascule Bootstrap 5 change dans ce bloc, et ce qu'elle ne change pas :
+
+   1. `nav.navbar-fixed-top` devient `nav.fixed-top`. En Bootstrap 5 l'utilitaire de
+      position est independant de `navbar` ; le selecteur reste ancre sur `nav` pour ne
+      viser que la barre de `partials/menu.html`.
+   2. `.navbar-top-links` etait un nom de **SB Admin 2**, thème que ce lot supprime. La
+      regle nous appartient desormais et vit sous `.lo-barre-liens` (AP6). Le renommage
+      est sans effet sur le filet : le cliquet d'adressage interdit deja ces motifs.
+   3. `#headerNavbar.in { max-height: none; overflow-y: visible }` est **supprime, et non
+      porte**. Il n'existait que pour annuler le `.navbar-fixed-top .navbar-collapse
+      { max-height: 340px }` de Bootstrap 3 (bootstrap 3.2.0, feuille servie jusqu'ici).
+      Bootstrap 5.3.8 ne borne plus `.navbar-collapse` — son unique regle est
+      `.navbar-collapse{flex-grow:1;flex-basis:100%;align-items:center}`, et le seul
+      `max-height` du voisinage porte sur `.navbar-nav-scroll`, classe qu'aucun gabarit du
+      produit ne pose. Un correctif qui n'annule plus rien est du code mort (AP5, preuve
+      double au rapport de tache T4 : le test reste vert **et** la source est citee). */
 @media (max-width: 767px) {
     body {
         padding-top: 0;
     }
 
-    nav.navbar-fixed-top {
+    nav.fixed-top {
         position: static;
     }
 
-    #headerNavbar.in {
-        max-height: none;
-        overflow-y: visible;
-    }
-
-    .navbar-top-links .dropdown-menu {
+    .lo-barre-liens .dropdown-menu {
         position: static;
         float: none;
         width: auto;
@@ -50,6 +62,169 @@ body { padding-top: 50px; }
         background-color: transparent;
         border: 0;
         box-shadow: none;
+    }
+}
+
+/* ------------------------------------------------------------------------------------
+   Les blocs vivants de `css/sb-admin-2.css`, portes ici (A2, AP6).
+
+   SB Admin 2 meurt en tant que **theme** avec D6g : le fichier cesse d'etre charge par les
+   onze ecrans des cette tache (AP2), et T16 le supprimera. Seize de ses regles etaient deja
+   inatteignables (F4) ; ce qui suit est ce qui restait **vivant** et qui porte une **mise en
+   page**, jamais un theme — on ne reproduit pas les couleurs de SB Admin avec les variables
+   de Bootstrap 5 (§ Ecartes de la spec). Les commentaires d'origine sont conserves.
+
+   Ce qui n'est **pas** porte, et pourquoi (consommateur cherche, jamais le seul nom) :
+
+   - `body { background-color: #f8f8f8 }` et `#wrapper { width: 100% }`, les deux seules
+     regles de la feuille qui ne soient ni dans les seize inatteignables ni dans les quatre
+     blocs. La premiere est une **couleur de theme** (le fond gris autour de la zone de
+     contenu, qui reste blanche par `#page-wrapper` ci-dessous) : elle tombe sous l'ecart
+     explicite de la spec. La seconde est inerte — `#wrapper` est un `<div>`, donc deja
+     large de 100 %. Ecart declare au rapport de tache T4.
+   - `.navbar-top-links .dropdown-messages`, `.dropdown-tasks`, `.dropdown-alerts` : leur
+     unique consommateur est `404.html` (lignes 63, 115, 203), qui charge encore
+     `sb-admin-2.css` et dont A3/T16 remplace le menu fige par `{% include
+     "partials/menu.html" %}` — ces trois menus de demonstration disparaissent avec lui.
+     Les porter reviendrait a ecrire du code mort le jour ou il arrive.
+
+   ⚠️ Le bloc `.lo-barre-laterale*` ci-dessous est **inerte jusqu'a T16** : son unique
+   consommateur, `404.html`, est autonome (il n'etend pas `base.html` et ne charge pas cette
+   feuille) et continue de recevoir ces regles de `sb-admin-2.css`. Il est porte ici parce
+   que c'est T4 qui porte les quatre blocs ; c'est T16 qui renommera les classes du gabarit.
+   ------------------------------------------------------------------------------------ */
+
+/* Bloc 1 — la mise en page de neuf ecrans (sb-admin-2.css:15-26). */
+#page-wrapper {
+    padding: 0 15px;
+    min-height: 568px;
+    background-color: #fff;
+}
+
+@media(min-width:768px) {
+    #page-wrapper {
+        position: inherit;
+        padding: 0 30px;
+        border-left: 1px solid #e7e7e7;
+    }
+
+    /* Bloc 2 — D-5 (KANBAN.md, Defauts verses par D6f) : `.lo-barre-laterale` est en
+       `position: absolute` (plus bas dans ce fichier) et recouvre `#page-wrapper`, qui ne
+       porte aucun `margin-left`. Cette feuille est partagee par toutes les pages qui
+       utilisent `#page-wrapper` (tableau de bord compris), mais `#wrapper` n'existe que
+       dans `404.html` : seule cette page porte une barre laterale, et le selecteur, scope a
+       cet identifiant, ne peut donc pas deplacer les autres. */
+    #wrapper #page-wrapper {
+        margin-left: 250px;
+    }
+}
+
+/* Bloc 3 — la barre superieure et son menu deroulant (sb-admin-2.css:39-91), dont le
+   correctif D-3 ci-dessus depend. `navbar-top-links` -> `lo-barre-liens` et
+   `dropdown-user` -> `lo-menu-utilisateur` (AP6). */
+.lo-barre-liens li {
+    display: inline-block;
+}
+
+.lo-barre-liens li:last-child {
+    margin-right: 15px;
+}
+
+.lo-barre-liens li a {
+    padding: 15px;
+    min-height: 50px;
+}
+
+.lo-barre-liens .dropdown-menu li {
+    display: block;
+}
+
+.lo-barre-liens .dropdown-menu li:last-child {
+    margin-right: 0;
+}
+
+.lo-barre-liens .dropdown-menu li a {
+    padding: 3px 20px;
+    min-height: 0;
+}
+
+.lo-barre-liens .dropdown-menu li a div {
+    white-space: normal;
+}
+
+.lo-barre-liens .lo-menu-utilisateur {
+    /*right: 0;*/
+    left: auto;
+}
+
+/* Reprise du style de `navbar-right`, jeton **sans equivalent** en Bootstrap 5 (annexe A :
+   « le style est a reprendre, pas a renommer »). Bootstrap 3 alignait a droite les menus
+   deroulants d'une barre flottee a droite — `.navbar-right .dropdown-menu { right: 0;
+   left: auto }` — et c'est ce qui gardait le menu d'aide dans la fenetre. Sans cette
+   regle, les deux menus se deploient vers la droite depuis leur bouton et **sortent de
+   l'ecran** (mesure au navigateur, 1 280 px : le menu d'aide est coupe au bord droit).
+   Bootstrap 5 confie cet alignement a `.dropdown-menu-end`, dont les valeurs ne s'appliquent
+   que sous `[data-bs-popper]` — attribut que seul le JavaScript de Bootstrap ecrit, et
+   qu'aucune page de ce produit ne charge (A1). Le repere est le `<li class="dropdown">`,
+   `position: relative` en Bootstrap 5 comme en Bootstrap 3. */
+.lo-barre-liens .dropdown-menu {
+    right: 0;
+    left: auto;
+}
+
+/* Bloc 4 — la barre laterale de `404.html` seule (sb-admin-2.css:93-160). `sidebar`,
+   `sidebar-nav` et `sidebar-search` -> `lo-barre-laterale*` (AP6). `arrow`,
+   `nav-second-level` et `nav-third-level` gardent leur nom : la table de correspondance
+   les donne **sans equivalent**, ce sont des noms internes de l'arbre de `404.html`, et
+   c'est T16 qui decide de leur sort en migrant ce gabarit. */
+.lo-barre-laterale .lo-barre-laterale-nav.navbar-collapse {
+    padding-right: 0;
+    padding-left: 0;
+}
+
+.lo-barre-laterale .lo-barre-laterale-recherche {
+    padding: 15px;
+}
+
+.lo-barre-laterale ul li {
+    border-bottom: 1px solid #e7e7e7;
+}
+
+.lo-barre-laterale ul li a.active {
+    background-color: #eee;
+}
+
+.lo-barre-laterale .arrow {
+    float: right;
+}
+
+.lo-barre-laterale .fa.arrow:before {
+    content: "\f104";
+}
+
+.lo-barre-laterale .active>a>.fa.arrow:before {
+    content: "\f107";
+}
+
+.lo-barre-laterale .nav-second-level li,
+.lo-barre-laterale .nav-third-level li {
+    border-bottom: 0!important;
+}
+
+.lo-barre-laterale .nav-second-level li a {
+    padding-left: 37px;
+}
+
+.lo-barre-laterale .nav-third-level li a {
+    padding-left: 52px;
+}
+
+@media(min-width:768px) {
+    .lo-barre-laterale {
+        z-index: 1;
+        position: absolute;
+        width: 250px;
+        margin-top: 51px;
     }
 }
 

@@ -516,7 +516,11 @@ class TestVisiteGuidee(TestCase):
         # condition qui lit cette etape pour chacune, rang et garde `!etroit` compris.
         self.assertIn('x-if="visiteEtape === 1 && !etroit"', corps)
         self.assertIn('x-if="visiteEtape === 2 && !etroit"', corps)
-        self.assertIn('class="dropdown open"', corps)
+        # D6g T4 : le marquage serveur du menu ouvert est descendu du `<li>` parent vers
+        # le `.dropdown-menu` lui-meme — Bootstrap 5 stylle `.dropdown-menu.show`, et
+        # `.open > .dropdown-menu` n'existe plus. C'est la meme preuve, sur l'element qui
+        # porte desormais la charge.
+        self.assertIn('class="dropdown-menu lo-menu-utilisateur show"', corps)
         # Le menu ne se referme pas sous un clic exterieur tant que la visite dure : c'est
         # la parite du rabonnement de `tour.js:51` sur `hidden.bs.dropdown`. *Ce que cette
         # assertion ne voit pas : que le navigateur l'applique — elle lit un attribut, pas

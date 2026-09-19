@@ -88,6 +88,16 @@ MOTIFS_INTERDITS: dict[str, str] = {
     "angular-ui-router": r"\bui-sref\b|#/",
     "angular-loading-bar": r"loading-bar",
     "hallo": r"\bhallo\b|\.inPlaceholderMode\b",
+    # D6g, A12 : le cliquet ne vaut que s'il interdit le vocabulaire **courant**, pas
+    # seulement celui qu'on retire. Le jour de la bascule, un cliquet qui ne connaitrait que
+    # Bootstrap 3 deviendrait un gardien du passe laissant entrer le present. Quatre
+    # familles neuves ; les deux autres que l'arbitrage nomme sont **deja** couvertes et
+    # c'est verifie : `.btn-close` par `bootstrap-bouton` (`\.btn(?:-[a-z0-9]+)?\b`) et
+    # `.text-bg-*` par `bootstrap-texte` (`\.text-[a-z]+\b`).
+    "bootstrap5-carte": r"\.card(?:-[a-z]+)?\b",
+    "bootstrap5-formulaire": r"\.form-(?:check|label|text|select|switch)[a-z-]*\b",
+    "bootstrap5-accessibilite": r"\.visually-hidden(?:-focusable)?\b",
+    "bootstrap5-grille": r"\.offset(?:-[a-z]{2})?-\d+\b",
 }
 
 # Exemption close : les deux seules fonctions autorisees a nommer encore un rouage, parce

@@ -8,14 +8,21 @@
 {# `x-if` (et non `x-show`) : la fermeture et l'expiration doivent retirer la notification #}
 {# du DOM, pas seulement l'occulter derriere `display:none` — un test qui compte les #}
 {# elements par `data-testid` (falsifiabilite, T6) ne verrait jamais la disparition sinon. #}
+{# D6g T4 : `close` devient `btn-close`, dont la croix est une **image de fond** — le #}
+{# `&times;` part, sans quoi elle serait doublee, et `aria-label` devient la seule #}
+{# etiquette accessible du bouton. `alert-dismissible` est ajoutee avec elle : Bootstrap 3 #}
+{# sortait la croix du flux par `.close { float: right }`, que Bootstrap 5 ne pose plus. #}
+{# C'est desormais `.alert-dismissible .btn-close` qui la place en haut a droite, et #}
+{# `.alert-dismissible` qui degage la gouttiere qui l'accueille. Sans elle, la croix #}
+{# s'intercalerait dans le flux, avant le message. #}
 <div x-data="{ visible: true }" x-init="setTimeout(() => visible = false, 5000)">
   <template x-if="visible">
-    <div class="lo-notification alert {{ classe }}"
+    <div class="lo-notification alert alert-dismissible {{ classe }}"
          role="alert"
          data-severite="{{ severite }}"
          data-testid="notification">
-      <button type="button" class="close" aria-label="{% trans 'Close' %}"
-              data-testid="fermer-notification" @click="visible = false">&times;</button>
+      <button type="button" class="btn-close" aria-label="{% trans 'Close' %}"
+              data-testid="fermer-notification" @click="visible = false"></button>
       <div class="lo-notification-corps">{{ message }}</div>
     </div>
   </template>

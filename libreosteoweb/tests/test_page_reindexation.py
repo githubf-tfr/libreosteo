@@ -62,7 +62,10 @@ class TestPageReindexation(TestCase):
 
     def test_le_menu_pointe_vers_la_page_et_non_vers_un_etat_angular(self):
         corps = self.client.get(reverse("reindexation")).content.decode("utf-8")
-        self.assertIn('<li id="rebuild-index"><a href="/office/rebuild-index">', corps)
+        self.assertIn(
+            '<li id="rebuild-index"><a class="dropdown-item" href="/office/rebuild-index">',
+            corps,
+        )
         self.assertNotIn("/#/office/rebuild-index", corps)
 
 

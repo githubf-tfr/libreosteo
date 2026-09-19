@@ -20,7 +20,7 @@ l'extension apportee par D6e a **deux moities**, et une seule des deux se voit a
 - La moitie *runtime* — un onglet que la vue ne construit pas est absent, une ecriture sur
   la variable Alpine `actif` change le panneau — est prouvee par
   `tests/functional/test_socle_composants.py::test_l_onglet_conditionnel_et_l_activation_programmatique`.
-- La moitie *serveur* — **quel** onglet porte `class="active"` dans les octets rendus, donc
+- La moitie *serveur* — **quel** onglet porte `active` dans les octets rendus, donc
   ce que la barre affiche entre le rendu et le demarrage d'Alpine, charge en `defer` — ne
   se mesure pas dans un navigateur : le temps qu'une assertion Playwright s'execute, Alpine
   a demarre et a repris la main sur la barre. Elle se mesure ici, sur le rendu.
@@ -38,6 +38,10 @@ un onglet dont le `@click` ecrirait le libelle au lieu de la cle font tous rougi
 
 Ce qu'ils ne regardent pas : aucune classe de presentation autre que `active`, aucun CSS,
 et rien du comportement d'Alpine — c'est le banc qui s'en charge.
+
+**D6g T4** : le marquage serveur a quitte le `<li>` pour le `<a>` (Bootstrap 5 stylle
+`.nav-tabs .nav-link.active`). Les cinq attendus ci-dessous sont inchanges **a l'octet** :
+ce qui est mesure est quel onglet la barre designe, pas quel element porte la marque.
 """
 
 from __future__ import annotations
@@ -49,7 +53,8 @@ from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 
 # Un onglet, tel que ce fichier le relit : la cle ecrite par le `@click`, la cle relue par
-# la liaison `:class`, le libelle, et le marquage pose par le serveur.
+# la liaison `:class`, le libelle, et le marquage pose par le serveur — les quatre sur le
+# `<a>` depuis D6g T4.
 Onglet = tuple[str, str, str, bool]
 
 TROIS_ONGLETS = [
@@ -64,13 +69,20 @@ _CLE_DU_X_CLASS = re.compile(r"actif === '([^']*)'")
 
 class _LecteurDeBarre(HTMLParser):
     """Relit la barre rendue. Un analyseur, et non une expression reguliere sur tout le
-    document : ce qui est mesure est la valeur de l'attribut `class` **de chaque `<li>`**,
-    pas la presence du mot « active » quelque part dans les octets."""
+    document : ce qui est mesure est la valeur de l'attribut `class` **de chaque `<a>`
+    d'onglet**, pas la presence du mot « active » quelque part dans les octets.
+
+    D6g T4 : les trois marques lues ici — le `@click` qui ecrit la cle, la liaison
+    `:class` qui la relit, et le marquage serveur — vivaient sur le `<li>` pour deux
+    d'entre elles ; Bootstrap 5 stylle `.nav-tabs .nav-link.active`, donc elles ont
+    **toutes les trois** rejoint le `<a>`. Le `<li>` reste ce qu'il etait : le porteur
+    facultatif de l'identifiant que quatre sites du filet cliquent."""
 
     def __init__(self) -> None:
         super().__init__()
         self.onglets: list[Onglet] = []
-        self._marque: bool | None = None
+        self._dans_li = False
+        self._marque = False
         self._cle_relue = ""
         self._cle_ecrite = ""
         self._libelle: str | None = None
@@ -78,10 +90,11 @@ class _LecteurDeBarre(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributs = {nom: (valeur or "") for nom, valeur in attrs}
         if tag == "li":
+            self._dans_li = True
+        elif tag == "a" and self._dans_li:
             self._marque = "active" in attributs.get("class", "").split()
             relue = _CLE_DU_X_CLASS.search(attributs.get(":class", ""))
             self._cle_relue = relue.group(1) if relue else ""
-        elif tag == "a" and self._marque is not None:
             ecrite = _CLE_DU_CLICK.search(attributs.get("@click.prevent", ""))
             self._cle_ecrite = ecrite.group(1) if ecrite else ""
             self._libelle = ""
@@ -97,12 +110,13 @@ class _LecteurDeBarre(HTMLParser):
                     self._cle_ecrite,
                     self._cle_relue,
                     self._libelle.strip(),
-                    bool(self._marque),
+                    self._marque,
                 )
             )
             self._libelle = None
         elif tag == "li":
-            self._marque = None
+            self._dans_li = False
+            self._marque = False
 
 
 def lire_la_barre(rendu: str) -> list[Onglet]:

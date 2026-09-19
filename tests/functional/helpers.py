@@ -259,7 +259,10 @@ def creer_patient(
 
 def rechercher_patient(page: Page, nom: str) -> None:
     page.fill("div.custom-search-form input", nom)
-    page.click("div.custom-search-form span > button")
+    # D6g T4 : le bouton n'est plus enveloppe d'un `<span>`. `input-group-btn` disparait
+    # sans equivalent en Bootstrap 5, ou le bouton d'un groupe est un **enfant direct** du
+    # groupe — l'envelopper casserait la soudure des bords. L'ancre, elle, ne bouge pas.
+    page.click("div.custom-search-form button")
     expect(page.get_by_test_id("titre-recherche")).to_contain_text(nom)
     page.click("div.search-entry > h4 > a")
     # **Le motif de cette barriere a change avec D6e T12, elle reste juste.** Le clic sur un

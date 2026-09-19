@@ -87,9 +87,17 @@ def _classe_de_l_onglet(html: str, cle: str) -> str:
 
     Elle lit l'attribut, pas la balise : `:class` porte le mot « active » dans les cinq
     entrees, et une recherche de sous-chaine y serait satisfaite en permanence.
+
+    D6g T4 : la classe lue est celle du `<a>`, et non plus celle du `<li>`. Bootstrap 5
+    stylle `.nav-tabs .nav-link.active` la ou Bootstrap 3 stylait `.nav-tabs > li.active`,
+    et le marquage serveur a suivi. Le `<li>` ne porte plus que `nav-item` et son
+    identifiant — qui, lui, n'a pas bouge : quatre sites du filet le cliquent.
     """
-    balise = _attributs_de(html, 'id="%s"' % cle)
-    trouve = re.search(r'\sclass="([^"]*)"', balise)
+    reste = html.split('id="%s"' % cle, 1)
+    if len(reste) == 1:
+        return ""
+    lien = _BALISE.search(reste[1])
+    trouve = re.search(r'\sclass="([^"]*)"', lien.group(0)) if lien else None
     return trouve.group(1) if trouve else ""
 
 
@@ -1349,10 +1357,10 @@ class TestEtatInitialDAlpine(_SocleDuDossier):
         # `<li>` porte `:class="{ 'active': actif === '…' }"`, donc le mot y figure
         # **quoi qu'il arrive** — mesure faite, l'assertion passait sur l'onglet `general`.
         # C'est la quinzieme preuve creuse de ce lot, et elle a ete trouvee en revue.
-        self.assertEqual(_classe_de_l_onglet(html, "examinations"), "active")
+        self.assertEqual(_classe_de_l_onglet(html, "examinations"), "nav-link active")
         for autre in ("general", "history", "medicalreports"):
             with self.subTest(onglet=autre):
-                self.assertEqual(_classe_de_l_onglet(html, autre), "")
+                self.assertEqual(_classe_de_l_onglet(html, autre), "nav-link")
 
     def test_le_volet_en_cours_pose_l_etat_d_edition(self) -> None:
         """Sans lui, le titre resterait ouvrable pendant la saisie d'une consultation —

@@ -7,12 +7,11 @@
 
 {% block css_page %}
 {% compress css %}
-{# La meme mise en page qu'aujourd'hui : `#page-wrapper` de sb-admin-2 pose le decalage #}
-{# sous le bandeau fixe, `libreosteo.css` porte les regles propres au produit. Aucun #}
-{# fichier CSS n'est ajoute au depot : ce sont ceux que la coquille charge deja, et que #}
-{# `search.html` (D6c) charge de la meme facon. Le bloc `compress` ne porte **aucune** #}
+{# La meme mise en page qu'aujourd'hui : `libreosteo.css` porte `#page-wrapper` (regle #}
+{# portee de `sb-admin-2.css` par D6g T4, qui a dereference cette feuille), le decalage #}
+{# sous le bandeau fixe et les regles propres au produit. Aucun fichier CSS n'est ajoute #}
+{# au depot, et `search.html` (D6c) charge la meme. Le bloc `compress` ne porte **aucune** #}
 {# condition : le cliquet de compression l'interdit, et D6g posera COMPRESS_OFFLINE. #}
-<link href="{% static "css/sb-admin-2.css" %}" rel="stylesheet">
 <link href="{% static "css/libreosteo.css" %}" rel="stylesheet"/>
 {% endcompress %}
 {% endblock %}

@@ -3816,11 +3816,47 @@ opposable ; un écart se corrige, il ne s'absorbe pas.
 **Étapes**
 
 1. Se connecter, puis rester sur l'URL racine, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T4>
+   Attendu : la barre de navigation occupe toute la largeur, fond gris très clair, et elle
+   reste collée en haut au défilement. De gauche à droite : la marque **LibreOsteo**, puis
+   les deux entrées **Nouveau patient** et **Comptabilité**, chacune précédée de son icône.
+   Le bouton de repli (hamburger) n'est **pas** visible à cette largeur. À droite, dans cet
+   ordre : le champ **Recherche…** soudé à son bouton loupe gris, puis **test** précédé de
+   l'icône de silhouette, puis l'icône **?**. Ces deux dernières entrées portent **une
+   seule** flèche vers le bas chacune, jamais deux. Le titre **Tableau de bord** commence
+   sous la barre, sans être recouvert.
+   Cliquer sur **test** : le menu s'ouvre **aligné sur le bord droit de son entrée**, sans
+   sortir de la fenêtre. Ses entrées tiennent chacune sur **une seule ligne** et ne
+   débordent pas de la boîte blanche — *Profil utilisateur*, *Paramètres*, *Import/export*,
+   *Réindexer*, un trait de séparation, puis *Déconnexion*. Le survol d'une entrée la
+   surligne. (Une sixième entrée, *Changer de cabinet*, n'apparaît que si plus d'une fiche
+   cabinet existe.)
+   Cliquer sur **?** : le menu d'aide s'ouvre au même endroit, **entièrement dans la
+   fenêtre**, avec ses entrées *Site vitrine*, *Support communautaire*, *Code et
+   développement*, un trait de séparation, *Version <numéro>* en gris atténué, puis
+   *Hébergement LibreOsteo* sur fond vert. La pastille bleue **1** n'apparaît sur l'icône
+   **?** que lorsqu'une nouvelle version est disponible.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T4>
+   Attendu : la barre **sort du flux fixe** et se place en tête de document — le titre
+   *Tableau de bord* n'est plus recouvert. La marque **LibreOsteo** occupe la première
+   ligne et le bouton de repli la seconde, sous elle, en flux de bloc ordinaire (attendu
+   tranché en D6g T3, ci-dessus).
+   Cliquer sur le bouton de repli : les deux entrées de gauche apparaissent empilées, puis
+   **test** et **?** côte à côte, puis le champ de recherche — c'est l'ordre du document,
+   celui d'avant la bascule. Ouvrir **test** : le menu se déploie **dans le flux**, sans
+   fond ni bordure propres, la page s'allonge d'autant, et **Déconnexion** s'atteint en
+   faisant défiler la page. Aucune entrée n'est masquée derrière un bord.
 
-**Ne couvre pas** : <écrit par T4>
+**Ne couvre pas** : le contenu du tableau de bord (R-VIS-13), qui n'est **pas** migré à ce
+stade — ses tuiles colorées, ses grands chiffres et son panneau d'évènements se rendent sans
+mise en forme entre D6g T4 et D6g T13, et c'est attendu. Ni la modale, la notification, les
+onglets et l'encart de visite guidée, qui appartiennent au même socle mais se recettent sur
+les écrans qui les émettent.
+
+⚠️ **Ce que la bascule change à l'écran et qui n'est pas un défaut** : les liens de la barre
+sont désormais **soulignés**, la marque touche le bord gauche de la fenêtre, et le fond gris
+qui entourait la zone de contenu a disparu (il venait de `sb-admin-2.css`, thème supprimé par
+D6g). C'est le rendu de **Bootstrap 5 nu**, que le lot assume (§ Écartés de la spec) : on ne
+reproduit pas les couleurs de SB Admin.
 
 ### R-VIS-04 — Socle visuel : résultats de recherche
 

@@ -44,13 +44,19 @@ from libreosteoweb.tests.fixtures import (
 
 
 def _onglet_marque_actif(html: str) -> str:
-    """La cle du seul onglet dont le `<li>` porte `class="active"` dans le HTML rendu."""
+    """La cle du seul onglet dont le `<a>` porte `active` dans le HTML rendu.
+
+    D6g T4 : le marquage serveur a quitte le `<li>` pour le `<a>`, parce que Bootstrap 5
+    stylle `.nav-tabs .nav-link.active` et non plus `.nav-tabs > li.active > a`. Le
+    **comportement** mesure ici ne change pas d'un iota — quel onglet la barre designe
+    avant qu'Alpine ne demarre —, seul l'element qui porte la marque a bouge.
+    """
     marques = re.findall(
-        r'<li[^>]*class="active"[^>]*>.*?@click\.prevent="[^"]*actif = \'([^\']+)\'',
+        r'<a[^>]*class="nav-link active"[^>]*@click\.prevent="[^"]*actif = \'([^\']+)\'',
         html,
         re.DOTALL,
     )
-    assert len(marques) == 1, 'un seul onglet doit porter class="active" : %r' % marques
+    assert len(marques) == 1, "un seul onglet doit porter `active` : %r" % marques
     return marques[0]
 
 

@@ -1,6 +1,14 @@
-{# Composant d'onglets (D6d, A10) : le balisage `nav nav-tabs` de Bootstrap 3, dont le CSS #}
+{# Composant d'onglets (D6d, A10) : le balisage `nav nav-tabs` de Bootstrap, dont le CSS #}
 {# existe deja, pilote par Alpine. Il naît avec le profil (deux onglets) et sert au #}
 {# cabinet (deux) puis a l'import (trois). #}
+{# #}
+{# **D6g T4 — la barre change de forme, pas de comportement.** Bootstrap 3 marquait #}
+{# l'onglet actif par `active` sur le `<li>` ; Bootstrap 5 le marque sur le `<a>`, qui #}
+{# porte en outre `nav-link`, et le `<li>` porte `nav-item` (`.nav-tabs .nav-link.active`). #}
+{# Le marquage serveur et la liaison `:class` **descendent ensemble** sur le `<a>` : les #}
+{# desaccorder ferait clignoter la barre au demarrage d'Alpine. Les identifiants de `<li>` #}
+{# ne bougent pas (`#general`, `#history`, `#medicalreports`, `#examinations`, #}
+{# `#current-examination`), ni `role="presentation"`, ni `role="tab"`, ni les libelles. #}
 {# #}
 {# Contrat, honore par les trois pages : le contexte porte `onglets`, une liste de #}
 {# dictionnaires `{"cle": …, "libelle": …}` **construite par la vue** (une liste ne se #}
@@ -65,8 +73,7 @@
 {# conservees a l'octet. Les trois ecrans de D6d n'en posent pas et ne changent pas. #}
 <ul class="nav nav-tabs" role="tablist">
   {% for onglet in onglets %}
-  <li role="presentation"{% if onglet.id %} id="{{ onglet.id }}"{% endif %} class="{% if actif_initial and onglet.cle == actif_initial or not actif_initial and forloop.first %}active{% endif %}"
-      :class="{ 'active': actif === '{{ onglet.cle }}' }">
+  <li class="nav-item" role="presentation"{% if onglet.id %} id="{{ onglet.id }}"{% endif %}>
     {# Le libelle **est** l'adressage : `test_import_csv.py` clique #}
     {# `a:has-text("Importer d'un système externe")`, six fois. Les onglets restent donc #}
     {# des `<a>` portant leur libelle exact (C3). #}
@@ -78,7 +85,9 @@
     {# un **nom de methode** declaree dans le `x-data` de l'appelant, jamais une expression #}
     {# a apostrophes : celles-ci traverseraient l'echappement de Django en entites, que #}
     {# `getAttribute` redecoderait — ca marche, mais ca se lit mal et ca se casse en silence. #}
-    <a href="#" role="tab" @click.prevent="{% if avant_changement %}{{ avant_changement }}; {% endif %}actif = '{{ onglet.cle }}'">{{ onglet.libelle }}</a>
+    <a href="#" class="nav-link{% if actif_initial and onglet.cle == actif_initial or not actif_initial and forloop.first %} active{% endif %}"
+       :class="{ 'active': actif === '{{ onglet.cle }}' }"
+       role="tab" @click.prevent="{% if avant_changement %}{{ avant_changement }}; {% endif %}actif = '{{ onglet.cle }}'">{{ onglet.libelle }}</a>
   </li>
   {% endfor %}
 </ul>

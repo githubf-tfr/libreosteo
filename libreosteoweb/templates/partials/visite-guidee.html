@@ -41,20 +41,21 @@
     <div data-testid="visite-contenu">{% trans "In order to generate invoices correctly, the office information must be updated." %}</div>
     {% endif %}
     <div>
-      {# Trois boutons et un separateur, repris a l'octet du gabarit de `tour.js:24`. #}
+      {# Trois boutons et un separateur, repris du gabarit de `tour.js:24` ; seul le nom de #}
+      {# la classe de bouton a change avec Bootstrap 5 (`btn-default` -> `btn-secondary`). #}
       {# L'attribut `disabled` est pose **par le serveur** pour l'etape rendue, et Alpine #}
       {# ne reprend la main que sur l'etape qu'il monte lui-meme : une seule autorite. #}
-      <button type="button" class="btn btn-default" data-testid="visite-precedent"
+      <button type="button" class="btn btn-secondary" data-testid="visite-precedent"
               {% if etape.rang == 1 %}disabled{% endif %}
               :disabled="visiteEtape <= 1"
               @click="visiteEtape = visiteEtape - 1">{% trans "Previous step" %}</button>
       <span>|</span>
-      <button type="button" class="btn btn-default" data-testid="visite-suivant"
+      <button type="button" class="btn btn-secondary" data-testid="visite-suivant"
               {% if etape.rang == etape.total %}disabled{% endif %}
               :disabled="visiteEtape >= visiteTotal"
               @click="visiteEtape = visiteEtape + 1">{% trans "Next step" %}</button>
       {# `onEnd` de `tour.js:26-33` refermait le menu utilisateur : la parite est ici. #}
-      <button type="button" class="btn btn-default" data-testid="visite-terminer"
+      <button type="button" class="btn btn-secondary" data-testid="visite-terminer"
               @click="visiteEtape = 0; menuUtilisateur = false">{% trans "Finish" %}</button>
     </div>
   </div>

@@ -21,7 +21,7 @@
     <title>{% block titre %}LibreOsteo{% endblock %}</title>
 
     {% compress css %}
-    <link href="{% static "css/bootstrap.min.css" %}" rel="stylesheet">
+    <link href="{% static "components/bootstrap/dist/css/bootstrap.min.css" %}" rel="stylesheet">
     <link href="{% static "font-awesome/css/font-awesome.min.css" %}" rel="stylesheet">
     {% endcompress %}
     {% block css_page %}{% endblock %}
@@ -29,9 +29,27 @@
     {# A11 : zone de notification fixe haut-droite, largeur 250px, empilement. Legs du #}
     {# CSS d'angular-growl (position:fixed; top:10px; right:10px; width:250px), que seule #}
     {# la coquille chargeait. Aucun fichier CSS ne s'ajoute (perimetre exclu). #}
+    {# D6g T4 : le `z-index` passe de 1050 a 1055, et c'est une **parite**, pas un gout. #}
+    {# Bootstrap 3 empilait occultation 1040 < notification 1050 = modale 1050 : une #}
+    {# notification passait au-dessus du voile noir et sous la modale, que le DOM place #}
+    {# apres elle. Bootstrap 5 remonte l'occultation a 1050 (`--bs-backdrop-zindex`) et la #}
+    {# modale a 1055 (`--bs-modal-zindex`) : a 1050, la notification serait desormais #}
+    {# **derriere le voile**, invisible des qu'une modale est ouverte. 1055 rend les trois #}
+    {# memes rapports qu'avant. #}
     <style>
-      .lo-notifications { position: fixed; top: 10px; right: 10px; width: 250px; z-index: 1050; }
+      .lo-notifications { position: fixed; top: 10px; right: 10px; width: 250px; z-index: 1055; }
       .lo-notification { margin-bottom: 10px; }
+      /* D6g T4 : `.modal-open { overflow: hidden }` etait une regle de Bootstrap 3 ;
+         Bootstrap 5 ne la porte plus — sa modale bloque le defilement par un style en
+         ligne, pose depuis son JavaScript, qu'aucune page de ce produit ne charge (A1).
+         `partials/modale.html` continue de poser et de retirer cette classe sur <body>,
+         et deux tests fonctionnels mesurent le defilement qui en depend
+         (`test_socle_composants.py`). La regle vit ici, et non dans `libreosteo.css`, pour
+         la meme raison que les quatre autres : c'est la seule feuille que **toutes** les
+         pages portent, banc de composants compris — `libreosteo.css` n'est chargee que par
+         les onze ecrans, via leur bloc `css_page`. Le nom de classe ne bouge pas : il
+         n'appartient a aucune table de correspondance du lot. */
+      .modal-open { overflow: hidden; }
       /* D6e : le placeholder du texte riche est du CSS, et ne peut donc jamais vider
          le champ. `hallo` comparait l'HTML au placeholder et vidait en cas d'egalite — or
          le placeholder **est** le libelle du champ. */
@@ -40,10 +58,15 @@
       /* D6f, AR2 : l'encart de visite guidee. Ancre a l'entree de menu qu'il designe —
          `position: relative` sur la cible, `right: 100%` sur l'encart —, donc sans moteur
          de positionnement ni mesure. Le CSS de `bootstrap-tour` disparait avec jQuery ;
-         ces regles le remplacent. La largeur est celle du `.popover` de Bootstrap 3. */
+         ces regles le remplacent. La largeur est celle du `.popover` de Bootstrap 5
+         (`--bs-popover-max-width: 276px`) -- la meme valeur qu'en Bootstrap 3, verifiee
+         sur la feuille servie, donc rien a reprendre de ce cote. Le `z-index`, lui,
+         change : le popover passe de 1060 a 1070 (`--bs-popover-zindex`), et l'encart
+         imite un popover. Il doit rester au-dessus de la barre fixe (1030) et de la
+         modale (1055), ce que 1070 donne comme 1060 le donnait sous Bootstrap 3. */
       .lo-visite-cible { position: relative; }
       .lo-visite-encart { position: absolute; right: 100%; top: 0; margin-right: 10px;
-        width: 276px; z-index: 1060; background: #fff; color: #333; text-align: left;
+        width: 276px; z-index: 1070; background: #fff; color: #333; text-align: left;
         white-space: normal; padding: 9px 14px; border: 1px solid rgba(0,0,0,.2);
         border-radius: 6px; box-shadow: 0 5px 10px rgba(0,0,0,.2); }
       /* Repli (c) d'AR2, ecrit d'avance : la meme boite, centree, pour une cible absente.
