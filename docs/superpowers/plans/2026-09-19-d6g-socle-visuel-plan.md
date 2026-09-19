@@ -285,6 +285,46 @@ qui sait que seules six choses changent lit six choses.
 
 ## Patron des onze tâches d'écran (T5–T15)
 
+> ⚠️ **Angle mort du lot, mesuré à la revue de T15 (2026-09-19) : le script ne voit pas tout.**
+> `outils/rupture_bs5.py` ne balaie que `libreosteoweb/templates/**/*.html`. **Des classes
+> Bootstrap 3 sont posées depuis Python**, dans les `widget.attrs` des vues de `api/views/pages/`,
+> et lui sont invisibles. Un écran déclaré « 0 occurrence » l'est donc **au périmètre du
+> script**, pas au périmètre de l'écran. Avant de déclarer un écran à zéro, passer aussi :
+>
+> ```bash
+> grep -n "input-sm\|input-lg\|form-group\|help-block\|btn-default\|btn-xs\|panel" \
+>   libreosteoweb/api/views/pages/<ecran>.py
+> ```
+>
+> Relevé déjà fait : **T9** → `nouveau_patient.py:97,113` (`input-lg` ×2) ; **T12** →
+> `profil.py:52` (`input-lg`) ; **T14** → `cabinet.py:117` (`input-lg`). `dossier_patient.py`
+> et `consultation.py` en gardent **sept**, que T15 laisse derrière lui — ⚠️ dont une figée par
+> un test unitaire, `test_page_dossier_patient.py:224`, qui **exige** `class="form-control
+> input-sm"` sur dix champs : la classe morte y est un attendu, pas un oubli.
+>
+> ⚠️ **Trois autres pièges, tous mesurés sur des tâches déjà closes :**
+> 1. **`card` est une boîte flex colonne.** Après tout `panel|well|thumbnail → card`, **tout
+>    `float` posé sur un enfant direct meurt en silence**, et tout enfant sans largeur
+>    s'étire. Lister les enfants **directs** de la carte et chercher dans `libreosteo.css` un
+>    `float`, un `text-align` ou une largeur implicite qu'ils tenaient de leur ancien
+>    contexte. `align-self-start`, `flex-row`, ou une enveloppe `d-flex` sont les réponses.
+> 2. **Une correspondance de l'annexe A porte une précondition tacite sur l'élément.**
+>    Regarder ce que l'élément **contient** et ce qu'il **est**, pas seulement le jeton.
+>    `close → btn-close` ne vaut que pour un bouton dont le contenu **est** le glyphe `×` ;
+>    `radio|checkbox → form-check` suppose `form-check-input` et `form-check-label` sur les
+>    enfants.
+> 3. **L'orphelinage des règles se vérifie par construction, pas règle par règle** : extraire
+>    tous les sélecteurs de `libreosteo.css`, croiser leurs jetons avec **toutes** les classes
+>    posées par les gabarits (`class=` **et** `:class=` Alpine), comparer l'ensemble des
+>    orphelines avant/après. Le delta doit être vide. C'est aussi ainsi qu'on repère une règle
+>    qui appartient à **un autre écran** et qu'on s'apprête à casser — ⚠️ pour **T14** :
+>    `.radio.cancelinginvoice` (`libreosteo.css:663`) a pour unique consommateur
+>    `cabinet-general.html`.
+>
+> ⚠️ **Et la fiche de recette se relit contre sa propre capture avant le commit** : T15 a versé
+> deux attendus que le PNG du même commit démentait.
+
+
 **Ce patron est normatif.** Chaque tâche T5–T15 réécrit ses étapes en entier avec ses propres
 valeurs ; le patron dit ce que ces étapes signifient et ne se substitue à aucune d'elles.
 
