@@ -5,6 +5,17 @@
                  <div class="card card-body">
                      <p>{% trans 'You can restore a previous archive of the database. This archive should be performed from the software with the Import/Export/Archive function.' %}</p>
                  </div>
+                 {# La restauration purge l'index de recherche sans le reconstruire #}
+                 {# (D10, C3, A5) : une reconstruction synchrone dans cette requete #}
+                 {# heurterait le plafond de 180 s mesure a R-RCH-02. Le dire ici, #}
+                 {# avant l'action, est la seule surface disponible : une restauration #}
+                 {# reussie rend 204 + HX-Redirect vers « / » et quitte cette page. Le #}
+                 {# message nomme l'entree de menu, pas une URL : cet ecran se joue #}
+                 {# depuis /install/, sans authentification, et un lien vers la page de #}
+                 {# reindexation renverrait a la connexion. #}
+                 <div class="card card-body">
+                     <p>{% trans 'After a restore, the search index is emptied: rebuild it from the user menu, entry « Rebuild index ».' %}</p>
+                 </div>
                 <div>
                     <div class="">
                         {# Conteneur **neutre et vide** : c'est la reponse qui porte le #}
