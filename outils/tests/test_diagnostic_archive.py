@@ -32,7 +32,10 @@ def _patient(pk: int, nom: str, prenom: str, naissance: str, **champs: Any) -> d
     )
 
 
-def _archive(chemin: pathlib.Path, objets: list[dict[str, Any]]) -> str:
+# `list[Any]` et non `list[dict]` : une archive est un fichier, qui a pu etre edite a la
+# main, et `test_un_dump_aux_elements_heteroclites_est_diagnostique_sans_lever` y met
+# justement des elements qui ne sont pas des objets.
+def _archive(chemin: pathlib.Path, objets: list[Any]) -> str:
     """Un zip de la meme forme que celui de l'onglet « Archive and restore database ».
 
     Le `meta` porte la version que le rapport suppose, et non une version figee : depuis
@@ -49,7 +52,7 @@ def _archive(chemin: pathlib.Path, objets: list[dict[str, Any]]) -> str:
 
 def _diagnostiquer(
     tmp_path: pathlib.Path,
-    objets: list[dict[str, Any]],
+    objets: list[Any],
     capsys: pytest.CaptureFixture[str],
 ) -> tuple[int, str]:
     code = diagnostic_archive.main(_archive(tmp_path / "archive.db", objets))
@@ -512,6 +515,46 @@ def test_une_archive_saine_rend_zero_et_le_dit(
     )
     assert "Objets dans le dump               : 4" in sortie
     assert "VERDICT : aucun obstacle" in sortie
+    assert code == 0
+
+
+def test_un_dump_aux_elements_heteroclites_est_diagnostique_sans_lever(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """L'outil ne rend pas un verdict plus severe que la restauration.
+
+    Le produit tolere ce dump-la et le teste :
+    `libreosteoweb/tests/test_reprise_archive.py::
+    test_un_dump_aux_elements_heteroclites_est_repris_sans_lever`. L'outil, lui, levait
+    -- `AttributeError: 'str' object has no attribute 'get'` dans `_du_modele` sur un
+    element qui n'est pas un objet, et la meme sur un objet dont `fields` vaut `null`.
+
+    Une archive est un fichier, qui a pu etre edite a la main. Un dump defectueux est un
+    defaut d'archive, que `loaddata` refuse en 412 ; ce n'est pas a cet outil de le
+    trancher par une trace Python.
+    """
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            "bruit",
+            42,
+            None,
+            ["une liste"],
+            {"model": "libreosteoweb.patient", "pk": 1, "fields": None},
+            {"model": "libreosteoweb.invoice", "pk": 2, "fields": None},
+            {"model": "libreosteoweb.examination", "pk": 3, "fields": None},
+            {"model": "libreosteoweb.document", "pk": 4, "fields": None},
+            {"model": "libreosteoweb.officesettings", "pk": 5, "fields": None},
+        ],
+        capsys,
+    )
+    # Les cinq objets sont comptes, et non sautes avec le bruit : le durcissement
+    # n'a pas rendu l'outil aveugle a ce qu'il doit voir.
+    assert "Objets dans le dump               : 9" in sortie
+    assert "Patients                          : 1" in sortie
+    assert "Factures                          : 1" in sortie
+    assert "Consultations                     : 1" in sortie
+    assert "Documents                         : 1" in sortie
     assert code == 0
 
 

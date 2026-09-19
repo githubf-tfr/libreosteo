@@ -114,8 +114,30 @@ class Numerotation(NamedTuple):
     maximum: int | None
 
 
-def _du_modele(objets: list[dict[str, Any]], modele: str) -> list[dict[str, Any]]:
-    return [o for o in objets if o.get("model") == "libreosteoweb.%s" % modele]
+def _du_modele(objets: list[Any], modele: str) -> list[dict[str, Any]]:
+    """Les objets d'un modele, en ignorant tout ce qui n'est pas un objet.
+
+    ⚠️ **Le `isinstance` n'est pas decoratif.** Une archive est un fichier, qui a pu etre
+    edite a la main : rien n'y garantit que chaque element soit un dictionnaire. La
+    restauration le sait et s'en garde exactement ainsi
+    (`api/services/reprise_archive.py::planifier_sur_objets`, teste par
+    `test_un_dump_aux_elements_heteroclites_est_repris_sans_lever`). Sans cette garde,
+    l'outil levait `AttributeError: 'str' object has no attribute 'get'` sur un dump que
+    le produit, lui, reprend sans broncher -- un verdict plus severe que la restauration
+    qu'il est cense annoncer.
+    """
+    cible = "libreosteoweb.%s" % modele
+    return [o for o in objets if isinstance(o, dict) and o.get("model") == cible]
+
+
+def _champs(objet: dict[str, Any]) -> dict[str, Any]:
+    """`fields` d'un objet, vide s'il est absent ou `null`.
+
+    `objet.get("fields", {})` ne suffit pas : le defaut ne joue que si la clef est
+    **absente**, alors qu'un dump peut porter `"fields": null` -- et `None.get` leve. La
+    forme retenue est celle du produit, `objet.get("fields") or {}`.
+    """
+    return objet.get("fields") or {}
 
 
 def _cle_patient(champs: dict[str, Any]) -> tuple[str, str, Any]:
@@ -147,11 +169,11 @@ def _cle_patient(champs: dict[str, Any]) -> tuple[str, str, Any]:
     )
 
 
-def doublons_patients(objets: list[dict[str, Any]]) -> Doublons:
+def doublons_patients(objets: list[Any]) -> Doublons:
     patients = _du_modele(objets, "patient")
     groupes: dict[tuple[str, str, Any], list[Any]] = collections.defaultdict(list)
     for patient in patients:
-        groupes[_cle_patient(patient.get("fields", {}))].append(patient.get("pk"))
+        groupes[_cle_patient(_champs(patient))].append(patient.get("pk"))
     doubles = [ids for ids in groupes.values() if len(ids) > 1]
     return Doublons(
         total=len(patients),
@@ -160,7 +182,7 @@ def doublons_patients(objets: list[dict[str, Any]]) -> Doublons:
     )
 
 
-def doublons_numeros(objets: list[dict[str, Any]]) -> Doublons:
+def doublons_numeros(objets: list[Any]) -> Doublons:
     """Doublons de la clef de `unique_facture_numero_par_cabinet` (0060).
 
     Le cabinet se lit dans `officesettings_id` : le modele porte un champ
@@ -180,7 +202,7 @@ def doublons_numeros(objets: list[dict[str, Any]]) -> Doublons:
     factures = _du_modele(objets, "invoice")
     groupes: dict[tuple[Any, str], list[Any]] = collections.defaultdict(list)
     for facture in factures:
-        champs = facture.get("fields", {})
+        champs = _champs(facture)
         cle = (champs.get("officesettings_id"), champs.get("number") or "")
         groupes[cle].append(facture.get("pk"))
     doubles = [ids for ids in groupes.values() if len(ids) > 1]
@@ -191,13 +213,13 @@ def doublons_numeros(objets: list[dict[str, Any]]) -> Doublons:
     )
 
 
-def numerotation(objets: list[dict[str, Any]]) -> Numerotation:
+def numerotation(objets: list[Any]) -> Numerotation:
     """Contexte de lecture du point 0060 ; aucun de ces chiffres ne bloque seul."""
     non_convertibles = 0
     prefixes: collections.Counter[str] = collections.Counter()
     valeurs: list[int] = []
     for facture in _du_modele(objets, "invoice"):
-        numero = (facture.get("fields", {}).get("number") or "").strip()
+        numero = (_champs(facture).get("number") or "").strip()
         correspondance = CHIFFRES.match(numero)
         if correspondance:
             prefixes[correspondance.group(1) or "(aucun)"] += 1
@@ -248,7 +270,7 @@ def _maximum_numerique(numeros: list[str]) -> int | None:
     return maximum
 
 
-def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str, str]]:
+def plan_de_renumerotation(objets: list[Any]) -> list[tuple[Any, str, str]]:
     """Ce que la restauration changerait : `(identifiant, numero actuel, numero apres)`.
 
     Reproduit `reprise.planifier` a la regle pres : dans chaque cabinet, les factures
@@ -267,7 +289,7 @@ def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str,
         identifiant = facture.get("pk")
         if identifiant is None:
             continue
-        champs = facture.get("fields") or {}
+        champs = _champs(facture)
         cabinet = champs.get("officesettings_id")
         if cabinet is None:
             continue
@@ -301,7 +323,7 @@ def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str,
     return sorted(plan)
 
 
-def montants_hors_bornes(objets: list[dict[str, Any]]) -> Montants:
+def montants_hors_bornes(objets: list[Any]) -> Montants:
     """Montants que le passage en `numeric(10, 2)` ne rend pas tels quels.
 
     Deux sorts differents, et un seul bloque : au-dela de deux decimales, la valeur
@@ -313,7 +335,7 @@ def montants_hors_bornes(objets: list[dict[str, Any]]) -> Montants:
     hors_capacite: list[str] = []
     for modele in ("invoice", "officesettings", "paiment"):
         for objet in _du_modele(objets, modele):
-            brut = objet.get("fields", {}).get("amount")
+            brut = _champs(objet).get("amount")
             if brut is None:
                 continue
             identifiant = "%s#%s" % (modele, objet.get("pk"))
@@ -337,7 +359,7 @@ def montants_hors_bornes(objets: list[dict[str, Any]]) -> Montants:
     return Montants(a_arrondir=sorted(a_arrondir), hors_capacite=sorted(hors_capacite))
 
 
-def raison_egale_motif(objets: list[dict[str, Any]]) -> Comptees:
+def raison_egale_motif(objets: list[Any]) -> Comptees:
     """Consultations dont la raison de non-facturation vaut exactement le motif clinique.
 
     Controle ouvert par D9 : la cloture depuis le volet en edition prerremplissait
@@ -349,7 +371,7 @@ def raison_egale_motif(objets: list[dict[str, Any]]) -> Comptees:
     consultations = _du_modele(objets, "examination")
     identifiants: list[Any] = []
     for consultation in consultations:
-        champs = consultation.get("fields", {})
+        champs = _champs(consultation)
         motif = (champs.get("reason") or "").strip()
         raison = (champs.get("status_reason") or "").strip()
         if motif and raison and motif == raison:
@@ -357,7 +379,7 @@ def raison_egale_motif(objets: list[dict[str, Any]]) -> Comptees:
     return Comptees(total=len(consultations), identifiants=sorted(identifiants))
 
 
-def documents_avant_0056(objets: list[dict[str, Any]]) -> Comptees:
+def documents_avant_0056(objets: list[Any]) -> Comptees:
     """Documents dont le chemin de stockage precede 0056.
 
     Avant 0056, `upload_to` valait la chaine fixe "documents" : le nom televerse
@@ -370,14 +392,12 @@ def documents_avant_0056(objets: list[dict[str, Any]]) -> Comptees:
     identifiants = [
         document.get("pk")
         for document in documents
-        if not DOCUMENT_DEPUIS_0056.match(
-            document.get("fields", {}).get("document_file") or ""
-        )
+        if not DOCUMENT_DEPUIS_0056.match(_champs(document).get("document_file") or "")
     ]
     return Comptees(total=len(documents), identifiants=sorted(identifiants))
 
 
-def charger(chemin: str) -> tuple[str | None, list[dict[str, Any]]]:
+def charger(chemin: str) -> tuple[str | None, list[Any]]:
     """Rend (version lue dans `meta`, objets du dump). N'ecrit jamais rien."""
     if zipfile.is_zipfile(chemin):
         with zipfile.ZipFile(chemin) as archive:
