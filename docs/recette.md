@@ -3878,11 +3878,29 @@ et `recherche-375.png`.
 **Étapes**
 
 1. Ouvrir `/search?q=Picard`, connecté, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T5>
+   Attendu : le titre **« Recherche de "Picard" »** est entièrement visible sous la barre de
+   navigation, sans en être recouvert. En dessous, le résultat **Picard Jean-Luc** apparaît
+   comme un lien souligné, suivi de son extrait en petit texte gris. La zone de contenu est
+   blanche et se détache du fond gris de la page (attendu porté par R-VIS-03) ; aucune barre
+   de défilement horizontale. Dans la barre, à droite, les trois entrées **test**, **?** et
+   le champ **Recherche…** restent atteignables au clic ; ouvrir **test** fait apparaître les
+   six entrées du menu utilisateur décrites en R-VIS-03 (*Profil utilisateur*, *Paramètres*,
+   *Import/export*, *Réindexer*, un trait, *Déconnexion*), chacune cliquable sur toute sa
+   largeur.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T5>
+   Attendu : le titre **« Recherche de "Picard" »** et le résultat **Picard Jean-Luc**
+   restent entièrement visibles, sans être coupés ni recouverts par la barre ; aucune barre
+   de défilement horizontale. La barre de navigation est repliée derrière le bouton
+   hamburger, comme décrit en R-VIS-03 ; l'ouvrir puis atteindre **test** donne accès aux
+   mêmes six entrées, empilées dans le flux de la page, **Déconnexion** s'atteignant en
+   faisant défiler.
 
-**Ne couvre pas** : <écrit par T5>
+**Ne couvre pas** : la justesse des résultats renvoyés, la pagination au-delà d'une page, et
+le message « Aucun résultat trouvé » — couverts par
+`tests/functional/test_recherche.py` (cinq tests, tous verts sur l'état de cette tâche). Ni
+le détail du bandeau et du menu utilisateur, qui appartiennent au socle commun et se
+recettent en R-VIS-03 — cette fiche n'en vérifie que la présence et l'atteignabilité sur cet
+écran précis, pas le contenu de leurs menus.
 
 ### R-VIS-05 — Socle visuel : diagnostic du texte riche
 
