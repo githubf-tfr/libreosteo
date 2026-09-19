@@ -22,6 +22,7 @@ from tests.functional.helpers import (
     attendre_enregistrement_patient,
     attendre_reponse,
     bouton_de_confirmation,
+    bouton_de_suppression,
     bouton_fin_d_edition,
     cloturer_consultation,
     confirmer_la_modale,
@@ -1542,7 +1543,11 @@ def test_la_vignette_en_edition_survit_a_la_suppression_d_une_seance(
     champ.fill("Titre jamais enregistre")
 
     page.click("#current-examination")
-    page.get_by_role("button", name="Supprimer").click()
+    # **Le scope `#actions-dossier` est une barriere, pas un detail** : la croix de
+    # suppression de la vignette en edition porte le meme nom accessible, et c'est elle que
+    # `get_by_role` resout tant que la bascule d'onglet n'est pas appliquee
+    # (`helpers.bouton_de_suppression`).
+    bouton_de_suppression(page).click()
     confirmer_la_modale(page)
     # **Barrière causale** : l'onglet disparaît avec la séance, et les deux viennent de la
     # même réponse hors-bande.

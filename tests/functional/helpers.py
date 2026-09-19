@@ -691,6 +691,35 @@ def bouton_fin_d_edition(page: Page) -> Locator:
     return page.locator("#actions-dossier").get_by_role("button", name="Fin d'édition")
 
 
+def bouton_de_suppression(page: Page) -> Locator:
+    """Le bouton « Supprimer » **du bandeau d'actions**, jamais la croix d'une vignette.
+
+    **Trois boutons du dossier portent le nom accessible « Supprimer », et leur visibilite
+    s'echange au clic d'onglet** : les suppressions du bandeau, bornees chacune a son onglet
+    par un `x-show` (`actions-dossier.html:50-59`), et la croix de suppression d'une
+    vignette de compte rendu ouverte en edition
+    (`document-edition.html:50-51`, `aria-label="{% trans 'Delete' %}"`).
+
+    **Un `get_by_role` non scope y est une course, pas une imprecision de style.** Mesure
+    directe, juste avant puis juste apres `page.click("#current-examination")`, la vignette
+    etant en edition : `get_by_role("button", name="Supprimer")` resout **la croix de la
+    vignette** avant le clic, **le bouton du bandeau** apres — un seul element chaque fois,
+    donc aucun refus de Playwright pour ambiguite. Le clic d'onglet echange les deux, et
+    Playwright ne **re-resout son selecteur qu'au detachement** de l'element, jamais a sa
+    disparition : resoudre du mauvais cote de la bascule fige le geste sur une croix
+    desormais cachee, et le lancement brule le plafond d'action de 30 s sur
+    « element is not visible ». C'est ce qui rendait
+    `test_la_vignette_en_edition_survit_a_la_suppression_d_une_seance` intermittent (2 rouges
+    sur 8 lancements du seul test, tous deux sur le meme journal d'appel).
+
+    **Le scope ne relache aucune preuve, il en ferme une fuite** : il nomme le bouton que le
+    test veut, et il retire du chemin celui qui **efface le document** dont ce meme test
+    verifie la survie — un rouge y etait le cas heureux, une suppression silencieuse du
+    document l'autre issue de la meme course.
+    """
+    return page.locator("#actions-dossier").get_by_role("button", name="Supprimer")
+
+
 def bouton_de_confirmation(page: Page) -> Locator:
     """Le bouton qui confirme la modale ouverte."""
     return page.locator("#modal-btn-ok")
