@@ -168,12 +168,20 @@ def doublons_numeros(objets: list[dict[str, Any]]) -> Doublons:
     serialiseur de Django ecrit le nom du champ. `fields["officesettings"]` vaut donc
     toujours `None` -- toutes les factures tombaient dans un seul cabinet fantome, ce
     qui declarait en doublon deux cabinets portant legitimement le meme numero.
+
+    ⚠️ **Le numero est pris tel quel, sans `.strip()`.** Le commentaire de la contrainte
+    le dit en toutes lettres (`models.py`) : « Sur la valeur BRUTE de la colonne ».
+    Rogner ici n'etait pas une ambiguite de lecture mais un faux positif, et il se lisait
+    a deux lignes d'ecart dans le rapport : une archive portant « 12 » et « 12 » precede
+    d'une espace imprimait « Couples (cabinet, numero) en double : 1 » **et** « Numeros
+    qui changeront : 0 ». Le plan de renumerotation, lui, n'a jamais rogne -- c'est le
+    compte qui mentait.
     """
     factures = _du_modele(objets, "invoice")
     groupes: dict[tuple[Any, str], list[Any]] = collections.defaultdict(list)
     for facture in factures:
         champs = facture.get("fields", {})
-        cle = (champs.get("officesettings_id"), (champs.get("number") or "").strip())
+        cle = (champs.get("officesettings_id"), champs.get("number") or "")
         groupes[cle].append(facture.get("pk"))
     doubles = [ids for ids in groupes.values() if len(ids) > 1]
     return Doublons(
@@ -249,10 +257,10 @@ def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str,
     numeros consecutifs qui suivent `max(maximum numerique du cabinet,
     PLANCHER_RENUMEROTATION)`, prefixe conserve.
 
-    ⚠️ Le numero est pris **tel quel**, sans `.strip()`, contrairement a
-    `doublons_numeros` : `api/services/reprise_archive.py::planifier_sur_objets` ne
-    rogne rien, et « 12 » precede d'une espace n'est donc pas, pour la restauration, le
-    meme numero que « 12 ». Rogner ici annoncerait une renumerotation qui n'aura pas lieu.
+    ⚠️ Le numero est pris **tel quel**, sans `.strip()`, comme dans `doublons_numeros` :
+    `api/services/reprise_archive.py::planifier_sur_objets` ne rogne rien, et « 12 »
+    precede d'une espace n'est donc pas, pour la restauration, le meme numero que « 12 ».
+    Rogner ici annoncerait une renumerotation qui n'aura pas lieu.
     """
     par_cabinet: dict[Any, list[tuple[Any, str]]] = collections.defaultdict(list)
     for facture in _du_modele(objets, "invoice"):

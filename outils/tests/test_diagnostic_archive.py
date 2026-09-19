@@ -200,6 +200,30 @@ def test_un_meme_numero_dans_un_meme_cabinet_ne_bloque_plus_et_annonce_la_repris
     assert code == 0
 
 
+def test_une_espace_de_frappe_ne_fait_pas_un_couple_en_double(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Le compte annonce doit porter sur la clef que la contrainte utilise.
+
+    Le commentaire de `unique_facture_numero_par_cabinet` le dit en toutes lettres :
+    « Sur la valeur BRUTE de la colonne ». `doublons_numeros` rognait, et une archive
+    portant « 12 » et « 12 » precede d'une espace faisait imprimer, a deux lignes
+    d'ecart, « Couples (cabinet, numero) en double : 1 » et « Numeros qui changeront :
+    0 » -- deux chiffres qui se contredisent, dont un faux.
+    """
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _objet("invoice", 1, number="12", officesettings_id=1, amount=55.0),
+            _objet("invoice", 2, number=" 12", officesettings_id=1, amount=55.0),
+        ],
+        capsys,
+    )
+    assert "Couples (cabinet, numero) en double : 0" in sortie
+    assert "Numeros qui changeront            : 0" in sortie
+    assert code == 0
+
+
 def test_une_archive_saine_n_annonce_aucune_renumerotation(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
