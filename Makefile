@@ -54,11 +54,10 @@ static:
 	# 4 764 fichiers residuels). tests/qualite/test_contrat_arbre_statique.py rougit
 	# si l'un d'eux revient.
 	rm -rf $(PWD)/static
-	# Les quatre commandes de Docker/build/http-ready/Dockerfile:105, dans cet ordre.
+	# Les trois commandes de Docker/build/http-ready/Dockerfile:105, dans cet ordre.
 	# Les deux --settings ne sont pas decoratifs : `Libreosteo.settings` est dev.py, ou
 	# COMPRESS_ENABLED est faux ; sous ce reglage `compress` n'ecrit aucun bundle et
-	# {% compress %} rend le contenu d'origine. `compilejsi18n` tourne sur le defaut,
-	# comme dans l'image.
+	# {% compress %} rend le contenu d'origine.
 	$(YARN) install --frozen-lockfile
 	$(PYTHON) ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base
 	$(PYTHON) ./manage.py compress --settings=Libreosteo.settings.base

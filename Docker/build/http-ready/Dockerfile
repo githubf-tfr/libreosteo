@@ -76,8 +76,8 @@ ENV PATH="$VIRTUAL_ENV/bin:/root/.yarn/bin:$PATH"
 # le mode conteneur exige desormais un moteur PostgreSQL (cf. Libreosteo/settings/container.py),
 # qu'une machine de construction n'a aucune raison d'avoir. base.py porte deja DEBUG = False
 # et COMPRESS_ENABLED = True, les deux seuls reglages que container ajoutait pour la
-# compression. Ce n'est pas un precedent : compilejsi18n tourne deja sur un autre module de
-# reglages, le defaut Libreosteo.settings de manage.py.
+# compression. Aucune autre etape de ce RUN ne tourne plus sur un module de reglages
+# different, depuis que compilejsi18n en est sorti (D6g T16, commit 4/6).
 # Django exige quand meme une SECRET_KEY non vide, quel que soit le module de reglages
 # (django/conf/__init__.py, au premier acces) : cette etape de construction ne sert jamais de
 # requete, la valeur de developpement ci-dessous suffit et disparait avec l'etage "build"
@@ -96,9 +96,9 @@ ENV LIBREOSTEO_SECRET_KEY="django-insecure-developpement-et-tests-uniquement"
 # demarrage d'un conteneur (`docker run`) : un volume anonyme est alors monte sur ce chemin,
 # pre-rempli par une copie du contenu deja present dans l'image a cet endroit.
 # Consequence sur le decoupage : une variante de ce RUN coupee en deux (yarn install d'un
-# cote, collectstatic/compilejsi18n/compress de l'autre), construite --no-cache avec
+# cote, collectstatic/compress de l'autre), construite --no-cache avec
 # `docker buildx build`, aboutit et produit un node_modules et un static/CACHE strictement
-# identiques (memes empreintes de contenu, memes neuf noms output.<hash>) a la construction
+# identiques (memes empreintes de contenu, memes sept noms output.<hash>) a la construction
 # monolithique. L'avertissement ne tient donc plus, sur aucun motif mesure, et il est retire.
 # Ce RUN reste neanmoins une seule commande : personne n'a demande son decoupage, et corriger
 # une affirmation fausse n'est pas une occasion de reorganiser le build.

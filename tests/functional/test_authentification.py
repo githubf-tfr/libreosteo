@@ -156,13 +156,19 @@ def test_la_page_sert_les_bundles_compresses(
     cette page. Elle porte desormais sur les feuilles de style, que `/` compresse
     toujours : `base.html` produit un bundle, `{% block css_page %}` un second (mesure
     directe, deux `<link>` `CACHE/css/output.*` sur `/`, jamais les fichiers d'origine).
+
+    **D6g T16, re-ancree** : la seconde assertion portait sur `/static/css/sb-admin-2.css`,
+    une feuille que ce meme lot supprime (`b683215`) -- plus aucun gabarit ne peut la
+    referencer, `collectstatic` echouerait avant que ce test ne s'execute. Elle etait
+    devenue tautologique. Ce qu'elle voulait prouver -- que la page ne sert que des bundles,
+    rien en direct -- se prouve mieux en generalisant : **toutes** les feuilles chargees
+    doivent matcher `motif`, pas seulement deux d'entre elles. Une feuille non compressee qui
+    reapparaitrait, sb-admin-2.css ou une autre, la ferait echouer.
     """
     connexion(page, live_server)
     sources = page.eval_on_selector_all(
         "link[rel=stylesheet]", "noeuds => noeuds.map((n) => n.getAttribute('href'))"
     )
     motif = re.compile(r"^/static/CACHE/css/output\.[0-9a-f]{12}\.css$")
-    assert len([source for source in sources if motif.match(source)]) == 2, sources
-    assert [
-        source for source in sources if "/static/css/sb-admin-2.css" in source
-    ] == []
+    assert len(sources) == 2, sources
+    assert all(motif.match(source) for source in sources), sources
