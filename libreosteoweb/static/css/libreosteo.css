@@ -188,51 +188,32 @@ body {
     left: auto;
 }
 
-/* Bloc 4 — la barre laterale de `404.html` seule (sb-admin-2.css:93-160). `sidebar`,
-   `sidebar-nav` et `sidebar-search` -> `lo-barre-laterale*` (AP6). `arrow`,
-   `nav-second-level` et `nav-third-level` gardent leur nom : la table de correspondance
-   les donne **sans equivalent**, ce sont des noms internes de l'arbre de `404.html`, et
-   c'est T16 qui decide de leur sort en migrant ce gabarit. */
-.lo-barre-laterale .lo-barre-laterale-nav.navbar-collapse {
-    padding-right: 0;
-    padding-left: 0;
-}
+/* Bloc 4 — la barre laterale de `404.html` seule (sb-admin-2.css:93-160). `sidebar` ->
+   `lo-barre-laterale` et `sidebar-search` -> `lo-barre-laterale-recherche` (AP6).
 
+   D6g T16 a tranche le sort des autres, en migrant le gabarit : **huit des onze regles de
+   ce bloc sont parties**, chacune parce que plus aucun gabarit ne pose la classe qu'elle
+   exige, mesure a l'appui (0 occurrence de `arrow`, `nav-second-level`, `nav-third-level`,
+   `lo-barre-laterale-nav`) :
+
+   - `.lo-barre-laterale .lo-barre-laterale-nav.navbar-collapse` etait morte **avant comme
+     apres** : son selecteur exige `navbar-collapse` sur l'element, et `404.html` portait
+     `class="sidebar-nav sidebar-collapse"`, jamais `navbar-collapse`. `sidebar-nav` n'a
+     donc pas de successeur, et le `<div>` qui le portait n'a plus de classe ;
+   - `.arrow`, `.fa.arrow:before`, `.active>a>.fa.arrow:before`, `.nav-second-level li`,
+     `.nav-third-level li` et leurs deux `li a` habillaient les sept entrees de
+     demonstration du theme amont, en commentaire HTML, retirees avec elles ;
+   - `.lo-barre-laterale ul li a.active` : la classe `active` reste posee trois fois dans
+     le depot, jamais sous une barre laterale — la barre de `404.html` n'a qu'une entree,
+     et rien ne l'a jamais marquee active.
+
+   Restent les trois que `404.html` atteint reellement. */
 .lo-barre-laterale .lo-barre-laterale-recherche {
     padding: 15px;
 }
 
 .lo-barre-laterale ul li {
     border-bottom: 1px solid #e7e7e7;
-}
-
-.lo-barre-laterale ul li a.active {
-    background-color: #eee;
-}
-
-.lo-barre-laterale .arrow {
-    float: right;
-}
-
-.lo-barre-laterale .fa.arrow:before {
-    content: "\f104";
-}
-
-.lo-barre-laterale .active>a>.fa.arrow:before {
-    content: "\f107";
-}
-
-.lo-barre-laterale .nav-second-level li,
-.lo-barre-laterale .nav-third-level li {
-    border-bottom: 0!important;
-}
-
-.lo-barre-laterale .nav-second-level li a {
-    padding-left: 37px;
-}
-
-.lo-barre-laterale .nav-third-level li a {
-    padding-left: 52px;
 }
 
 @media(min-width:768px) {
@@ -245,25 +226,6 @@ body {
 }
 
 
-/* angular-xeditable override */
-
-.editable-click {
-    !important;
-    color : black;
-    border-bottom : none;
-}
-
-.editable-empty,
-.editable-empty:hover,
-.editable-empty:focus,
-a.editable-empty,
-a.editable-empty:hover,
-a.editable-empty:focus {
-    color: #ccc;
-}
-
-/* end angular-xeditable override */
-
 pre {
     background-color : transparent;
     border : none;
@@ -275,30 +237,6 @@ pre {
     height : 200px;
 }
 
-.displayExamination.ng-enter, .displayExamination.ng-leave {
-    -webkit-transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
-    -moz-transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
-    -ms-transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
-    -o-transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
-    transition: 400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;
-}
-
-.displayExamination.ng-enter,
-.displayExamination.ng-leave.ng-leave-active
-{
-    opacity: 1;
-}
-
-.displayExamination.ng-leave, .displayExamination.ng-enter-active
-{
-    opacity: 0;
-}
-
-.highlighted
-{
-    font-weight: bold;
-}
-
 .extract
 {
     margin-top : -7px;
@@ -308,12 +246,6 @@ pre {
 .search-entry
 {
     margin-bottom : 25px;
-}
-
-.growl
-{
-    z-index : 3000;
-    top: 55px;
 }
 
 .timeline-panel
@@ -376,11 +308,6 @@ pre {
     float:right;
 }
 
-.usersGrid {
-    width: 800px;
-    height: 300px;
-}
-
 /* D6g T13 : `chat-panel` (SB Admin, theme deconnecte de cet ecran par T4) devient
    `lo-panneau-evenements`. Seul le tableau de bord pose cette classe ; la regle annule
    le defaut SB Admin (`height: 350px; overflow-y: scroll`, sb-admin-2.css:213-216)
@@ -425,31 +352,9 @@ pre {
 .dashboard-sparkline svg {
     overflow: visible;
 }
-.jqstooltip {
-  -webkit-box-sizing: content-box;
-  -moz-box-sizing: content-box;
-  box-sizing: content-box;
-}
 .subtitle {
     padding-bottom:10px;
 }
-.inPlaceholderMode {
-  color: #ccc;
-}
-
-div.readyForEditMode {
-  height: auto;
-  min-height:34px;
-}
-
-.version {
-    font-size : 0.5em;
-}
-.editor {
-    width: 250px;
-    top:0px;
-}
-
 /* D6g T15 : `panel-body` devient `card-body` (annexe A) sur le dossier patient, seul
    consommateur de `.inner-spaced`. */
 .inner-spaced .card-body {
@@ -485,10 +390,6 @@ ul li.documenttile  {
     font-size: small;
     color: #999;
 }
-.document_notes_ctn {
-    height:2em;
-}
-
 .doc_thumbnail {
     height: 10em;
     margin-left: 10px;
@@ -607,10 +508,6 @@ ul li.documenttile  {
 .document_create.ng-leave.ng-leave-active {
     opacity: 0;
 }
-.panel-title {
-    font-size : 14px;
-}
-
 .nav-tabs {
     margin-bottom: 15px;
 }
@@ -642,20 +539,6 @@ ul li.documenttile  {
     max-width: 100%;
 }
 
-/* We want that element:
- - not to appear or fill space on page,
- - to remain in CSS flow so that the calendar popup shows up there
- */
-.hidden-datepicker-host {
-    border: 0px;
-    width: 0px;
-    margin: 0px;
-    padding: 0px;
-    height: 42px;
-    opacity: 0;
-    position: relative;
-    right: 16px;
-}
 .form-check.paimentmean {
 	width : 12%;
 }
@@ -664,31 +547,9 @@ ul li.documenttile  {
   width: 25%;
 }
 
-input.ng-invalid-email,
-input.ng-invalid,
-input.ng-invalid-email:focus,
-input.ng-invalid:focus {
-  color: #a94442;
-  border-color: #a94442;
-}
-
-input.ng-invalid-email:focus,
-input.ng-invalid:focus {
-  -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(233, 116, 102, .6);
-          box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(233, 116, 102, .6);
-
-}
-.editable-error {
-  font-size: small;
-}
 .request_consent {
   margin: auto;
   width: 40%;
-}
-
-.consent_refused {
-  height: 5em;
-  width: 75%;
 }
 
 /* Defaut n° 5 de la recette D6e : le nom et le prenom du titre du dossier sont des boutons click-to-edit

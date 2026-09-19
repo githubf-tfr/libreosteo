@@ -703,53 +703,63 @@ inherited from ``base.py``.
 Vendored third-party assets
 ===========================
 
-Six families of third-party assets live under ``libreosteoweb/static/``, are versioned in
+Three families of third-party assets live under ``libreosteoweb/static/``, are versioned in
 git, and are declared in no manifest at all. They are listed here because they are invisible
 to ``package.json`` and to ``yarn.lock``, and because they are the part of the frontend most
 likely to outlive a framework migration. Versions are read from the files themselves; where
 a file carries no version, that is said rather than guessed.
 
-Five of the six are loaded by a template. **DataTables is not**, and has not been for as
-long as this fork's history goes: no template under ``libreosteoweb/templates/`` names it,
-at the tip or at the fork point. It is a vendored family with no consumer. This is not the
-situation of ``css/typeahead.css`` : it was long believed to be in the same case, until
-``KANBAN.md`` recorded on 2026-09-13 that ``404.html:28`` does load it — as ``404.html:22``
-does for the metisMenu theme below. It is listed here because it is present on disk, not
-because it is served. (Glyphicons, by contrast, is loaded: ``css/bootstrap.css`` references
-the font files by path.)
+There were six until the visual base was migrated to Bootstrap 5, which served it from
+``package.json`` instead and deleted eight sheets that no template referenced any more:
+``css/bootstrap.css``, ``css/bootstrap.min.css``, ``css/sb-admin-2.css``, both copies of
+``dataTables.bootstrap.css``, both metisMenu sheets and ``css/typeahead.css``. Bootstrap,
+SB Admin 2, metisMenu and the DataTables theme therefore leave this table: nothing of them
+is left on disk. Bootstrap is now an ordinary ``package.json`` dependency,
+``@components/bootstrap``, pinned to an exact version.
+
+**Two of the three that remain have no consumer**, and that is said rather than left to be
+discovered:
+
+- **Bootstrap 3 Glyphicons.** The font files were referenced by path from
+  ``css/bootstrap.css``, which no longer exists. Nothing references them now. They are kept
+  because deleting a font family is a distinct decision from deleting the sheet that used
+  it, and nobody has taken it.
+- **The SB Admin 2 timeline sheet, in its unreferenced copy.** There are two,
+  ``css/plugins/timeline.css`` (3 910 bytes) and ``css/plugins/timeline/timeline.css``
+  (3 032 bytes), and they are **not** the same file: ``diff`` reports 45 lines present only
+  in the first — a whole ``@media(max-width:767px)`` block and the ``.timeline-panel:after``
+  arrow — against 9 present only in the second (``.timeline-footer``,
+  ``.timeline-panel-footer``). They are two divergent forks of the same upstream sheet. Only
+  the second is loaded, by ``pages/dossier-patient.html``. The first is therefore kept until
+  someone decides what its extra rules are worth; deleting it on the strength of its name
+  alone is exactly the mistake this fork has paid for twice.
+
+Font Awesome, the third, is loaded by ``base.html`` on every page.
 
 Two families lost their JavaScript half entirely, with no CSS counterpart to keep them
 present : ``jquery.sparkline`` and the AngularJS ``timeAgo`` directive both lived only
 under ``js/plugins/``, which no longer exists — ``libreosteoweb/static/js/`` now holds only
-``composants/``. Bootstrap, metisMenu and SB Admin 2 lost their JavaScript half the same
-way but keep their CSS half, still loaded by templates.
-
-A ninth family, ``animatescroll``, was listed here until the administration screens were
-migrated: its only callers were three inline scripts, and the file was deleted with them.
-The count is the number of families actually present, not a historical total.
+``composants/``. A ninth family, ``animatescroll``, was listed here until the administration
+screens were migrated: its only callers were three inline scripts, and the file was deleted
+with them. The count is the number of families actually present, not a historical total.
 
 ===================================  ==============================================  =====================
 Family                               Location                                        Version as shipped
 ===================================  ==============================================  =====================
-Bootstrap                            ``css/bootstrap*.css``                          3.2.0 (file header)
 Font Awesome                         ``font-awesome/``                               4.5.0 (file header)
 Bootstrap 3 Glyphicons               ``fonts/glyphicons-halflings-regular.*``        ships with Bootstrap 3;
                                                                                      no version of its own
-metisMenu                            ``css/plugins/metisMenu/``                      1.0.3 (file header)
-SB Admin 2 (Start Bootstrap theme)   ``css/sb-admin-2.css``,                         not stated in the files
-                                     ``css/plugins/timeline*``
-DataTables Bootstrap theme           ``css/plugins/dataTables.bootstrap.css``,       not stated in the files
-                                     ``css/plugins/dataTables/``
+SB Admin 2 timeline sheet            ``css/plugins/timeline.css``                    not stated in the file
 ===================================  ==============================================  =====================
 
-Two of these explain a purge made in the same lot: ``@components/bootstrap`` used to be
-downloaded at 3.4.1 while the served Bootstrap is the vendored 3.2.0 above, and
-``@components/font-awesome`` at 4.2.0 while the served Font Awesome is the vendored 4.5.0.
-The build had been fetching, for years, two versions of libraries whose copies it serves
-from elsewhere. They are no longer fetched.
+Font Awesome explains half of a purge made when the frontend filet was built:
+``@components/font-awesome`` used to be downloaded at 4.2.0 while the served Font Awesome is
+the vendored 4.5.0 above. The other half was ``@components/bootstrap`` at 3.4.1 against a
+vendored 3.2.0; that one has since been settled the other way round, the vendored copy being
+the one that went.
 
-These families are **not** brought back into ``package.json``: that would do the frontend
-migration's work ahead of time and probably twice.
+Font Awesome is **not** brought back into ``package.json``: that would do the remaining
+frontend migration's work ahead of time and probably twice.
 
 Contributing code
 =================

@@ -231,10 +231,13 @@ def test_lattachement_suit_un_changement_de_viewport_en_cours_de_visite(
     Le rendu qui s'attache depend de `etroit`, evalue une fois ; ce qui les fait
     diverger est vivant, lui, mais ce n'est pas une media query pour l'encart — le
     socle n'en porte plus depuis `22ea098`, `--centree` y est posee cote serveur. C'est
-    celle de Bootstrap sur `.navbar-collapse.collapse`
-    (`static/css/bootstrap.css:3797`, `@media (min-width: 768px) { display: block
-    !important }`, donc `display: none` en dessous) qui fait disparaitre le rendu
-    imbrique quand la fenetre retrecit. Sans ecoute, les deux divergent au premier
+    celle de Bootstrap sur `.navbar-collapse.collapse` qui fait disparaitre le rendu
+    imbrique quand la fenetre retrecit. **D6g T16 : la citation change de feuille, pas de
+    fond.** Bootstrap 3 posait `@media (min-width: 768px) { .navbar-collapse.collapse
+    { display: block !important } }` (`static/css/bootstrap.css:3797`, feuille supprimee
+    par ce lot) ; Bootstrap 5.3.8 obtient le meme resultat en deux regles,
+    `.collapse:not(.show){display:none}` et, au-dela de 768 px,
+    `.navbar-expand-md .navbar-collapse{display:flex!important;flex-basis:auto}`. Sans ecoute, les deux divergent au premier
     franchissement de 768 px : etroit -> large laisse le rendu etroit attache (encart
     visible, seulement desancre, cosmetique) ; **large -> etroit** laisse le rendu
     imbrique seul attache, dans `#headerNavbar` que cette regle de Bootstrap met en
