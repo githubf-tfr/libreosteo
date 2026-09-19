@@ -138,6 +138,13 @@ class LoginRequiredMiddleware(MiddlewareMixin):
                     "Request on %s %s, but authentication failed on authenticator"
                     % (request.method, request.path)
                 )
+                # Portage du sujet 3/3 du commit amont `33753e0e1da7` (KANBAN,
+                # § Suivi amont, 2026-09-19) : sans ce vidage, un token corrompu
+                # reste en session et revalide le meme echec a chaque requete.
+                # La cible reste `login`, jamais `get_logout_url()` comme le fait
+                # l'amont - `LogoutView` est restreinte a POST/OPTIONS depuis
+                # Django 5.2 (`c1e6dd6`) et une redirection GET y rendrait 405.
+                logout(request)
                 return rediriger(request, get_login_url())
 
         if not request.user.is_authenticated:

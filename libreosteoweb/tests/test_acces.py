@@ -15,6 +15,7 @@
 # -*- coding: utf-8 -*-
 import re
 
+from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.models import Session
 from django.db import connection
@@ -259,11 +260,19 @@ class TestLoginRequiredMiddleware(APITestCase):
         ]
     )
     def test_echec_de_l_authentificateur_renvoie_a_la_connexion(self):
+        """Portage du sujet 3/3 du commit amont `33753e0e1da7` (KANBAN, § Suivi amont,
+        2026-09-19) : la session doit aussi etre videe, pas seulement la redirection
+        conservee - sans quoi un token corrompu revalide a chaque requete reproduit
+        l'echec indefiniment. La cible de redirection ne change pas (`login`, jamais
+        `get_logout_url()` qui rendrait 405 sur ce fork)."""
         with sans_receivers():
             cree_praticien()
+        self.client.login(username="test", password="testpw")
+        self.assertIn(SESSION_KEY, self.client.session)
         reponse = self.client.get("/")
         self.assertEqual(reponse.status_code, 302)
         self.assertEqual(reponse.url, reverse("login"))
+        self.assertNotIn(SESSION_KEY, self.client.session)
 
     def test_le_refus_d_authentification_est_journalise_en_warning(self):
         with sans_receivers():
@@ -467,11 +476,16 @@ class TestPontHtmx(APITestCase):
         ]
     )
     def test_echec_de_l_authentificateur_en_htmx(self):
+        """Meme portage que la variante non-htmx (sujet 3/3 du commit amont
+        `33753e0e1da7`) : le vidage de session vaut pour les deux pistes."""
         with sans_receivers():
             cree_praticien()
+        self.client.login(username="test", password="testpw")
+        self.assertIn(SESSION_KEY, self.client.session)
         reponse = self.client.get("/", headers=self.ENTETE)
         self.assertEqual(reponse.status_code, 204)
         self.assertEqual(reponse["HX-Redirect"], reverse("login"))
+        self.assertNotIn(SESSION_KEY, self.client.session)
 
     def test_cabinets_multiples_sans_choix_en_htmx(self):
         """Quatrieme site : OfficeSettingsMiddleware (middleware.py:174)."""
