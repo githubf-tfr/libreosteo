@@ -3723,14 +3723,21 @@ tenir ce rôle, aucun n'assied un pixel ; c'est pourquoi chaque fiche porte
 l'écran : le total reste de trente-deux fichiers, jamais davantage.
 
 **Comment on ressort l'état d'avant.** Les captures prises sur l'arbre Bootstrap 3 sont
-celles du commit de D6g T1 (2026-09-19), le plus ancien qui touche ce répertoire ; chaque
-tâche d'écran les écrase ensuite. Ce commit se retrouve sans rien connaître par avance :
+versées par D6g T1 (2026-09-19) ; chaque tâche d'écran écrase ensuite les deux siennes.
+L'état d'avant d'un écran est donc **la dernière version de sa capture antérieure à la
+tâche qui livre cet écran**, et l'historique du seul fichier suffit à la désigner — sans
+qu'aucun numéro de commit ait à être connu ni recopié ici :
 
 ```bash
-git log --oneline --diff-filter=A -1 -- docs/recette/captures/d6g/
-# puis, avec le SHA obtenu :
+# 1. l'historique de cette capture, du plus récent au plus ancien
+git log --oneline -- docs/recette/captures/d6g/<fiche>-1280.png
+# 2. l'état d'avant est l'entrée qui précède la tâche propriétaire de l'écran
+#    (colonne « Tâche » du plan de D6g) ; avec son SHA :
 git show <sha>:docs/recette/captures/d6g/<fiche>-1280.png > /tmp/d6g-avant-<fiche>-1280.png
 ```
+
+Tant qu'une tâche d'écran n'a pas écrasé sa capture, cette commande ne rend qu'une seule
+entrée, et c'est l'état d'avant.
 
 ### R-VIS-01 — Socle visuel : page de connexion
 
