@@ -5,9 +5,9 @@
 {% if groupe == "jour" %}
   {% for jour in groupes %}
     {% if jour.entete %}
-    <li class="left clearfix" data-testid="jour-evenements">
-      <div class="chat-body clearfix">
-        <p class="pull-right"><b>{{ jour.jour|date:"l j F Y" }}</b></p>
+    <li class="clearfix" data-testid="jour-evenements">
+      <div class="clearfix">
+        <p class="float-end"><b>{{ jour.jour|date:"l j F Y" }}</b></p>
       </div>
     </li>
     {% endif %}

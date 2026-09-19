@@ -3848,7 +3848,7 @@ opposable ; un écart se corrige, il ne s'absorbe pas.
    fond ni bordure propres, la page s'allonge d'autant, et **Déconnexion** s'atteint en
    faisant défiler la page. Aucune entrée n'est masquée derrière un bord.
 
-**Ne couvre pas** : le contenu du tableau de bord (R-VIS-13), qui n'est **pas** migré à ce
+**Ne couvre pas** : le contenu du tableau de bord (R-VIS-12), qui n'est **pas** migré à ce
 stade — ses tuiles colorées, ses grands chiffres et son panneau d'évènements se rendent sans
 mise en forme entre D6g T4 et D6g T13, et c'est attendu. Ni la modale, la notification, les
 onglets et l'encart de visite guidée, qui appartiennent au même socle mais se recettent sur
@@ -4073,11 +4073,35 @@ et `tableau-de-bord-375.png`.
 **Étapes**
 
 1. Se connecter, puis rester sur l'URL racine, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T13>
+   Attendu : le titre **Tableau de bord** est entièrement visible, sans trait ni marge
+   excessive sous lui (D6g T13 : la classe `page-header` disparaît, sans équivalent). Sous
+   le titre, trois pastilles **Semaine** / **Mois** / **Année** : la première en bleu
+   (période active), les deux autres en gris. Sous elles, **trois tuiles côte à côte, sans
+   chevauchement** : la première pleine largeur bleue (icône « + » à gauche, **0** et
+   *Nouveaux patients* à droite, alignés à droite) ; la deuxième et la troisième en fond
+   clair, même disposition icône-gauche / chiffre-et-libellé-à-droite, pour *Consultations*
+   et *Retour*. **L'icône de chaque tuile ne recouvre à aucun moment le chiffre ni le
+   libellé qui lui font face** — c'est le défaut corrigé par cette tâche (`col-xs-3` /
+   `col-xs-9`, morts depuis Bootstrap 4, recouvraient le dernier sommet du mini-graphe).
+   Sous les tuiles, un panneau **Évènements** : en-tête gris avec une icône de bulles, le
+   mot *Évènements*, et à droite un bouton à chevron ; le corps est une zone blanche —
+   vide si aucun évènement n'a eu lieu ce jour, ou listant chaque entrée sans puce ni
+   retrait, séparée de la suivante par un filet pointillé fin. Aucune barre de défilement
+   horizontale sur toute la largeur de la fenêtre.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T13>
+   Attendu : les trois tuiles s'empilent en pleine largeur, **dans le même ordre**, et
+   chacune garde sa disposition interne icône-à-gauche / chiffre-et-libellé-à-droite sans
+   chevauchement. Les trois pastilles de période restent sur une seule ligne. Le panneau
+   **Évènements** occupe toute la largeur sous les tuiles, toujours lisible, sans texte
+   coupé. Aucune barre de défilement horizontale.
 
-**Ne couvre pas** : <écrit par T13>
+**Ne couvre pas** : l'atteignabilité de chaque sommet du mini-graphe au survol — prouvée par
+`test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol` (`elementFromPoint`), pas par
+l'œil, le tracé étant trop fin pour s'évaluer sur une capture. Le rendu du panneau
+**Évènements** avec plusieurs entrées simultanées ou plusieurs jours différents, ni le
+défilement chargé par page (`hx-trigger="revealed"`) : l'état capturé est celui d'un cabinet
+sans historique. Le menu déroulant du filtre du panneau **Évènements** (bouton à chevron,
+« Par jour » / « Tout ») ouvert : geste identique à R-VIS-03, non rejoué ici.
 
 ### R-VIS-13 — Socle visuel : paramètres du cabinet
 

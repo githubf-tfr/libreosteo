@@ -20,7 +20,7 @@
 <div id="page-wrapper">
   <div class="row">
     <div class="col-lg-12">
-      <h1 class="page-header" data-testid="titre-tableau-de-bord">{% trans 'Dashboard' %}</h1>
+      <h1 data-testid="titre-tableau-de-bord">{% trans 'Dashboard' %}</h1>
 
       {% if statistiques %}
       <div x-data="{ actif: 'week',
@@ -33,14 +33,14 @@
           {# elle, la barre ne designerait aucune periode avant le demarrage d'Alpine. #}
           <div class="col-lg-3 col-md-8" data-testid="periode-active-week"
                :data-testid="'periode-active-' + actif">
-            <span class="label label-primary" style="cursor:pointer"
-                  :class="{ 'label-primary': actif === 'week', 'label-default': actif !== 'week' }"
+            <span class="badge text-bg-primary" style="cursor:pointer"
+                  :class="{ 'text-bg-primary': actif === 'week', 'text-bg-secondary': actif !== 'week' }"
                   @click="actif = 'week'">{% trans 'Week' %}</span>
-            <span class="label label-default" style="cursor:pointer" data-testid="filtre-mois"
-                  :class="{ 'label-primary': actif === 'month', 'label-default': actif !== 'month' }"
+            <span class="badge text-bg-secondary" style="cursor:pointer" data-testid="filtre-mois"
+                  :class="{ 'text-bg-primary': actif === 'month', 'text-bg-secondary': actif !== 'month' }"
                   @click="actif = 'month'">{% trans 'Month' %}</span>
-            <span class="label label-default" style="cursor:pointer" data-testid="filtre-annee"
-                  :class="{ 'label-primary': actif === 'year', 'label-default': actif !== 'year' }"
+            <span class="badge text-bg-secondary" style="cursor:pointer" data-testid="filtre-annee"
+                  :class="{ 'text-bg-primary': actif === 'year', 'text-bg-secondary': actif !== 'year' }"
                   @click="actif = 'year'">{% trans 'Year' %}</span>
             <p></p>
           </div>
@@ -48,13 +48,13 @@
 
         <div class="row">
           <div class="col-lg-4 col-md-6">
-            <div class="panel panel-primary">
-              <div class="panel-heading">
+            <div class="card text-bg-primary">
+              <div class="card-header">
                 <div class="row">
-                  <div class="col-xs-3">
+                  <div class="col-3">
                     <i class="fa fa-plus-square fa-5x"></i>
                   </div>
-                  <div class="col-xs-9 text-right">
+                  <div class="col-9 text-end">
                     <span class="dashboard-sparkline" data-testid="mini-graphe-nouveaux-patients">
                       {% for trace in graphes.nb_new_patient %}
                       <svg width="80" height="20" viewBox="0 0 80 20" x-show="actif === '{{ trace.periode }}'"{% if not trace.actif %} style="display: none"{% endif %}>
@@ -63,7 +63,7 @@
                       </svg>
                       {% endfor %}
                     </span>
-                    <div class="huge" data-testid="compteur-nouveaux-patients" x-text="nouveaux[actif]">{{ semaine.nb_new_patient }}</div>
+                    <div data-testid="compteur-nouveaux-patients" x-text="nouveaux[actif]">{{ semaine.nb_new_patient }}</div>
                     <div>{% trans 'New patients' %}</div>
                   </div>
                 </div>
@@ -71,13 +71,13 @@
             </div>
           </div>
           <div class="col-lg-4 col-md-6">
-            <div class="panel panel-green">
-              <div class="panel-heading">
+            <div class="card">
+              <div class="card-header">
                 <div class="row">
-                  <div class="col-xs-3">
+                  <div class="col-3">
                     <i class="fa fa-folder-open fa-5x"></i>
                   </div>
-                  <div class="col-xs-9 text-right">
+                  <div class="col-9 text-end">
                     <span class="dashboard-sparkline">
                       {% for trace in graphes.nb_examination %}
                       <svg width="80" height="20" viewBox="0 0 80 20" x-show="actif === '{{ trace.periode }}'"{% if not trace.actif %} style="display: none"{% endif %}>
@@ -86,7 +86,7 @@
                       </svg>
                       {% endfor %}
                     </span>
-                    <div class="huge" data-testid="compteur-consultations" x-text="consultations[actif]">{{ semaine.nb_examination }}</div>
+                    <div data-testid="compteur-consultations" x-text="consultations[actif]">{{ semaine.nb_examination }}</div>
                     <div>{% trans 'Examinations' %}</div>
                   </div>
                 </div>
@@ -94,13 +94,13 @@
             </div>
           </div>
           <div class="col-lg-4 col-md-6">
-            <div class="panel panel-red">
-              <div class="panel-heading">
+            <div class="card">
+              <div class="card-header">
                 <div class="row">
-                  <div class="col-xs-3">
+                  <div class="col-3">
                     <i class="fa fa-exclamation-triangle fa-5x"></i>
                   </div>
-                  <div class="col-xs-9 text-right">
+                  <div class="col-9 text-end">
                     <span class="dashboard-sparkline">
                       {% for trace in graphes.nb_urgent_return %}
                       <svg width="80" height="20" viewBox="0 0 80 20" x-show="actif === '{{ trace.periode }}'"{% if not trace.actif %} style="display: none"{% endif %}>
@@ -109,7 +109,7 @@
                       </svg>
                       {% endfor %}
                     </span>
-                    <div class="huge" data-testid="compteur-retours-urgents" x-text="retours[actif]">{{ semaine.nb_urgent_return }}</div>
+                    <div data-testid="compteur-retours-urgents" x-text="retours[actif]">{{ semaine.nb_urgent_return }}</div>
                     <div>{% trans 'Urgent return' %}</div>
                   </div>
                 </div>
@@ -121,25 +121,25 @@
       {% endif %}
 
       {% if evenements_actifs %}
-      <div class="chat-panel panel panel-default" data-testid="panneau-evenements"
+      <div class="lo-panneau-evenements card" data-testid="panneau-evenements"
            x-data="{ filtreOuvert: false }" @click.outside="filtreOuvert = false">
-        <div class="panel-heading">
+        <div class="card-header">
           <i class="fa fa-comments fa-fw"></i>
           {% trans 'Events' %}
-          <div class="btn-group pull-right">
+          <div class="btn-group float-end">
             {# `data-toggle="dropdown"` disparait avec jQuery (F14, A8) : Alpine seul #}
             {# pilote desormais ce menu. L'ancre `filtre-evenements` ne bouge pas. #}
-            <button type="button" class="btn btn-default btn-xs dropdown-toggle"
+            <button type="button" class="btn btn-secondary btn-sm dropdown-toggle"
                     data-testid="filtre-evenements" @click="filtreOuvert = !filtreOuvert">
               <i class="fa fa-chevron-down"></i>
             </button>
-            <ul class="dropdown-menu slidedown" :style="filtreOuvert ? 'display: block' : 'display: none'">
+            <ul class="dropdown-menu" :style="filtreOuvert ? 'display: block' : 'display: none'">
               <li><a href="#" hx-get="{% url 'evenements' %}?groupe=jour" hx-target="#liste-evenements" hx-swap="outerHTML" @click="filtreOuvert = false"><i class="fa fa-sun-o fa-fw"></i> {% trans 'By day' %}</a></li>
               <li><a href="#" hx-get="{% url 'evenements' %}?groupe=tout" hx-target="#liste-evenements" hx-swap="outerHTML" data-testid="evenements-tout" @click="filtreOuvert = false"><i class="fa fa-navicon fa-fw"></i> {% trans 'All' %}</a></li>
             </ul>
           </div>
         </div>
-        <div class="panel-body">
+        <div class="card-body">
           {% include "pages/fragments/evenements.html" %}
         </div>
       </div>

@@ -51,7 +51,10 @@ AJOUTS_DE_T1 = {
     # 2 au 2026-09-19 (T1) ; les deux repris par D6g T3 (register.html, restore.html).
     "well-md": ("card", 0),
     "well-sm": ("card", 0),
-    "left": (None, 3),
+    # 3 au 2026-09-19 (T1) ; 2 repris par D6g T13 (evenement.html, evenements-page.html).
+    # Le troisieme site, `button.left.close.document-close`, n'appartient pas a l'ecran
+    # de T13 et reste a reprendre par la tache qui migrera ce gabarit.
+    "left": (None, 1),
     # 1 au 2026-09-19 (T1) ; repris par D6g T3 (menu.html).
     "badge-info": ("text-bg-info", 0),
     "fa-1": (None, 3),
@@ -85,10 +88,12 @@ def test_la_mesure_du_depot_pese_les_occurrences_de_ces_sept_jetons() -> None:
     chaque tache qui reprend l'un des sept jetons, dans le commit qui le reprend. **13**
     au 2026-09-19 (T1) ; **11** depuis D6g T2, qui a repris `btn-block` sur les deux
     documents de compte ; **8** depuis D6g T3, qui a repris `well-md` (register.html,
-    restore.html) et `badge-info` (menu.html).
+    restore.html) et `badge-info` (menu.html) ; **6** depuis D6g T13, qui a repris deux
+    des trois sites de `left` (`evenement.html`, `evenements-page.html`) -- le troisieme,
+    hors de son ecran, reste a reprendre.
     """
     jetons, _ = occurrences(RACINE / "libreosteoweb" / "templates")
     releve = {jeton: jetons[jeton] for jeton in AJOUTS_DE_T1}
 
     assert releve == {jeton: n for jeton, (_, n) in AJOUTS_DE_T1.items()}
-    assert sum(releve.values()) == 8
+    assert sum(releve.values()) == 6

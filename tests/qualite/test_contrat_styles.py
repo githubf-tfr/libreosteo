@@ -375,6 +375,10 @@ RENOMMAGES_DU_SOCLE: dict[str, tuple[str, ...]] = {
     # la, seul le cote feuille mord, et cette entree est ce qui le rappellera a T16 : la
     # liste se remplit dans le commit qui migre le gabarit.
     "lo-barre-laterale": (),
+    # D6g T13 : `chat-panel`, le panneau des evenements du tableau de bord. Sans
+    # equivalent Bootstrap 5 (annexe A), et le seul consommateur de la regle qui annule
+    # le defaut de hauteur SB Admin (sb-admin-2.css:213-216).
+    "lo-panneau-evenements": ("libreosteoweb/templates/pages/tableau-de-bord.html",),
 }
 
 _TAG_DJANGO = re.compile(r"\{[%{#].*?[%}#]\}", re.S)

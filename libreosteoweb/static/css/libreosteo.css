@@ -381,9 +381,33 @@ pre {
     height: 300px;
 }
 
-.chat-panel .panel-body{
+/* D6g T13 : `chat-panel` (SB Admin, theme deconnecte de cet ecran par T4) devient
+   `lo-panneau-evenements`. Seul le tableau de bord pose cette classe ; la regle annule
+   le defaut SB Admin (`height: 350px; overflow-y: scroll`, sb-admin-2.css:213-216)
+   desormais hors d'atteinte sur cet ecran -- gardee pour ne pas perdre la main si ce
+   defaut redevenait visible ailleurs. */
+.lo-panneau-evenements .card-body{
     height: auto;
     overflow-y : initial;
+}
+
+/* D6g T13 : `.chat` et `.chat li` (SB Admin, sans equivalent Bootstrap 5, annexe A)
+   sont retirees du balisage, mais la mise a plat qu'elles portaient reste necessaire
+   -- sans elle la liste des evenements affiche des puces natives et colle ses entrees
+   les unes aux autres (constate a la capture de la fiche R-VIS-12). Reprise sur
+   l'identifiant fonctionnel `#liste-evenements`, deja pose pour htmx, plutot que sur
+   une classe de theme qui n'a plus lieu d'etre. Ce qui reste decoratif (indentation
+   façon bulle de `.chat-body`) n'est pas repris : la capture montre l'icone et le
+   texte cote a cote sans lui, le flottement suffit. */
+#liste-evenements {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+#liste-evenements li {
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px dotted #999;
 }
 
 .dashboard-sparkline
