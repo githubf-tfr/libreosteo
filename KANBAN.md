@@ -444,10 +444,11 @@ de la passe de recette courante.
     `timesince` y remplace `angular-timeago`, supprimé par D5 ;
   - « Séance du 13 septembre 2026 par » en titre du volet de consultation, même orphelin ;
   - **le premier commentaire d'une séance chevauche le champ de saisie de 11 px.**
-    `libreosteo.css:140-145` pose `margin-bottom: -11px` sur `.comment-ident` pour
-    recoller la ligne de nom au commentaire ; mesuré à l'écran, cette ligne rend `" "` —
-    une hauteur de **0 px** — et la marge négative tire le commentaire sous le formulaire.
-    La règle est d'amont, D6e n'y a pas touché.
+    `libreosteo.css:174-179` (ligne rectifiée le 2026-09-19, la règle a glissé dans le
+    fichier) pose `margin-bottom: -11px` sur `.comment-ident` pour recoller la ligne de
+    nom au commentaire ; mesuré à l'écran, cette ligne rend `" "` — une hauteur de
+    **0 px** — et la marge négative tire le commentaire sous le formulaire. La règle est
+    d'amont, toujours en place, aucun commit ne l'a touchée depuis.
 
   ⚠️ **Les placeholders d'adresse en sont sortis.** Versés ici le 2026-09-13 comme décision
   d'affordance, ils ont été **rétablis** le 2026-09-18 (`98439de`, cf. « Terminé ») sur les
@@ -638,15 +639,17 @@ décrits à l'entrée de clôture, pas ici.
   clôture de D6e, comme le seul remède du troisième chemin. C'était faux — ce drapeau répare
   l'avertissement et **jamais** la destruction. Le remède était ailleurs (`hx-preserve`), et
   le drapeau par surface n'est plus qu'un raffinement. Cf. l'entrée de clôture de D9.
-- **La chronologie alterne ses panneaux gauche/droite, et elle ne l'avait jamais fait.**
+- ~~**La chronologie alterne ses panneaux gauche/droite, et elle ne l'avait jamais fait.**
   `chronologie.html:30` pose `timeline-inverted` une ligne sur deux ; `timeline.html:9`
   écrivait `ng-class="{'timeline-inverted': examination.order %2 == 0 }"`, et **`order`
   n'existe pas** dans le sérialiseur — l'expression valait `NaN == 0`, donc `false`, depuis
-  toujours. Tous les panneaux étaient à gauche. **Le lot a « réparé » ce qui ressemblait à
-  un défaut** ; l'alternance est l'intention visible de `timeline.css`, qui porte la règle
-  `.timeline > li.timeline-inverted` depuis le point de fork. **Retenu**, et versé comme
-  sixième changement de produit à l'entrée de clôture plutôt qu'annulé : revenir à la
-  colonne unique serait figer une expression morte comme si elle était une décision.
+  toujours. Tous les panneaux étaient à gauche.~~ — **tranché le 2026-09-13** : la revue de
+  branche a retenu l'alternance plutôt que de l'annuler, et l'a versée comme sixième
+  changement de produit assumé à l'entrée de clôture « D6e Dossier patient migré »
+  (cf. « Terminé », commits `956e0fa..f1af6ff`) — l'alternance est l'intention visible de
+  `timeline.css`, qui porte `.timeline > li.timeline-inverted` depuis le point de fork ;
+  figer une expression morte reviendrait à la prendre pour une décision. Vérifié le
+  2026-09-19 : `chronologie.html:30` pose toujours `forloop.counter|divisibleby:2`.
 
 ### Dette technique (constat, pas action)
 
@@ -701,7 +704,8 @@ décrits à l'entrée de clôture, pas ici.
 - (S4, tâche 7) **Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
   sous forme de création manuelle.** Aucune fonction ne permet de créer à la main un
   événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
-  (`libreosteoweb/api/views.py:601`) est un `ReadOnlyModelViewSet`, et les seules
+  (`libreosteoweb/api/views/administration.py:139`, référence rectifiée le 2026-09-19 —
+  `api/views.py` a depuis été scindé en paquet `api/views/`) est un `ReadOnlyModelViewSet`, et les seules
   écritures d'`OfficeEvent` viennent de récepteurs de signal
   (`libreosteoweb/api/receivers.py:70,91`, à la création d'un patient ou d'une
   consultation ; `libreosteoweb/api/events/settings.py`, pour les événements liés aux
@@ -795,11 +799,15 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   aucun consommateur** : vérifié le 2026-09-18, aucun gabarit de
   `libreosteoweb/templates/` ne le nomme. L'entrée reste ouverte pour le gel A6, CVE
   comprises.
-- **L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
+- ~~**L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
   Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
-  lots restants »). Ce n'est pas une dette de D5 — le gel supprime la dérive dans le
-  temps, pas cet écart — c'est une **entrée pour le cadrage de D6**, dont la suite
-  Playwright est le filet unique.
+  lots restants »).~~ — **fermé le 2026-09-06 par `bfbc160`** : une cible `make static`
+  (purge, `yarn install --frozen-lockfile`, `collectstatic`, `compilejsi18n`, `compress
+  --force`) recopie les quatre commandes de `Docker/build/http-ready/Dockerfile`, et
+  `test-functional` en dépend désormais. Vérifié le 2026-09-19 sur l'arbre courant :
+  `Makefile` porte toujours `test-functional: static`, et
+  `.github/workflows/main.yml:65` appelle `make static PYTHON=python` avant la suite —
+  même cible des deux côtés, plus d'écart d'imputation entre local et CI.
 
 Deux constats mineurs versés au passage par D5, sans rapport avec le périmètre du lot :
 
@@ -808,7 +816,13 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   qu'aucun gabarit ni JS n'y fasse référence. **Chiffre refait le 2026-09-19** (`make
   static` puis mesure) : `static/components/` porte **103 fichiers** pour **2** paquets
   déclarés (`alpinejs`, `htmx`) ; `base.html:102-103` n'en référence que deux —
-  `htmx/dist/htmx.min.js` et `alpinejs/dist/cdn.min.js`. **101 fichiers, 1,7 Mo, jamais
+  `htmx/dist/htmx.min.js` et `alpinejs/dist/cdn.min.js`. ⚠️ **« 2 paquets » est déjà
+  périmé le même jour** : `package.json` déclare désormais un troisième paquet,
+  `@components/bootstrap` (`bootstrap@5.3.8`, D6g T2, `b3da281`), et `create_admin_
+  account.html`/`login.html` référencent `components/bootstrap/dist/css/bootstrap.min.
+  css`. **Non remesuré** : D6g est en cours et `make static` n'a pas été relancé ici
+  (aucun lancement concurrent) — le compte de 103/101 fichiers est donc à refaire une
+  fois D6g clos. **101 fichiers, 1,7 Mo, jamais
   servis** sur les 1,9 Mo du répertoire (documentation, sources non minifiées,
   extensions htmx, métadonnées d'éditeur). Le chiffre de 1202 (T4, 2026-09-06) est bien
   caduc — il datait d'avant le retrait des sept dépendances mortes puis d'AngularJS et
@@ -841,55 +855,77 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   l'ancien `ForeignKey` unique `Examination.invoice` dans le nouveau M2M, exactement 1
   pour 1, à l'introduction même de celui-ci. Un seul point d'écriture ajoute une
   facture à une consultation (`current_examination.invoices.add(current_invoice)`,
-  `libreosteoweb/api/invoicing/generator.py:169`), et `InvoiceViewSet` est un
-  `ReadOnlyModelViewSet` (`libreosteoweb/api/views/facturation.py:60`) : pas de
+  `libreosteoweb/api/invoicing/generator.py:245`, ligne rectifiée le 2026-09-19 — le
+  fichier a grossi depuis, D7 notamment), et `InvoiceViewSet` est un
+  `ReadOnlyModelViewSet` (`libreosteoweb/api/views/facturation.py:61`) : pas de
   création de facture par l'API.
-- **`Invoice.date` vaut `timezone.now()` à la création**, jamais la date de la
-  consultation (`libreosteoweb/api/invoicing/generator.py:69` pour la facture
-  normale, `:133` pour l'avoir) ; `Examination.date`
-  (`libreosteoweb/models.py:191`) est un champ indépendant. En facturation
-  différée, les deux dates divergent — c'est ce que l'arbitrage du 2026-09-06 sur la
-  date de facture change (cf. « Décisions actées »).
+- ~~**`Invoice.date` vaut `timezone.now()` à la création**, jamais la date de la
+  consultation.~~ — **fermé le 2026-09-07 par `9f5bf1f`** (D7 Facturation, T6, cf.
+  « Terminé ») : `invoice.date = examination.date` à l'émission
+  (`libreosteoweb/api/invoicing/generator.py:121`), et l'avoir reprend la date de la
+  facture qu'il annule (`:189`), pas celle de la séance. Vérifié le 2026-09-19 : aucune
+  occurrence de `timezone.now()` ne subsiste dans ce fichier ; les deux lignes ci-dessus
+  sont toujours en place.
 - **Ce qui dépend de `Invoice.date`** : le filtre de la liste/export des factures
-  (`filterset_fields`, `libreosteoweb/api/views/facturation.py:65`), l'écran de
-  liste des factures (`buildAPIFilter`,
-  `libreosteoweb/static/js/app/invoice.js:74-81`), l'export CSV/XLSX
-  (`InvoiceSerializer.Meta`, `fields = "__all__"`,
-  `libreosteoweb/api/serializers/facturation.py:62-65`, colonne `date` du
-  renderer CSV, `libreosteoweb/api/renderers.py:70-106`), le tri par défaut
-  (`Invoice.Meta.ordering = ["-date"]`, `libreosteoweb/models.py:396-397`), et le
-  gabarit de la facture (nom de fichier et mention « À {lieu}, le {date} »,
-  `libreosteoweb/templates/invoice/invoice-result.html:6,55`).
-  `libreosteoweb/api/statistics.py` ne l'utilise jamais : ses compteurs
-  (`compute_statistics`, lignes 59-68) travaillent sur `Patient.creation_date` et
-  `Examination.date` — les statistiques sont donc insensibles à l'arbitrage du
-  2026-09-06 sur `Invoice.date`.
-- **Aucune trace n'existe aujourd'hui pour une modification de consultation.**
-  `receiver_examination` (`libreosteoweb/api/receivers.py:90-100`) n'a aucune
-  branche de mise à jour : sur création, un `OfficeEvent` est construit et
-  sauvegardé, sur mise à jour rien ne se passe. Aucun type d'`OfficeEvent` ne
-  correspond à une modification de consultation, ni côté `Patient.TYPE_*`
-  (`libreosteoweb/models.py:133-134`) ni côté `OfficeSettings.*`
-  (`libreosteoweb/models.py:508-511`) : « tracer la redatation » (cf. « Décisions
-  actées ») suppose donc de créer ce type, pas d'en réactiver un. Le voisin connu —
-  `receiver_newpatient` construit `TYPE_UPDATE_PATIENT` puis n'appelle jamais
-  `save()` (`libreosteoweb/api/receivers.py:80-87`) — est toujours vrai.
+  (`filterset_fields`, `libreosteoweb/api/views/facturation.py:66`), l'écran de
+  Comptabilité (`libreosteoweb/api/views/pages/comptabilite.py:82`, filtre
+  `date__date__gte`/`__lte`) — ⚠️ **référence rectifiée le 2026-09-19** : l'écran AngularJS
+  et `static/js/app/invoice.js` qu'invoquait l'entrée n'existent plus, purgés par D6f T10
+  (`6db03a8`, 2026-09-14) ; la Comptabilité migrée porte désormais ce filtre côté serveur —,
+  l'export CSV/XLSX (`InvoiceSerializer.Meta`, `fields = "__all__"`,
+  `libreosteoweb/api/serializers/facturation.py:62`, renderer CSV,
+  `libreosteoweb/api/renderers.py:70-107`), le tri par défaut (`Invoice.Meta.ordering`,
+  `libreosteoweb/models.py:413` — vaut désormais `["-date", "-id"]`, un second critère
+  ajouté depuis), et le gabarit de la facture (nom de fichier et mention « À {lieu}, le
+  {date} », `libreosteoweb/templates/invoice/invoice-result.html:6,55`).
+  `libreosteoweb/api/statistics.py` ne l'utilise toujours pas : ses compteurs
+  (`compute_statistics`, désormais ligne 74) travaillent sur `Patient.creation_date` et
+  `Examination.date`.
+- ~~**Aucune trace n'existe aujourd'hui pour une modification de consultation.**
+  `receiver_examination` n'a aucune branche de mise à jour, et aucun type
+  d'`OfficeEvent` ne correspond à une modification de consultation.~~ — **fermé le
+  2026-09-07 par `041a1ad`** (D7 Facturation, T7, cf. « Terminé ») : un type dédié,
+  `Examination.TYPE_UPDATE_DATE = 5` (`libreosteoweb/models.py:233`), est écrit par
+  `libreosteoweb/api/events/consultation.py:54` à chaque redatation, et le journal du
+  tableau de bord l'affiche. Vérifié le 2026-09-19 : le type et le module existent
+  toujours, couverts par `libreosteoweb/tests/test_trace_redatation.py`. `receiver_
+  examination` (`libreosteoweb/api/receivers.py:91-101`) n'a toujours aucune branche de
+  mise à jour — c'est un module distinct, pas ce récepteur, qui porte la trace. Le
+  voisin `receiver_newpatient` (`TYPE_UPDATE_PATIENT` construit, jamais sauvegardé) reste
+  inchangé, sans lien avec ce défaut.
 - **Côté client, le champ date de la consultation reste éditable quel que soit
-  `status`** (`libreosteoweb/templates/partials/examination.html:17`) ; seule une
-  borne maximale existe en JavaScript (`maxExaminationDate`,
-  `libreosteoweb/static/js/app/examination.js:358-363`), sans contrepartie serveur
-  depuis la suppression de `_validate_examination_date` (2026-09-02) et sans borne
-  minimale.
+  `status`** — toujours vrai, par décision explicite : la redatation d'une consultation
+  facturée est permise depuis l'arbitrage du 2026-09-06 (« Décisions actées »), la trace
+  au journal en étant la contrepartie (cf. entrée fermée ci-dessus). ⚠️ **« Sans
+  contrepartie serveur » est faux depuis le 2026-09-12** (`116979c`, D6e T10) : la borne
+  maximale — refuser une date postérieure à la fin du jour courant — est désormais une
+  règle serveur, `valider_date_de_consultation`
+  (`libreosteoweb/api/views/pages/consultation.py:105-124`), appliquée par
+  `ExaminationForm.clean_date`. **Le fichier cité, `static/js/app/examination.js`,
+  n'existe plus** (purgé par D6f T10, `6db03a8`, 2026-09-14) ; `partials/examination.html`
+  non plus (remplacé par `pages/fragments/consultation-edition.html`). **Toujours aucune
+  borne minimale**, vérifié le 2026-09-19.
 
 ### Candidats pour D7 (2026-09-06, non décidés)
 
 > D7 n'est pas décidé : il se cadre à la clôture de D6, avec ce que D6 aura produit.
 > Trois candidats identifiés le 2026-09-06 :
 
-- **Facturation** — unicité `(officesettings_id, number)` avec la reprise de parc que
+- ~~**Facturation** — unicité `(officesettings_id, number)` avec la reprise de parc que
   la contrainte exige, garde-fou de séquence en comparaison numérique (cf. « Points en
   suspens »), application de l'arbitrage du 2026-09-06 sur `Invoice.date` (cf.
-  « Décisions actées »), création du type d'événement qui trace la redatation.
+  « Décisions actées »), création du type d'événement qui trace la redatation.~~ —
+  **livré le 2026-09-07 par D7 Facturation** (vingt-neuf commits `092b72d..91375bc`, cf.
+  « Terminé ») et **recetté le 2026-09-08 sur instance conteneur, sur l'archive de
+  production** : unicité posée par la migration `0060` (`006fc92`, T4), reprise de parc
+  en bande haute (`8a0b68c`, `96a800a`, T3), garde-fou de séquence en comparaison
+  numérique (`3fa948f`, T2), `Invoice.date` recopiée de la séance (`9f5bf1f`, T6), type
+  `TYPE_UPDATE_DATE` qui trace la redatation (`041a1ad`, T7). Les quatre points du
+  candidat sont couverts. ⚠️ Ne pas confondre avec la **reprise du parc de production**
+  en tête de ce chapitre : celle-ci est le **mécanisme** (migration 0060 + `reprise.py`),
+  déjà en place et vérifié le 2026-09-19 ; l'exécution réelle sur l'archive actuelle
+  reste à refaire, l'instance et l'archive qui l'avaient validée ayant été détruites le
+  2026-09-08.
 - **Whoosh** — moteur de recherche sans mainteneur depuis 2016 (`Whoosh==2.7.4`), porte
   la recherche du produit. Signalé comme dette de fond dès D4, dans la puce « Ménage des
   dépendances mortes » **retirée le 2026-09-18** quand le reste de son contenu a été purgé
