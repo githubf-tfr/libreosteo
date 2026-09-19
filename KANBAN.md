@@ -397,6 +397,10 @@ vécu depuis.
    Agrégats attendus : nombre de factures, de cabinets, couples `(cabinet, numéro)` en
    double, numéros non convertibles, préfixes, contiguïté de la plage,
    `invoice_start_sequence`, et doublons `(nom, prénom, naissance)` pour `0057`.
+   ⚠️ **« À réécrire, jamais versionné » est faux depuis le 2026-09-07** : `a977143` a versé
+   `outils/diagnostic_archive.py` au dépôt, et il couvre déjà cinq de ces agrégats. Cette
+   phrase a coûté une réécriture complète le 2026-09-19 (cf. « Terminé »). **L'outil versionné
+   est la référence** ; ce qui lui manque s'y porte, avec des tests.
 3. **Restauration sur instance conteneur** montée depuis `Docker/deploy/pg/`, images
    construites depuis le fork, dossier hôte **hors dépôt**.
 4. **Passe de recette** sur les fiches d'installation et de facturation touchées.
@@ -899,6 +903,43 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-19 — Une course de la suite fonctionnelle, latente depuis D9, est fermée**
+  (`6906e5f`). `test_la_vignette_en_edition_survit_a_la_suppression_d_une_seance` était
+  **intermittent — 2 rouges sur 8** lancements du seul test, les deux avec le même journal
+  d'appel : `Locator.click: Timeout 30000ms exceeded` sur la **croix de suppression de la
+  vignette**, jamais sur le bouton du bandeau que le test visait.
+
+  ⚠️ **Trois boutons du dossier portent le nom accessible « Supprimer », et la bascule
+  d'onglet échange leur visibilité.** Mesuré par sonde, de part et d'autre de
+  `page.click("#current-examination")`, la vignette étant en édition : avant le clic, le seul
+  « Supprimer » exposé à l'arbre d'accessibilité est la **croix de la vignette**
+  (`document-edition.html:50-51`) ; après, c'est celui du **bandeau**
+  (`actions-dossier.html:50-59`, borné par `x-show`). **Un seul candidat de chaque côté, donc
+  aucun refus pour ambiguïté** — et Playwright ne re-résout son sélecteur qu'au **détachement**
+  de l'élément, jamais à sa disparition. Résolu du mauvais côté, le geste se fige jusqu'au
+  plafond de 30 s.
+
+  **Le correctif est un helper scopé, pas un test affaibli** : `bouton_de_suppression`
+  (`tests/functional/helpers.py`) borne le `get_by_role` à `#actions-dossier` — vérifié,
+  l'identifiant est bien posé `actions-dossier.html:43`. Dans ce scope, zéro candidat visible
+  avant la bascule : Playwright **attend l'apparition** au lieu de s'accrocher à un élément
+  étranger. ⚠️ **Le rouge à 30 s était le cas heureux** : l'autre issue de la même course
+  était de cliquer la croix pendant qu'elle était visible, donc d'**effacer le document** dont
+  ce test vérifie précisément la survie.
+
+  **Ni le produit ni la clause 7 de D9 ne sont en cause.** Deux commandes distinctes, dans
+  deux régions distinctes, légitimement nommées « Supprimer » — les libellés de la vignette
+  avaient même été rendus distincts exprès en D6e T11. Le défaut date de l'écriture du test
+  (`7b79d33`, D9 T2), pas d'un commit récent : vérifié, `0d47c13` ne touche pas
+  `msgid "Delete"`. Les vingt pleines suites vertes du 2026-09-18 restent vraies — **la course
+  ne se perd que sous charge**, et un second agent travaillait sur la machine. `915 passed`,
+  couverture 94,94 % ; `test_patient.py` en entier, `29 passed`.
+
+  **Un seul autre site non scopé existe et il n'est pas exposé** : `test_consultation.py:600-606`
+  est délibérément non scopé — il mesure qu'aucun autre « Supprimer » n'existe à l'écran, le
+  scoper l'affaiblirait — aucune vignette n'y est en édition, et son clic est précédé d'un
+  `expect(...).to_have_count(1)` qui fait barrière.
 
 - **2026-09-19 — L'outil de diagnostic du parc de production est écrit, éprouvé, et il n'entre
   pas au dépôt.** Étape 2 de la reprise de parc. Python 3 de la bibliothèque standard seule —
