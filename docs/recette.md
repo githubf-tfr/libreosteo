@@ -4021,8 +4021,8 @@ opposable ; un écart se corrige, il ne s'absorbe pas.
    faisant défiler la page. Aucune entrée n'est masquée derrière un bord.
 
 **Ne couvre pas** : le contenu du tableau de bord (R-VIS-12), qui n'est **pas** migré à ce
-stade — ses tuiles colorées, ses grands chiffres et son panneau d'évènements se rendent sans
-mise en forme entre D6g T4 et D6g T13, et c'est attendu. Ni la modale, la notification, les
+stade — ses tuiles colorées et son panneau d'évènements se rendent sans mise en forme entre
+D6g T4 et D6g T13, et c'est attendu. Ni la modale, la notification, les
 onglets et l'encart de visite guidée, qui appartiennent au même socle mais se recettent sur
 les écrans qui les émettent.
 
@@ -4462,15 +4462,18 @@ propre, entre deux mots) mais *Consultati* / *ons* sur deux lignes, **au milieu 
 bascule, les trois libellés tenaient chacun sur une seule ligne aux deux largeurs (capture
 d'avant versée par D6g T1, `3f72c2d`).
 
-Cause mesurée : le mini-graphe porte `.dashboard-sparkline { float: left; margin-top: 10%;
-margin-left: 40% }` (`libreosteo.css`), et il flotte dans la colonne `col-9` de l'en-tête de
-carte. Sous Bootstrap 3 cette colonne était plus large, le rembourrage de `.panel-heading`
-différant de celui de `.card-header` ; le flottant y laissait assez de place au libellé. Il
-ne lui en laisse plus assez. Ce n'est **pas** un défaut de la tuile elle-même : les trois
-tuiles restent côte à côte, l'icône ne recouvre rien, le chiffre reste lisible — tous les
-attendus de l'étape 1 tiennent. **Constater ce défaut n'est donc pas un motif de rejet de
-cette fiche** ; le corriger demande une décision sur la disposition interne de la tuile, qui
-n'appartient à aucune tâche de D6g.
+Cause mesurée : T13 (`a70ab6b`) a retiré `class="huge"` des trois compteurs sans reprendre
+son style — `sb-admin-2.css:298` donnait `.huge { font-size: 40px }`, manquant à l'annexe A
+qui demande, pour un jeton « — », de reprendre le style plutôt que de le laisser tomber. Le
+chiffre est retombé à la taille de base — 16 px, elle-même montée depuis 14 px sous
+Bootstrap 3 —, le rythme vertical de la tuile s'est effondré, et le mini-graphe flottant
+(`.dashboard-sparkline { float: left; margin-top: 10%; margin-left: 40% }`, `libreosteo.css`)
+chevauche désormais la ligne du **libellé** au lieu de celle du chiffre, qu'il dépassait sans
+la toucher quand ce dernier faisait 40 px. Ce n'est **pas** un défaut de la tuile elle-même :
+les trois tuiles restent côte à côte, l'icône ne recouvre rien, le chiffre reste lisible —
+tous les attendus de l'étape 1 tiennent. **Constater ce défaut n'est donc pas un motif de
+rejet de cette fiche** ; le corriger demande de reprendre le style de `.huge` sur les
+compteurs, qui n'appartient à aucune tâche de D6g.
 
 **Ne couvre pas** : l'atteignabilité de chaque sommet du mini-graphe au survol — prouvée par
 `test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol` (`elementFromPoint`), pas par
