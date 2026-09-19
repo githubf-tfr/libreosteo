@@ -380,7 +380,10 @@ vécu depuis.
   risque sur données réelles : `0057` (unicité patient nom/prénom/naissance), `0058`
   (montants en `numeric(10,2)`) et `0060` (unicité `(officesettings_id, number)`).
   Un parc non conforme se manifeste par un **412 « archive incorrecte »** sur `0057` /
-  `0060`, par un **500** sur un dépassement `0058`.
+  `0060`, et **par un 412 également sur un dépassement `0058`** — ⚠️ le **500** annoncé
+  ici jusqu'au 2026-09-19 est faux : `api/services/sauvegarde.py:181-185` attrape
+  explicitement `decimal.InvalidOperation`, qui ne dérive pas de `DatabaseError`, et la
+  rend en `ArchiveInvalide`, donc en 412 comme les deux autres.
 - Au 2026-09-08 le parc réel les satisfaisait toutes les trois : 44 766 objets chargés sans
   un rejet, zéro doublon de numéro de facture, aucun préfixe, plage contiguë.
 
@@ -3129,7 +3132,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   2 118 couples `(cabinet, numéro)` distincts pour 2 118 factures, donc **zéro doublon** ;
   plage contiguë `123456789` → `123458906` ; `invoice_start_sequence` à `123458907`, soit
   le successeur exact du maximum. Une donnée non conforme aurait fait échouer la
-  restauration (412 sur `0057`/`0060`, 500 sur un dépassement `0058`). **Django n'a pas
+  restauration (412 sur `0057`/`0060`, ~~500~~ **412 aussi** sur un dépassement `0058`, corrigé le 2026-09-19). **Django n'a pas
   migré la donnée d'un ancien schéma** : les migrations ont tourné sur base vide au
   démarrage du conteneur, le dump JSON est entré dans le schéma déjà à jour. Ce qui est
   prouvé n'est donc pas une conversion de schéma, mais que **le parc de production
