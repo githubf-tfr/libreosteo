@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load static %}
 {% load compress %}
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -12,11 +13,8 @@
     <title>{% trans  "Create admin account on LibreOsteo" %}</title>
 
     {% compress css %}
-    <!-- Bootstrap core CSS -->
-    <link href="{{ STATIC_URL }}css/bootstrap.css" rel="stylesheet">
-
-     <!-- Custom styles for this template -->
-    <link href="{{ STATIC_URL }}css/signin.css" rel="stylesheet">
+    <link href="{% static "components/bootstrap/dist/css/bootstrap.min.css" %}" rel="stylesheet">
+    <link href="{% static "css/signin.css" %}" rel="stylesheet">
     {% endcompress %}
 
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -45,7 +43,7 @@
             </div>
           {% endfor %}
         {% endif %}
-        <div class="well well-lg">
+        <div class="card card-body">
           <p>{% trans 'In order to use LibreOsteo, you have to register a login and password on the application. Please select it before to use the application.' %}</p>
 
           <p>{% trans 'Then you will be redirected to be identified with this login and password.' %}</p>
@@ -57,7 +55,7 @@
           <input type="checkbox" value="remember-me"> {% trans "Remember me" %}
         </label>-->
         <input type="hidden" name="next" value="{{ next|escape }}" />
-        <button class="btn btn-lg btn-primary btn-block" type="submit" value="login">{% trans "Register" %}</button>
+        <button class="btn btn-lg btn-primary w-100" type="submit" value="login">{% trans "Register" %}</button>
       </form>
 
     </div> <!-- /container -->

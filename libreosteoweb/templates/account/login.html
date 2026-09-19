@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load static %}
 {% load compress %}
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -12,19 +13,11 @@
     <title>{% trans  "Signin on LibreOsteo" %}</title>
 
     {% compress css %}
-    <!-- Bootstrap core CSS -->
-    <link href="{{ STATIC_URL }}css/bootstrap.css" rel="stylesheet">
-
-    <!-- Custom styles for this template -->
-    <link href="{{ STATIC_URL }}css/signin.css" rel="stylesheet">
-
-    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-      <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
-    <![endif]-->
-  <style type="text/css"></style></head>
-  {% endcompress %}
+    <link href="{% static "components/bootstrap/dist/css/bootstrap.min.css" %}" rel="stylesheet">
+    <link href="{% static "font-awesome/css/font-awesome.min.css" %}" rel="stylesheet">
+    <link href="{% static "css/signin.css" %}" rel="stylesheet">
+    {% endcompress %}
+  </head>
 
   <body>
 
@@ -34,7 +27,7 @@
           {% csrf_token %}
         <h2 class="form-signin-heading">{% trans "Please sign in" %}</h2>
         {% if demonstration %}
-        <div class="well well-lg">
+        <div class="card card-body">
           <p>Pour vous identifier, vous pouvez utiliser 2 utilisateurs enregistrés, le mot de passe est identique à l'utilisateur.
           Ainsi l'utilisateur "demo" aura pour mot de passe "demo".</p>
           <ul>
@@ -45,19 +38,19 @@
         {% endif %}
         {% if form.errors %}
           <p class="alert alert-danger" data-testid="erreur-connexion">
-              <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+              <span class="fa fa-exclamation-circle" aria-hidden="true"></span>
             {% trans "Your username and password didn't match. Please try again." %}
           </p>
         {% endif %}
-        <div class="form-group {% if form.errors %}has-error{% endif %}">
-          <input type="text" name="username" class="form-control" placeholder="{% trans "Your login" %}" required="" autofocus="">
-          <input type="password" name="password" class="form-control" placeholder="{%  trans "Password" %}" required="">
+        <div class="mb-3">
+          <input type="text" name="username" class="form-control{% if form.errors %} is-invalid{% endif %}" placeholder="{% trans "Your login" %}" required="" autofocus="">
+          <input type="password" name="password" class="form-control{% if form.errors %} is-invalid{% endif %}" placeholder="{%  trans "Password" %}" required="">
         </div>
         <!--<label class="checkbox">
           <input type="checkbox" value="remember-me"> {% trans "Remember me" %}
         </label>-->
         <input type="hidden" name="next" value="{{ next|escape }}" />
-        <button class="btn btn-lg btn-primary btn-block" type="submit" value="login">{% trans "Sign in" %}</button>
+        <button class="btn btn-lg btn-primary w-100" type="submit" value="login">{% trans "Sign in" %}</button>
       </form>
 
     </div> <!-- /container -->

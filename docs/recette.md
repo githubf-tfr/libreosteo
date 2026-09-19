@@ -3753,11 +3753,23 @@ et `connexion-375.png`.
 **Étapes**
 
 1. Ouvrir l'URL racine de l'instance, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T2>
+   Attendu : le formulaire est centré horizontalement dans la fenêtre ; le texte « Veuillez
+   vous identifier » est entièrement visible au-dessus des champs ; les deux champs
+   (« Votre nom d'utilisateur », « Mot de passe ») et le bouton « Identification » font la
+   même largeur ; aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T2>
+   Attendu : le formulaire occupe la largeur de l'écran moins ses marges ; les deux champs
+   et le bouton restent empilés et de largeur égale ; aucune barre de défilement
+   horizontale.
+3. Saisir un mot de passe faux et soumettre.
+   Attendu : le bandeau rouge « Votre nom d'utilisateur et mot de passe ne correspondent
+   pas. Veuillez réessayer s'il vous plaît. » s'affiche au-dessus des champs, avec une
+   icône d'avertissement à sa gauche ; les deux champs sont bordés de rouge, chacun avec
+   une icône d'alerte à sa droite.
 
-**Ne couvre pas** : <écrit par T2>
+**Ne couvre pas** : le contenu du message d'erreur (couvert par
+`tests/functional/test_authentification.py::test_connexion_invalide`), ni la page de
+création du premier compte (R-VIS-02).
 
 ### R-VIS-02 — Socle visuel : création du premier compte
 
@@ -3773,11 +3785,17 @@ et `premier-compte-375.png`.
 **Étapes**
 
 1. Ouvrir `/accounts/create-admin/` sur une base vierge, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T2>
+   Attendu : le formulaire est centré horizontalement dans la fenêtre ; le titre
+   « Enregistrement » est entièrement visible au-dessus du bloc d'instructions ; les trois
+   champs (nom d'utilisateur, mot de passe, confirmation du mot de passe) et le bouton
+   « Enregistrer » font la même largeur ; aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T2>
+   Attendu : le formulaire occupe la largeur de l'écran moins ses marges ; les trois champs
+   et le bouton restent empilés et de largeur égale ; aucune barre de défilement
+   horizontale.
 
-**Ne couvre pas** : <écrit par T2>
+**Ne couvre pas** : le contenu du formulaire d'enregistrement, couvert par ses tests
+fonctionnels dédiés, ni la page de connexion (R-VIS-01).
 
 ### R-VIS-03 — Socle visuel : bandeau, menu latéral et gabarit commun
 
