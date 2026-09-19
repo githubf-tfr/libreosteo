@@ -204,7 +204,7 @@ sont celles où il ne mord pas.
 `libreosteoweb/static/css/sb-admin-2.css` · `css/plugins/dataTables.bootstrap.css` ·
 `css/plugins/dataTables/dataTables.bootstrap.css` · `css/plugins/metisMenu/metisMenu.css` ·
 `css/plugins/timeline.css` (**sous réserve du `diff`**) · les 20 règles mortes de
-`libreosteo.css` · la règle morte de `signin.css` · la dépendance `django-statici18n`.
+`libreosteo.css` · les **deux** règles mortes de `signin.css` · la dépendance `django-statici18n`.
 
 **Ne sont pas supprimés** : `css/typeahead.css` et `css/plugins/metisMenu/metisMenu.min.css`
 (vivants, `404.html:22` et `:28` — avertissement A3 de D6f, qu'un ménage naïf rouvrirait) ;
@@ -1661,7 +1661,7 @@ jamais par leur classe. Seules les deux captures de `R-VIS-14` et l'observation 
 
 **Files:**
 - Modify: `libreosteoweb/templates/404.html` (438 lignes → héritage de `base.html`)
-- Modify: `libreosteoweb/static/css/libreosteo.css` (20 règles mortes), `css/signin.css` (1)
+- Modify: `libreosteoweb/static/css/libreosteo.css` (20 règles mortes), `css/signin.css` (**2** : `.element`, et `.center-block` devenue orpheline en T8 — ⚠️ **compte corrigé le 2026-09-19, rejoue le script de détection plutôt que de te fier à ce chiffre**)
 - Delete: `css/bootstrap.css`, `css/bootstrap.min.css`, `css/sb-admin-2.css`,
   `css/plugins/dataTables.bootstrap.css`, `css/plugins/dataTables/dataTables.bootstrap.css`,
   `css/plugins/metisMenu/metisMenu.css`, `css/plugins/timeline.css` (sous réserve du `diff`)
