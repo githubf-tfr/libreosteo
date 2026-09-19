@@ -36,11 +36,17 @@ os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
 RACINE = Path(__file__).resolve().parents[2]
 
 # `live_server` sert les statiques par StaticFilesHandler, c'est-a-dire par les finders,
-# jamais par STATIC_ROOT. Or STATICFILES_DIRS est commente dans les reglages et
-# `compilejsi18n` ecrit son catalogue dans STATIC_ROOT : sans cette bascule,
-# /static/jsi18n/fr/djangojs.js part en 404 et l'application demarre sans traductions.
-# FileSystemFinder refuse un repertoire egal a STATIC_ROOT : on deplace donc STATIC_ROOT
-# vers un chemin qui n'est jamais ecrit, et on sert l'arbre collecte par les finders.
+# jamais par STATIC_ROOT. Or STATICFILES_DIRS est commente dans les reglages : sans la ligne
+# ci-dessous, rien de ce que `collectstatic` a rassemble sous `static/` n'est servi -- au
+# premier rang les bundles `static/CACHE/css/output.*.css`, qui ne sont produits par aucune
+# application et que seul cet arbre porte.
+#
+# **D6g T16 : le motif d'origine de cette bascule n'existe plus, la bascule si.** Elle avait
+# ete posee pour `/static/jsi18n/fr/djangojs.js`, ecrit dans STATIC_ROOT par `compilejsi18n`
+# ; `statici18n` est sorti du produit avec ce lot. Elle reste pour le motif ci-dessus, qui
+# lui est anterieur et independant -- et **FileSystemFinder refuse un repertoire egal a
+# STATIC_ROOT** (`ImproperlyConfigured`), donc declarer `static/` dans STATICFILES_DIRS
+# oblige a deplacer STATIC_ROOT ailleurs. Les deux lignes sont indissociables.
 reglages_django.STATIC_ROOT = str(RACINE / "static" / "collecte-inutilisee")
 reglages_django.STATICFILES_DIRS = [str(RACINE / "static")]
 # django-stubs type `get_finder` comme une fonction nue ; a l'execution c'est un

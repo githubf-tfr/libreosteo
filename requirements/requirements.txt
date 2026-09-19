@@ -19,5 +19,4 @@ sqlparse==0.6.0
 netifaces2==0.0.22
 decorator==5.3.1
 packaging==26.3
-django-statici18n==2.8.0
 drf-excel==2.6.0

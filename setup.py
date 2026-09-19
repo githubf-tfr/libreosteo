@@ -48,12 +48,6 @@ def compress():
     execute_cmd_context(cmd)
 
 
-def compilejsi18n():
-    print("Compile JsI18n")
-    cmd = "python manage.py compilejsi18n"
-    execute_cmd_context(cmd)
-
-
 def get_zipcodes():
     print("Retrieve ZipCode dataset")
     execute_cmd_context("python manage.py import_zipcodes --download-only")
@@ -81,8 +75,6 @@ def purge_static():
 if sys.platform in ["win32"]:
     # before all of things : collectstatic
     collectstatic()
-
-    compilejsi18n()
 
     compress()
 
@@ -240,7 +232,6 @@ if sys.platform in ["win32"]:
         "rest_framework",
         "haystack",
         "sqlite3",
-        "statici18n",
         "email",
         "Libreosteo",
         "compressor",
@@ -277,7 +268,6 @@ if sys.platform in ["win32"]:
         "rest_framework_csv",
         "sqlite3",
         "sqlparse",
-        "statici18n",
         "tempora",
         "test",
         "unittest",
@@ -356,8 +346,6 @@ if sys.platform in ["darwin"]:
     # before all of things : collectstatic
     collectstatic()
 
-    compilejsi18n()
-
     compress()
 
     APP = ["server.py"]
@@ -380,7 +368,6 @@ if sys.platform in ["darwin"]:
             "rest_framework",
             "haystack",
             "sqlite3",
-            "statici18n",
             "email",
             "compressor",
             "django_filters",

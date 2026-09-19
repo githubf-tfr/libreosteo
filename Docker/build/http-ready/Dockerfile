@@ -102,7 +102,7 @@ ENV LIBREOSTEO_SECRET_KEY="django-insecure-developpement-et-tests-uniquement"
 # monolithique. L'avertissement ne tient donc plus, sur aucun motif mesure, et il est retire.
 # Ce RUN reste neanmoins une seule commande : personne n'a demande son decoupage, et corriger
 # une affirmation fausse n'est pas une occasion de reorganiser le build.
-RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn install --frozen-lockfile && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base && python3 ./manage.py compilejsi18n && python3 ./manage.py compress --settings=Libreosteo.settings.base
+RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn install --frozen-lockfile && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base && python3 ./manage.py compress --settings=Libreosteo.settings.base
 RUN rm libreosteoweb/static/components
 
 

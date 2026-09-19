@@ -118,8 +118,14 @@ def test_les_statiques_de_l_application_sont_servis(
 ) -> None:
     """Preuve que live_server sert l'application complete, pas seulement le HTML.
 
-    Le catalogue jsi18n est ecrit par `compilejsi18n` dans STATIC_ROOT, que les finders
-    n'explorent pas : c'est le premier fichier a tomber si la bascule du conftest saute.
+    **D6g T16 : la cible change, la preuve non.** Elle portait sur
+    `/static/jsi18n/fr/djangojs.js`, ecrit par `compilejsi18n` dans STATIC_ROOT, que les
+    finders n'explorent pas. Ce que ce test prouve n'a jamais ete qu'un catalogue soit
+    utilise -- il ne l'etait plus depuis D6f T10 -- mais que **les statiques collectes sont
+    servis**, et n'importe lequel le prouve aussi bien. `statici18n` etant sorti du produit,
+    la cible naturelle est la feuille de Bootstrap 5 elle-meme : elle vient de `yarn`, donc
+    de la meme chaine `collectstatic`, et c'est desormais elle qui tombe la premiere si la
+    bascule du conftest saute.
 
     **D6f, ecart mesure** : Angular ne charge plus nulle part, la coquille etant morte —
     `typeof angular` vaudrait desormais `"undefined"` partout, y compris sur une page qui
@@ -128,7 +134,9 @@ def test_les_statiques_de_l_application_sont_servis(
     `connexion()` a fini d'attendre le rendu du document.
     """
     connexion(page, live_server)
-    reponse = page.request.get(f"{live_server.url}/static/jsi18n/fr/djangojs.js")
+    reponse = page.request.get(
+        f"{live_server.url}/static/components/bootstrap/dist/css/bootstrap.min.css"
+    )
     assert reponse.status == 200
     assert page.evaluate("typeof htmx") == "object"
 

@@ -44,8 +44,11 @@ rouvrir le trou ailleurs.
   n'en rend que le singulier. Aucune n'est traduite aujourd'hui ;
 - une traduction **fausse** : le `.mo` repond, la phrase est du charabia, ce cliquet est
   vert. Il mesure une coincidence, pas une qualite ;
-- le catalogue JavaScript (`djangojs`), compile par `compilejsi18n` a partir du `.po` du
-  meme nom.
+- le catalogue JavaScript (`djangojs`). Il reste servi par la route `/jsi18n/`
+  (`JavaScriptCatalog`, une vue **de Django**), et son `.mo` est desormais produit par
+  `make locale-compile` comme celui de `django` -- `statici18n` et son `compilejsi18n`
+  sont sortis du produit a D6g T16. Ce module ne le compare pas a son `.po` : il n'a
+  qu'une seule cible, et l'elargir serait un autre cliquet.
 """
 
 from __future__ import annotations

@@ -117,7 +117,6 @@ INSTALLED_APPS = [
     "compressor",
     "zipcode_lookup",
     "haystack",
-    "statici18n",
 ]
 
 MIDDLEWARE = [
@@ -166,7 +165,6 @@ TEMPLATES = [
             ],
             "libraries": {
                 "compress": "compressor.templatetags.compress",
-                "statici18n": "statici18n.templatetags.statici18n",
             },
             "loaders": [
                 "django.template.loaders.filesystem.Loader",
