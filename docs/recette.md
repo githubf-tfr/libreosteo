@@ -4054,12 +4054,35 @@ et `nouveau-patient-375.png`.
 
 **Étapes**
 
-1. Menu latéral → *Nouveau patient*, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T9>
-2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T9>
+1. Menu latéral → *Nouveau patient*, saisir un nom et un prénom déjà présents en base
+   (« Picard » / « Jean-Luc »), une date de naissance différente, cocher la case de
+   consentement puis cliquer *Initialiser la fiche patient*, fenêtre à **1 280 px de
+   large**.
+   Attendu : la modale *Confirmer* s'ouvre par-dessus le document, centrée, entièrement
+   lisible (titre, phrase d'avertissement, la ligne d'homonyme « Picard Jean-Luc —
+   13 juillet 1935 »), et les deux boutons *Annuler* et *OK* sont côte à côte,
+   atteignables au clic ; le titre *Nouveau patient* et le bandeau restent visibles
+   derrière le fond assombri ; aucune barre de défilement horizontale.
+2. Ramener la fenêtre à **375 px de large**, modale toujours ouverte.
+   Attendu : la modale occupe toute la largeur utile, son contenu (titre, avertissement,
+   ligne d'homonyme, boutons) reste entièrement lisible sans chevauchement, les deux
+   boutons restent côte à côte ; aucune barre de défilement horizontale.
 
-**Ne couvre pas** : <écrit par T9>
+**Ne couvre pas** : le formulaire vide, sans avertissement — les deux captures versées ne
+montrent que l'état modale ouverte (particularité de la tâche : c'est cet état qui expose le
+fragment `fragments/homonymes.html`). Le formulaire vide se recette au navigateur, sans
+capture de référence : à 1 280 px les deux champs *Nom de famille* / *Nom de naissance* sont
+côte à côte, le champ *Prénom* et le champ de date sont pleine largeur, la case à cocher et
+son libellé sont alignés, et le bouton *Initialiser la fiche patient* est désactivé tant que
+le formulaire est invalide ; à 375 px, *Nom de famille* et *Nom de naissance* restent côte à
+côte (moitié de largeur chacun, comme avant la migration — `col-xs-6` valait déjà 50 % à
+toutes les largeurs). Le contenu soumis (validation serveur, doublon exact, XSS d'un nom
+d'homonyme) est couvert par `tests/functional/test_patient.py`
+(`test_creation_patient_et_refus_du_doublon`,
+`test_le_bouton_reste_desactive_tant_que_le_formulaire_est_invalide`,
+`test_avertissement_d_homonyme_puis_creation`,
+`test_charge_html_dans_nom_homonyme_reste_texte_litteral`) et
+`tests/functional/test_code_postal.py`.
 
 ### R-VIS-09 — Socle visuel : comptabilité
 

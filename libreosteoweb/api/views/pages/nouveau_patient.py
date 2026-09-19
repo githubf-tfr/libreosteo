@@ -76,7 +76,11 @@ class FormulaireNouveauPatient(forms.ModelForm):
             "perform the good osteopathic care."
         ),
         required=True,
-        widget=forms.CheckboxInput(attrs={"id": "consent"}),
+        # `form-check-input` (D6g T9, annexe A, precondition tacite de `checkbox ->
+        # form-check`) : invisible a `outils/rupture_bs5.py`, qui ne lit que du HTML.
+        widget=forms.CheckboxInput(
+            attrs={"id": "consent", "class": "form-check-input"}
+        ),
     )
 
     class Meta:
@@ -94,7 +98,10 @@ class FormulaireNouveauPatient(forms.ModelForm):
         for nom in ("family_name", "original_name", "first_name"):
             self.fields[nom].widget.attrs.update(
                 {
-                    "class": "form-control input-lg",
+                    # D6g T9 : l'ancienne classe Bootstrap 3 de grande taille (annexe A)
+                    # devient `form-control-lg` ; invisible a `outils/rupture_bs5.py`,
+                    # qui ne lit que du HTML.
+                    "class": "form-control form-control-lg",
                     "placeholder": self.fields[nom].label,
                 }
             )
@@ -110,7 +117,7 @@ class FormulaireNouveauPatient(forms.ModelForm):
             attrs={
                 "type": "date",
                 "id": "birthdate",
-                "class": "form-control input-lg",
+                "class": "form-control form-control-lg",
                 "max": date.today().isoformat(),
                 "required": True,
             }

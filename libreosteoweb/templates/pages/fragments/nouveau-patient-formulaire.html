@@ -14,20 +14,24 @@
       @input="valide = $el.checkValidity()">
   {% csrf_token %}
   <div class="row">
-    <div class="col-xs-6 col-sm-6 col-md-6">
-      <div class="form-group">{{ formulaire.family_name }}</div>
+    <div class="col-6 col-sm-6 col-md-6">
+      <div class="mb-3">{{ formulaire.family_name }}</div>
     </div>
-    <div class="col-xs-6 col-sm-6 col-md-6">
-      <div class="form-group">{{ formulaire.original_name }}</div>
+    <div class="col-6 col-sm-6 col-md-6">
+      <div class="mb-3">{{ formulaire.original_name }}</div>
     </div>
   </div>
-  <div class="form-group">{{ formulaire.first_name }}</div>
-  <div class="form-group">
+  <div class="mb-3">{{ formulaire.first_name }}</div>
+  <div class="mb-3">
     <label for="birthdate">{{ formulaire.birth_date.label }}</label>
     {{ formulaire.birth_date }}
   </div>
-  <div class="checkbox">
-    <label>
+  {# `checkbox` -> `form-check` (annexe A) porte une precondition tacite : #}
+  {# `form-check-input`/`form-check-label` sur les enfants. Le `<label>` est litteral, #}
+  {# classe ici ; `form-check-input` sur l'`<input>` vient du widget Python #}
+  {# (`FormulaireNouveauPatient.consent_check`, meme geste que T12/T14). #}
+  <div class="form-check">
+    <label class="form-check-label">
       {{ formulaire.consent_check }}
       {% trans 'Patient gives its consent to handle its personnal information in order to perform the good osteopathic care.' %}
     </label>

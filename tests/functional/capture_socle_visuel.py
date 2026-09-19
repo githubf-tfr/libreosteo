@@ -20,6 +20,7 @@ repertoire reste a trente-deux fichiers, et l'etat d'avant se ressort par `git s
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,8 @@ import pytest
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
+from libreosteoweb.models import Patient
+from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.conftest import Socle
 from tests.functional.helpers import (
     attendre_alpine_initialise,
@@ -38,6 +41,7 @@ from tests.functional.helpers import (
     ouvrir_menu_utilisateur,
     ouvrir_nouvelle_consultation,
     saisir_consultation,
+    saisir_date,
 )
 
 
@@ -150,6 +154,19 @@ def test_captures_ecrans_du_socle(
     expect(page.get_by_test_id("titre-nouveau-patient")).to_contain_text(
         "Nouveau patient"
     )
+    # R-VIS-08 (D6g T9) : la capture montre l'avertissement d'homonyme ouvert, pas le
+    # formulaire vide -- meme scenario que
+    # `test_patient.py::test_avertissement_d_homonyme_puis_creation`.
+    with sans_receivers():
+        Patient.objects.create(
+            family_name="Picard", first_name="Jean-Luc", birth_date=date(1935, 7, 13)
+        )
+    page.fill("input[name=family_name]", "Picard")
+    page.fill("input[name=first_name]", "Jean-Luc")
+    saisir_date(page, "#birthdate", "1980-01-01")
+    page.check("#consent")
+    page.get_by_role("button", name="Initialiser la fiche patient", exact=True).click()
+    expect(page.get_by_test_id("corps-modale")).to_be_visible()
     capturer(page, "nouveau-patient")
 
     page.goto(live_server.url)

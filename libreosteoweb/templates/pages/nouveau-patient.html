@@ -15,10 +15,12 @@
 <div id="page-wrapper">
   {# `data-testid="titre-nouveau-patient"` se conserve a l'octet : `helpers.creer_patient` #}
   {# et quatre sites de `test_patient.py` l'adressent. #}
-  <h1 class="page-header" data-testid="titre-nouveau-patient">{% trans 'New patient' %}</h1>
+  {# `page-header` (annexe A) sans equivalent : aucune regle `.page-header` dans #}
+  {# `libreosteo.css`, la classe ne stylait deja rien. #}
+  <h1 data-testid="titre-nouveau-patient">{% trans 'New patient' %}</h1>
 
   <div class="row">
-    <div class="col-xs-12 col-sm-8 col-md-6 col-sm-offset-2 col-md-offset-3">
+    <div class="col-12 col-sm-8 col-md-6 offset-sm-2 offset-md-3">
       {% include "pages/fragments/nouveau-patient-formulaire.html" %}
     </div>
   </div>
