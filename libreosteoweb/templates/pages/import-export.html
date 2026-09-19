@@ -13,7 +13,7 @@
 
 {% block contenu %}
 <div id="page-wrapper">
-    <h1 class="page-header" data-testid="titre-import">
+    <h1 data-testid="titre-import">
         {% trans 'Managing import/export' %}
     </h1>
 
@@ -27,9 +27,9 @@
             <div class="row">
               <p>{% blocktrans %}This system helps you to archive and restore the full system.{% endblocktrans %}</p>
               <div class="col-md-12">
-                <div class="panel panel-default">
-                  <div class="panel-heading">{% trans 'Archive' %}</div>
-                  <div class="panel-body">
+                <div class="card">
+                  <div class="card-header">{% trans 'Archive' %}</div>
+                  <div class="card-body">
                     <div class="row">
                       <div class="col-md-2">
                         <i style="font-size:24px" class="fa fa-file-excel-o"></i>
@@ -69,12 +69,12 @@
                 <p>After you fill them, you upload your files with the import tool above.</p>
                 <br/>
                 <p>In order to add examinations for patients, you have to link each one with a number. If you read the Patient templates file you will see that the first column is "Number". This number should have been the same in the examination to add this examination to the patient.</p>
-                <div class="well" data-testid="note-import">Note : It have no relation with the number that you can see in the system after integration.</div>
+                <div class="card p-3" data-testid="note-import">Note : It have no relation with the number that you can see in the system after integration.</div>
                 {% endblocktrans %}
               </div>
               <div class="col-md-12">
-                <div class="panel panel-default">
-                  <div class="panel-body">
+                <div class="card">
+                  <div class="card-body">
                     <div class="row">
                       <div class="col-md-6">
                         <i style="font-size:24px" class="fa fa-file-excel-o"></i>
@@ -90,9 +90,9 @@
               </div>
             </div>
 
-            <div class="panel panel-default">
-              <div class="panel-heading">{% trans 'Import' %}</div>
-              <div class="panel-body">
+            <div class="card">
+              <div class="card-header">{% trans 'Import' %}</div>
+              <div class="card-body">
                 {# Televersement multipart **natif** : `hx-encoding` suffit, `ng-file-upload` #}
                 {# n'a plus de role ici. `show:top` remplace les quatre appels a #}
                 {# `animatescroll`, dont deux etaient des `<script>` en ligne dans le #}
@@ -106,13 +106,13 @@
                       hx-disabled-elt="find button[type='submit']"
                       hx-request='{"timeout": 180000}'>
                   {% csrf_token %}
-                  <div class="form-group">
+                  <div class="mb-3">
                     <label for="patient-file">{% trans 'Patient file' %}</label>
                     <input type="file" id="patient-file" name="patientFile" accept=".csv" required>
                     <label for="examination-file">{% trans 'Examination file' %}</label>
                     <input type="file" id="examination-file" name="examinationFile" accept=".csv">
                   </div>
-                  <button class="btn btn-default" type="submit">{% trans 'Analyze' %}</button>
+                  <button class="btn btn-secondary" type="submit">{% trans 'Analyze' %}</button>
                   <p class="bg-success htmx-indicator" id="analyse-en-cours"><i class="fa fa-cog fa-spin fa-lg fa-fw"></i> {% trans 'Loading in progress'%}</p>
                 </form>
               </div>
@@ -131,8 +131,8 @@
             <div class="row">
               <p>{% blocktrans %}Here you can download the full list of patients and examinations as Excel files{% endblocktrans %}</p>
               <div class="col-md-12">
-                <div class="panel panel-default">
-                  <div class="panel-body">
+                <div class="card">
+                  <div class="card-body">
                     <div class="row">
                       {# Les deux URL etaient ecrites **en dur** (`/api/patients.xlsx`, #}
                       {# `/api/examinations.xlsx`) : la reecriture du gabarit les passe par #}

@@ -1,9 +1,9 @@
 {% load i18n %}
 {# Le panneau de resultat d'analyse. **La reponse est le panneau** : il n'existe pas avant #}
 {# l'analyse, la ou `ng-show` le laissait dans le DOM avec tout son texte (C6, F12). #}
-<div class="panel panel-default">
-  <div class="panel-heading">{% trans 'Analyze result' %}</div>
-  <div class="panel-body">
+<div class="card">
+  <div class="card-header">{% trans 'Analyze result' %}</div>
+  <div class="card-body">
 
     {% if patient %}
     <div id="patient-file-analyze">

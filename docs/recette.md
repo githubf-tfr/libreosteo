@@ -4158,11 +4158,42 @@ et `import-export-375.png`.
 **Étapes**
 
 1. Menu utilisateur → *Import/export*, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T11>
+   Attendu : le titre **Gestion de l'import/export** est entièrement visible. Sous lui,
+   trois onglets tiennent sur une même ligne, séparés par un filet horizontal :
+   *Archiver la base de données* (actif, encadré), *Importer d'un système externe* et
+   *Exporter vers un système externe*. L'onglet actif ouvre par défaut sur *Archiver la
+   base de données* — jamais sur *Importer*, quel que soit le compte connecté (D6g, brief
+   T11 : `onglet_initial` n'est jamais transmis au composant, défaut connu et versé d'un
+   lot antérieur, non corrigé ici). Sous la phrase d'introduction, un encadré unique
+   *Archiver* : un bandeau d'en-tête gris clair portant son titre, puis un corps blanc où
+   l'icône de fichier Excel et le lien **obtenir l'archive** sont à gauche, le paragraphe
+   descriptif à droite sur la même ligne. Aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T11>
+   Attendu : le titre reste entièrement visible. Le menu principal se réduit à une icône
+   ☰, les trois onglets restent lisibles mais se répartissent sur plusieurs lignes (leurs
+   libellés sont plus longs qu'à l'écran du profil, R-VIS-11) — comportement attendu du
+   passage à la ligne de `.nav-tabs`, pas une régression. L'encadré *Archiver* garde son
+   bandeau d'en-tête ; à l'intérieur, l'icône et le lien **obtenir l'archive** passent
+   au-dessus du paragraphe descriptif au lieu d'être côte à côte. Aucune barre de
+   défilement horizontale.
 
-**Ne couvre pas** : <écrit par T11>
+**Ne couvre pas** : les onglets *Importer d'un système externe* et *Exporter vers un
+système externe* — les deux captures de référence ne montrent que l'onglet ouvert par
+défaut (*Archiver*), conformément au script `capture_socle_visuel.py`, qui ne clique aucun
+onglet sur cet écran. Ces deux onglets sont couverts par le geste
+(`tests/functional/test_import_csv.py`, cinq tests, dont six clics sur l'onglet *Importer*)
+et ont été vérifiés par l'œil pendant cette tâche, sans capture retenue (budget de 32
+fichiers, 2 par écran) : à 1 280 comme à 375 px, l'encart *Note* de l'onglet *Importer*
+(ex-`well`, devenu `card p-3`, seul site de cette famille du dépôt) est lisible, encadré et
+padded comme les autres encarts de l'écran ; les deux encarts de gabarits téléchargeables
+(*Importer*, *Exporter*) affichent leurs cartes avec bandeau d'en-tête et icônes visibles ;
+aucun défilement horizontal constaté à aucune des deux largeurs sur ces deux onglets non
+plus. **Défaut pré-existant, non corrigé ici** : le paragraphe descriptif de l'onglet
+*Importer* (dont la note ci-dessus) s'affiche en anglais et non en français, y compris
+avant cette tâche — le catalogue de traduction (`locale/fr/LC_MESSAGES/django.po`) ne
+porte plus le texte source exact du gabarit depuis l'ajout de `data-testid="note-import"`
+(D6d T8, `bcbde5d`), et ce lot ne touche pas au catalogue (`CLAUDE.md` du lot, Global
+Constraints).
 
 ### R-VIS-11 — Socle visuel : profil utilisateur
 
