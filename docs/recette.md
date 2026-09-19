@@ -3276,8 +3276,11 @@ deux dates.
    Attendu : panneau « Restaurer la base de données » ; texte « Vous pouvez
    restaurer une archive précédente de la base de données. Cette archive doit
    être obtenue depuis le logiciel avec la fonction Importer/Exporter/Archiver. » ;
-   un champ de fichier (libellé « Fichier d'archive à restaurer ») et un bouton
-   « Confirmer la restauration ».
+   **puis, sous ce texte, l'avertissement « Après une restauration, l'index de recherche
+   est vidé : reconstruisez-le depuis le menu utilisateur, entrée « Réindexer ». »** — la
+   phrase est en français, la fiche échoue si l'anglais s'affiche (le `msgid` serait
+   orphelin au catalogue) ; un champ de fichier (libellé « Fichier d'archive à restaurer »)
+   et un bouton « Confirmer la restauration ».
 4. Avant de restaurer l'archive valide, éprouver le refus d'une archive tronquée :
    couper la seconde moitié du fichier téléchargé à l'étape 1
    (`head -c $(( $(stat -c%s FICHIER) / 2 )) FICHIER > FICHIER-tronque.db`), choisir
@@ -3295,13 +3298,154 @@ deux dates.
    « Identifiez-vous sur LibreOsteo »). Cette réussite prouve que l'échec de l'étape 4
    n'a rien laissé derrière lui : avant D3, il laissait la base vidée par le `sqlflush`
    et une transaction ouverte.
-6. S'identifier avec `test` / `test`, saisir `Picard` dans le champ de recherche,
-   valider.
+6. S'identifier avec `test` / `test`, **jouer « Réindexer » (menu utilisateur) avant toute
+   recherche** — la restauration a vidé l'index, cf. étape 3 —, puis saisir `Picard` dans
+   le champ de recherche, valider.
    Attendu : la fiche de Jean-Luc Picard s'affiche ; l'onglet « Consultations »
    liste les deux consultations créées à l'état E2 ; l'onglet « Compte-rendus
    médicaux » liste le document « Radiographie lombaire » ; le menu
    « Comptabilité » liste la facture N° `10000`, patient `Jean-Luc Picard`,
    montant `55 €`, moyen de paiement `Chèque`, état `Réglée`.
+
+### R-SAU-03 — Diagnostic d'une archive avant de la restaurer
+
+- **Domaine** : Sauvegarde/restauration
+- **Couverture auto** : oui, pour la règle —
+  outils/tests/test_diagnostic_archive.py (23 tests : chaque agrégat en cas sain et en cas
+  fautif, dont `test_aucun_nom_ni_date_de_naissance_n_est_imprime`,
+  `test_un_meme_numero_dans_un_meme_cabinet_ne_bloque_plus_et_annonce_la_reprise`,
+  `test_la_renumerotation_annoncee_conserve_le_prefixe` et
+  `test_le_rapport_nomme_la_version_du_produit_qu_il_suppose`), et
+  libreosteoweb/tests/test_reprise_archive.py::
+  test_l_outil_de_diagnostic_annonce_exactement_ce_que_la_reprise_fera, qui garde d'accord
+  ce que l'outil annonce et ce que la restauration fait. **Non couvert** : que le rapport
+  soit lisible par son destinataire, et que l'enchaînement diagnostic → décision →
+  restauration tienne de bout en bout.
+- **État requis** : E2, puis l'état laissé par `R-INST-08` (un parc portant deux factures de
+  même numéro dans le même cabinet). Cette fiche ne modifie **rien** : l'outil ouvre
+  l'archive en lecture seule, n'écrit aucun fichier, n'envoie rien.
+
+⚠️ **Cette fiche se joue sur une archive de recette, jamais sur une archive de production.**
+L'outil est conçu pour que l'exploitant le lance **lui-même, sur sa machine** : aucune
+donnée de santé ne doit transiter par une session d'assistance.
+
+**Étapes**
+
+1. Depuis l'état laissé par `R-INST-08`, obtenir une archive de l'instance (menu
+   utilisateur → « Import/export », onglet « Archiver la base de données », lien « obtenir
+   l'archive »).
+   Attendu : un fichier `<horodatage ISO>-libreosteo.db` est téléchargé.
+2. Lancer l'outil sur ce fichier, avec l'interpréteur système et sans aucune installation :
+
+   ```sh
+   python3 outils/diagnostic_archive.py <horodatage>-libreosteo.db; echo "code de sortie : $?"
+   ```
+
+   Attendu : un rapport sur la sortie standard, découpé en cinq sections — `0057`, `0058`,
+   `0060`, `D9`, `0056` — puis un `VERDICT`. **Aucun nom, aucun prénom, aucune date de
+   naissance, aucun motif de consultation n'apparaît nulle part** : des comptes, et au plus
+   des identifiants numériques. La fiche échoue si une seule de ces valeurs s'affiche.
+   En tête du rapport, la ligne `Version supposee par ce rapport   : <version>` doit
+   apparaître, et porter la version de l'instance qui vient de produire l'archive.
+   **La fiche échoue si elle manque** : l'outil circule, et un rapport qui ne dit pas sur
+   quelle version il raisonne peut autoriser une restauration qui échouera.
+2 bis. Éprouver le versant « instance plus ancienne » : éditer une copie de l'archive pour
+   y remplacer le contenu du membre `meta` par une version antérieure (par exemple `0.6.7`),
+   puis relancer l'outil sur cette copie.
+   Attendu : l'avertissement `⚠️ L'archive a ete produite par 0.6.7, ce rapport raisonne
+   sur <version>.`, suivi des deux conséquences — la restauration refusera l'archive tant
+   que l'instance ne portera pas exactement `0.6.7`, et **sur une instance plus ancienne un
+   doublon `(cabinet, numéro)` BLOQUE toujours**.
+3. Lire la section `0060`.
+   Attendu : `Couples (cabinet, numero) en double : 1` ; la mention `NE BLOQUE PAS` ; puis
+   le bloc `⚠️ CE QUI VA CHANGER, AVANT QUE QUOI QUE CE SOIT NE CHANGE :` suivi d'**une
+   ligne par facture concernée**, de la forme `facture #<identifiant> : 10000 devient
+   1000000` ; puis la phrase disant que ces documents sont des pièces fiscales et **ont pu
+   être remis à des patients**, et que la facture renumérotée reste consultable depuis
+   « Comptabilité ». **La fiche échoue si la liste des numéros n'apparaît pas avant toute
+   action** : c'est la clause de transparence de D10, et l'exploitant décide sur cette
+   liste.
+4. Lire le `VERDICT` et le code de sortie.
+   Attendu : `VERDICT : aucun obstacle, l'archive peut etre chargee telle quelle.` et
+   `code de sortie : 0` — un doublon de numéro ne bloque plus, il est repris au chargement.
+5. Restaurer cette archive (procédure de `R-SAU-02`, étapes 2 à 5), puis se connecter et
+   ouvrir le menu « Comptabilité ».
+   Attendu : les deux factures sont là, l'une portant `10000` et l'autre `1000000` —
+   **exactement les numéros annoncés à l'étape 3, facture par facture**. La fiche échoue si
+   un seul numéro diffère de ce qui avait été annoncé.
+6. Éprouver l'autre versant : reprendre l'archive de l'état E2 (sans doublon) et relancer
+   l'outil dessus.
+   Attendu : `Numeros qui changeront            : 0`, aucun bloc `CE QUI VA CHANGER`, et
+   `code de sortie : 0`.
+
+**Constat.** L'outil dit ce qui va changer avant que quoi que ce soit ne change, et c'est la
+contrepartie assumée de la reprise automatique : on renumérote une erreur de numérotation,
+on ne fusionne jamais un dossier de santé. Un doublon de **patient** reste, lui, refusé en
+412 — la section `0057` du même rapport le déclare `BLOQUANT`, et sa résolution appartient
+au praticien seul.
+
+### R-SAU-04 — Coût de la reprise d'archive, et clause de repli
+
+- **Domaine** : Sauvegarde/restauration
+- **Couverture auto** : non — aucune suite pytest ne mesure un temps de réponse ni une
+  mémoire de pointe sur une instance conteneur. Cette fiche est la seule mesure du coût que
+  D10 ajoute au chemin de restauration.
+- **État requis** : E2. La fiche restaure une archive volumineuse : à l'issue de son
+  exécution, remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Pourquoi cette fiche existe.** Depuis D10, la restauration lit le `dump.json` **entièrement
+en mémoire** avant de le confier à `loaddata`, qui le relira en flux, afin d'y reprendre les
+numéros de facture en double. Le coût **n'a pas pu être mesuré à la conception** : aucune
+instance n'était déployée, et l'invariant de confidentialité interdit d'éprouver quoi que ce
+soit sur une archive réelle. **Un coût non mesuré n'est pas un coût nul**, d'où cette fiche —
+et la clause de repli écrite d'avance à l'étape 4.
+
+⚠️ **L'archive de cette fiche est synthétique.** Elle se fabrique par import de masse
+(`R-IMP-01`), jamais en réutilisant un parc réel.
+
+**Étapes**
+
+1. Depuis l'état E2, semer un volume comparable à un parc réel : rejouer l'import de
+   `R-IMP-01` autant de fois qu'il faut pour dépasser **1 500 patients**, puis obtenir une
+   archive (`R-SAU-01`).
+   Attendu : un fichier `<horodatage ISO>-libreosteo.db` ; noter sa taille
+   (`stat -c%s FICHIER`) et le nombre d'objets du `dump.json`
+   (`python3 -c "import json,zipfile;print(len(json.load(zipfile.ZipFile('FICHIER').open('dump.json'))))"`).
+2. Introduire un doublon de numéro dans l'instance (procédure de `R-INST-08` étape 2), puis
+   obtenir une **seconde** archive : c'est celle qui exercera la reprise.
+3. Purger jusqu'à l'état E0, puis restaurer la seconde archive en relevant le temps et la
+   mémoire de pointe du conteneur applicatif :
+
+   ```sh
+   MARQUE=$(date +%Y-%m-%dT%H:%M:%S%:z)
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     stats --no-stream libreosteo
+   # puis lancer la restauration depuis l'ecran, chronometrer du clic
+   # « Confirmer la restauration » jusqu'au retour a la page de connexion
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     logs --since "$MARQUE" libreosteo | grep -i 'renumérot'
+   ```
+
+   Attendu : la restauration aboutit (retour à `/accounts/login/`), et le journal porte une
+   ligne `Archive : facture #<identifiant> renumérotée : <ancien> devient <nouveau>.` puis la
+   ligne récapitulative `Reprise de l'archive avant chargement : 1 facture(s)
+   renumérotée(s) …`. **Relever le temps écoulé et la mémoire de pointe**, et les consigner
+   dans cette fiche comme `R-RCH-02` consigne son ordre de grandeur.
+4. **Confronter la mesure à la borne, et appliquer la clause de repli s'il le faut.** La
+   borne est `--http-timeout 180` (`Docker/build/http-ready/Dockerfile:184`) ; la mémoire de
+   pointe se juge contre celle dont dispose l'hôte de production.
+   - **Si le coût tient** : la fiche est verte, et la mesure devient l'ordre de grandeur de
+     référence.
+   - **Si le coût est prohibitif** — dépassement de la borne, ou mémoire de pointe qui met
+     l'hôte en danger — **la clause de transparence C1b se replie sur l'outil de diagnostic
+     seul** (`R-SAU-03`), que l'utilisateur exécute de toute façon avant la reprise et qui
+     porte déjà la liste `(identifiant, numéro actuel, numéro après reprise)`. La reprise au
+     chargement est alors reprise en lot, avec le chiffre qui l'a fait reculer. **Ce repli
+     est arbitré d'avance : il ne s'improvise pas le jour où la mesure tombe.**
+
+**Constat.** La lecture préalable du dump est le prix de la reprise au chargement, et elle
+n'a jamais été gratuite — elle a seulement été jugée négligeable devant une requête qui monte
+déjà les migrations et vide la base. Cette fiche est ce qui transforme ce jugement en mesure.
 
 ### Recherche, index, tableau de bord
 
@@ -3348,7 +3492,11 @@ deux dates.
   tests/functional/test_recherche.py::test_reconstruction_de_l_index_depuis_le_menu
   (libreosteoweb/tests/test_exploitation.py::TestReconstructionIndex::
   test_le_personnel_peut_reconstruire_l_index vérifie que la reconstruction répond
-  200 ; ce test-ci vérifie en plus qu'une recherche redevient probante ensuite)
+  200 ; ce test-ci vérifie en plus qu'une recherche redevient probante ensuite.
+  L'étape 4 est couverte côté serveur par
+  libreosteoweb/tests/test_service_sauvegarde.py::TestIndexApresRechargement —
+  l'index ne rend aucun patient absent de l'archive, et la purge ne reconstruit pas.
+  Non couvert : le parcours lui-même, du clic à l'écran)
 - **État requis** : E2
 
 **Étapes**
@@ -3368,6 +3516,15 @@ deux dates.
    l'index, la recherche reste probante. Depuis D6c, cette étape quitte la coquille
    pour le document `/search` rendu par le serveur : le navigateur charge une page
    entière au lieu de changer d'état. Le geste, le titre et le résultat sont les mêmes.
+4. Éprouver l'enchaînement que D10 a rendu nécessaire : rejouer `R-SAU-02` (restauration
+   d'une archive sur l'instance), puis, **sans passer par « Réindexer »**, saisir `Picard`
+   dans le champ de recherche et valider.
+   Attendu : titre « Recherche de "Picard" » affiché ; **aucun résultat**, texte « Aucun
+   résultat trouvé. ». Ce n'est pas un défaut : la restauration **purge** l'index et ne le
+   reconstruit pas — une reconstruction synchrone dans la requête de restauration
+   heurterait le plafond de 180 s mesuré ci-dessous. Jouer alors « Réindexer » (étapes 1
+   et 2), puis rechercher `Picard` de nouveau.
+   Attendu : le résultat `Picard Jean-Luc` est de retour.
 
 **Ordre de grandeur de l'étape 2.** Le bouton « réindexer » accorde au travail un délai
 d'attente de 180 s. Mesure prise sur un parc de 101 patients et 2 consultations (état E2
