@@ -34,16 +34,24 @@
     :class="{ 'col-md-12': deplie, 'col-md-3': !deplie }">
   <div class="card doc_thumbnail"
        :class="{ 'doc_thumbnail': !deplie, 'doc_expand': deplie }">
-    <button type="button" class="btn-close document-close" aria-label="Close"
-            x-show="deplie" style="display: none;"
-            @click="deplie = false"></button>
-    {# `align-self-start` (D6g T15, correctif) : `.card` est une boite flex colonne #}
-    {# (Bootstrap 5), et sans lui ce bouton, enfant direct, s'etirait sur toute la #}
-    {# largeur -- seul `.btn-close` porte une largeur fixe qui l'en protegeait. #}
-    <button type="button" class="document-edit align-self-start" aria-label="Edit"
-            hx-get="{{ entree.url_edition }}"
-            hx-target="#document-vignette-{{ entree.document.id }}"
-            hx-swap="outerHTML"><span aria-hidden="true"><i class="fa fa-edit"></i></span></button>
+    {# `d-flex` (D6g T15, correctif) : `.card` est une boite flex **colonne** (Bootstrap #}
+    {# 5), donc deux enfants directs prennent chacun leur propre rangee -- c'est ce qui a #}
+    {# rendu mort `.document-close{float:left}` (libreosteo.css) : un float n'a aucun #}
+    {# effet sur un enfant de boite flex. Cette enveloppe les remet sur une meme ligne, #}
+    {# comme le flottement le faisait sous Bootstrap 3. #}
+    <div class="d-flex">
+      <button type="button" class="btn-close document-close" aria-label="Close"
+              x-show="deplie" style="display: none;"
+              @click="deplie = false"></button>
+      {# `align-self-start` : sans largeur explicite, un enfant direct d'une boite flex #}
+      {# s'etire par defaut sur l'axe transverse -- ici la hauteur de la rangee, sans #}
+      {# effet visible ; le garder documente l'intention et protege si ce bouton se #}
+      {# retrouvait un jour seul, enfant direct de `.card`. #}
+      <button type="button" class="document-edit align-self-start" aria-label="Edit"
+              hx-get="{{ entree.url_edition }}"
+              hx-target="#document-vignette-{{ entree.document.id }}"
+              hx-swap="outerHTML"><span aria-hidden="true"><i class="fa fa-edit"></i></span></button>
+    </div>
     <p class="document_title" data-testid="titre-document"><b>{{ entree.document.title }}</b></p>
     <div class="document_ico"><a href="{{ entree.url_fichier }}" target="_blank"><i class="fa fa-2x {{ entree.classe_icone }}"></i></a></div>
     {% if entree.document.notes %}

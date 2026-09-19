@@ -2018,7 +2018,7 @@ renommerait quand même, et l'erreur serait invisible.
 | États | `in` | `show` |
 | | `open` | `show`, **et il descend sur le `.dropdown-menu`** (C3) |
 | Menus, étiquettes | `divider` | `dropdown-divider` |
-| | `close` | `btn-close` — **et le `&times;` part** (F8) |
+| | `close` | `btn-close` — **et le `&times;` part** (F8), **si le bouton porte ce glyphe** (voir note ci-dessous) |
 | | `label` | `badge` |
 | | `label-default/primary/success/info/warning/danger` | `text-bg-*` |
 | Progression | `progress-striped` | `progress-bar-striped` |
@@ -2033,6 +2033,18 @@ renommerait quand même, et l'erreur serait invisible.
 | | `btn-circle`, `btn-outline`, `login-panel` | — |
 | | `flot-chart`, `flot-chart-content`, `show-grid` | — |
 | | `primary-font` | — (T13) |
+
+**Une correspondance de cette table porte parfois une précondition tacite sur ce que
+l'élément contient et sur ce qu'il est, pas seulement sur la classe qu'il porte** (mesuré à
+D6g T15, `dossier-patient.html`). `close → btn-close` en est l'exemple : elle suppose que
+le contenu du bouton **est** le glyphe `&times;`, parce qu'en Bootstrap 5 la croix de
+`.btn-close` est une image de fond que ce glyphe doublerait. Un bouton qui porte sa propre
+icône (Font Awesome ou autre) à la place du glyphe n'est pas ce cas : lui poser `btn-close`
+peint le fond en croix par-dessus son icône — exactement le défaut que la correspondance
+existe pour éviter, à l'envers. Pour ce bouton-là, `close` perd son équivalent : la classe
+disparaît, sans `btn-close`, comme n'importe quel jeton « — ». Rien ne distingue les deux
+cas dans la seule classe posée : à vérifier au cas par cas sur chaque site, pas seulement
+au grep du jeton.
 
 **Les cinq jetons Font Awesome fautifs**, corrigés au passage parce que le lot les rencontre
 (A10) : `glyphicon-phone-alt` ×3 → `fa-phone` ; `glyphicon-earphone` ×2 → `fa-phone-square` ;

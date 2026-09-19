@@ -4150,12 +4150,16 @@ et `dossier-patient-375.png`.
    `text-bg-info`, `panel-danger` devient `text-bg-danger` — la carte entière est teintée,
    plus seulement son en-tête, à la différence de Bootstrap 3) ; le texte du panneau
    *Infos patient* reste lisible en noir sur fond bleu clair. Sous *Infos patient*, le
-   panneau *Traitement en cours* occupe la largeur de la première colonne. Aucune barre de
-   défilement horizontale.
+   panneau *Traitement en cours* occupe environ un tiers de la largeur de la grille
+   (`col-md-4`), soit à peu près la moitié de la largeur du panneau *Infos patient*
+   au-dessus de lui — la grille reprend une nouvelle ligne, elle ne s'aligne pas sur la
+   largeur de la première colonne. Aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
    Attendu : le titre **Picard Jean-Luc 91 ans 2 mois** se répartit sur deux lignes mais
-   reste entièrement visible, sans troncature ni recouvrement. Les quatre onglets restent
-   lisibles sur une seule ligne, sans se chevaucher. Le bandeau du socle est réduit au
+   reste entièrement visible, sans troncature ni recouvrement. Les quatre onglets se
+   répartissent sur **deux lignes** (*Infos générales* et *Antécédents* sur la première,
+   *Compte-rendus médicaux* et *Consultations* sur la seconde), tous lisibles, sans se
+   chevaucher. Le bandeau du socle est réduit au
    bouton hamburger seul (`navbar-expand-md`, sous 768 px) : **Éditer** et **Supprimer** ne
    sont donc pas visibles sans l'ouvrir — geste identique à R-VIS-03, non rejoué ici. Les
    panneaux (*Infos patient*, *Note importante*, *Traitement en cours*) s'empilent en

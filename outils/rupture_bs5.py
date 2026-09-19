@@ -123,6 +123,16 @@ RUPTURE = {
     "open": "show",
     # listes deroulantes, etiquettes, fermetures
     "divider": "dropdown-divider",
+    # ⚠️ Precondition tacite (mesuree a D6g T15, dossier-patient.html) : cette table donne
+    # un jeton, jamais l'element qui le porte. `close` -> `btn-close` suppose que le
+    # contenu du bouton EST le glyphe `&times;` -- en Bootstrap 5 la croix de `.btn-close`
+    # est une image de fond, et le glyphe doit partir pour ne pas la doubler. Un bouton qui
+    # porte sa propre icone (Font Awesome ou autre) n'est pas ce cas : lui poser
+    # `btn-close` peint le fond en croix par-dessus son icone. Pour ce bouton-la, `close`
+    # perd son equivalent : la classe disparait, sans `btn-close`, comme un jeton "-".
+    # Generalise : une correspondance de cette table peut porter une precondition tacite
+    # sur ce que l'element **contient** et sur ce qu'il **est**, pas seulement sur la
+    # classe qu'il porte -- a verifier au cas par cas, pas seulement au grep du jeton.
     "close": "btn-close",
     "label": "badge",
     "label-default": "text-bg-secondary",
