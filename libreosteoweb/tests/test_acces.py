@@ -15,7 +15,7 @@
 # -*- coding: utf-8 -*-
 import re
 
-from django.contrib.auth import get_user_model
+from django.contrib.auth import SESSION_KEY, get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.models import Session
 from django.db import connection
@@ -293,11 +293,19 @@ class TestLoginRequiredMiddleware(APITestCase):
         ]
     )
     def test_echec_de_l_authentificateur_renvoie_a_la_connexion(self):
+        """Portage du sujet 3/3 du commit amont `33753e0e1da7` (KANBAN, § Suivi amont,
+        2026-09-19) : la session doit aussi etre videe, pas seulement la redirection
+        conservee - sans quoi un token corrompu revalide a chaque requete reproduit
+        l'echec indefiniment. La cible de redirection ne change pas (`login`, jamais
+        `get_logout_url()` qui rendrait 405 sur ce fork)."""
         with sans_receivers():
             cree_praticien()
+        self.client.login(username="test", password="testpw")
+        self.assertIn(SESSION_KEY, self.client.session)
         reponse = self.client.get("/")
         self.assertEqual(reponse.status_code, 302)
         self.assertEqual(reponse.url, reverse("login"))
+        self.assertNotIn(SESSION_KEY, self.client.session)
 
     def test_le_refus_d_authentification_est_journalise_en_warning(self):
         with sans_receivers():
@@ -306,6 +314,23 @@ class TestLoginRequiredMiddleware(APITestCase):
             reponse = self.client.get("/")
         self.assertEqual(reponse.status_code, 302)
         self.assertIn("authentication required", journal.output[0])
+
+    def test_deconnexion_sans_session_valide_atteint_le_logoutview(self):
+        """Portage du sujet 2/3 du commit amont `33753e0e1da7` (KANBAN, § Suivi amont,
+        2026-09-19) : une session qui expire pendant qu'un praticien clique sur
+        « deconnexion » ne doit pas etre interceptee par ce middleware avant
+        `LogoutView` - sans quoi la requete repart vers `login?next=` sans jamais
+        deconnecter. Un simple 302 ne discrimine rien : le chemin defaillant y mene
+        aussi. Seule la cle `title` du contexte, posee par `LogoutView.get_context_data`
+        et absente de celui de `LoginView`, prouve quelle vue a repondu ; le code 200
+        confirme qu'il n'y a pas eu de redirection vers la
+        connexion (`get_default_redirect_url` de `LogoutView` renvoie le chemin
+        courant en l'absence de `LOGOUT_REDIRECT_URL`, donc pas de redirection)."""
+        with sans_receivers():
+            cree_praticien()
+        reponse = self.client.post(reverse("logout"))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn("title", reponse.context)
 
 
 class TestTraceDesOperationsSuspectes(APITestCase):
@@ -532,11 +557,16 @@ class TestPontHtmx(APITestCase):
         ]
     )
     def test_echec_de_l_authentificateur_en_htmx(self):
+        """Meme portage que la variante non-htmx (sujet 3/3 du commit amont
+        `33753e0e1da7`) : le vidage de session vaut pour les deux pistes."""
         with sans_receivers():
             cree_praticien()
+        self.client.login(username="test", password="testpw")
+        self.assertIn(SESSION_KEY, self.client.session)
         reponse = self.client.get("/", headers=self.ENTETE)
         self.assertEqual(reponse.status_code, 204)
         self.assertEqual(reponse["HX-Redirect"], reverse("login"))
+        self.assertNotIn(SESSION_KEY, self.client.session)
 
     def test_cabinets_multiples_sans_choix_en_htmx(self):
         """Quatrieme site : OfficeSettingsMiddleware (middleware.py:174)."""
