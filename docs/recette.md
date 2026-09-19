@@ -4066,7 +4066,11 @@ et `profil-375.png`.
    facture** portent chacun leur étiquette à gauche et leur champ de saisie à droite, sur
    une même ligne, sans chevauchement (D6g T12 : `form-horizontal` et `form-group`
    disparaissent sans équivalent direct ; `row` reprend ici le comportement de mise en
-   ligne que `form-horizontal` donnait à `form-group`). Le bouton **Enregistrer** (bleu)
+   ligne que `form-horizontal` donnait à `form-group`). **Différence de rendu assumée** :
+   sur ces quatre lignes, l'étiquette reste calée en haut de la ligne plutôt que centrée
+   verticalement sur son champ, un léger décalage subsiste — `form-label` (D6g, annexe A)
+   ne reprend pas le `padding-top` que `.form-horizontal .control-label` posait en
+   Bootstrap 3, et aucun jeton de la table ne le porte. Le bouton **Enregistrer** (bleu)
    clôt le formulaire. Aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
    Attendu : le titre et les deux onglets restent lisibles sur une seule ligne. **Nom** et
