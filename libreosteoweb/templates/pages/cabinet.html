@@ -11,17 +11,18 @@
 {% endcompress %}
 {# Une regle en ligne, et non un fichier : elle reproduit a l'identique #}
 {# input.ng-invalid { color; border-color } de libreosteo.css:401-406, dont le #}
-{# selecteur disparait avec Angular. Bootstrap 3 ne colore que la bordure sous #}
-{# .has-error ; R-CAB-03 etape 2 attend bordure et texte rouges, et cette #}
-{# fiche est relue sans changement d'etape (C8). Aucun fichier CSS n'est ajoute au depot. #}
+{# selecteur disparait avec Angular. Bootstrap 5 ne colore que la bordure sous #}
+{# .is-invalid ; R-CAB-03 etape 2 attend bordure et texte rouges, et cette #}
+{# fiche est relue sans changement d'etape (C8). D6g T14 : has-error -> is-invalid, #}
+{# porte desormais sur le champ (annexe A), le selecteur suit. Aucun fichier CSS n'est ajoute au depot. #}
 <style>
-  .has-error .form-control { color: #a94442; border-color: #a94442; }
+  .form-control.is-invalid { color: #a94442; border-color: #a94442; }
 </style>
 {% endblock %}
 
 {% block contenu %}
 <div id="page-wrapper">
-    <h1 class="page-header" data-testid="titre-cabinet">
+    <h1 data-testid="titre-cabinet">
         {% trans 'Office settings' %}
     </h1>
 

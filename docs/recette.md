@@ -4148,11 +4148,48 @@ et `cabinet-375.png`.
 **Étapes**
 
 1. Menu utilisateur → *Paramètres du cabinet*, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T14>
+   Attendu : le titre **Paramètres du cabinet** est entièrement visible. Deux onglets
+   **Général** (actif, souligné) / **Utilisateurs**, sous un filet horizontal. Bandeau
+   d'information bleu pleine largeur (*Pensez à la version hébergée…*). Le champ **Libellé
+   d'identifiant professionnel** occupe la largeur de la colonne. Sous lui, **Cabinet** et
+   **Facturation** sont chacun un titre en colonne étroite à gauche, **côte à côte avec
+   leurs champs** (colonne large à droite) — jamais le titre au-dessus de ses champs (D6g
+   T14 : `row` ajouté sur le `<form>`, faute de quoi les deux paires en-tête/contenu, sans
+   `row` commun, s'empilaient). Le champ **Téléphone** porte une icône combiné-téléphone à
+   gauche, collée au champ sans le recouvrir. **Moyens de paiement** : trois cases à cocher
+   empilées (*Chèque*, *Espèces*, *Carte Bancaire*), chacune avec sa case immédiatement à
+   gauche de son libellé, sans le retrait de 1,5 em qu'un `form-check` sans
+   `form-check-input`/`form-check-label` produirait (D6g T14, précondition tacite de
+   l'annexe A — l'unique consommateur de `.radio.cancelinginvoice`, `libreosteo.css:663`,
+   est cet écran). **Annulation de facture par avoir** : deux boutons radio empilés (*Avoir
+   sur annulation*, actif ; *Facture corrective sur annulation*), même alignement case/
+   libellé. Le bouton **Mettre à jour**, bleu plein, ferme le formulaire. Aucune barre de
+   défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T14>
+   Attendu : le titre reste sur une seule ligne, entièrement visible. Les deux onglets
+   restent atteignables au clic. **Cabinet** et **Facturation** restent chacun à côté de
+   leurs champs (même disposition qu'à 1 280 px : les classes `col-4`/`col-sm-4`/`col-md-2`
+   du gabarit visaient déjà ce rendu à toutes les largeurs avant ce lot). **Différence de
+   rendu assumée, chiffrée** : le champ **Code postal**, imbriqué deux fois dans cette
+   disposition (une colonne de 33 % dans une colonne de 67 %, soit environ 83 px utiles),
+   n'affiche que les deux premiers caractères de la valeur saisie (`87` pour `87110`) sans
+   défilement visible au repos ; la valeur elle-même n'est pas perdue (défilement natif du
+   champ au clic), mais illisible d'un coup d'œil — hérité des largeurs `col-xs-4`/
+   `col-xs-8` déjà posées avant ce lot (pourcentages inchangés d'une version de Bootstrap à
+   l'autre), non un geste modifié par T14. Les trois cases **Moyens de paiement** restent
+   lisibles ; le libellé *Carte Bancaire* se répartit sur deux lignes, alignées sous la
+   case (amélioration par rapport à l'état d'avant T14, où `form-inline` déjà mort ne
+   produisait aucun alignement). Aucune barre de défilement horizontale.
 
-**Ne couvre pas** : <écrit par T14>
+**Ne couvre pas** : l'onglet **Utilisateurs** (tableau des utilisateurs, ajout, édition en
+place d'un prénom/nom, changement de mot de passe) — absent des deux captures officielles,
+qui ne montrent que l'onglet **Général** ouvert par défaut ; vérifié par une passe
+complémentaire hors captures officielles (script jetable, supprimé après usage), sans
+défaut visuel relevé aux deux largeurs. Le formulaire en lecture seule (utilisateur non
+administrateur, champs désactivés) : ces captures sont prises connecté en administrateur.
+L'état d'erreur du champ **Séquence de démarrage de facture** (bordure et texte rouges,
+`is-invalid`) et le refus d'une cellule utilisateur (message d'erreur affiché) : gestes non
+déclenchés par ces captures.
 
 ### R-VIS-14 — Socle visuel : dossier patient
 

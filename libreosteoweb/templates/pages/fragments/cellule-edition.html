@@ -10,12 +10,12 @@
         hx-target="#cellule-{{ utilisateur.id }}-{{ champ }}"
         hx-swap="outerHTML">
     {% csrf_token %}
-    <input type="text" name="valeur" class="form-control input-sm" value="{{ valeur }}"
+    <input type="text" name="valeur" class="form-control form-control-sm" value="{{ valeur }}"
            x-init="$el.focus()" data-testid="saisie-{{ utilisateur.username }}-{{ champ }}">
-    <button type="submit" class="btn btn-primary btn-xs"
+    <button type="submit" class="btn btn-primary btn-sm"
             data-testid="valider-{{ utilisateur.username }}-{{ champ }}">{% trans 'Validate' %}</button>
     {% if erreur %}
-    <span class="help-block" role="alert" data-testid="erreur-cellule">{{ erreur }}</span>
+    <span class="form-text" role="alert" data-testid="erreur-cellule">{{ erreur }}</span>
     {% endif %}
   </form>
 </td>

@@ -12,7 +12,7 @@
     <td>{% if utilisateur.is_staff %}{% trans 'yes' %}{% else %}{% trans 'no' %}{% endif %}</td>
     <td>{% if utilisateur.is_active %}{% trans 'yes' %}{% else %}{% trans 'no' %}{% endif %}</td>
     <td>
-      <button type="button" class="btn btn-default btn-xs"
+      <button type="button" class="btn btn-secondary btn-sm"
               hx-get="{% url 'cabinet-utilisateur-mot-de-passe' utilisateur.id %}"
               hx-target="#modale"
               data-testid="mot-de-passe-{{ utilisateur.username }}">{% trans 'modify' %}</button>

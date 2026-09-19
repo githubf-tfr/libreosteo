@@ -656,11 +656,11 @@ ul li.documenttile  {
     position: relative;
     right: 16px;
 }
-.checkbox.paimentmean {
+.form-check.paimentmean {
 	width : 12%;
 }
 
-.radio.cancelinginvoice {
+.form-check.cancelinginvoice {
   width: 25%;
 }
 

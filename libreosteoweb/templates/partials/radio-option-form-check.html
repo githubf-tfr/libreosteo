@@ -1,0 +1,2 @@
+{# Option de RadioSelect BS5 : reprend django/forms/widgets/input_option.html, seul le `<label>` gagne `form-check-label` (precondition tacite de `form-check`, D6g T14, RadioBooleen de cabinet.py). #}
+{% if widget.wrap_label %}<label class="form-check-label"{% if widget.attrs.id %} for="{{ widget.attrs.id }}"{% endif %}>{% endif %}{% include "django/forms/widgets/input.html" %}{% if widget.wrap_label %} {{ widget.label }}</label>{% endif %}

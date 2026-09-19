@@ -6,13 +6,13 @@
 <div class="container-fluid">
   <div class="row">
     {% if adresses_reseau %}
-    <div class="col-xs-12 col-sm-12 col-md-12">
+    <div class="col-12 col-sm-12 col-md-12">
       <p>{% trans 'This instance of libreosteo could be accessed on the following addresses of the network : '%}
         {% for adresse in adresses_reseau %}<a href="{{ adresse }}">{{ adresse }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
       </p>
     </div>
     {% endif %}
-    <div class="col-xs-12 col-sm-12 col-md-12 bg-info" style="padding-top:10px; margin-bottom:25px;">
+    <div class="col-12 col-sm-12 col-md-12 bg-info" style="padding-top:10px; margin-bottom:25px;">
       <p>{% trans 'Think about the hosted version of LibreOsteo to help to share with other users.'%}
         <a href="https://www.cambiatech.com/libreosteo-hosting" target="_blank">{% trans 'More'%}</a>
       </p>
@@ -24,9 +24,14 @@
       {# etape 6 assertent, et que deux tests de `test_facturation.py` verifient : champ #}
       {# rouge et bouton desactive. **Ce n'est pas une autorite de validation** — le refus #}
       {# serveur, rendu sous le champ, reste la seule (E4). #}
+      {# D6g T14 : `row` ajoute ici (aucun equivalent dans l'annexe A, aucun element neuf) #}
+      {# -- les paires en-tete/contenu ci-dessous (Cabinet, Facturation) sont deux `col-*` #}
+      {# freres sans `row` commun : en Bootstrap 3 le float les mettait cote a cote sans y #}
+      {# etre tenu ; en Bootstrap 5 (`col-*` = item flex) elles s'empilent sans lui. #}
       <form hx-post="{% url 'cabinet-general' %}"
             hx-target="#onglet-general"
             hx-swap="innerHTML"
+            class="row"
             x-data="{
               sequence: '{{ formulaire.invoice_start_sequence.value|default_if_none:'' }}',
               borne: {{ borne_minimale }},
@@ -36,9 +41,9 @@
               }
             }">
         {% csrf_token %}
-        <div class="col-xs-12 col-sm-12 col-md-12">
-          <div class="col-xs-4 col-sm-4 col-md-4">
-            <div class="form-group">
+        <div class="col-12 col-sm-12 col-md-12">
+          <div class="col-4 col-sm-4 col-md-4">
+            <div class="mb-3">
               <label for="{{ formulaire.professional_id_label.id_for_label }}">{{ formulaire.professional_id_label.label }}</label>
               {{ formulaire.professional_id_label }}
               {{ formulaire.professional_id_label.errors }}
@@ -46,14 +51,14 @@
           </div>
         </div>
 
-        <div class="col-xs-4 col-sm-4 col-md-2 col-sm-offset-1 col-md-offset-1">
+        <div class="col-4 col-sm-4 col-md-2 offset-sm-1 offset-md-1">
           <h2>{% trans 'Office' %}</h2>
         </div>
-        <div class="col-xs-8 col-sm-7 col-md-8">
+        <div class="col-8 col-sm-7 col-md-8">
           <div class="row">
             {% if multiple_office %}
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.office_name.id_for_label }}">{{ formulaire.office_name.label }}</label>
                 {{ formulaire.office_name }}
                 {{ formulaire.office_name.errors }}
@@ -63,49 +68,49 @@
             {# Les six champs d'adresse et de telephone, chacun avec son `<label for>` #}
             {# reel : aucun n'en avait, et les info-bulles leur servaient de substitut #}
             {# (P7, A16). #}
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.office_address_street.id_for_label }}">{{ formulaire.office_address_street.label }}</label>
                 {{ formulaire.office_address_street }}
                 {{ formulaire.office_address_street.errors }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.office_address_complement.id_for_label }}">{{ formulaire.office_address_complement.label }}</label>
                 {{ formulaire.office_address_complement }}
               </div>
             </div>
-            <div class="col-xs-4 col-sm-4 col-md-4">
-              <div class="form-group">
+            <div class="col-4 col-sm-4 col-md-4">
+              <div class="mb-3">
                 <label for="{{ formulaire.office_address_zipcode.id_for_label }}">{{ formulaire.office_address_zipcode.label }}</label>
                 {{ formulaire.office_address_zipcode }}
               </div>
             </div>
-            <div class="col-xs-8 col-sm-8 col-md-8">
-              <div class="form-group">
+            <div class="col-8 col-sm-8 col-md-8">
+              <div class="mb-3">
                 <label for="{{ formulaire.office_address_city.id_for_label }}">{{ formulaire.office_address_city.label }}</label>
                 {{ formulaire.office_address_city }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.office_phone.id_for_label }}">{{ formulaire.office_phone.label }}</label>
                 <div class="input-group">
-                  <span class="glyphicon glyphicon-phone-alt input-group-addon"></span>
+                  <span class="fa fa-phone input-group-text"></span>
                   {{ formulaire.office_phone }}
                 </div>
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.office_identifier_label.id_for_label }}">{{ formulaire.office_identifier_label.label }}</label>
                 {{ formulaire.office_identifier_label }}
                 {{ formulaire.office_identifier_label.errors }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.office_identifier.id_for_label }}">{{ formulaire.office_identifier.label }}</label>
                 {{ formulaire.office_identifier }}
                 {{ formulaire.office_identifier.errors }}
@@ -114,37 +119,37 @@
           </div>
         </div>
 
-        <div class="col-xs-4 col-sm-4 col-md-2 col-sm-offset-1 col-md-offset-1">
+        <div class="col-4 col-sm-4 col-md-2 offset-sm-1 offset-md-1">
           <h2>{% trans 'Invoicing' %}</h2>
         </div>
-        <div class="col-xs-8 col-sm-7 col-md-8">
+        <div class="col-8 col-sm-7 col-md-8">
           <div class="row">
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.amount.id_for_label }}">{{ formulaire.amount.label }}</label>
                 {{ formulaire.amount }}
                 {{ formulaire.amount.errors }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.currency.id_for_label }}">{{ formulaire.currency.label }}</label>
                 {{ formulaire.currency }}
                 {{ formulaire.currency.errors }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 {# Un groupe de cases n'a pas de `for` : `<fieldset><legend>` est l'element #}
                 {# que HTML prevoit pour un libelle de groupe. Le `for="paiement-means"` #}
                 {# d'avant etait orphelin — aucun element ne portait cet identifiant. #}
                 <fieldset>
                   <legend style="font-size:inherit;border:0;margin-bottom:5px">{% trans 'Paiment means' %}</legend>
-                  <div class="form-inline">
+                  <div>
                     {% for moyen in moyens_de_paiement %}
-                    <div class="form-group checkbox paimentmean">
-                      <label>
-                        <input type="checkbox" name="paiment_mean" value="{{ moyen.id }}"
+                    <div class="mb-3 form-check paimentmean">
+                      <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input" name="paiment_mean" value="{{ moyen.id }}"
                                {% if moyen.enable %}checked{% endif %}
                                {% if lecture_seule %}disabled{% endif %} />
                         {{ moyen.text }}
@@ -155,30 +160,31 @@
                 </fieldset>
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.invoice_prefix_sequence.id_for_label }}">{{ formulaire.invoice_prefix_sequence.label }}</label>
                 {{ formulaire.invoice_prefix_sequence }}
                 {{ formulaire.invoice_prefix_sequence.errors }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
+            <div class="col-12 col-sm-12 col-md-12">
               <fieldset>
                 <legend style="font-size:inherit;border:0;margin-bottom:5px">{{ formulaire.cancel_invoice_credit_note.label }}</legend>
-                <div class="form-inline">
-                  <div class="form-group radio cancelinginvoice">
+                <div>
+                  <div class="mb-3 form-check cancelinginvoice">
                     {{ formulaire.cancel_invoice_credit_note }}
                   </div>
                 </div>
               </fieldset>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
+            <div class="col-12 col-sm-12 col-md-12">
               {# Le `for` avait perdu son signe egal (`for"invoice_start_sequence"`), legue #}
               {# nommement a D6d par le cadrage de D6b : l'attribut etait inerte et le #}
               {# libelle associe a rien. #}
-              <div class="form-group" :class="{ 'has-error': sequenceInvalide }">
+              <div class="mb-3">
                 <label for="{{ formulaire.invoice_start_sequence.id_for_label }}">{{ formulaire.invoice_start_sequence.label }}</label>
-                <input type="text" class="form-control input-lg"
+                <input type="text" class="form-control form-control-lg"
+                       :class="{ 'is-invalid': sequenceInvalide }"
                        name="invoice_start_sequence" id="invoice_start_sequence"
                        value="{{ formulaire.invoice_start_sequence.value|default_if_none:'' }}"
                        pattern="[0-9]*"
@@ -188,22 +194,22 @@
                 {{ formulaire.invoice_start_sequence.errors }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.invoice_office_header.id_for_label }}">{{ formulaire.invoice_office_header.label }}</label>
                 {{ formulaire.invoice_office_header }}
                 {{ formulaire.invoice_office_header.errors }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.invoice_content.id_for_label }}">{{ formulaire.invoice_content.label }}</label>
                 {{ formulaire.invoice_content }}
                 {{ formulaire.invoice_content.errors }}
               </div>
             </div>
-            <div class="col-xs-12 col-sm-12 col-md-12">
-              <div class="form-group">
+            <div class="col-12 col-sm-12 col-md-12">
+              <div class="mb-3">
                 <label for="{{ formulaire.invoice_footer.id_for_label }}">{{ formulaire.invoice_footer.label }}</label>
                 {{ formulaire.invoice_footer }}
                 {{ formulaire.invoice_footer.errors }}
@@ -212,7 +218,7 @@
           </div>
         </div>
 
-        <div class="col-xs-12 col-sm-8 col-md-6 col-sm-offset-3 col-md-offset-3">
+        <div class="col-12 col-sm-8 col-md-6 offset-sm-3 offset-md-3">
           <button class="btn btn-primary" type="submit"
                   :disabled="sequenceInvalide"
                   {% if lecture_seule %}disabled{% endif %}>{% trans 'Update' %}</button>

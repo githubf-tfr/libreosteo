@@ -65,7 +65,16 @@ class RadioBooleen(forms.RadioSelect):
     `test_avoir_sur_facture_deja_emise` (`test_facturation.py`) clique
     `input[value=false]`, un selecteur CSS sensible a la casse. Seule la chaine ecrite
     change ; `BooleanField.to_python` reste insensible a la casse a la lecture.
+
+    D6g T14 : `radio -> form-check` (annexe A) porte une precondition tacite sur les
+    enfants (`form-check-input`/`form-check-label`), invisible au script de mesure
+    puisque posee ici, en Python. `option_template_name` pointe un gabarit local qui
+    ajoute `form-check-label` au `<label>`, que le gabarit Django par defaut ne permet
+    pas de classer ; `create_option` pose `form-check-input` sur chaque `<input>` seul
+    (jamais sur le `<div>` englobant, qui resterait sans classe comme avant ce lot).
     """
+
+    option_template_name = "partials/radio-option-form-check.html"
 
     def create_option(
         self, name, value, label, selected, index, subindex=None, attrs=None
@@ -74,6 +83,7 @@ class RadioBooleen(forms.RadioSelect):
             name, value, label, selected, index, subindex, attrs
         )
         option["value"] = str(value).lower()
+        option["attrs"]["class"] = "form-check-input"
         return option
 
 
@@ -114,7 +124,7 @@ class FormulaireCabinet(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for nom, champ in self.fields.items():
             if nom != "cancel_invoice_credit_note":
-                champ.widget.attrs.setdefault("class", "form-control input-lg")
+                champ.widget.attrs.setdefault("class", "form-control form-control-lg")
             # `required=False` sur le booleen : un `BooleanField` requis refuserait la
             # valeur « faux », qui est une reponse legitime a un choix binaire.
             if nom == "cancel_invoice_credit_note":
