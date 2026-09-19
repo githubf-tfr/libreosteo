@@ -356,13 +356,17 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
 
 - **Domaine** : <un des seize chapitres du cahier>
 - **Couverture auto** : non | oui — tests/functional/test_xxx.py::identifiant_du_test
-- **État requis** : E0 | E1 | E2
+- **État requis** : E0 | E1 | E2 | aucun
+
+**Prérequis** : <facultatif — ce qu'il faut réunir en plus de l'état nommé>
 
 **Étapes**
 
 1. <geste, en termes produit — libellé UI français, jamais un sélecteur CSS>
    Attendu : <texte exact affiché ou constaté>
 2. ...
+
+**Constat** : <facultatif — ce que la fiche établit, une fois ses étapes passées>
 ```
 
 - `ID` : préfixe du domaine + numéro (`R-AUTH-02`, `R-CAB-01`, ...).
@@ -370,6 +374,21 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
   jusqu'à l'identifiant de la fonction (`chemin/vers/test.py::nom_du_test`). Quand ce test ne
   couvre qu'une partie de ce que la fiche vérifie, une parenthèse le précise — ce que le test
   couvre, ce qu'il laisse de côté.
+- `État requis` : l'un des trois états nommés du chapitre 1, ou `aucun` — réservé aux
+  fiches qui ne montent aucune instance et ne lisent aucune donnée (`R-INST-07`, qui bâtit
+  deux fois et compare deux empreintes). `aucun` n'est pas un raccourci pour « n'importe
+  lequel » : une fiche qui s'exécute depuis plusieurs états les énumère (`E0 | E1 | E2`).
+  La valeur peut être suivie d'une phrase qui dit ce que la fiche **laisse** derrière elle,
+  et l'état à remonter avant la fiche suivante.
+- `Prérequis` : facultatif, après les trois champs et avant les étapes. Ce qu'il faut
+  réunir **hors** de l'état nommé pour que la fiche soit jouable — des images bâties sur
+  une majeure antérieure (`R-INST-06`), deux passes à deux dates distinctes (`R-INST-07`).
+  Ce qui se construit par des gestes du produit reste dans l'état nommé ou dans une étape ;
+  ce bloc ne sert qu'à ce qui n'en relève pas.
+- `Constat` : facultatif, en toute fin de fiche. Il dit **ce que la fiche établit** — la
+  règle, le pourquoi, ce que le produit refuse de faire — et jamais si la passe est passée.
+  Ce n'est donc pas le verdict global que la règle suivante interdit : un `Constat` est vrai
+  avant l'exécution et le reste après, et il ne remplace l'attendu d'aucune étape.
 - Chaque étape numérotée porte son propre attendu, littéral et vérifiable — jamais un
   verdict global en fin de fiche. Le verdict par fiche (OK/KO) se pose dans `KANBAN.md`, pas
   ici.
@@ -503,7 +522,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
    ```sh
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml stop db
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date +%Y-%m-%dT%H:%M:%S%:z)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
@@ -511,10 +530,12 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
    Le `--since` n'est pas un confort : `logs` sans borne rend tout l'historique du
    conteneur, y compris les démarrages réussis précédents, et leurs lignes
-   `WSGI app 0 (mountpoint='') ready` feraient lire un faux écart. Le `Z` final
-   n'est pas décoratif : sans lui, `docker` lit l'horodatage comme une heure
-   **locale** et la borne saute du décalage horaire — sur une machine à UTC+2, elle
-   rouvre deux heures d'historique et le faux écart revient.
+   `WSGI app 0 (mountpoint='') ready` feraient lire un faux écart. Le décalage final
+   (`%:z`, qui rend par exemple `+02:00`) n'est pas décoratif : **un horodatage sans
+   suffixe est lu par `docker` comme une heure locale**, et une borne prise en UTC sans
+   le dire saute alors du décalage — sur une machine à UTC+2, elle rouvre deux heures
+   d'historique et le faux écart revient. `%:z` lève l'ambiguïté sans rien déplacer : la
+   valeur écrite reste l'heure de la machine, celle que `date` affiche au même instant.
 
    Attendu : `ps -a` affiche le service `libreosteo` en `Exited` avec un **code de sortie
    non nul** ; le journal montre la trace d'erreur de `migrate`
@@ -538,7 +559,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
    ```sh
    mv "$SCRATCH/settings/__init__.py" "$SCRATCH/settings/__init__.py.retire"
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date +%Y-%m-%dT%H:%M:%S%:z)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
@@ -624,7 +645,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 3. Redémarrer le service applicatif, sur l'image portant les migrations de D3 :
 
    ```sh
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date +%Y-%m-%dT%H:%M:%S%:z)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
@@ -658,7 +679,7 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    ```sh
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
      exec db psql -U libreosteo -d libreosteo -c "DELETE FROM libreosteoweb_patient WHERE family_name = 'PICARD';"
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date +%Y-%m-%dT%H:%M:%S%:z)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
    curl -sD - -o /dev/null http://localhost:8085/
@@ -741,15 +762,14 @@ l'application sait la resérialiser — et le seul geste qui la rende sûre,
 - **Domaine** : Installation
 - **Couverture auto** : non — aucune suite pytest ne bâtit une image, ne résout un arbre
   yarn ni ne compare deux constructions. Cette fiche est la seule preuve du comportement.
-  `tests/functional/test_authentification.py` porte deux tests qui touchent l'arbre
-  statique servi, sans preuve de la reproductibilité ou du gel du lockfile
-  qu'annoncent les étapes ci-dessous :
-  test_les_statiques_de_l_application_sont_servis (sentinelle d'infrastructure de
-  test, constate que le catalogue jsi18n est bien servi) et
-  test_la_page_sert_les_bundles_compresses (cliquet, constate qu'un bundle JS
-  compressé unique est servi, au lieu de vingt fichiers, sous les réglages de
-  développement). Ils prouvent que la suite exerce l'arbre compressé, pas la
-  reproductibilité de la construction, et restent donc hors du champ de cette fiche.
+  Deux tests de `tests/functional/test_authentification.py` touchent l'arbre statique servi
+  sans rien prouver du gel ni de la reproductibilité :
+  test_les_statiques_de_l_application_sont_servis (sentinelle d'infrastructure de test,
+  constate que le catalogue jsi18n est bien servi) et
+  test_la_page_sert_les_bundles_compresses (cliquet, constate qu'un bundle JS compressé
+  unique est servi, au lieu de vingt fichiers, sous les réglages de développement). Ils
+  prouvent que la suite exerce l'arbre compressé, pas la reproductibilité de sa
+  construction, et restent donc hors du champ de cette fiche.
 - **État requis** : aucun. La fiche ne monte aucune instance et ne consomme aucun état
   nommé du chapitre 1 : elle bâtit deux fois et compare deux empreintes.
 
@@ -757,40 +777,100 @@ l'application sait la resérialiser — et le seul geste qui la rende sûre,
 du critère, et une fiche jouée deux fois dans la même heure ne prouverait rien d'une
 dérive dans le temps. À défaut de pouvoir attendre, la première passe est jouée à la
 clôture du lot et la seconde à la clôture du chantier, et le `KANBAN.md` porte les deux
-dates. La procédure suivie est celle du `README.rst`, section « Reproducible frontend
-build », **sans y ajouter un geste** : les étapes ci-dessous en constatent le résultat,
-elles ne la paraphrasent pas.
+dates. La procédure de construction est celle du `README.rst`, section « Reproducible
+frontend build », **sans y ajouter un geste** : les étapes ci-dessous en constatent le
+résultat, elles ne la paraphrasent pas. Une réserve, le temps que le `README.rst` soit
+repris : le paragraphe d'introduction de cette section y décrit encore le gel par refs Git
+sur SHA 40-hex, qui n'existe plus. Ce sont les **commandes de construction** de ce
+`README.rst` qu'il faut suivre ; sur ce qui est gelé, et sur lui seul, l'étape 2 ci-dessous
+fait foi.
+
+**Ce qui est gelé, et par quoi.** Le gel ne tient plus par des refs Git figées sur un SHA
+40 hexadécimal : l'arbre frontend n'en porte plus une seule. D6c puis D6f l'ont ramené à
+**deux** dépendances — `alpinejs` et `htmx` —, adressées l'une et l'autre par un alias
+`npm:` sur une version exacte. Ce qui rend la construction opposable est donc, aujourd'hui
+et seulement : des versions exactes sans plage dans `package.json`, un `yarn.lock`
+versionné, `--frozen-lockfile` sur **chaque** appel de `yarn install`, un yarn installé
+par tarball à somme SHA-256 vérifiée, et les quatre versions exactes de la chaîne qui
+produit les octets servis (`nodejs`, `npm`, `rcssmin`, `rjsmin`). L'étape 2 lit ces cinq
+points ; l'étape 4 en retire un et constate le refus.
 
 **Étapes**
 
-1. Première passe : suivre les étapes 1 à 3 du `README.rst`.
-   Attendu : les deux constructions aboutissent ; la commande de l'étape 2 sort en 0 —
-   `yarn install --frozen-lockfile` n'a **pas** eu à réécrire le lock ; l'empreinte (a),
-   l'empreinte (b) et les neuf noms `output.<hash>` (six CSS, trois JS) sont relevés
-   et notés.
-2. Lecture du gel, sur l'arbre de cette même passe :
-   `grep -c '"@components/' package.json` rend **29** ;
-   `grep -n '"@components/[^"]*": "[^"]*"' package.json | grep -vE '#[0-9a-f]{40}"'` ne
-   rend **rien** — aucune valeur sans SHA 40 hexadécimal ;
-   `git ls-files yarn.lock` rend `yarn.lock` — il est versionné ;
-   `grep -c "install --frozen-lockfile" Docker/build/http-ready/Dockerfile
-   .github/workflows/main.yml` rend `1` pour chacun ;
-   `grep -rn "yarnpkg.com/install.sh" Docker/ .github/` ne rend **rien** ;
-   `grep -nE '^(nodejs|npm|rcssmin|rjsmin)' requirements/requirements.txt` et le premier
-   `apk add` du `Dockerfile` montrent **quatre versions exactes**, aucune plage.
-3. Seconde passe, à une **autre date** : rejouer l'étape 1 à l'identique, sur le même
-   commit, avec `docker buildx build --no-cache`.
-   Attendu : **les deux empreintes et les neuf noms `output.<hash>` sont identiques à
-   ceux de l'étape 1, caractère pour caractère.** La moindre différence est un **KO** :
-   elle signifie qu'une valeur de la chaîne de construction n'est pas figée. Consigner la
-   sortie exacte du `diff`, ne rien ajuster.
-4. **Contre-épreuve — la fiche doit pouvoir échouer.** Dans une **copie jetable** de
-   l'arbre, hors du dépôt, remettre une seule ref en flottant :
+1. Première passe : suivre les étapes 1 à 3 du `README.rst`, section « Reproducible
+   frontend build ».
+   Attendu : les deux constructions aboutissent ; `yarn install --frozen-lockfile` sort
+   en 0 et sa sortie ne porte **pas** la ligne `success Saved lockfile.` — le lock n'a
+   donc pas eu à être réécrit. Relever et noter : l'empreinte (a), l'empreinte (b), et la
+   **liste complète** des noms `output.<hash>` que rend l'étape 3 du `README.rst`.
+   Relevé du 2026-09-18, à titre indicatif : **huit** noms, sept CSS et un JS. Ce nombre
+   n'est pas l'attendu — il suit le découpage des blocs `{% compress %}` des gabarits et
+   bouge avec eux ; l'attendu est l'**égalité** entre les deux passes, que pose l'étape 3.
+
+2. Lecture du gel, sur l'arbre de cette même passe. Huit commandes, huit attendus :
 
    ```sh
-   cp -a . "$SCRATCH/contre-epreuve" && cd "$SCRATCH/contre-epreuve"
-   sed -i 's|"@components/angular": "angular/bower-angular#[0-9a-f]\{40\}"|"@components/angular": "angular/bower-angular#*"|' package.json
-   grep -n '"@components/angular":' package.json
+   grep -c '"@components/' package.json
+   grep -nE '"@components/[^"]+": "npm:[^"]+@[0-9]+\.[0-9]+\.[0-9]+"' package.json
+   grep -nE '"@components/[^"]+": "[^"]*(\^|~|\*|>=|<=|latest|#)[^"]*"' package.json
+   git ls-files yarn.lock
+   grep -rnE '^[^#]*(yarn|\$\(YARN\)) install' Makefile Docker/build/http-ready/Dockerfile \
+     | grep -v -- '--frozen-lockfile'
+   grep -rn 'yarnpkg.com/install.sh' Docker/ .github/
+   grep -nE '^ +(nodejs|npm)=[0-9]' Docker/build/http-ready/Dockerfile
+   grep -nE '^(rcssmin|rjsmin)==' requirements/requirements.txt
+   ```
+
+   Attendus, dans le même ordre :
+   - `2` — l'arbre frontend ne porte que deux dépendances ;
+   - **deux lignes**, l'une pour `@components/alpinejs`, l'autre pour `@components/htmx`,
+     toutes deux de la forme `"npm:<paquet>@<majeure>.<mineure>.<correctif>"`. C'est cette
+     **forme** qui est l'attendu, pas le numéro du jour : une montée de version reste
+     permise, une plage ne l'est pas ;
+   - **rien** — aucun accent circonflexe, aucun tilde, aucune étoile, aucun `latest`,
+     aucune ref Git : pas une valeur qui puisse résoudre ailleurs demain ;
+   - `yarn.lock` — il est versionné ;
+   - **rien** — hors commentaire, aucun appel de `yarn install` n'est nu. Le dépôt en
+     porte exactement deux, et les deux sont gelés : `Makefile`, cible `static`, et
+     `Docker/build/http-ready/Dockerfile` ;
+   - **rien** — yarn n'est plus installé par `curl | bash`. Il vient d'un tarball dont la
+     somme SHA-256 est codée en clair, à l'identique, dans le `Dockerfile` **et** dans
+     `.github/workflows/main.yml` ; l'installation échoue si elle ne correspond pas ;
+   - **deux lignes**, `nodejs=…` et `npm=…`, chacune sur une version apk exacte (relevé du
+     2026-09-18 : `24.18.1-r0` et `11.12.1-r0`) — l'épingle est liée au tag Alpine de
+     l'image de base et se révise avec lui, jamais vers une plage ;
+   - **deux lignes**, `rcssmin==…` et `rjsmin==…` (relevé du 2026-09-18 : `1.2.2` et
+     `1.2.5`) — les deux filtres qui produisent les octets servis, épinglés à l'exact
+     depuis que `django_compressor` 4.6 a retiré son propre plafond.
+
+   **La CI n'appelle jamais `yarn` en propre, et ce n'est pas un trou.**
+   `grep -n 'frozen-lockfile' .github/workflows/main.yml` ne rend **rien** ; en conclure
+   que le gel manque en CI est faux, et c'est l'erreur que cette fiche a portée pendant
+   deux lots. Le job `functional` prépare l'arbre statique par `make static`
+   (`grep -n 'make static' .github/workflows/main.yml` rend la ligne de l'étape), soit
+   exactement la cible qu'emploie le poste local, et c'est cette cible qui porte
+   `install --frozen-lockfile`. Le job `quality` n'installe, lui, aucune dépendance
+   frontend : il n'a rien à geler. La garde se lit là où la commande s'exécute.
+
+3. Seconde passe, à une **autre date** : rejouer l'étape 1 à l'identique, sur le même
+   commit, avec `docker buildx build --no-cache`.
+   Attendu : **l'empreinte (a), l'empreinte (b) et la liste des noms `output.<hash>` sont
+   identiques à celles de l'étape 1, caractère pour caractère** — leur nombre compris. La
+   moindre différence est un **KO** : elle signifie qu'une valeur de la chaîne de
+   construction n'est pas figée. Consigner la sortie exacte du `diff`, ne rien ajuster.
+
+4. **Contre-épreuve — la fiche doit pouvoir échouer.** Dans une **copie jetable**, hors du
+   dépôt, faire diverger `package.json` de son lock d'un seul caractère — ici le numéro
+   de correctif de la version d'**Alpine.js** (la bibliothèque du navigateur, à ne pas
+   confondre avec Alpine Linux, l'image de base) :
+
+   ```sh
+   mkdir -p "$SCRATCH/contre-epreuve"
+   cp package.json yarn.lock "$SCRATCH/contre-epreuve/"
+   cd "$SCRATCH/contre-epreuve"
+   sed -i 's|npm:alpinejs@3\.17\.2|npm:alpinejs@3.17.1|' package.json
+   grep -n 'alpinejs' package.json
+   sha256sum yarn.lock
    docker run --rm \
      -v "$PWD/package.json:/mesure/package.json:ro" \
      -v "$PWD/yarn.lock:/mesure/yarn.lock:ro" \
@@ -798,22 +878,42 @@ elles ne la paraphrasent pas.
      sh -c 'yarn install --frozen-lockfile --ignore-scripts'; echo "code de sortie: $?"
    ```
 
-   Attendu : **la commande sort en code non nul**, avec un message du type « Your lockfile
-   needs to be updated, but yarn was run with --frozen-lockfile ». C'est l'attendu qui
-   porte la fiche : **le gel retiré, la construction refuse au lieu de résoudre en
-   silence.** Le même `yarn install` **sans** `--frozen-lockfile` doit, lui, réussir et
-   réécrire `yarn.lock` (sa somme SHA-256 change) : c'est exactement ce que le gel
-   interdit. Ne **jamais** rapporter cette copie jetable dans le dépôt ; la supprimer à la
-   fin de la fiche.
+   Attendu : **`code de sortie: 1`**, et la ligne d'erreur, à l'octet :
 
-   Ce qui n'est **pas** un attendu de cette étape : que l'empreinte (a) diverge. La ref
-   remise en `#*` peut, un jour donné, résoudre vers le même SHA qu'aujourd'hui — la
-   flottaison de ce dépôt est un risque avéré dans son **mécanisme**, pas une dérive
-   constatée sur une fenêtre courte. C'est le refus qui se constate, pas la dérive.
+   ```
+   error Your lockfile needs to be updated, but yarn was run with `--frozen-lockfile`.
+   ```
+
+   **Le gel retiré, la construction refuse au lieu de résoudre en silence** : c'est cet
+   attendu qui porte la fiche. Si la version d'Alpine.js a changé depuis la rédaction,
+   décrémenter le correctif de celle que porte `package.json` le jour de la passe : c'est
+   la divergence qui compte, pas le numéro.
+
+5. Second volet de la contre-épreuve, dans la même copie jetable, `package.json` toujours
+   divergent : rejouer l'installation **sans** `--frozen-lockfile`, cette fois sur un
+   montage en écriture.
+
+   ```sh
+   docker run --rm -v "$PWD:/mesure" -w /mesure \
+     libreosteo/libreosteo-http:$TAG-build \
+     sh -c 'yarn install --ignore-scripts'; echo "code de sortie: $?"
+   sha256sum yarn.lock
+   ```
+
+   Attendu : **`code de sortie: 0`**, la ligne `success Saved lockfile.` dans la sortie, et
+   une somme SHA-256 de `yarn.lock` **différente** de celle relevée à l'étape 4 : le lock a
+   été réécrit en silence. C'est exactement ce que le drapeau interdit, et la raison pour
+   laquelle il est sur les deux appels du dépôt.
+
+   Ne **jamais** rapporter cette copie jetable dans le dépôt ; la supprimer à la fin de la
+   fiche. Ce qui n'est **pas** un attendu de ces deux étapes : que l'empreinte (a) diverge.
+   La contre-épreuve ne mesure pas une dérive, elle mesure un **refus**.
 
 **Constat** : le gel ne vaut que par ce qui le rend opposable. Un `yarn.lock` versionné
 mais consommé par un `yarn` nu ne serait qu'une photographie ; c'est `--frozen-lockfile`,
-et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
+et les étapes 4 et 5 qui le vérifient en le retirant, qui en font un contrat. Et
+l'opposabilité se lit là où la commande s'exécute : dans la cible `static` du `Makefile`,
+que la CI appelle, jamais dans le seul fichier de workflow.
 
 ### R-INST-08 — Reprise d'un parc portant des numéros de facture en double
 
@@ -873,7 +973,7 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 3. Redémarrer le service applicatif, sur l'image portant `0060` :
 
    ```sh
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # borne du journal : ce qui suit appartient a ce demarrage
+   MARQUE=$(date +%Y-%m-%dT%H:%M:%S%:z)   # borne du journal : ce qui suit appartient a ce demarrage
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo
@@ -919,7 +1019,7 @@ et l'étape 4 qui le vérifie en le retirant, qui en fait un contrat.
 6. Rejouer le démarrage une seconde fois, sans rien changer :
 
    ```sh
-   MARQUE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+   MARQUE=$(date +%Y-%m-%dT%H:%M:%S%:z)
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml restart libreosteo
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml logs --since "$MARQUE" libreosteo | grep -i 'renumérot'
    ```
@@ -958,16 +1058,22 @@ au journal.
   quatre tests de T10 (`test_le_formulaire_de_restauration_s_affiche` et les trois
   autres) partent de la même page d'installation mais n'exercent jamais le bouton
   « Enregistrer l'administrateur » ni son formulaire : ils ne couvrent aucune étape
-  propre à cette fiche et ne sont donc pas cités ici.
+  propre à cette fiche et ne sont donc pas cités ici. ::test_le_champ_d_inscription_ne_porte_pas_l_autofocus_natif
+  (`tests/functional/test_autofocus_fragments.py`) couvre le focus posé à l'étape 1 : le
+  champ nom d'utilisateur, inséré par htmx, n'est plus focalisé par l'attribut natif
+  `autofocus` — repris de façon non fiable par le navigateur sur un fragment injecté
+  après le chargement du document — mais par `x-init="$el.focus()"`, exécuté par Alpine
+  à l'insertion.
 - **État requis** : E0
 
 **Étapes**
 
 1. Sur la page d'installation, cliquer le bouton « Enregistrer l'administrateur ».
    Attendu : un formulaire s'affiche dans le panneau latéral droit, titre
-   « Enregistrement » ; champ texte (placeholder « Votre nom d'utilisateur »), deux
-   champs mot de passe (placeholders « Mot de passe » et « Confirmation du mot de
-   passe ») et un bouton « Enregistrer ».
+   « Enregistrement » ; champ texte (placeholder « Votre nom d'utilisateur »), déjà
+   focalisé (le curseur y clignote, prêt à la saisie), deux champs mot de passe
+   (placeholders « Mot de passe » et « Confirmation du mot de passe ») et un bouton
+   « Enregistrer ».
 2. Saisir `test` comme nom d'utilisateur et `test` dans les deux champs de mot de
    passe, cliquer « Enregistrer ».
    Attendu : titre de page « Identifiez-vous sur LibreOsteo » (retour à la page de
@@ -1007,7 +1113,11 @@ au journal.
 ### R-AUTH-03 — Déconnexion
 
 - **Domaine** : Authentification
-- **Couverture auto** : oui — tests/functional/test_authentification.py::test_deconnexion_depuis_l_application
+- **Couverture auto** : oui — tests/functional/test_authentification.py::test_deconnexion_depuis_l_application,
+  ::test_deconnexion_est_atteignable_en_affichage_etroit (couvre l'étape 3 : à 400×800,
+  hamburger et menu utilisateur ouverts, il vise le centre exact du lien « Déconnexion »
+  et exige qu'aucun autre élément de la page n'intercepte le clic à ce point — c'est le
+  défaut mesuré, 91 px de débordement hors d'un conteneur non défilable)
 - **État requis** : E1
 
 **Étapes**
@@ -1020,6 +1130,16 @@ au journal.
 2. Retourner sur l'URL racine de l'instance.
    Attendu : titre de page « Identifiez-vous sur LibreOsteo » (l'accès à l'application
    reste refusé sans nouvelle identification).
+3. Depuis une nouvelle session connectée (`test` / `test`), réduire la fenêtre à un
+   affichage étroit de téléphone (par exemple 400×800 — cible produit depuis ce lot, la
+   déconnexion y étant à la fois une impasse fonctionnelle et un problème de sécurité si
+   elle reste hors d'atteinte). Ouvrir le menu de navigation replié (bouton « Toggle
+   navigation »), puis cliquer sur le nom d'utilisateur pour ouvrir le menu utilisateur,
+   puis « Déconnexion ».
+   Attendu : l'entrée « Déconnexion » est entièrement visible et son centre est
+   réellement cliquable — rien de la page ne la recouvre ni ne la borne hors du cadre
+   visible ; le clic déconnecte, retour au formulaire d'identification (« Identifiez-vous
+   sur LibreOsteo »).
 
 ### R-AUTH-04 — Refus d'un mauvais mot de passe
 
@@ -1246,7 +1366,12 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
   ::test_le_refus_d_une_cellule_est_affiche_et_n_ecrit_rien, ::test_tri_du_tableau_des_utilisateurs,
   ::test_ajout_d_un_utilisateur_et_refus_d_un_nom_deja_pris (l'édition en place, le refus
   d'écriture, le tri et l'ajout ; le changement du mot de passe d'un tiers n'a pas
-  d'équivalent automatisé)
+  d'équivalent automatisé),
+  tests/functional/test_autofocus_fragments.py::test_le_champ_d_une_cellule_utilisateur_ne_porte_pas_l_autofocus_natif
+  (couvre le focus posé à l'étape 2 : le champ de saisie, inséré par
+  `hx-swap="outerHTML"`, n'est plus focalisé par l'attribut natif `autofocus` — repris de
+  façon non fiable par le navigateur sur un fragment injecté après le chargement du
+  document — mais par `x-init="$el.focus()"`, exécuté par Alpine à l'insertion)
 - **État requis** : E1. Cette fiche crée durablement un utilisateur et modifie le nom du
   compte `test` : à l'issue de son exécution, remonter l'état E1 (chapitre 1) avant de
   jouer une autre fiche qui en dépend.
@@ -1258,7 +1383,10 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
    `Nom`, `Administrateur`, `Actif`, `Mot de passe` ; une seule ligne, `test`, dont les
    colonnes Administrateur et Actif affichent `oui` ; un bouton « Ajouter un utilisateur »
    au-dessus du tableau.
-2. Cliquer sur la cellule « Prénom » de la ligne `test`, saisir `beverly`, valider.
+2. Cliquer sur la cellule « Prénom » de la ligne `test`.
+   Attendu : un champ de saisie s'ouvre à la place, déjà focalisé (le curseur y clignote,
+   prêt à la saisie).
+   Saisir `beverly`, valider.
    Attendu : la cellule affiche `Beverly` — la majuscule est posée par l'application, la
    saisie était en minuscules.
 3. Cliquer sur la cellule « Nom » de la ligne `test`, saisir `crusher`, valider.
@@ -1674,7 +1802,17 @@ existante ne couvrait la casse.
   ::test_le_nom_de_famille_redevient_modifiable_apres_un_cycle_d_edition
   (ce dernier couvre les étapes 6 et 7 prises **ensemble** : le garde se relève après un
   cycle complet d'édition, et non seulement sur une fiche jamais entrée en édition, ce
-  que `::test_le_nom_de_famille_reste_modifiable_hors_edition` seul ne prouvait pas)
+  que `::test_le_nom_de_famille_reste_modifiable_hors_edition` seul ne prouvait pas),
+  ::test_le_titre_garde_sa_typographie_hors_edition (couvre le premier attendu de
+  l'étape 7, et lui seul : hors édition, la cellule du nom est un **bouton**, et il doit
+  hériter de la taille et de la couleur du titre qui le porte. Le test compare les deux
+  valeurs calculées entre elles, jamais à des constantes, pour qu'un changement de thème
+  ne le fasse pas rougir ; il ne regarde ni le prénom, ni la mise en page du titre),
+  tests/functional/test_autofocus_fragments.py::test_le_champ_du_titre_du_dossier_ne_porte_pas_l_autofocus_natif
+  (couvre le focus posé à l'ouverture du champ de saisie de l'étape 7 : le champ, inséré
+  par `hx-swap="outerHTML"`, n'est plus focalisé par l'attribut natif `autofocus` — repris
+  de façon non fiable par le navigateur sur un fragment injecté après le chargement du
+  document — mais par `x-init="$el.focus()"`, exécuté par Alpine à l'insertion)
 - **État requis** : E2. Cette fiche modifie durablement la profession, les loisirs, le nom
   de naissance et — le temps de deux étapes — le nom de famille du patient Picard :
   remonter l'état E2 (chapitre 1) avant de jouer une autre fiche qui en dépend.
@@ -1708,8 +1846,14 @@ existante ne couvrait la casse.
    famille `Picard` dans le titre.
    Attendu : **aucun champ de saisie ne s'ouvre**. Le curseur peut prendre la forme d'une
    main sans que rien ne s'ouvre : c'est attendu. Cliquer « Fin d'édition ».
-7. Hors mode édition, cliquer sur le nom de famille `Picard` dans le titre, le remplacer
-   par `Kirk`, valider par le bouton ✓.
+7. Hors mode édition, **regarder le titre avant de le toucher**.
+   Attendu : `Picard` et `Jean-Luc` s'affichent à la **taille** et dans la **couleur** du
+   titre qui les porte — comme le reste du `<h1>`, et non en petits liens bleus. Les deux
+   cellules sont pourtant cliquables : c'est la seule chose qui doit les distinguer à
+   l'œil, avec le curseur. Puis cliquer sur le nom de famille `Picard` dans le titre.
+   Attendu : un champ de saisie s'ouvre à la place, déjà focalisé (le curseur y
+   clignote, prêt à la saisie).
+   Remplacer par `Kirk`, valider par le bouton ✓.
    Attendu : le titre affiche `Kirk (Dupont) Jean-Luc`. Recharger : toujours `Kirk`.
 8. Répéter l'étape 7 pour remettre `Picard`.
    Attendu : le titre affiche de nouveau `Picard (Dupont) Jean-Luc`. L'état E2 est
@@ -2270,7 +2414,12 @@ l'avertissement de sortie — non la visibilité — qui ferme le silence.
   ::test_l_onglet_consultation_en_cours_revient_apres_une_cloture (clôture une
   consultation puis en démarre une autre **sans recharger la page**, et constate que
   l'onglet « Consultation en cours » revient ; ne regarde **pas** le contenu de
-  l'onglet, ni le panneau, ni la chronologie)
+  l'onglet, ni le panneau, ni la chronologie),
+  ::test_la_pastille_de_type_tient_dans_son_en_tete (mesure, sur la consultation ouverte
+  à l'étape 1, que la pastille du type ne déborde de son en-tête ni par le haut ni par le
+  bas — elle compare la pastille à son propre en-tête, jamais à des pixels, pour survivre
+  à un changement de police ou de thème ; ne regarde **ni** la largeur de la pastille,
+  **ni** la lisibilité du sélecteur qu'elle contient, qui restent de l'œil du recetteur)
 - **État requis** : E2. Cette fiche crée durablement une troisième consultation (non
   facturée) chez le patient Picard : remonter l'état E2 (chapitre 1) avant de jouer
   une autre fiche qui en dépend.
@@ -2282,7 +2431,14 @@ l'avertissement de sortie — non la visibilité — qui ferme le silence.
    Attendu : un nouvel onglet « Consultation en cours » s'active ; panneau « Motif »
    avec un champ vide (placeholder « Motif ») ; libellé « Examen médical : » suivi
    d'une zone vide (placeholder « Examen médical ») ; bouton « Clôturer » visible en
-   bas de page.
+   bas de page. Dans le bandeau bleu qui coiffe le panneau de saisie, à la suite du
+   libellé : une pastille portant une icône ✓ et le **menu déroulant** du type de
+   consultation (cinq entrées — « non renseigné », « Consultation normale »,
+   « Poursuite de traitement », « Retour », « Urgence »). La pastille tient
+   **entièrement dans le bandeau** : elle n'en déborde ni par le haut ni par le bas, et
+   son icône n'est pas laissée seule sur le bandeau pendant que la pastille flotte sur
+   le corps du panneau. Le menu déroulant est affiché en permanence — il n'y a plus de
+   texte à cliquer pour le faire apparaître.
 2. Saisir `Motif de consultation` dans le champ Motif, `Examen normal` dans la zone
    Examen médical, cliquer « Clôturer ».
    Attendu : une fenêtre « Facturation » s'ouvre, avec deux choix « Non facturée » et
@@ -3230,7 +3386,22 @@ la borne.
   réellement après chaque clic — `periode-active-month` puis `periode-active-year`
   visibles, `periode-active-week` ne l'étant plus —, faute de quoi les trois
   compteurs valant `1`/`2`/`0` sur les trois périodes du jeu de test ne
-  prouveraient aucun effet observable du clic)
+  prouveraient aucun effet observable du clic),
+  ::test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol (couvre l'étape 4 : il
+  vise le centre exact de chacun des onze cercles de survol du mini-graphe « Nouveaux
+  patients » et exige que ce soit bien le cercle qui s'y trouve. C'est le point de
+  bascule : les cercles sont posés sur les bords du `viewBox`, que le `<svg>` rogne, et
+  la mesure d'avant correctif n'en atteignait **qu'un sur onze**. Ce qu'il laisse de
+  côté : le **contenu** de l'infobulle, et les deux autres tuiles),
+  ::test_l_infobulle_du_mini_graphe_n_affiche_pas_d_horodatages_bruts (couvre l'autre
+  moitié de l'attendu de l'étape 4, le **contenu** de l'infobulle, laissé de côté par le
+  test précédent : les deux bornes doivent être lisibles — `JJ/MM/AAAA`, jamais un
+  `datetime` brut avec microsecondes et fuseau. Le format « début - fin - valeur » nommé
+  par la spec n'est pas en jeu, il est déjà tenu ; seule la lisibilité des deux dates
+  l'est),
+  ::test_la_barre_deployee_ne_recouvre_pas_le_titre_en_affichage_etroit (couvre l'étape
+  5 : à 400×800, hamburger ouvert, la barre de navigation déployée ne doit recouvrir ni
+  le titre ni le contenu de la page)
 - **État requis** : E2. Les valeurs exactes ci-dessous supposent que l'état E2 a été
   construit dans la semaine, le mois et l'année du passage — ces fenêtres démarrent au
   lundi local, au 1er du mois et au 1er janvier (`libreosteoweb/api/statistics.py:147-190`) ;
@@ -3247,6 +3418,22 @@ la borne.
    Attendu : les trois tuiles affichent les mêmes valeurs : `1`, `2`, `0`.
 3. Cliquer « Année ».
    Attendu : les trois tuiles affichent les mêmes valeurs : `1`, `2`, `0`.
+4. Revenir sur « Semaine ». Dans la tuile « Nouveaux patients », à gauche du compteur, un
+   mini-graphe est tracé : une ligne brisée de **onze** points, un par semaine. Survoler
+   chacun des onze, sans cliquer, en s'arrêtant une seconde sur chaque.
+   Attendu : **les onze** font apparaître l'infobulle du navigateur, de la forme
+   `JJ/MM/AAAA - JJ/MM/AAAA - <valeur>` (les deux bornes de la semaine, lisibles — jamais
+   un horodatage brut avec microsecondes et fuseau —, puis le compte) — `0` pour les dix
+   premières, `1` pour la dernière, celle de la semaine en cours. Les points des
+   **bords** sont ceux qui comptent : les dix points à zéro sont posés sur le bord bas du
+   graphe et le dernier dans son coin supérieur droit ; un sommet qui ne répond pas au
+   survol en son centre est un **KO**, et c'est le défaut que cette étape garde — avant
+   correctif, un seul des onze répondait. Le graphe n'est pas cliquable : rien ne doit se
+   produire au clic.
+5. En affichage étroit (téléphone, par exemple 400×800), ouvrir le menu de navigation
+   replié (bouton « Toggle navigation »).
+   Attendu : le titre « Tableau de bord » reste entièrement visible, non recouvert par
+   la barre de navigation déployée.
 
 ### R-TAB-02 — Statistiques du jour
 
@@ -3282,24 +3469,35 @@ la borne.
 ### R-TOU-01 — Visite guidée d'un profil et d'un cabinet incomplets
 
 - **Domaine** : Visite guidée
-- **Couverture auto** : oui, par les **quatre** tests de
-  `tests/functional/test_visite_guidee.py`, un par groupe d'étapes — la fiche les rattache
-  tous, aucun n'est inscrit au chapitre 4 :
-  - `::test_les_deux_etapes_s_enchainent_et_se_terminent` — étapes 1, 3, 4 et 5
+- **Couverture auto** : oui, par les **sept** tests de
+  `tests/functional/test_visite_guidee.py` — la fiche les rattache tous, aucun n'est
+  inscrit au chapitre 4 :
+  - `::test_les_deux_etapes_s_enchainent_et_se_terminent` — étapes 1, 5, 6 et 7
     (l'enchaînement, les libellés, l'absence de voile, la fermeture du menu) ;
-  - `::test_la_visite_se_rouvre_a_chaque_ouverture_du_tableau_de_bord` — étape 6 ;
-  - `::test_une_seule_condition_ne_donne_qu_une_etape` — étape 7, dans son cas miroir ;
-  - `::test_la_visite_ne_s_ouvre_pas_quand_tout_est_renseigne` — étape 8.
+  - `::test_lencart_reste_ancre_a_gauche_de_sa_cible_en_affichage_large` — étape 2 : à
+    1280 px, l'encart est **entièrement à gauche** de l'entrée qu'il désigne et ne la
+    recouvre pas ;
+  - `::test_lencart_est_visible_et_dans_la_fenetre_en_affichage_etroit` — étape 3 : à
+    400 × 800, l'encart a une boîte non nulle, tient dans la fenêtre sur les quatre
+    bords, se pose au tiers supérieur, et ne recouvre ni le titre ni le hamburger ;
+  - `::test_lattachement_suit_un_changement_de_viewport_en_cours_de_visite` — étape 4 :
+    un encart, **un seul**, aux trois paliers d'un redimensionnement ;
+  - `::test_la_visite_se_rouvre_a_chaque_ouverture_du_tableau_de_bord` — étape 8 ;
+  - `::test_une_seule_condition_ne_donne_qu_une_etape` — étape 9, dans son cas miroir ;
+  - `::test_la_visite_ne_s_ouvre_pas_quand_tout_est_renseigne` — étape 10.
 
-  Aucun des quatre ne voit la **position** de l'encart, que seule cette fiche constate à
-  l'étape 2.
+  Ce que les sept laissent de côté, et qui n'est donc constaté que par cette passe : les
+  **libellés** de l'encart en affichage étroit, son **aspect**, et le fait qu'il désigne à
+  l'œil la bonne entrée de menu. Les trois tests de géométrie mesurent des boîtes ; ils ne
+  lisent rien et ne jugent rien de ce qui se voit.
 - **État requis** : E1, **amendé** : vider l'identifiant professionnel du thérapeute
   (« Profil utilisateur ») et la devise du cabinet (« Paramètres ») avant de commencer.
   Sans ces deux champs vides, la visite ne s'ouvre pas — c'est sa condition d'existence.
 
 **Étapes**
 
-1. Se connecter, atterrir sur le tableau de bord.
+1. Se connecter dans une fenêtre **large** (au moins 768 px, barre de menu dépliée),
+   atterrir sur le tableau de bord.
    Attendu : le menu utilisateur (en haut à droite) est **ouvert tout seul** ; un encart
    blanc est affiché **à gauche** de l'entrée « Profil utilisateur », titre
    « Thérapeute », texte « Mettez à jour votre profil thérapeute. L'identifiant
@@ -3308,25 +3506,42 @@ la borne.
    voile** ne grise la page.
 2. Regarder l'encart sans rien cliquer.
    Attendu : l'encart est **entièrement visible dans la fenêtre**, il ne déborde ni à
-   droite ni en bas, et il ne recouvre pas l'entrée de menu qu'il désigne.
-3. Bouton « Suiv » ».
+   droite ni en bas, et il ne recouvre pas l'entrée de menu qu'il désigne — son bord droit
+   s'arrête avant le bord gauche de cette entrée.
+3. Réduire la fenêtre à **400 px de large** (affichage replié : le menu du haut laisse la
+   place à un bouton hamburger), puis recharger le tableau de bord. **Ne pas ouvrir le
+   hamburger.**
+   Attendu : l'encart est **visible malgré tout**, avec une largeur et une hauteur non
+   nulles. Il tient dans la fenêtre sur les **quatre** bords — rien n'en sort à gauche, ce
+   qui était le défaut : l'encart partait de 270 px hors écran et n'en montrait que
+   2 %. Il se pose vers le **tiers supérieur** de la fenêtre, pas collé au bord haut, et
+   il ne recouvre ni le titre du tableau de bord ni le bouton hamburger. À cette largeur
+   l'encart n'est plus ancré à gauche d'une entrée de menu : le menu est replié, il n'y a
+   pas de cible à désigner.
+4. Sans recharger, redimensionner la fenêtre **en cours de visite** : la ramener à 1280 px
+   de large, puis de nouveau à 400, puis encore à 1280.
+   Attendu : à **chacun** des trois paliers, l'encart est visible et il y en a **un seul**
+   à l'écran — jamais deux, jamais aucun. Deux encarts superposés, ou un encart disparu
+   après un rétrécissement, sont un **KO** : l'attachement doit suivre le franchissement
+   du seuil, il ne se décide pas une fois pour toutes au chargement.
+5. Fenêtre large de nouveau, bouton « Suiv » ».
    Attendu : l'encart passe au titre « Paramétrer le cabinet », texte « Afin de pouvoir
    générer correctement les factures, il est nécessaire de mettre à jour les informations
    du cabinet. », ancré à gauche de l'entrée « Paramètres » ; le menu reste ouvert.
-4. Bouton « « Préc ».
+6. Bouton « « Préc ».
    Attendu : retour à l'étape « Thérapeute ».
-5. Bouton « Terminer ».
+7. Bouton « Terminer ».
    Attendu : l'encart disparaît **et** le menu utilisateur se referme.
-6. Recharger la page du tableau de bord (F5).
+8. Recharger la page du tableau de bord (F5).
    Attendu : la visite **se rouvre** à l'étape « Thérapeute ». Elle ne se mémorise pas.
-7. Renseigner l'identifiant professionnel (« Profil utilisateur ») puis revenir au tableau
+9. Renseigner l'identifiant professionnel (« Profil utilisateur ») puis revenir au tableau
    de bord.
    Attendu : la visite s'ouvre directement sur « Paramétrer le cabinet », **et le bouton
    « Suiv » » est inactif** — une seule condition reste ouverte, donc une seule étape. Le
    cas miroir (identifiant vide, devise renseignée) n'ouvre que « Thérapeute », avec le
    même bouton inactif : c'est celui que le test automatique exerce.
-8. Renseigner la devise du cabinet (« Paramètres ») puis revenir au tableau de bord.
-   Attendu : **aucun encart** ne s'ouvre.
+10. Renseigner la devise du cabinet (« Paramètres ») puis revenir au tableau de bord.
+    Attendu : **aucun encart** ne s'ouvre.
 
 ### Navigation
 
@@ -3336,11 +3551,20 @@ la borne.
 - **Couverture auto** : oui —
   tests/functional/test_atteignabilite.py::test_chaque_ecran_est_joignable_au_clic
   (ce qu'il couvre : les quinze étapes ci-dessous, dans cet ordre, l'aller-retour d'onglets
-  de l'étape 5 compris. Ce qu'il laisse de côté, et qui n'est donc constaté que par cette
-  passe manuelle : un lien **recouvert** par un autre élément — Playwright clique par le
+  de l'étape 5 compris, **mais sans compter les clics**), complété par
+  tests/functional/test_patient.py::test_un_seul_clic_d_onglet_bascule_le_panneau_pendant_une_consultation
+  (celui-ci ne couvre que les étapes 3 à 5, et une seule propriété de plus, que la fiche
+  pose à l'étape 5 : **un seul** clic d'onglet suffit à changer le panneau affiché, y
+  compris quand ce clic déclenche l'enregistrement implicite d'une consultation en cours.
+  Il relit les deux colonnes en base pour prouver que la bascule ne s'obtient pas en
+  sacrifiant cet enregistrement, et rejoue le geste après un rechargement complet de la
+  page ; il ne voit rien des douze autres étapes).
+
+  Ce que les deux laissent de côté, et qui n'est donc constaté que par cette passe
+  manuelle : un lien **recouvert** par un autre élément — Playwright clique par le
   centre de la boîte, un `z-index` fautif le laisse vert ; l'**aspect**, sur lequel rien
   n'est asserté ; les quatre écrans déclarés hors matrice en fin de fiche ; et tout
-  navigateur autre que Chromium. Ne sauter aucune étape au motif qu'elle serait automatisée)
+  navigateur autre que Chromium. Ne sauter aucune étape au motif qu'elle serait automatisée.
 - **État requis** : E1. La fiche crée durablement un patient, une consultation et une
   facture — remonter E1 avant de jouer une autre fiche qui en dépend.
 
@@ -3361,7 +3585,10 @@ la borne.
    Attendu : le panneau « Consultations » s'affiche et celui de la consultation en cours se
    masque ; le retour au clic le réaffiche, motif conservé — le changement d'onglet l'a
    enregistré au passage. C'est ce retour qui prouve que le cinquième onglet est un lien et
-   pas seulement un libellé.
+   pas seulement un libellé. **Compter les clics** : un seul suffit dans chaque sens. Un
+   onglet qui se marque actif pendant que le panneau ne bouge pas, ou qui ne bascule qu'au
+   second clic, est un **KO** — c'est le défaut que cette étape garde, et il s'est déjà
+   produit. Recharger la page puis recliquer un onglet : là encore, un seul clic.
 6. Clôturer la consultation avec facturation (moyen « Chèque »).
    Attendu : l'onglet « Consultation en cours » disparaît, la séance rejoint la chronologie
    et la facture est émise.
@@ -3426,8 +3653,15 @@ c'est **acté et non compensable** — aucun script de traduction d'anciens frag
 
 - **Domaine** : Pages d'erreur
 - **Couverture auto** : oui —
-  tests/functional/test_pages_erreur.py::test_la_page_404_ne_leve_aucune_erreur_de_console
-  et tests/functional/test_pages_erreur.py::test_le_lien_de_deconnexion_de_la_page_404_fonctionne
+  tests/functional/test_pages_erreur.py::test_la_page_404_ne_leve_aucune_erreur_de_console,
+  tests/functional/test_pages_erreur.py::test_le_lien_de_deconnexion_de_la_page_404_fonctionne,
+  tests/functional/test_pages_erreur.py::test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent
+  (ce dernier couvre l'étape 6 : il contrôle l'adresse du lien « Profil utilisateur »
+  — aucun fragment de hash — puis le clique réellement, et clique « Nouveau patient » ;
+  il ne regarde **aucune** des autres entrées figées de cette page)
+  et ::test_la_barre_laterale_de_la_page_404_ne_recouvre_pas_son_titre (couvre l'étape 8 :
+  il compare les rectangles de la barre latérale et du titre « Ooops ! » et exige
+  qu'ils ne se chevauchent pas)
 - **État requis** : E1 — la page 404 ne dépend d'aucune donnée de cabinet ni de
   patient.
 
@@ -3456,12 +3690,33 @@ c'est **acté et non compensable** — aucun script de traduction d'anciens frag
    texte dans le champ de recherche du menu latéral et cliquer sur le bouton associé.
    Attendu : aucune navigation, aucune requête réseau déclenchée — le champ est inerte
    sur cette page.
+6. Toujours sur la route inexistante, cliquer l'entrée « Profil utilisateur » du bandeau
+   du haut. Elle y est posée **directement**, hors du menu déroulant que l'étape 3 laisse
+   fermé : sans cela elle resterait à une boîte de taille nulle, inatteignable au clic.
+   Attendu : la page « Profil utilisateur » s'ouvre (titre de page « Profil
+   utilisateur »).
+7. Revenir sur la route inexistante, cliquer « Nouveau patient » (menu latéral).
+   Attendu : la page de création de patient s'ouvre (titre de page « Nouveau patient »).
+   Ces deux entrées sont les **deux seules** de cette page qui mènent où elles disent ;
+   les autres — champ de recherche latéral (étape 5) et reste du menu latéral — sont
+   figées, et ce n'est pas une régression de cette fiche : c'est du socle visuel, instruit
+   à part.
+8. Revenir sur la route inexistante, observer le titre « Ooops ! » et la barre latérale
+   du bandeau SB Admin (déployée par défaut, largeur ≥768 px), sans cliquer ni ouvrir de
+   menu.
+   Attendu : la barre latérale ne recouvre aucune partie du titre « Ooops ! » — les deux
+   rectangles ne se chevauchent pas.
 
 ## Chapitre 4 — Tests sans geste de recette
 
 Tous les tests fonctionnels de ce dépôt sont rattachés à une fiche, sauf ceux listés ici.
 Cette liste n'est pas une dispense : c'est l'inventaire des tests qui n'éprouvent **pas**
 un geste du produit, et qui ne peuvent donc pas en décrire un.
+
+La règle est tenue par un cliquet, `tests/qualite/test_contrat_recette.py`, que `make check`
+rejoue : un test fonctionnel que ce fichier ne nomme nulle part — ni en « Couverture auto »
+d'une fiche, ni dans la liste ci-dessous — fait rougir la suite. Ce n'est donc plus une
+vérification de fin de lot, et ce chapitre ne peut plus se démoder en silence.
 
 - `tests/functional/test_socle_composants.py::test_les_notifications_s_affichent_s_effacent_et_se_ferment`
 - `tests/functional/test_socle_composants.py::test_la_modale_s_ouvre_se_ferme_et_pose_l_occultation`
@@ -3542,3 +3797,13 @@ un geste du produit, et qui ne peuvent donc pas en décrire un.
   2026-09-12 : supprimer la clause de repli sur le premier onglet laisse `test_therapeute`,
   `test_cabinet` et `test_import_csv` **entièrement verts** — le filet fonctionnel ne
   protège pas ce marquage, et ce test unitaire est le seul qui le fasse.
+
+- `tests/functional/test_tableau_de_bord.py::test_page_wrapper_ne_subit_aucun_decalage_de_la_feuille_partagee_avec_la_page_404`
+
+  Garde-fou pour le correctif de D-5 (`R-ERR-01`, étape 8) : `#page-wrapper` est partagé
+  par toutes les pages, y compris le tableau de bord, tandis que `#wrapper` n'existe que
+  dans `404.html`. Le correctif scope son `margin-left: 250px` à `#wrapper #page-wrapper`
+  pour cette raison précise — ce test prouve que le tableau de bord, qui n'a pas de
+  `#wrapper`, ne reçoit pas ce décalage. Il n'éprouve aucun geste du produit : il constate
+  qu'un correctif posé pour un écran n'en déplace pas un autre, sur une feuille de style
+  partagée entre les deux.

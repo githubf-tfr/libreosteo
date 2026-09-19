@@ -240,6 +240,7 @@ files = [
     "tests/qualite/test_contrat_catalogue_compile.py",
     "tests/qualite/test_contrat_compression.py",
     "tests/qualite/test_contrat_gabarits.py",
+    "tests/qualite/test_contrat_recette.py",
     "tests/qualite/test_contrat_styles.py",
     "tests/qualite/test_contrat_traductions.py",
     "winserver.py",
