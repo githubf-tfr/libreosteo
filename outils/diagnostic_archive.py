@@ -30,7 +30,7 @@ contraintes, a l'insertion.
 
   0057  doublon patient (nom, prenom, naissance)  BLOQUE (412)  vous seul decidez
   0058  montant hors capacite numeric(10,2)       BLOQUE (412)  corriger avant export
-  0060  doublon (cabinet, numero de facture)      BLOQUE (412)  corriger avant export
+  0060  doublon (cabinet, numero de facture)      ne bloque pas  RENUMEROTE, cf. ci-dessous
   D9    raison de non-facturation == motif        ne bloque pas  vous seul decidez
   0056  document au chemin d'avant 0056           ne bloque pas  a verifier
 
@@ -43,6 +43,13 @@ Les deux points « vous seul decidez » ne se tranchent pas par cet outil :
 - **Raison de non-facturation egale au motif clinique.** Un resultat non nul n'est
   pas la preuve du defaut : un praticien peut avoir choisi la meme formulation de
   bonne foi. Une reprise corrective **efface un champ** de donnee de sante.
+- **Doublons de numero de facture.** La restauration les **renumerote** au chargement :
+  la plus ancienne facture d'un meme numero garde le sien, les suivantes passent dans une
+  bande a sept chiffres. ⚠️ **Ces documents sont des pieces fiscales, et ils ont pu etre
+  remis a des patients** : le numero que detient le patient ne sera plus celui de la base.
+  L'outil liste, avant toute action, chaque facture concernee avec son numero actuel et
+  celui qu'elle portera. Vous voyez la liste, puis vous decidez -- rien ne se declenche en
+  silence, et renoncer a restaurer reste possible.
 
 CE QUE L'OUTIL NE FAIT PAS
 ==========================
@@ -70,6 +77,18 @@ CENTIME = decimal.Decimal("0.01")
 # `libreosteoweb/models.py::chemin_de_stockage_du_document`. Avant 0056,
 # `upload_to` valait la chaine fixe "documents" et le nom televerse etait conserve.
 DOCUMENT_DEPUIS_0056 = re.compile(r"^documents/[0-9a-f]{32}(\.[a-z0-9]{1,10})?$")
+# Plancher de la bande de renumerotation, **reproduit** de
+# `libreosteoweb/api/invoicing/reprise.py::PLANCHER_RENUMEROTATION`. Tout numero attribue
+# par une reprise est a sept chiffres au moins : reconnaissable au premier coup d'oeil, et
+# hors d'atteinte de la numerotation courante.
+PLANCHER_RENUMEROTATION = 999999
+PREFIXE_ALPHABETIQUE = re.compile(r"^[A-Za-z]*")
+# La version du produit que ce rapport suppose. `restaurer` refuse toute archive dont le
+# `meta` differe de la version installee : le `meta` lu ici dit donc la version qui
+# restaurera cette archive. En deca de celle-ci, la reprise des numeros de facture au
+# chargement n'existe pas et un doublon (cabinet, numero) reste bloquant -- dire « ne
+# bloque pas » a un exploitant sur une instance plus ancienne l'enverrait droit sur un 412.
+VERSION_SUPPOSEE = "0.6.9.dev0"
 
 
 class Doublons(NamedTuple):
@@ -172,6 +191,95 @@ def numerotation(objets: list[dict[str, Any]]) -> Numerotation:
         minimum=min(valeurs) if valeurs else None,
         maximum=max(valeurs) if valeurs else None,
     )
+
+
+def _valeur_numerique(numero: str) -> int | None:
+    """Exactement `api/utils.py::convert_to_long(numero, strip_string_prefix=True)`.
+
+    Reproduit, et non importe : cet outil se copie seul sur la machine qui detient
+    l'archive, et `reprise.py` tirerait Django puis `netifaces` par `api/utils.py`. La
+    reproduction est gardee par un test d'equivalence cote depot,
+    `libreosteoweb/tests/test_reprise_archive.py::
+    test_l_outil_de_diagnostic_annonce_exactement_ce_que_la_reprise_fera`.
+
+    ⚠️ Ne pas remplacer par `CHIFFRES` : cette expression-la borne le prefixe a trois
+    lettres, exige que tout le reste soit des chiffres, et ancre la chaine des deux
+    bouts -- alors que `convert_to_long` retire **tout** prefixe alphabetique puis
+    appelle `int()` tel quel. Mesure du 2026-09-19, les cinq entrees ou elles divergent :
+    « ABCD12 » (quatre lettres : ignore par `CHIFFRES`, vaut 12 ici), « +12 » et « -12 »
+    (signe refuse par `CHIFFRES`, valent 12 et -12 ici), « 12 » precede d'une espace
+    (l'ancre `^` la refuse, `int()` l'ignore) et « 12_3 » (le tiret bas est un separateur
+    de chiffres pour `int()`, qui rend 123).
+    """
+    try:
+        return int(PREFIXE_ALPHABETIQUE.sub("", numero))
+    except (TypeError, ValueError):
+        return None
+
+
+def _maximum_numerique(numeros: list[str]) -> int | None:
+    """Exactement `api/utils.py::maximum_numerique_des_numeros`, reproduite de meme."""
+    maximum = None
+    for numero in numeros:
+        valeur = _valeur_numerique(numero)
+        if valeur is None:
+            continue
+        if maximum is None or valeur > maximum:
+            maximum = valeur
+    return maximum
+
+
+def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str, str]]:
+    """Ce que la restauration changerait : `(identifiant, numero actuel, numero apres)`.
+
+    Reproduit `reprise.planifier` a la regle pres : dans chaque cabinet, les factures
+    portant un meme numero sont ordonnees par identifiant -- l'auto-increment, donc
+    l'ordre d'emission ; la plus ancienne garde son numero, les suivantes prennent les
+    numeros consecutifs qui suivent `max(maximum numerique du cabinet,
+    PLANCHER_RENUMEROTATION)`, prefixe conserve.
+
+    ⚠️ Le numero est pris **tel quel**, sans `.strip()`, contrairement a
+    `doublons_numeros` : `api/services/reprise_archive.py::planifier_sur_objets` ne
+    rogne rien, et « 12 » precede d'une espace n'est donc pas, pour la restauration, le
+    meme numero que « 12 ». Rogner ici annoncerait une renumerotation qui n'aura pas lieu.
+    """
+    par_cabinet: dict[Any, list[tuple[Any, str]]] = collections.defaultdict(list)
+    for facture in _du_modele(objets, "invoice"):
+        identifiant = facture.get("pk")
+        if identifiant is None:
+            continue
+        champs = facture.get("fields") or {}
+        cabinet = champs.get("officesettings_id")
+        if cabinet is None:
+            continue
+        par_cabinet[cabinet].append((identifiant, champs.get("number") or ""))
+
+    plan: list[tuple[Any, str, str]] = []
+    for cabinet in sorted(par_cabinet):
+        lignes = sorted(par_cabinet[cabinet])
+        occurrences: dict[str, list[Any]] = collections.defaultdict(list)
+        for identifiant, numero in lignes:
+            occurrences[numero].append(identifiant)
+        a_renumeroter = sorted(
+            (identifiant, numero)
+            for numero, identifiants in occurrences.items()
+            for identifiant in identifiants[1:]
+        )
+        if not a_renumeroter:
+            continue
+        maximum = _maximum_numerique([n for _, n in lignes])
+        compteur = max(maximum or 0, PLANCHER_RENUMEROTATION)
+        for identifiant, ancien in a_renumeroter:
+            compteur += 1
+            prefixe = PREFIXE_ALPHABETIQUE.match(ancien)
+            plan.append(
+                (
+                    identifiant,
+                    ancien,
+                    "%s%d" % (prefixe.group(0) if prefixe else "", compteur),
+                )
+            )
+    return sorted(plan)
 
 
 def montants_hors_bornes(objets: list[dict[str, Any]]) -> Montants:
@@ -283,6 +391,20 @@ def main(chemin: str) -> int:
     version, objets = charger(chemin)
 
     print("Version de l'archive (meta)       : %s" % (version or "(absente)"))
+    print("Version supposee par ce rapport   : %s" % VERSION_SUPPOSEE)
+    if version and version != VERSION_SUPPOSEE:
+        print(
+            "⚠️ L'archive a ete produite par %s, ce rapport raisonne sur %s."
+            % (version, VERSION_SUPPOSEE)
+        )
+        print("Deux consequences. La restauration refusera cette archive tant que")
+        print("l'instance ne portera pas exactement %s (412)." % version)
+        print("Et la section 0060 ci-dessous suppose la reprise des numeros au")
+        print(
+            "chargement, qui n'existe pas avant %s : sur une instance plus"
+            % VERSION_SUPPOSEE
+        )
+        print("ancienne, un doublon (cabinet, numero) BLOQUE toujours.")
     print("Objets dans le dump               : %d" % len(objets))
     print()
 
@@ -324,20 +446,33 @@ def main(chemin: str) -> int:
     plage = numerotation(objets)
     print("Factures                          : %d" % numeros.total)
     print("Couples (cabinet, numero) en double : %d" % numeros.groupes)
-    if numeros.identifiants:
-        print("BLOQUANT. La renumerotation automatique de 0060 ne sauve pas ce cas, et")
+    renumerotations = plan_de_renumerotation(objets)
+    print("Numeros qui changeront            : %d" % len(renumerotations))
+    if renumerotations:
+        print("NE BLOQUE PAS : depuis D10, la restauration reprend ces numeros au")
         print(
-            "qui lira api/invoicing/reprise.py conclura l'inverse : elle ne s'execute"
+            "chargement, exactement comme la migration 0060 reprend une base en place."
         )
+        print("La plus ancienne facture d'un meme numero garde le sien ; les suivantes")
+        print("passent dans la bande a sept chiffres, reconnaissable au premier coup")
         print(
-            "qu'a la migration d'une base deja peuplee. Ici la base est VIDE quand les"
+            "d'oeil, et la sequence du cabinet avance jusque-la sans jamais redescendre."
         )
-        print("migrations passent -- la renumerotation ne voit aucune ligne --, puis")
-        print("l'archive entre par loaddata dans un schema deja contraint. Le doublon")
-        print("viole unique_facture_numero_par_cabinet a l'insertion : IntegrityError,")
-        print("rattrapee par api/services/sauvegarde.py::restaurer, rendue en 412 par")
-        print("LoadDump.post -- exactement le 412 d'un doublon patient de 0057.")
-        print("Factures concernees (identifiants) : %s" % numeros.identifiants)
+        print()
+        print("⚠️ CE QUI VA CHANGER, AVANT QUE QUOI QUE CE SOIT NE CHANGE :")
+        for identifiant, ancien, nouveau in renumerotations:
+            print("  facture #%s : %s devient %s" % (identifiant, ancien, nouveau))
+        print()
+        # Le decoupage des lignes n'est pas libre : « remis a des patients » doit tenir
+        # d'un seul tenant, sans quoi la clause de transparence ne serait lisible qu'a
+        # cheval sur deux lignes -- et c'est elle que le test garde, mot pour mot.
+        print("Ces documents sont des pieces fiscales, et ils ont pu etre")
+        print("remis a des patients : le numero que detient le patient ne sera")
+        print("plus celui de la base. La facture renumerotee reste consultable et")
+        print("reimprimable depuis l'ecran « Comptabilite ». Vous voyez la liste,")
+        print("vous decidez : rien ne se declenche en silence, et ne pas restaurer")
+        print("reste possible.")
+        print()
     print("Numeros non convertibles          : %d" % plage.non_convertibles)
     print(
         "Prefixes rencontres               : %s"
@@ -377,9 +512,10 @@ def main(chemin: str) -> int:
         print("Documents concernes (identifiants) : %s" % documents.identifiants)
     print()
 
-    bloquant = bool(
-        patients.identifiants or montants.hors_capacite or numeros.identifiants
-    )
+    # Le doublon de numero ne bloque plus : il est repris au chargement (D10, C2). Seuls
+    # le doublon patient -- dont la fusion est un acte medical, jamais mecanique -- et le
+    # montant hors capacite refusent encore l'archive.
+    bloquant = bool(patients.identifiants or montants.hors_capacite)
     if bloquant:
         print("VERDICT : au moins un point BLOQUANT, cf. ci-dessus. La restauration")
         print("echouera telle quelle.")
