@@ -739,12 +739,12 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 ### Défauts produit constatés en recette (à traiter, pas encore planifiés)
 
-- ~~**2026-09-09 — perte silencieuse de donnée médicale dans le dossier patient.** Un clic ou un `Tab` pendant l'édition soumettait l'éditable autonome `original_name` et le callback `$scope.patient = data` effaçait en bloc antécédents, traitement en cours et motifs.~~ — **corrigé le 2026-09-11 par le lot D8**, cliquet de gabarit posé. À retenir de ce défaut, indépendamment de son remède : **il a vécu en production, et c'est un filet de test qui l'a trouvé, pas une revue de code.** Il a été découvert en retirant une barrière d'attente écrite pour le contourner sans l'avoir nommé — donc par le geste même que D6b faisait. C'est l'argument le plus réutilisable du chantier D6 : le filet ne sert pas qu'à protéger la bascule, il révèle ce que le produit cache. **La passe de recette `R-PAT-08` reste due.**
-- **2026-09-18 — la passe de recette de D9 reste due, et c'est la huitième clause du lot**
-  (cf. « Terminé », entrée D9). `R-PAT-13` « Aucune saisie perdue quand l'écran se
-  recompose » (`docs/recette.md:2022`) doit être jouée **une fois à la main** sur le
-  déploiement de référence `Docker/deploy/pg/docker-compose.yml`, ses **cinq** attendus
-  constatés un par un, et `R-PAT-12` rejouée sur son **étape 6** neuve. Ni sqlite ni le mode
+- ~~**2026-09-09 — perte silencieuse de donnée médicale dans le dossier patient.** Un clic ou un `Tab` pendant l'édition soumettait l'éditable autonome `original_name` et le callback `$scope.patient = data` effaçait en bloc antécédents, traitement en cours et motifs.~~ — **corrigé le 2026-09-11 par le lot D8**, cliquet de gabarit posé. À retenir de ce défaut, indépendamment de son remède : **il a vécu en production, et c'est un filet de test qui l'a trouvé, pas une revue de code.** Il a été découvert en retirant une barrière d'attente écrite pour le contourner sans l'avoir nommé — donc par le geste même que D6b faisait. C'est l'argument le plus réutilisable du chantier D6 : le filet ne sert pas qu'à protéger la bascule, il révèle ce que le produit cache. ~~La passe de recette `R-PAT-08` reste due.~~ — **jouée le 2026-09-19 sur `078229b`, dix étapes sur dix OK** (cf. « Terminé »).
+- ~~**2026-09-18 — la passe de recette de D9 reste due, et c'est la huitième clause du lot.**
+  `R-PAT-13` « Aucune saisie perdue quand l'écran se recompose » doit être jouée une fois à la
+  main sur le déploiement de référence, ses cinq attendus constatés un par un, et `R-PAT-12`
+  rejouée sur son étape 6 neuve.~~ — **jouée le 2026-09-19 sur `078229b`, tous attendus OK**
+  (cf. « Terminé »). Ce qui suit reste vrai et sert à la prochaine passe : Ni sqlite ni le mode
   standalone ne sont recettés. **Ce que cette passe seule peut voir** : la boîte de dialogue
   du navigateur elle-même (étape 2) — les tests lisent le marqueur que `beforeunload`
   interroge, jamais sa conséquence — et le fait que la préservation n'empêche **aucune**
@@ -896,6 +896,44 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-19 — La passe de recette due est jouée, et elle est verte de bout en bout.**
+  `R-PAT-13` (cinq attendus sur cinq), `R-PAT-12` étape 6, `R-PAT-08` (dix étapes sur dix),
+  sur le déploiement de référence `Docker/deploy/pg/docker-compose.yml`, images reconstruites
+  depuis `078229b`. Journal applicatif de toute la passe : 293 `200`, 1 `204`, 34 `302`,
+  **aucun 4xx, aucun 5xx, aucun traceback**. Ferme la huitième clause de D9 et la passe
+  `R-PAT-08` due depuis D8. Aucun défaut produit.
+
+  **Les deux attendus que seule une passe manuelle pouvait établir sont établis.** La boîte
+  de confirmation du navigateur est constatée comme événement `dialog` de type `beforeunload`,
+  avec trois mesures : témoin négatif sans saisie (aucune boîte, onglet fermé), saisie en
+  attente puis « rester » (boîte, onglet **toujours ouvert**), même situation puis « quitter »
+  (boîte, onglet **réellement fermé**). Elle est donc bloquante, à deux branches réelles, et
+  conditionnée à la saisie en attente. Le `message` vide est normal : Chromium impose son
+  libellé. Et la préservation n'empêche **aucune** écriture d'aboutir — le commentaire envoyé
+  pendant que trois surfaces portaient des saisies préservées est en base, compteur juste sur
+  sa propre séance.
+
+  ⚠️ **Un `reload` piloté ne fait jamais surgir la boîte** : Chromium ne l'affiche pas pour une
+  navigation initiée par l'automate. Des deux gestes que la fiche offre à égalité, seule la
+  **fermeture d'onglet** expose réellement la boîte. À savoir avant de rejouer la fiche.
+
+  ⚠️ **`make build` n'est pas un montage de recette** : la cible fait `docker login` puis
+  `buildx … --push --output type=registry` vers Docker Hub — vérifié, `Makefile:11-16`. Le
+  montage passe par les deux `docker build -t …:$TAG` du chapitre 0 de `docs/recette.md`, que
+  le cahier déclare autosuffisant.
+
+  **Un écart de manuel corrigé, ce n'est pas un défaut produit.** `R-PAT-08` étape 1 attendait
+  que « Fin d'édition » **et** « Supprimer » deviennent visibles. Mesuré : « Supprimer » l'est
+  déjà avant le clic sur « Éditer », sa visibilité suivant l'onglet et non le mode édition
+  (`actions-dossier.html:50`, `x-show="actif === 'general'"` — vérifié). Le libellé de l'étape
+  est corrigé, le produit ne bouge pas.
+
+  **Ce que la passe n'a pas fait** : remonter l'état E2 entre les fiches par la procédure du
+  chapitre 1, qui purge `db/` et `data/` par `rm -rf` dans un conteneur jetable. Les trois
+  fiches ont été jouées en séquence sur la même instance, après vérification qu'aucun attendu
+  d'une fiche ne dépend de ce qu'une précédente a laissé, ce qui pouvait gêner étant défait
+  **par un geste du produit**. Conteneurs arrêtés par `stop`, jamais `down` ; volumes intacts.
 
 - **2026-09-19 — Cinq dettes soldées, dont l'angle mort des traductions côté serveur**
   (`0d47c13`). `make check` vert : `910 passed`, couverture **94,94 %** ; `52 passed` en
@@ -1692,15 +1730,22 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   | n° | Défaut | Sort |
   |---|---|---|
   | D-1 | l'encart de visite guidée hors fenêtre, et invisible sous menu replié, en affichage étroit | **fermé**, `67c4947` + revues `e36f3d0`, `22ea098`, `3808685`, `9b49779` |
-  | D-2 | en affichage étroit, la barre déployée recouvre le titre et la première tuile | **versé**, antériorité établie par lecture comparative `3c2473b`→`ab854fe` — préexistant, destinataire D6g |
-  | D-3 | en affichage étroit, trois entrées du menu utilisateur — dont « Déconnexion » — ne sont pas atteignables | **versé**, préexistant, sévère, destinataire D6g |
+  | D-2 | en affichage étroit, la barre déployée recouvre le titre et la première tuile | **versé**, antériorité établie par lecture comparative `3c2473b`→`ab854fe` — préexistant ; ~~destinataire D6g~~ **fermé le 2026-09-18 par `1ba00e9`** |
+  | D-3 | en affichage étroit, trois entrées du menu utilisateur — dont « Déconnexion » — ne sont pas atteignables | **versé**, préexistant, sévère ; ~~destinataire D6g~~ **fermé le 2026-09-18 par `1ba00e9`** |
   | D-4 | le lien « Profil utilisateur » de la page 404 n'est pas cliquable | **fermé**, `af0fc88` |
-  | D-5 | la barre latérale de la page 404 recouvre son titre | **versé**, préexistant amont, hors chantier ou D6g |
+  | D-5 | la barre latérale de la page 404 recouvre son titre | **versé**, préexistant amont ; ~~hors chantier ou D6g~~ **fermé le 2026-09-18 par `1ba00e9`**, correctif scopé à `#wrapper` |
   | D-6 | la zone de survol des points du mini-graphe est réduite de moitié | **fermé**, `b2bb0f8` |
-  | D-7 | l'infobulle du mini-graphe affiche des horodatages bruts | **versé**, D6g |
+  | D-7 | l'infobulle du mini-graphe affiche des horodatages bruts | **versé** ; ~~D6g~~ **fermé le 2026-09-18 par `1ba00e9`**, la cause était `Statistics.get_history_statistics`, pas le gabarit |
 
-  Les quatre défauts versés (D-2, D-3, D-5, D-7) sont détaillés, avec leur mesure et leur
-  destinataire, en « Défauts versés par D6f ».
+  Les quatre défauts versés (D-2, D-3, D-5, D-7) étaient détaillés, avec leur mesure et leur
+  destinataire, en « Défauts versés par D6f ». ⚠️ **Ils sont tous les quatre fermés depuis le
+  2026-09-18 par `1ba00e9`**, et cette sous-section de « À faire » est vidée ; le tableau
+  ci-dessus n'avait pas été annoté, ce que le cadrage de D6g a relevé le 2026-09-19. **Ce que
+  D6g en hérite n'est pas leur réouverture mais le portage de leurs correctifs** : trois des
+  cinq sélecteurs porteurs meurent avec le socle — `nav.navbar-fixed-top`, `#headerNavbar.in`,
+  `.navbar-top-links .dropdown-menu` (`libreosteo.css:31-54`) et `#wrapper #page-wrapper`
+  (`sb-admin-2.css:28-37`). Perdre ces correctifs à la bascule est le mode d'échec le plus
+  probable du lot.
 
   **Ce que la passe n'a pas pu constater** : l'apparition effective des infobulles natives à
   l'écran (le navigateur les dessine hors du document, `screenshot` ne les capture pas — trois

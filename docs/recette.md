@@ -1820,7 +1820,10 @@ existante ne couvrait la casse.
 **Étapes**
 
 1. Rechercher `Picard`, ouvrir sa fiche, onglet « Infos générales », cliquer « Éditer ».
-   Attendu : les boutons « Fin d'édition » et « Supprimer » deviennent visibles ; le
+   Attendu : le bouton « Fin d'édition » devient visible. ⚠️ « Supprimer » l'était
+   **déjà** : sa visibilité suit l'onglet, pas le mode édition
+   (`actions-dossier.html:50`, `x-show="actif === 'general'"`) — le libellé de cette
+   étape disait « deviennent visibles » pour les deux, mesuré faux le 2026-09-19. Le
    titre ne gagne aucun champ de saisie — le nom de naissance ne s'y saisit plus,
    seulement en lecture entre parenthèses et seulement s'il est renseigné (absent ici) ;
    le panneau « Infos patient » affiche en première ligne « Nom de naissance : non
