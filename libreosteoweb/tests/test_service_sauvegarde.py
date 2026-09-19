@@ -18,15 +18,20 @@ import io
 import zipfile
 
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.test import TestCase, TransactionTestCase
+from haystack.query import SearchQuerySet
 
 import libreosteoweb
+from libreosteoweb.api.services import sauvegarde
 from libreosteoweb.api.services.sauvegarde import (
     ArchiveInvalide,
     VersionIncompatible,
     construire_archive,
     restaurer,
 )
+from libreosteoweb.models import Patient
+from libreosteoweb.tests.fixtures import archive_de_restauration
 
 
 def _archive(version, dump=b"[]"):
@@ -65,3 +70,51 @@ class TestRestauration(TransactionTestCase):
             restaurer(
                 ContentFile(b"ceci n'est pas une archive"), libreosteoweb.__version__
             )
+
+
+class TestIndexPendantLeRechargement(TransactionTestCase):
+    """L'index ne doit rien garder d'un rechargement qui echoue.
+
+    `TransactionTestCase` et non `TestCase` : `restaurer` ouvre sa propre transaction
+    atomique et la fait echouer ; sous `TestCase` l'echec se produirait dans la
+    transaction d'enrobage du test. `serialized_rollback`, comme `TestRestauration`
+    juste au-dessus et pour la meme raison (`inhibit_post_migrate`, cf. sa docstring) :
+    sans lui, le `flush` de fin de test reemet `post_migrate` et recree les
+    `ContentType` avec des ids qui ne correspondent plus a l'instantane capture par
+    Django en debut de session -- constate par une collision `UNIQUE constraint
+    failed: django_content_type.app_label, django_content_type.model` des la
+    restauration `serialized_rollback` suivante, celle de `TestRestauration` dans
+    `test_exploitation.py`.
+    """
+
+    serialized_rollback = True
+
+    def setUp(self):
+        call_command("clear_index", interactive=False)
+
+    def test_un_rechargement_qui_echoue_ne_laisse_rien_dans_l_index(self):
+        """Deux patients de meme (nom, prenom, naissance) : `loaddata` leve une
+        `IntegrityError` a l'insertion du second (contrainte `0057`). La base revient en
+        arriere ; l'index, qui n'est pas transactionnel, garderait le premier si le
+        processeur de Haystack restait connecte pendant le rechargement."""
+        dump = (
+            '[{"model": "libreosteoweb.patient", "pk": 1, "fields": '
+            '{"family_name": "Zzarchive", "first_name": "Jean-Luc", '
+            '"birth_date": "1935-07-13"}}, '
+            '{"model": "libreosteoweb.patient", "pk": 2, "fields": '
+            '{"family_name": "Zzarchive", "first_name": "Jean-Luc", '
+            '"birth_date": "1935-07-13"}}]'
+        )
+
+        with self.assertRaises(sauvegarde.ArchiveInvalide):
+            sauvegarde.restaurer(
+                archive_de_restauration(libreosteoweb.__version__, contenu_dump=dump),
+                libreosteoweb.__version__,
+            )
+
+        resultats = SearchQuerySet().models(Patient).auto_query("Zzarchive")
+        self.assertEqual(
+            len(resultats),
+            0,
+            "Un rechargement annule a laisse des entrees dans l'index de recherche.",
+        )
