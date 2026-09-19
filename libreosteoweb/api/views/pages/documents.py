@@ -156,8 +156,14 @@ def entree_de_seance(
     seance: models.Examination,
     commentaires: list[models.ExaminationComment],
     deplie: bool = False,
+    formulaire: "FormulaireCommentaire | None" = None,
 ) -> dict[str, Any]:
-    """Tout ce qu'une entree de chronologie rend, decide ici et non dans le gabarit."""
+    """Tout ce qu'une entree de chronologie rend, decide ici et non dans le gabarit.
+
+    `formulaire` ne voyage que sur le chemin de refus (`commentaires_de_seance`) : la
+    valeur tapee et le motif du refus doivent survivre au rendu, comme sur les autres
+    surfaces d'ecriture du depot.
+    """
     return {
         "seance": seance,
         "url": url_de_seance(patient, seance),
@@ -167,6 +173,7 @@ def entree_de_seance(
         "commentaires": commentaires,
         "nombre_de_commentaires": len(commentaires),
         "deplie": deplie,
+        "formulaire": formulaire,
     }
 
 
@@ -677,16 +684,41 @@ def commentaires_de_seance(request: HttpRequest, identifiant: str) -> HttpRespon
 
     Le compteur et la liste sont **dans le meme fragment**, donc rafraichis par le meme
     echange : une seule autorite par element, et aucun risque de compteur qui mente.
+
+    **Le refus est un `422` qui redit le motif**, comme `document_edition` juste au-dessus :
+    sans cela le volet se rafraichissait a l'identique sur un formulaire invalide, rien
+    n'etait ecrit et rien ne le disait -- le praticien croyait avoir enregistre.
     """
     seance = get_object_or_404(models.Examination, pk=identifiant)
     formulaire = FormulaireCommentaire(request.POST)
-    if formulaire.is_valid():
-        commentaire = formulaire.save(commit=False)
-        commentaire.examination = seance
-        # Meme forme que ci-dessus, et pour la meme raison de typage.
-        commentaire.user_id = request.user.pk
-        commentaire.date = timezone.now()
-        commentaire.save()
+    if not formulaire.is_valid():
+        commentaires_en_base = list(
+            models.ExaminationComment.objects.filter(examination=seance)
+            .select_related("user")
+            .order_by("date", "id")
+        )
+        return HttpResponse(
+            render_to_string(
+                "pages/fragments/chronologie-commentaires.html",
+                {
+                    "entree": entree_de_seance(
+                        seance.patient,
+                        seance,
+                        commentaires_en_base,
+                        deplie=True,
+                        formulaire=formulaire,
+                    )
+                },
+                request=request,
+            ),
+            status=422,
+        )
+    commentaire = formulaire.save(commit=False)
+    commentaire.examination = seance
+    # Meme forme que ci-dessus, et pour la meme raison de typage.
+    commentaire.user_id = request.user.pk
+    commentaire.date = timezone.now()
+    commentaire.save()
     commentaires = list(
         models.ExaminationComment.objects.filter(examination=seance)
         .select_related("user")

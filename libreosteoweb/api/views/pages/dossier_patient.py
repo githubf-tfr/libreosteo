@@ -938,7 +938,7 @@ def nouvelle_consultation(request: HttpRequest, identifiant: str) -> HttpRespons
     if _consultation_en_cours(patient) is not None:
         return HttpResponse(status=409)
     cabinet = getattr(request, "officesettings", None)
-    consultation = models.Examination.objects.create(
+    models.Examination.objects.create(
         patient=patient,
         date=timezone.now(),
         status=models.ExaminationStatus.IN_PROGRESS,
@@ -949,10 +949,12 @@ def nouvelle_consultation(request: HttpRequest, identifiant: str) -> HttpRespons
         therapeut_id=request.user.pk,
         office=cabinet,
     )
+    # `contexte_du_dossier` recalcule `consultation_en_cours` depuis la base : la
+    # consultation venant d'etre creee, elle la retrouve d'elle-meme (une seule autorite
+    # sur `edition`, cf. `dossier-corps.html`).
     contexte = contexte_du_dossier(
         request, patient, "current-examination", bascule=True
     )
-    contexte["consultation_ouverte"] = consultation
     return HttpResponse(_corps_et_bandeau(request, contexte))
 
 

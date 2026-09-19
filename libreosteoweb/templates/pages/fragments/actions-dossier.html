@@ -21,6 +21,12 @@
 {# fragment d'edition porte `x-init="edition = '<cle>'"`, si bien qu'un 422 rouvre le #}
 {# bandeau sur « Fin d'edition » au lieu de mentir. #}
 {# #}
+{# **« Fin d'edition » n'apparait qu'a l'arrivee reelle du fragment** (`editionArrivee`), #}
+{# jamais au clic seul sur « Editer » : le clic pose `edition` de facon synchrone, mais #}
+{# l'ecouteur de `dossier-fin-edition` ne vit que dans le fragment, arrive plus tard. Un #}
+{# clic entre les deux diffusait l'evenement dans le vide (defaut mesure a la recette). #}
+{# Seul le fragment pose `editionArrivee = true`, dans le meme geste que `edition`. #}
+{# #}
 {# **« Supprimer » n'est pas un bouton, c'en est jusqu'a trois, et chacun est borne a son #}
 {# onglet** (C2, vague finale). `loEditFormManager.action_available('delete')` retenait #}
 {# l'action du formulaire **visible** : le dossier sur « Infos generales », la seance sur #}
@@ -37,8 +43,8 @@
 <ul class="nav navbar-top-links navbar-right" id="actions-dossier"{% if actions_hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
   <li>
     <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition === null"{% if consultation_en_cours %} style="display: none"{% endif %}
-            @click="edition = actif; $dispatch('dossier-editer-' + actif)"><i class="fa fa-edit"></i> {% trans 'Edit' %}</button>
-    <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition !== null" style="display: none"
+            @click="edition = actif; editionArrivee = false; $dispatch('dossier-editer-' + actif)"><i class="fa fa-edit"></i> {% trans 'Edit' %}</button>
+    <button type="button" class="btn btn-default btn-xs navbar-btn" x-show="edition !== null && editionArrivee" style="display: none"
             @click="$dispatch('dossier-fin-edition'); edition = null"><i class="fa fa-thumbs-o-up"></i> {% trans 'End of editing' %}</button>
     {% if suppression_possible %}
     <button type="button" class="btn btn-danger btn-xs navbar-btn" x-show="actif === 'general'"{% if onglet_actif != 'general' %} style="display: none"{% endif %}

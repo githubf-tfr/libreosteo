@@ -22,7 +22,7 @@
 {# `hx-trigger` ajoute l'evenement du bandeau d'actions, qui vit hors de ce formulaire et ne #}
 {# peut donc pas le viser par un attribut `form=`. #}
 <div id="{{ volet.prefixe }}-volet" data-surface-de-saisie
-     x-init="edition = '{{ volet.prefixe }}'"
+     x-init="edition = '{{ volet.prefixe }}'; editionArrivee = true"
      data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
   {# **`class="row"` sur le formulaire, et ce n'est pas de la decoration** (D6e T12) : ses #}
   {# deux seuls enfants sont des `col-md-*`, donc **flottants**, et un parent dont tous les #}

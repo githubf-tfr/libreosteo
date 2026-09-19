@@ -500,6 +500,32 @@ class TestCommentairesDeSeance(_SocleDuPatient):
 
         self.assertIn("Patient revu a trois semaines", reponse.content.decode("utf-8"))
 
+    def test_un_commentaire_vide_est_refuse_et_n_ecrit_rien(self) -> None:
+        """Defaut n°2 de la recette du 2026-09-18 (KANBAN.md) : `commentaires_de_seance`
+        rendait `200` sur un formulaire invalide, sans rien ecrire ni rien dire -- le
+        praticien voyait le volet se rafraichir a l'identique et croyait avoir enregistre.
+        `ExaminationComment.comment` n'est pas `blank` : un commentaire vide est le chemin
+        de refus le plus direct, sans qu'aucune regle metier n'ait a etre ecrite ici."""
+        reponse = self.poste_un_commentaire("")
+
+        self.assertEqual(reponse.status_code, 422)
+        self.assertEqual(ExaminationComment.objects.count(), 0)
+
+    def test_le_refus_rend_le_motif(self) -> None:
+        """Comme les autres surfaces d'ecriture du depot (`document_edition`, deux lignes
+        plus haut dans `documents.py`) : le refus redit pourquoi, il ne se contente pas du
+        code HTTP."""
+        reponse = self.poste_un_commentaire("")
+
+        self.assertIn("Ce champ est obligatoire", reponse.content.decode("utf-8"))
+
+    def test_le_refus_laisse_le_volet_deplie(self) -> None:
+        """Le praticien vient de taper dans ce volet : le refermer sur son propre refus
+        cacherait le motif qu'il vient de recevoir."""
+        reponse = self.poste_un_commentaire("")
+
+        self.assertIn("deplie: true", reponse.content.decode("utf-8"))
+
     def test_le_compteur_annonce_l_absence_de_commentaire(self) -> None:
         """« Aucun commentaire » — `timeline.html:31`, via le catalogue."""
         self.assertEqual(
@@ -1000,6 +1026,35 @@ class TestEdition(_SocleDuPatient):
             ],
             [("input", "text", "Titre"), ("input", "date", "Date")],
         )
+
+    def test_les_trois_actions_de_la_vignette_ont_un_nom_distinct(self) -> None:
+        """Defaut n°4 de la recette du 2026-09-18 (KANBAN.md) : les trois `button.close`
+        de `document-edition.html` portaient le meme `aria-label="Close"`, a 10 px les uns
+        des autres, dont une suppression irreversible -- un lecteur d'ecran annoncait trois
+        fois « Close » pour trois gestes differents."""
+        with translation.override("fr"):
+            html = self.client.get(self.url()).content.decode("utf-8")
+
+        boutons = elements_de_classe(html, "close")
+        self.assertEqual(len(boutons), 3)
+        noms = [table.get("aria-label") for _, table in boutons]
+        self.assertEqual(len(set(noms)), 3, "noms non distincts : %r" % noms)
+
+    def test_les_trois_actions_de_la_vignette_ne_sont_plus_jointives(self) -> None:
+        """Contrat de gabarit, et non une mesure a l'ecran : la distance reelle entre les
+        boutons exige un navigateur, hors de portee des tests unitaires. Ce test regarde
+        que le gabarit declare un ecart entre chacun des trois -- pas sa valeur en pixels."""
+        with translation.override("fr"):
+            html = self.client.get(self.url()).content.decode("utf-8")
+
+        boutons = elements_de_classe(html, "close")
+        self.assertEqual(len(boutons), 3)
+        for _, table in boutons:
+            self.assertIn(
+                "margin",
+                table.get("style") or "",
+                "bouton sans ecart declare : %r" % table,
+            )
 
     def test_annuler_relit_la_vignette_telle_qu_elle_est(self) -> None:
         """La route de la vignette seule : c'est la cible du bouton « Annuler ».

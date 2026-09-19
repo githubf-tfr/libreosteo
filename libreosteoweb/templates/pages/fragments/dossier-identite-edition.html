@@ -5,10 +5,14 @@
 {# remettre a `null` : sur un refus 422, le bandeau doit redire « Fin d'edition » plutot que #}
 {# de laisser croire que l'enregistrement a abouti (regle 1 du lot). #}
 {# #}
+{# **`editionArrivee = true` dans le meme geste** : c'est ce qui dit au bandeau que ce #}
+{# fragment est bien arrive, et que « Fin d'edition » peut apparaitre sans mentir #}
+{# (defaut mesure a la recette, `actions-dossier.html`). #}
+{# #}
 {# **Les quatre alias de `name` sont rendus par `add_prefix()`**, pas ecrits ici : #}
 {# `input[name=street]`, `[name=zipcode]`, `[name=city]` et `[name=mobile]` sont des ancres #}
 {# du filet conservees a l'octet (A16). #}
-<div id="general-corps" class="row" data-surface-de-saisie x-init="edition = 'general'">
+<div id="general-corps" class="row" data-surface-de-saisie x-init="edition = 'general'; editionArrivee = true">
   <form id="general-formulaire"
         hx-post="{{ identite.url_enregistrement }}"
         hx-target="#general-corps" hx-swap="outerHTML"

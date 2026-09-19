@@ -33,7 +33,13 @@
   {# garder. Elle survit desormais (`hx-preserve`), et le desarmement legitime est assure #}
   {# ailleurs — une cloture depuis l'edition soumet le volet **avant** d'ouvrir la modale #}
   {# (`consultation.py`), et ce POST part de l'interieur de la racine `x-data`. #}
-  <div x-init="actif = '{{ onglet_actif }}'; edition = {% if consultation_ouverte %}'current-examination'{% else %}null{% endif %}" style="display: none"></div>
+  {# **`consultation_en_cours`, jamais une clef distincte** : une premiere ecriture lisait #}
+  {# `consultation_ouverte`, posee **seulement** par la vue `nouvelle_consultation` — deux #}
+  {# autorites sur `edition` (defaut mesure a la recette), et ce bloc-ci retombait a `null` #}
+  {# sur tout autre rafraichissement du corps, meme avec une consultation en cours. #}
+  {# `consultation_en_cours` est la seule clef que `contexte_du_dossier` pose partout, y #}
+  {# compris ici. #}
+  <div x-init="actif = '{{ onglet_actif }}'; edition = {% if consultation_en_cours %}'current-examination'{% else %}null{% endif %}; editionArrivee = {% if consultation_en_cours %}true{% else %}false{% endif %}" style="display: none"></div>
   {% endif %}
   {% include "partials/onglets.html" with actif_initial=onglet_actif avant_changement="quitterEdition()" %}
   <div class="tab-content">

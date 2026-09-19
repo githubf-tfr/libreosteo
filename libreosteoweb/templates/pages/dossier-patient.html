@@ -27,6 +27,13 @@
 {# pas s'ouvrir. C'est aussi ce qui tient l'invariant « un seul formulaire en edition a la #}
 {# fois » : sans cela, ouvrir un volet anterieur en edition pendant une consultation en #}
 {# cours rendrait deux formulaires que « Fin d'edition » soumettrait tous les deux. #}
+{# #}
+{# **`editionArrivee` distingue le clic sur « Editer » de l'arrivee reelle du fragment.** #}
+{# `edition = actif` est pose au clic, avant que le `GET` d'edition ne reponde ; le seul #}
+{# ecouteur de `dossier-fin-edition` vit dans ce fragment. Un clic sur « Fin d'edition » #}
+{# dans cette fenetre diffusait l'evenement dans le vide (defaut mesure a la recette, #}
+{# fenetre de 20 a 50 ms). Seul le fragment pose `editionArrivee = true`, dans son propre #}
+{# `x-init` ; le bouton n'apparait donc qu'a son arrivee reelle. #}
 
 {% block titre %}{{ patient.family_name }} {{ patient.first_name }}{% endblock %}
 
@@ -67,6 +74,7 @@
 <div x-data="{
        actif: '{{ onglet_actif }}',
        edition: {% if consultation_en_cours %}'current-examination'{% else %}null{% endif %},
+       editionArrivee: {% if consultation_en_cours %}true{% else %}false{% endif %},
        modifie: false,
        quitterEdition() {
          if (this.edition === null) { return; }

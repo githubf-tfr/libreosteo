@@ -41,11 +41,16 @@
       {% csrf_token %}
       <div class="input-group">
         <input id="btn-input-{{ entree.seance.id }}" type="text" class="form-control input-sm"
-               name="comment" placeholder="{% trans 'Comment' %}" value="">
+               name="comment" placeholder="{% trans 'Comment' %}" value="{{ entree.formulaire.comment.value|default_if_none:'' }}">
         <span class="input-group-btn">
           <button class="btn btn-warning btn-sm" id="btn-chat-{{ entree.seance.id }}" type="submit">{% trans 'Send' %}</button>
         </span>
       </div>
+      {# `entree.formulaire` ne voyage que sur le refus : `entree_de_seance` le vaut a #}
+      {# `None` sur les deux autres chemins (chronologie initiale, envoi reussi), et #}
+      {# Django rend alors silencieusement une chaine vide -- meme convention que les #}
+      {# autres formulaires du depot (`dossier-identite-edition.html`). #}
+      {{ entree.formulaire.comment.errors }}
     </form>
     <div class="timeline-comments">
       <ul class="comments-list">

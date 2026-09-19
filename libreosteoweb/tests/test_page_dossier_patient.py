@@ -1531,8 +1531,11 @@ class TestGardeDeSortie(_SocleDuDossier):
             reverse("dossier-corps", args=[self.patient.pk])
         ).content.decode("utf-8")
         # L'expression entiere, et non l'absence seule : c'est elle qui dit que le bloc de
-        # bascule existe toujours et repose bien les deux autres variables.
-        self.assertIn("x-init=\"actif = 'examinations'; edition = null\"", html)
+        # bascule existe toujours et repose bien les trois autres variables.
+        self.assertIn(
+            "x-init=\"actif = 'examinations'; edition = null; editionArrivee = false\"",
+            html,
+        )
         # **Sur la reponse du corps, `modifie = false` n'a aucune autre source.** Elle
         # figure aussi dans le `@htmx:after-request` de la racine du document, mais cette
         # reponse-ci ne rend que le corps et le bandeau d'actions : la recherche de
@@ -1703,6 +1706,29 @@ class TestCorpsRafraichi(_SocleDuDossier):
             reverse("dossier-corps", args=[self.patient.pk])
         ).content.decode("utf-8")
         self.assertIn("actif = 'examinations'; edition = null", html)
+
+    def test_le_corps_rafraichi_avec_une_consultation_en_cours_repose_l_edition(
+        self,
+    ) -> None:
+        """Defaut n°3 de la recette du 2026-09-18 (KANBAN.md, « Deux autorites ecrivent
+        edition ») : `dossier-corps.html:36` lisait `consultation_ouverte`, une clef que
+        **seule** la vue `nouvelle_consultation` pose. Ce rafraichissement-ci
+        (`corps_du_dossier`, reponse a `consultation-modifiee`) ne l'a jamais posee, meme
+        avec une consultation en cours : `edition` y retombait donc a `null`, masquant
+        « Fin d'edition » alors que le volet en cours reste affiche **en edition** juste en
+        dessous, dans le meme document. `consultation_en_cours` est la seule clef que
+        `contexte_du_dossier` pose partout ; c'est elle qui doit gouverner `edition` ici
+        comme au premier rendu (`dossier-patient.html:69`)."""
+        with sans_receivers():
+            cree_consultation(self.patient, therapeut=self.praticien)
+        html = self.client.get(
+            reverse("dossier-corps", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        # Meme forme que `test_le_corps_rafraichi_repose_l_etat_alpine` : l'expression du
+        # bloc de bascule, pas une sous-chaine prise n'importe ou dans le document -- le
+        # bouton « Fin d'edition » du bandeau porte lui aussi, sans rapport, un
+        # `edition = null` litteral dans son `@click`.
+        self.assertIn("actif = 'examinations'; edition = 'current-examination'", html)
 
     def test_le_corps_rouvre_le_volet_de_la_seance_demandee(self) -> None:
         """C'est ce qui fait qu'apres une cloture, le volet de la seance qu'on vient de

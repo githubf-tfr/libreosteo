@@ -14,6 +14,13 @@
 {# dans l'ecran** : une cible qui pointerait dans le dossier ferait remplacer la liste des #}
 {# vignettes par la modale, et laisserait `modal-open` sur `<body>` a la fermeture. #}
 {# #}
+{# **Trois `aria-label` distincts, et un ecart entre chacun.** Les trois boutons partagaient #}
+{# `aria-label="Close"` et vivaient bord a bord (10 px de large chacun, sans marge) : un #}
+{# lecteur d'ecran annoncait trois fois « Close » pour trois gestes differents, et un clic a #}
+{# un pixel pres effacait le document au lieu d'annuler la saisie (defaut mesure a la #}
+{# recette). L'ecart est en ligne, sur ces trois boutons seulement : `.document-close` #}
+{# (`libreosteo.css`) n'a pas de marge et reste hors de ce lot (CSS et `partials/`). #}
+{# #}
 {# « Annuler » n'annule rien en base : il relit la vignette telle qu'elle est. C'est ce que #}
 {# faisait `edit_doc(doc, false)`, qui rechargeait les documents du patient. #}
 {% trans 'Notes' as libelle_notes %}
@@ -26,7 +33,7 @@
           hx-swap="outerHTML">
       {% csrf_token %}
       <button type="submit" class="close document-close document-edit document-edit-ok"
-              aria-label="Close"><i class="fa fa-1 fa-check"></i></button>
+              aria-label="{% trans 'Validate' %}" style="margin-left: 8px"><i class="fa fa-1 fa-check"></i></button>
       {# **`modifie = false` : ce bouton est le seul abandon de saisie en `GET` du dossier** #}
       {# (4e revue T12). Le desarmement de la garde de sortie suit les **ecritures** — un #}
       {# `GET` est une lecture, et entrer en edition ou chercher un code postal ne doit rien #}
@@ -36,12 +43,12 @@
       {# autres surfaces de saisie n'ont aucun abandon en `GET`, et c'est pourquoi la regle #}
       {# est posee ici plutot que generalisee. #}
       <button type="button" class="close document-close document-edit document-edit-cancel"
-              aria-label="Close" @click="modifie = false"
+              aria-label="{% trans 'Cancel' %}" style="margin-left: 8px" @click="modifie = false"
               hx-get="{{ entree.url_vignette }}"
               hx-target="#document-vignette-{{ entree.document.id }}"
               hx-swap="outerHTML"><i class="fa fa-1 fa-close"></i></button>
       <button type="button" class="close document-close document-edit document-edit-delete"
-              aria-label="Close"
+              aria-label="{% trans 'Delete' %}" style="margin-left: 8px"
               hx-get="{{ entree.url_suppression }}"
               hx-target="#modale"
               hx-swap="innerHTML"><i class="fa fa-1 fa-trash"></i></button>
