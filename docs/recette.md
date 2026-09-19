@@ -4454,6 +4454,24 @@ et `tableau-de-bord-375.png`.
    **Évènements** occupe toute la largeur sous les tuiles, toujours lisible, sans texte
    coupé. Aucune barre de défilement horizontale.
 
+**⚠️ Défaut relevé à la passe de clôture de D6g (2026-09-20), non corrigé — destinataire :
+lot correctif à ouvrir.** Sur les deux captures de référence, **les libellés des tuiles sont
+coupés au milieu d'un mot**. À 1 280 px : *Nouveaux* / *patients* sur deux lignes (coupure
+propre, entre deux mots) mais *Consultati* / *ons* sur deux lignes, **au milieu du mot**. À
+375 px, les deux le sont : *Nouvea* / *ux patients* et *Consult* / *ations*. Avant la
+bascule, les trois libellés tenaient chacun sur une seule ligne aux deux largeurs (capture
+d'avant versée par D6g T1, `3f72c2d`).
+
+Cause mesurée : le mini-graphe porte `.dashboard-sparkline { float: left; margin-top: 10%;
+margin-left: 40% }` (`libreosteo.css`), et il flotte dans la colonne `col-9` de l'en-tête de
+carte. Sous Bootstrap 3 cette colonne était plus large, le rembourrage de `.panel-heading`
+différant de celui de `.card-header` ; le flottant y laissait assez de place au libellé. Il
+ne lui en laisse plus assez. Ce n'est **pas** un défaut de la tuile elle-même : les trois
+tuiles restent côte à côte, l'icône ne recouvre rien, le chiffre reste lisible — tous les
+attendus de l'étape 1 tiennent. **Constater ce défaut n'est donc pas un motif de rejet de
+cette fiche** ; le corriger demande une décision sur la disposition interne de la tuile, qui
+n'appartient à aucune tâche de D6g.
+
 **Ne couvre pas** : l'atteignabilité de chaque sommet du mini-graphe au survol — prouvée par
 `test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol` (`elementFromPoint`), pas par
 l'œil, le tracé étant trop fin pour s'évaluer sur une capture. Le rendu du panneau
@@ -4491,8 +4509,13 @@ et `cabinet-375.png`.
    l'annexe A — l'unique consommateur de `.radio.cancelinginvoice`, `libreosteo.css:663`,
    est cet écran). **Annulation de facture par avoir** : deux boutons radio empilés (*Avoir
    sur annulation*, actif ; *Facture corrective sur annulation*), même alignement case/
-   libellé. Le bouton **Mettre à jour**, bleu plein, ferme le formulaire. Aucune barre de
-   défilement horizontale.
+   libellé. **Précision ajoutée à la passe de clôture de D6g (2026-09-20)** : à 1 280 px
+   aussi, les deux libellés les plus longs se répartissent sur **deux lignes** — *Carte* /
+   *Bancaire* et *Facture corrective sur* / *annulation* —, la seconde ligne alignée sous la
+   première, jamais sous la case. C'est le comportement que l'étape 2 ne décrivait qu'à
+   375 px ; la colonne qui porte ces libellés a la même largeur aux deux échelles. Ce n'est
+   ni une régression ni un motif de rejet. Le bouton **Mettre à jour**, bleu plein, ferme le
+   formulaire. Aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
    Attendu : le titre reste sur une seule ligne, entièrement visible. Les deux onglets
    restent atteignables au clic. **Cabinet** et **Facturation** restent chacun à côté de
@@ -4587,49 +4610,155 @@ et `dossier-patient-375.png`.
 
 - **Domaine** : Socle visuel
 - **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
-  de cet écran prouvent les gestes, jamais la mise en page.
-- **État requis** : E1
+  de cet écran prouvent les gestes, jamais la mise en page. Une exception partielle, et une
+  seule : `test_pages_erreur.py::test_la_barre_laterale_de_la_page_404_ne_recouvre_pas_son_titre`
+  compare deux rectangles, donc l'étape 1 ci-dessous est **la seule** de tout ce domaine
+  dont un morceau soit tenu par une machine.
+- **État requis** : E1 — une session ouverte (`test` / `test`) et rien d'autre : cette page
+  ne dépend d'aucune donnée de cabinet ni de patient. La session est **obligatoire** :
+  `LoginRequiredMiddleware` redirige tout anonyme vers la page de connexion avant même de
+  résoudre l'URL, et l'écran n'existe donc pas dans un état déconnecté.
 
 **Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/page-inexistante-1280.png`
 et `page-inexistante-375.png`.
 
+**⚠️ Cet écran a change de nature avec D6g T16, et c'est assumé** (AR2). Jusqu'à ce lot,
+`404.html` était un document autonome portant une **copie figée** du bandeau du thème
+SB Admin : il n'y avait ni « Nouveau patient », ni « Comptabilité », ni champ de recherche,
+ni menu d'aide dans ce bandeau, et aucun de ses menus déroulants ne s'ouvrait. Depuis, la
+page hérite de `base.html` : **le bandeau est celui de tous les autres écrans**, et il
+fonctionne. Comparer la capture d'avant à celle d'après sur ce point ne relève donc pas
+d'une régression.
+
 **Étapes**
 
-1. Ouvrir une URL inexistante, connecté, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T16>
+1. Ouvrir une URL inexistante (par exemple `/cette-route-n-existe-pas`), connecté, fenêtre à
+   **1 280 px de large**.
+   Attendu : le bandeau du haut porte, de gauche à droite, **LibreOsteo**, *Nouveau patient*,
+   *Comptabilité*, puis — repoussés à droite par la marge automatique du formulaire — le
+   champ *Recherche…* avec son bouton loupe, le menu **test** et le menu **?**. C'est
+   exactement le bandeau de `R-VIS-03`, au pixel près.
+   Sous lui, à gauche, une **barre latérale large de 250 px** sur fond gris très clair, qui
+   porte un champ *Recherche…* avec son bouton loupe, puis l'entrée *Nouveau patient* —
+   les deux **empilés l'un sous l'autre**, jamais côte à côte, et séparés par un filet
+   horizontal.
+   La zone de contenu commence à **250 px du bord gauche**, sur fond blanc, avec un filet
+   vertical à sa gauche : **la barre latérale ne recouvre aucune partie du titre**
+   *Ooops !*, qui est entièrement visible.
+   Le titre *Ooops !* et sa phrase sont dans un **bloc gris arrondi**, la phrase tenant sur
+   une seule ligne. Dessous, deux colonnes **côte à côte**, *Why 404 ?* et
+   *Not found page*, chacune occupant environ un tiers de la largeur ; sous la première, un
+   bouton **gris plein** *View details »*. Puis un filet horizontal et
+   *© LibreOsteo 2014-2018*.
+   **Aucune barre de défilement horizontale** : la page tient dans 1 280 px.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T16>
+   Attendu : le bandeau du haut se réduit à **LibreOsteo** et au bouton hamburger
+   (`navbar-expand-md`, seuil 768 px) ; les deux entrées, le champ de recherche et les deux
+   menus ne sont atteignables qu'en l'ouvrant — geste identique à `R-VIS-03`, non rejoué ici.
+   La barre latérale **revient dans le flux**, en pleine largeur, **au-dessus** de la zone de
+   contenu : le champ *Recherche…* d'abord, l'entrée *Nouveau patient* ensuite. La zone de
+   contenu ne porte plus le décalage de 250 px.
+   Le bloc gris arrondi reste, sa phrase se répartissant sur trois lignes ; les deux colonnes
+   **s'empilent**, *Why 404 ?* et son bouton d'abord, *Not found page* ensuite.
+   **Aucune barre de défilement horizontale.**
 
-**Ne couvre pas** : <écrit par T16>
+**Les cinq écarts visibles avec la capture d'avant, chiffrés** (au-delà du bandeau, traité
+plus haut) :
+
+1. **Le débordement horizontal a disparu.** La capture d'avant, prise en pleine page pour
+   une fenêtre de 1 280 px, fait **1 451 px de large** : 171 px de contenu sortaient de la
+   fenêtre. Celle d'après fait **1 280 px**. Ce n'est pas un effet recherché du lot, c'est
+   une conséquence de la sortie du thème SB Admin ; on la constate, on ne la revendique pas.
+2. **Le bouton *View details »* passe de blanc bordé à gris plein.** `btn-default` devient
+   `btn-secondary` (annexe A du plan D6g) : en Bootstrap 3 ce bouton était blanc à bordure
+   grise, en Bootstrap 5 le bouton secondaire est gris plein. Le changement est le même sur
+   tous les écrans du lot, il n'est pas propre à celui-ci.
+3. **Le bloc *Ooops !* devient arrondi et prend une marge.** `jumbotron` disparaît sans
+   équivalent en Bootstrap 5 ; son style est repris par des utilitaires
+   (`p-4 mb-4 rounded bg-body-secondary`). Avant, le bloc touchait les bords de la zone de
+   contenu et n'avait pas d'angles arrondis.
+4. **Le titre *Ooops !* rétrécit un peu.** Bootstrap 3 le rendait à 63 px dans un
+   `.jumbotron` ; `display-4` le rend à 56 px au-delà de 1 200 px de fenêtre, et
+   proportionnellement plus petit en dessous.
+5. **Les entrées de la barre latérale gagnent un rembourrage.** Elles le tenaient de
+   `.nav > li > a` en Bootstrap 3 (10 px / 15 px) ; elles le tiennent de `nav-link` en
+   Bootstrap 5 (8 px / 16 px).
+
+**Ne couvre pas** :
+
+- les deux menus déroulants **ouverts** du bandeau : `R-VIS-03` les couvre aux deux largeurs,
+  et ils sont rigoureusement les mêmes ici ;
+- le champ de recherche **de la barre latérale**, qui reste **inerte** — aucun formulaire,
+  aucun `name` : c'est l'étape 5 de `R-ERR-01`, ce n'est pas une régression du lot, et la
+  capture ne peut pas le montrer ;
+- l'écran servi à un utilisateur **non connecté** : il n'existe pas, cf. « État requis » ;
+- les largeurs intermédiaires, notamment le franchissement du seuil de 768 px : les deux
+  captures encadrent ce seuil, elles ne le montrent pas.
 
 ### R-VIS-16 — Socle visuel : facture imprimée
 
 - **Domaine** : Socle visuel
 - **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
   de cet écran prouvent les gestes, jamais la mise en page.
-- **État requis** : E2
+- **État requis** : E2 — un patient portant une consultation **facturée et réglée**, donc
+  une facture imprimable depuis la comptabilité. `R-CON-03` décrit comment l'obtenir et
+  `R-FAC-01` ce que la facture doit porter ; cette fiche-ci ne recette que l'**apparence**
+  du document imprimé.
 
 **Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/facture-1280.png`
 et `facture-375.png`.
 
-**⚠️ État d'avant, antérieur au lot — largeur fixe à 800 px, et ce n'est pas un défaut de
-socle.** La capture de référence `facture-375.png` fait **800 px de large**, exactement
-comme `facture-1280.png` : ce document ne charge pas Bootstrap (F3) et ne répond à aucune
-largeur de fenêtre — sa mise en page vient de `css/invoice-style.css` seul. Il déborde donc
-à 375 px, et **il débordait déjà avant le lot**, mesuré le 2026-09-19. La tâche **T16** ne
-doit ni le corriger ni le compter comme une régression : l'attendu de cette fiche est
-justement que le lot n'ait pas touché ce document.
+**⚠️ Ce document ne charge pas Bootstrap, et l'attendu de cette fiche est que le lot ne l'ait
+pas touché** (F3). Sa mise en page vient de `css/invoice-style.css` seul.
+
+**⚠️ Largeur fixe, et ce n'est pas un défaut de socle — mais le chiffre publié ici était
+faux, et il est corrigé sur mesure.** Cette fiche affirmait que `facture-375.png` fait
+« 800 px de large, exactement comme `facture-1280.png` ». **Mesure du 2026-09-20 :
+`facture-1280.png` fait 1 280 × 851 px et `facture-375.png` 800 × 851 px.** Les deux ne font
+donc pas la même largeur : à 1 280 px le document tient dans la fenêtre, à 375 px il déborde
+jusqu'à 800 px, soit **425 px hors fenêtre**. Il débordait déjà avant le lot, mesuré le
+2026-09-19. T16 ne le corrige pas et ne le compte pas comme une régression.
+
+**⚠️ Ces deux captures portent une date, et elle est celle du jour où on les prend.** Le
+document imprime « À <ville>, le <date du jour> ». Deux captures prises à deux dates
+différentes ne peuvent donc pas être identiques à l'octet, sans qu'aucune mise en page n'ait
+bougé : constaté à la clôture de D6g, les captures ayant été reprises après minuit. Comparer
+la **mise en page**, jamais les octets.
 
 **Étapes**
 
-1. Depuis la comptabilité, imprimer une facture (nouvel onglet), fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T16>
+1. Depuis la comptabilité, ouvrir le menu *Actions* d'une facture réglée et cliquer
+   *Imprimer* : le document s'ouvre dans un nouvel onglet. Fenêtre à **1 280 px de large**.
+   Attendu : un document **en police à empattements**, noir sur blanc, sans aucun élément
+   de Bootstrap — ni bandeau, ni bouton, ni carte. En haut à gauche, le nom du cabinet en
+   gros, puis son adresse sur deux lignes, un numéro de téléphone précédé d'une icône de
+   combiné, et la ligne *SIRET : …* ; en haut à droite, sur deux lignes, la qualité du
+   praticien (*Ostéopathe DO*) et *Adeli : …*. Un filet horizontal sépare cet en-tête du
+   reste.
+   Dessous, à gauche *À <ville>, le <date du jour>*, à droite le nom du patient, **sur la
+   même ligne**. Puis, en gras, *Facture <numéro>*. Puis le libellé de la prestation et la
+   ligne de règlement. Puis un **tableau à deux cellules bordées, côte à côte** :
+   *HONORAIRES* et le montant en euros, le tableau étant placé dans la moitié droite de la
+   page. En bas, le pied de page libre du cabinet.
+   **Aucune barre de défilement horizontale** : le document tient dans 1 280 px.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T16>
+   Attendu : **rien ne change dans la mise en page** — aucun élément ne se déplace, aucune
+   colonne ne s'empile, les tailles de police sont identiques. Le document ne répond pas à la
+   largeur de la fenêtre. Il faut **défiler latéralement** pour lire la colonne de droite de
+   l'en-tête (*Ostéopathe DO*, *Adeli*) et le nom du patient. C'est l'état d'avant le lot,
+   inchangé.
 
-**Ne couvre pas** : <écrit par T16>
+**Ne couvre pas** :
+
+- le rendu **à l'impression** proprement dit (aperçu avant impression, PDF) : ces captures
+  sont des rendus à l'écran ;
+- une facture **à plusieurs lignes**, une facture **annulée**, une facture **non réglée** :
+  la capture de référence montre une facture réglée à une seule ligne d'honoraires ;
+- un cabinet dont le pied de page ou le logo seraient renseignés autrement : ces zones sont
+  du texte libre de `R-CAB-*`, et leur contenu n'appartient pas à cette fiche ;
+- les largeurs intermédiaires : le document ne répondant à aucune, il n'y a rien à y voir.
 
 ## Chapitre 4 — Tests sans geste de recette
 
