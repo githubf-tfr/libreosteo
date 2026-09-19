@@ -4,7 +4,7 @@ from django.urls import reverse
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
-from tests.functional.helpers import connexion
+from tests.functional.helpers import connexion, rectangles_se_recouvrent
 
 # Bruit reseau propre au code HTTP 404 de la page elle-meme (Chromium le journalise
 # comme une erreur de console des que la navigation principale repond en 4xx), releve
@@ -63,6 +63,39 @@ def test_le_lien_de_deconnexion_de_la_page_404_fonctionne(
             "el => el.onclick()",
         )
     expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
+
+
+def test_la_barre_laterale_de_la_page_404_ne_recouvre_pas_son_titre(
+    page: Page, live_server: LiveServer, settings
+) -> None:
+    """D-5, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
+
+    A partir de 768 px, `.sidebar` (`sb-admin-2.css`) est en `position: absolute`,
+    largeur 250 px, et `#page-wrapper` ne porte aucun `margin-left` : la barre laterale
+    recouvre le debut du titre. Mesure : `.sidebar` x = 0 -> 250, y = 101 -> 207 ; le
+    titre x = 131 -> 1271, y = 169 -> 238.
+
+    `#wrapper` n'existe que dans `404.html` (aucun autre gabarit ne le porte) : le
+    correctif y est scope, et ne peut pas deplacer `#page-wrapper` sur les autres pages
+    qui partagent `sb-admin-2.css`, dont le tableau de bord — cf. le test jumeau de
+    `test_tableau_de_bord.py`.
+    """
+    connexion(page, live_server)
+    settings.DEBUG = False
+    page.goto(f"{live_server.url}/cette-route-n-existe-pas")
+
+    titre = page.get_by_role("heading", name="Ooops !")
+    barre_laterale = page.get_by_role("navigation").nth(1)
+    expect(titre).to_be_visible()
+    expect(barre_laterale).to_be_visible()
+    boite_titre = titre.bounding_box()
+    boite_barre = barre_laterale.bounding_box()
+    assert boite_titre is not None
+    assert boite_barre is not None
+    assert not rectangles_se_recouvrent(boite_titre, boite_barre), (
+        f"la barre laterale recouvre le titre : "
+        f"barre={boite_barre!r} titre={boite_titre!r}"
+    )
 
 
 def test_les_deux_entrees_de_menu_de_la_page_404_menent_ou_elles_disent(

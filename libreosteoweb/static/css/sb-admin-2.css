@@ -24,6 +24,16 @@ body {
         padding: 0 30px;
         border-left: 1px solid #e7e7e7;
     }
+
+    /* D-5 (KANBAN.md, Defauts verses par D6f) : `.sidebar` est en `position: absolute`
+       (plus bas dans ce fichier) et recouvre `#page-wrapper`, qui ne porte aucun
+       `margin-left`. Cette feuille est partagee par toutes les pages qui utilisent
+       `#page-wrapper` (tableau de bord compris), mais `#wrapper` n'existe que dans
+       `404.html` : seule cette page porte une `.sidebar`, et le selecteur, scope a cet
+       identifiant, ne peut donc pas deplacer les autres. */
+    #wrapper #page-wrapper {
+        margin-left: 250px;
+    }
 }
 
 .navbar-top-links li {

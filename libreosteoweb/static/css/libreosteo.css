@@ -19,6 +19,40 @@
 /* For fixed navbar */
 body { padding-top: 50px; }
 
+/* En dessous de 768 px (D-2, D-3 : KANBAN.md, Defauts verses par D6f) : la barre
+   "navbar-fixed-top" sort du flux et un decalage constant (`body` ci-dessus, dimensionne
+   pour la barre repliee) ne suit pas sa hauteur reelle une fois deployee — elle recouvre
+   alors le titre. Son menu utilisateur deroulant, en `position: absolute`, deborde en
+   plus du conteneur que Bootstrap 3 borne a 340 px, sans qu'aucun scrollbar visible ne le
+   signale : "Deconnexion" y est inatteignable au point rendu. Sous cette largeur, la barre
+   et ses menus deroulants restent dans le flux normal du document : la page defile
+   normalement jusqu'a n'importe quelle entree, et la hauteur reservee suit toujours la
+   hauteur reelle de la barre. */
+@media (max-width: 767px) {
+    body {
+        padding-top: 0;
+    }
+
+    nav.navbar-fixed-top {
+        position: static;
+    }
+
+    #headerNavbar.in {
+        max-height: none;
+        overflow-y: visible;
+    }
+
+    .navbar-top-links .dropdown-menu {
+        position: static;
+        float: none;
+        width: auto;
+        margin-top: 0;
+        background-color: transparent;
+        border: 0;
+        box-shadow: none;
+    }
+}
+
 
 /* angular-xeditable override */
 

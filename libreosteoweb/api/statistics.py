@@ -16,8 +16,23 @@ import datetime
 from datetime import timedelta
 
 from django.utils import timezone
+from django.utils.formats import date_format
 
 from libreosteoweb.models import Examination, Patient
+
+
+def _libelle_periode(debut, fin):
+    """« debut - fin », lisibles (D-7, KANBAN.md § Defauts verses par D6f).
+
+    `str(datetime)` porte les microsecondes et le fuseau brut (UTC ou local selon
+    l'instant) : illisible en infobulle. `SHORT_DATE_FORMAT`, sur les deux bornes
+    ramenees au fuseau local, les rend lisibles sans changer le format « debut - fin »
+    que la spec nomme.
+    """
+    return "%s - %s" % (
+        date_format(timezone.localtime(debut), "SHORT_DATE_FORMAT"),
+        date_format(timezone.localtime(fin), "SHORT_DATE_FORMAT"),
+    )
 
 
 class Statistics(object):
@@ -87,19 +102,19 @@ class Statistics(object):
             start_of_the_period = period.get_start_of_period(end_date)
             self.get_statistics(end_date, obj_statistics)
             history_statistics["nb_new_patient"][0].append(
-                "%s - %s" % (start_of_the_period, end_date)
+                _libelle_periode(start_of_the_period, end_date)
             )
             history_statistics["nb_new_patient"][1].append(
                 obj_statistics["nb_new_patient"]
             )
             history_statistics["nb_examination"][0].append(
-                "%s - %s" % (start_of_the_period, end_date)
+                _libelle_periode(start_of_the_period, end_date)
             )
             history_statistics["nb_examination"][1].append(
                 obj_statistics["nb_examination"]
             )
             history_statistics["nb_urgent_return"][0].append(
-                "%s - %s" % (start_of_the_period, end_date)
+                _libelle_periode(start_of_the_period, end_date)
             )
             history_statistics["nb_urgent_return"][1].append(
                 obj_statistics["nb_urgent_return"]

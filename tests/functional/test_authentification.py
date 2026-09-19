@@ -68,6 +68,51 @@ def test_deconnexion_depuis_l_application(page: Page, live_server: LiveServer) -
     expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
 
 
+def test_deconnexion_est_atteignable_en_affichage_etroit(
+    page: Page, live_server: LiveServer
+) -> None:
+    """D-3, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
+
+    A 400x800, hamburger et menu utilisateur ouverts, le `ul.dropdown-menu` restait en
+    `position: absolute` dans `#headerNavbar` (Bootstrap 3 le borne a
+    `max-height: 340px`) : trois entrees en debordaient, dont « Deconnexion », et le
+    conteneur n'etait pas defilable — mesure, 91 px de debordement,
+    `elementFromPoint` au centre du lien renvoyait un `DIV` de la page, jamais le lien.
+    Un praticien sur telephone ne pouvait alors pas se deconnecter : impasse
+    fonctionnelle et probleme de securite, tranche pour correction (decision de la
+    session pilote, KANBAN.md).
+    """
+    page.set_viewport_size({"width": 400, "height": 800})
+    connexion(page, live_server)
+
+    page.get_by_role("button", name="Toggle navigation").click()
+    menu = page.get_by_test_id("menu-utilisateur")
+    page.click("#user-toggle")
+    expect(menu).to_be_visible()
+
+    # `.click()` seul ne discriminerait pas ce defaut : Playwright scrolle tout
+    # conteneur defilable pour atteindre sa cible avant de cliquer, ce qui contourne
+    # exactement le debordement mesure. La preuve porte donc sur le point reellement
+    # visible, comme la mesure du rapport (`elementFromPoint`) et le test D-6 deja
+    # present (`test_tableau_de_bord.py`).
+    lien = menu.get_by_role("link", name="Déconnexion")
+    expect(lien).to_be_visible()
+    boite = lien.bounding_box()
+    assert boite is not None, "boite introuvable pour « Deconnexion »"
+    cx = boite["x"] + boite["width"] / 2
+    cy = boite["y"] + boite["height"] / 2
+    atteint = lien.evaluate(
+        "(el, [cx, cy]) => document.elementFromPoint(cx, cy) === el", [cx, cy]
+    )
+    assert atteint, (
+        f"« Deconnexion » n'est pas au sommet du point ({cx}, {cy}) : un autre element "
+        "de la page intercepte le clic"
+    )
+
+    lien.click()
+    expect(page).to_have_title("Identifiez-vous sur LibreOsteo")
+
+
 def test_les_statiques_de_l_application_sont_servis(
     page: Page, live_server: LiveServer
 ) -> None:

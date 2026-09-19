@@ -11,7 +11,7 @@
         hx-swap="outerHTML">
     {% csrf_token %}
     <input type="text" name="valeur" class="form-control input-sm" value="{{ valeur }}"
-           autofocus data-testid="saisie-{{ utilisateur.username }}-{{ champ }}">
+           x-init="$el.focus()" data-testid="saisie-{{ utilisateur.username }}-{{ champ }}">
     <button type="submit" class="btn btn-primary btn-xs"
             data-testid="valider-{{ utilisateur.username }}-{{ champ }}">{% trans 'Validate' %}</button>
     {% if erreur %}

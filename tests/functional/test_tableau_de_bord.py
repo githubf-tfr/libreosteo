@@ -1,5 +1,7 @@
 """Rendu Angular des tuiles du tableau de bord (R-TAB-01, R-TAB-02)."""
 
+import re
+
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
@@ -8,6 +10,7 @@ from tests.functional.helpers import (
     connexion,
     creer_patient,
     ouvrir_nouvelle_consultation,
+    rectangles_se_recouvrent,
     saisir_consultation,
 )
 
@@ -174,3 +177,72 @@ def test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol(
         "sommets non atteignables au centre de leur cercle (indice, x, y) : "
         + str([(r["indice"], r["cx"], r["cy"]) for r in manques])
     )
+
+
+def test_page_wrapper_ne_subit_aucun_decalage_de_la_feuille_partagee_avec_la_page_404(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Garde-fou pour le correctif de D-5 (`sb-admin-2.css`, page 404).
+
+    `#page-wrapper` est partage par toutes les pages, y compris le tableau de bord ;
+    `#wrapper` n'existe que dans `404.html`. Le correctif de D-5 scope son
+    `margin-left: 250px` a `#wrapper #page-wrapper` pour cette raison precise — ce test
+    prouve que le tableau de bord, qui n'a pas de `#wrapper`, ne le recoit pas.
+    """
+    connexion(page, live_server)
+    marge = page.locator("#page-wrapper").evaluate(
+        "el => getComputedStyle(el).marginLeft"
+    )
+    assert marge == "0px", f"#page-wrapper a recu un decalage inattendu : {marge!r}"
+
+
+def test_la_barre_deployee_ne_recouvre_pas_le_titre_en_affichage_etroit(
+    page: Page, live_server: LiveServer
+) -> None:
+    """D-2, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
+
+    A 400x800, hamburger ouvert : `nav.navbar-fixed-top` est hors flux
+    (`partials/menu.html`) et `body { padding-top: 50px }` (`libreosteo.css`) est un
+    decalage constant, dimensionne pour la barre repliee. Mesure : la barre deployee
+    occupait y = 0 -> 239, le titre y = 90 -> 140 — entierement recouvert.
+    """
+    page.set_viewport_size({"width": 400, "height": 800})
+    connexion(page, live_server)
+
+    page.get_by_role("button", name="Toggle navigation").click()
+    titre = page.get_by_test_id("titre-tableau-de-bord")
+    expect(titre).to_be_visible()
+    boite_titre = titre.bounding_box()
+    boite_barre = page.locator("nav").bounding_box()
+    assert boite_titre is not None
+    assert boite_barre is not None
+    assert not rectangles_se_recouvrent(boite_titre, boite_barre), (
+        f"la barre recouvre le titre : barre={boite_barre!r} titre={boite_titre!r}"
+    )
+
+
+_MOTIF_LIBELLE_LISIBLE = re.compile(r"^\d{2}/\d{2}/\d{4} - \d{2}/\d{2}/\d{4} - \d+$")
+
+
+def test_l_infobulle_du_mini_graphe_n_affiche_pas_d_horodatages_bruts(
+    page: Page, live_server: LiveServer
+) -> None:
+    """D-7, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
+
+    Le libelle de chaque sommet etait repris a l'octet de `Statistics.get_history_
+    statistics` (`libreosteoweb/api/statistics.py`), qui le composait par
+    `"%s - %s" % (debut, fin)` sur deux `datetime` bruts : microsecondes sur la borne de
+    fin (instant du rendu) et fuseaux differents entre debut (local) et fin (souvent UTC
+    selon l'heure du serveur). Releve : `2026-09-01 00:00:00+02:00 - 2026-09-14
+    13:32:14.311865+00:00 - 22`. Le format nomme par la spec (« debut - fin - valeur »)
+    est garde : seule la lisibilite des deux dates change.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    page.goto(f"{live_server.url}/")
+
+    conteneur = page.get_by_test_id("mini-graphe-nouveaux-patients")
+    libelles = conteneur.locator("circle title").all_text_contents()
+    assert libelles, "aucun sommet trouve dans le mini-graphe"
+    fautifs = [texte for texte in libelles if not _MOTIF_LIBELLE_LISIBLE.match(texte)]
+    assert not fautifs, f"libelles non conformes au format attendu : {fautifs!r}"

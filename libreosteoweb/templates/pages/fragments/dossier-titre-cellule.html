@@ -20,7 +20,7 @@
         hx-post="{% url 'dossier-titre-cellule' patient.id champ %}"
         hx-target="#cellule-{{ champ }}" hx-swap="outerHTML" style="display: inline">
     <input type="text" name="valeur" class="form-control input-sm" style="display: inline; width: auto"
-           value="{% if champ == 'family_name' %}{{ patient.family_name }}{% else %}{{ patient.first_name }}{% endif %}" autofocus>
+           value="{% if champ == 'family_name' %}{{ patient.family_name }}{% else %}{{ patient.first_name }}{% endif %}" x-init="$el.focus()">
     <button type="submit" class="btn btn-primary btn-xs">{% trans 'Validate' %}</button>
     {% if erreur %}<span class="help-block" role="alert" data-testid="erreur-{{ champ }}">{{ erreur }}</span>{% endif %}
   </form>
