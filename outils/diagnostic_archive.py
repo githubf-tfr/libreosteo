@@ -17,8 +17,21 @@ MODE D'EMPLOI
    fichier tel quel, sous son nom d'origine ; il accepte aussi un `dump.json` nu.
 
 2. Lire le rapport. Il s'imprime sur la sortie standard ; aucun fichier n'est ecrit,
-   rien n'est restaure, rien n'est envoye. Le code de sortie vaut 1 si au moins un
-   point bloquant a ete trouve, 0 sinon.
+   rien n'est restaure, rien n'est envoye.
+
+   Code de sortie -- ⚠️ **deux sont des verdicts, le troisieme n'en est pas un** :
+
+     0  aucun point bloquant : l'archive peut etre chargee telle quelle.
+     1  au moins un point bloquant : la restauration echouera telle quelle.
+     2  l'outil n'a pas conclu : mauvais usage, archive illisible, ou defaut
+        technique de l'outil lui-meme. Le rapport est absent ou tronque, et rien
+        n'a ete verifie. **Ce n'est ni un « ok », ni un « bloquant ».**
+
+   La distinction n'est pas cosmetique. Qui ecrit `if diagnostic_archive archive.db;
+   then restaurer; fi` prend le code de sortie pour un verdict : une trace Python
+   sortait, elle aussi, en 1 -- avec un rapport tronque au milieu -- et rien ne la
+   distinguait du verdict « bloquant ». Le sens en etait inverse : le 1 d'un
+   plantage ne dit rien de l'archive.
 
 CE QUI BLOQUE, CE QUI NE BLOQUE PAS, QUI DECIDE
 ===============================================
@@ -66,6 +79,7 @@ import decimal
 import json
 import re
 import sys
+import traceback
 import zipfile
 from typing import Any, NamedTuple
 
@@ -89,6 +103,22 @@ PREFIXE_ALPHABETIQUE = re.compile(r"^[A-Za-z]*")
 # chargement n'existe pas et un doublon (cabinet, numero) reste bloquant -- dire « ne
 # bloque pas » a un exploitant sur une instance plus ancienne l'enverrait droit sur un 412.
 VERSION_SUPPOSEE = "0.6.9.dev0"
+
+# Codes de sortie, cf. MODE D'EMPLOI. Les deux premiers sont des verdicts sur l'archive,
+# le troisieme dit que l'outil n'en a rendu aucun.
+SORTIE_SANS_OBSTACLE = 0
+SORTIE_BLOQUANT = 1
+SORTIE_INCONCLUSIF = 2
+
+
+class ArchiveIllisible(Exception):
+    """L'archive n'est pas lisible : rien n'a ete diagnostique, et rien ne le sera.
+
+    ⚠️ **Ce n'est pas un verdict sur le contenu de l'archive**, et c'est pourquoi elle
+    ne sort pas en `SORTIE_BLOQUANT`. Elle sortait en 1 du temps ou elle etait un
+    `SystemExit` porteur d'un message : `SystemExit("...")` vaut 1, exactement le code
+    du verdict « au moins un point bloquant ».
+    """
 
 
 class Doublons(NamedTuple):
@@ -403,7 +433,7 @@ def charger(chemin: str) -> tuple[str | None, list[Any]]:
         with zipfile.ZipFile(chemin) as archive:
             noms = archive.namelist()
             if "dump.json" not in noms:
-                raise SystemExit(
+                raise ArchiveIllisible(
                     "Ce zip ne porte aucun 'dump.json' : est-ce bien l'archive "
                     "produite par l'onglet « Archive and restore database » ?"
                 )
@@ -419,7 +449,7 @@ def charger(chemin: str) -> tuple[str | None, list[Any]]:
         with open(chemin, encoding="utf-8") as flux:
             objets = json.load(flux)
     if not isinstance(objets, list):
-        raise SystemExit(
+        raise ArchiveIllisible(
             "Dump inattendu : la racine n'est pas une liste d'objets, ce n'est pas "
             "un export `dumpdata` Django."
         )
@@ -562,11 +592,39 @@ def main(chemin: str) -> int:
         print("VERDICT : aucun obstacle, l'archive peut etre chargee telle quelle.")
         print("Les points qui ne bloquent pas restent a lire : ils ne refusent rien,")
         print("mais peuvent reclamer une decision ou une verification.")
-    return 1 if bloquant else 0
+    return SORTIE_BLOQUANT if bloquant else SORTIE_SANS_OBSTACLE
+
+
+def executer(argv: list[str]) -> int:
+    """Le programme complet : rend un code de sortie et ne leve jamais.
+
+    ⚠️ **Le `except Exception` est le correctif, pas un filet paresseux.** Sans lui,
+    n'importe quel defaut de l'outil ressortait en trace Python -- donc en code 1, celui
+    du verdict « au moins un point bloquant » -- avec un rapport tronque a l'endroit du
+    plantage. La trace reste imprimee, sur la sortie d'erreur : elle n'est pas avalee,
+    elle cesse seulement de se faire passer pour un verdict.
+    """
+    if len(argv) != 2:
+        print((__doc__ or "").strip())
+        return SORTIE_INCONCLUSIF
+    try:
+        return main(argv[1])
+    except ArchiveIllisible as illisible:
+        print("ARCHIVE ILLISIBLE : %s" % illisible, file=sys.stderr)
+    except Exception:
+        traceback.print_exc()
+        print(
+            "DEFAUT TECHNIQUE DE L'OUTIL : le rapport ci-dessus est tronque et "
+            "aucun verdict n'a ete rendu.",
+            file=sys.stderr,
+        )
+    print(
+        "AUCUN VERDICT (code %d) : l'archive n'a PAS ete declaree saine, et n'a PAS "
+        "ete declaree bloquante." % SORTIE_INCONCLUSIF,
+        file=sys.stderr,
+    )
+    return SORTIE_INCONCLUSIF
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print((__doc__ or "").strip())
-        raise SystemExit(2)
-    raise SystemExit(main(sys.argv[1]))
+    raise SystemExit(executer(sys.argv))
