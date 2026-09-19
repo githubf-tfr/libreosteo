@@ -46,9 +46,6 @@
           <input type="text" name="username" class="form-control{% if form.errors %} is-invalid{% endif %}" placeholder="{% trans "Your login" %}" required="" autofocus="">
           <input type="password" name="password" class="form-control{% if form.errors %} is-invalid{% endif %}" placeholder="{%  trans "Password" %}" required="">
         </div>
-        <!--<label class="checkbox">
-          <input type="checkbox" value="remember-me"> {% trans "Remember me" %}
-        </label>-->
         <input type="hidden" name="next" value="{{ next|escape }}" />
         <button class="btn btn-lg btn-primary w-100" type="submit" value="login">{% trans "Sign in" %}</button>
       </form>

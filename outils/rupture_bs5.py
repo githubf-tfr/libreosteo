@@ -258,7 +258,11 @@ def _balayage(
                     if not RE_JETON.fullmatch(tok):
                         continue
                     total += 1
-                    if tok in RUPTURE:
+                    # Un jeton dont RUPTURE porte lui-meme comme remplacant survit a
+                    # Bootstrap 5 (ex. "navbar-text") : ce n'est pas une rupture, meme si
+                    # la table le liste pour documenter qu'il a ete verifie. Sans ce garde,
+                    # ces entrees se comptaient comme si elles ne survivaient pas.
+                    if tok in RUPTURE and RUPTURE[tok] != tok:
                         jetons[tok] += 1
                         par_fichier[str(fichier.relative_to(racine))] += 1
     return total, jetons, par_fichier

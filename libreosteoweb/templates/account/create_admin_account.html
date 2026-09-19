@@ -51,9 +51,6 @@
         <input type="text" name="username" class="form-control" placeholder="{% trans "Your login" %}" required="" autofocus="">
         <input type="password" name="password1" class="form-control form-registration-password1" placeholder="{%  trans "Password" %}" required="">
         <input type="password" name="password2" class="form-control form-registration-password2" placeholder="{%  trans "Confirm password" %}" required="">
-        <!--<label class="checkbox">
-          <input type="checkbox" value="remember-me"> {% trans "Remember me" %}
-        </label>-->
         <input type="hidden" name="next" value="{{ next|escape }}" />
         <button class="btn btn-lg btn-primary w-100" type="submit" value="login">{% trans "Register" %}</button>
       </form>
