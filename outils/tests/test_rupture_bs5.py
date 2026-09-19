@@ -48,10 +48,12 @@ def test_une_balise_django_dans_l_attribut_class_ne_produit_pas_de_jeton(
 AJOUTS_DE_T1 = {
     # 3 au 2026-09-19 (T1) ; 2 repris par D6g T2 (login.html, create_admin_account.html).
     "btn-block": ("w-100", 1),
-    "well-md": ("card", 2),
+    # 2 au 2026-09-19 (T1) ; les deux repris par D6g T3 (register.html, restore.html).
+    "well-md": ("card", 0),
     "well-sm": ("card", 0),
     "left": (None, 3),
-    "badge-info": ("text-bg-info", 1),
+    # 1 au 2026-09-19 (T1) ; repris par D6g T3 (menu.html).
+    "badge-info": ("text-bg-info", 0),
     "fa-1": (None, 3),
     "fa-wrench-o": ("fa-wrench", 1),
 }
@@ -82,10 +84,11 @@ def test_la_mesure_du_depot_pese_les_occurrences_de_ces_sept_jetons() -> None:
     d'ecran, jusqu'a 0 a la clause d'arret 4 -- `AJOUTS_DE_T1` est donc mis a jour par
     chaque tache qui reprend l'un des sept jetons, dans le commit qui le reprend. **13**
     au 2026-09-19 (T1) ; **11** depuis D6g T2, qui a repris `btn-block` sur les deux
-    documents de compte.
+    documents de compte ; **8** depuis D6g T3, qui a repris `well-md` (register.html,
+    restore.html) et `badge-info` (menu.html).
     """
     jetons, _ = occurrences(RACINE / "libreosteoweb" / "templates")
     releve = {jeton: jetons[jeton] for jeton in AJOUTS_DE_T1}
 
     assert releve == {jeton: n for jeton, (_, n) in AJOUTS_DE_T1.items()}
-    assert sum(releve.values()) == 11
+    assert sum(releve.values()) == 8

@@ -9,7 +9,7 @@
 {# etape. `barreDeployee` ne demarre plus force : forcer l'ouverture de la barre changeait #}
 {# l'etat par defaut de l'ecran, pas seulement l'atteignabilite de l'encart. #}
 <nav class="navbar navbar-default navbar-fixed-top" role="navigation" style="margin-bottom: 0">
-  <div class="d-flex flex-column">
+  <div>
     {% if request.has_multiple_office %}
       <a class="navbar-brand" href="/" style="max-width:13%;padding-top:5px">{{request.officesettings.office_name}}</a>
     {% else %}
@@ -86,7 +86,7 @@
            @click.prevent="menuAide = !menuAide; menuUtilisateur = false">
           <i class="fa fa-question-circle fa-fw"></i><i class="fa fa-caret-down"></i><span class="sr-only">{% trans "Help" %}</span>
           {% if new_version_available %}
-            <span class="badge badge-info">1<span>
+            <span class="badge text-bg-info">1<span>
           {% endif %}
         </a>
         <ul class="dropdown-menu">

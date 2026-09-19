@@ -4,7 +4,7 @@
     <form role="form" method="post" action="{% url 'accounts-create-admin' %}">
         {% csrf_token %}
         <h2 class="form-registration-heading">{% trans "Registration" %}</h2>
-        <div class="well well-md">
+        <div class="card card-body">
           <p>{% trans 'In order to use LibreOsteo, you have to register a login and password on the application. Please select it before to use the application.' %}</p>
 
           <p>{% trans 'Then you will be redirected to be identified with this login and password.' %}</p>

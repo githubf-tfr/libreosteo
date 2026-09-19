@@ -3808,6 +3808,11 @@ fonctionnels dédiés, ni la page de connexion (R-VIS-01).
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/socle-bandeau-1280.png`
 et `socle-bandeau-375.png`.
 
+**Prérequis** : la disposition de la barre de navigation a été tranchée en D6g T3 : la marque
+et le bouton de repli restent empilés en flux de bloc ordinaire, sans mise en page flexbox
+(`d-flex flex-column` retiré — inerte aujourd'hui, actif sous Bootstrap 5). Cet attendu est
+opposable ; un écart se corrige, il ne s'absorbe pas.
+
 **Étapes**
 
 1. Se connecter, puis rester sur l'URL racine, fenêtre à **1 280 px de large**.
