@@ -125,13 +125,24 @@ def _cle_patient(champs: dict[str, Any]) -> tuple[str, str, Any]:
     partie. L'ajouter comptait distincts deux dossiers que la contrainte refuse --
     meme nom, meme prenom, meme naissance, dont un seul porte un nom de naissance --
     et l'outil declarait alors « ok » un parc qui prend un 412 en pleine restauration.
-    `Lower()` cote PostgreSQL, `.lower()` ici : equivalents sur les caracteres latins
-    usuels, non garantis identiques au caractere exotique pres ; seule la contrainte
-    fait foi.
+
+    ⚠️ **Aucun rognage.** La contrainte est `UniqueConstraint(Lower("family_name"),
+    Lower("first_name"), "birth_date")` : elle abaisse la casse et ne rogne rien, et le
+    validateur applicatif (`UniqueTogetherIgnoreCaseValidator`, filtre `__iexact`) ne
+    rogne pas davantage. Un `.strip()` ici -- il y en a eu un -- declarait BLOQUANT un
+    parc portant « Durand » et « Durand », deux espaces de frappe pres, que la
+    restauration accepte sans broncher. Le verdict n'etait pas seulement faux : assorti
+    de « Fusionner deux dossiers est un acte medical », son issue la plus probable
+    n'etait pas de renoncer, c'etait de fusionner deux dossiers distincts.
+
+    **L'ecart qui reste, et il est assume** : `Lower()` cote PostgreSQL, `.lower()` ici.
+    Les deux coincident sur les caracteres latins usuels ; au caractere exotique pres
+    (`Lower()` suit la collation de la base, `str.lower()` suit Unicode), ils peuvent
+    diverger. Seule la contrainte fait foi.
     """
     return (
-        (champs.get("family_name") or "").strip().lower(),
-        (champs.get("first_name") or "").strip().lower(),
+        (champs.get("family_name") or "").lower(),
+        (champs.get("first_name") or "").lower(),
         champs.get("birth_date"),
     )
 

@@ -94,6 +94,35 @@ def test_la_casse_ne_distingue_pas_deux_dossiers(
     assert code == 1
 
 
+def test_une_espace_de_frappe_distingue_deux_dossiers_comme_la_contrainte_le_fait(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Le cas symetrique du precedent, et le plus couteux des deux.
+
+    `unique_patient_nom_prenom_naissance` est `UniqueConstraint(Lower("family_name"),
+    Lower("first_name"), "birth_date")` : elle abaisse la casse et **ne rogne rien**. Le
+    validateur applicatif (`UniqueTogetherIgnoreCaseValidator`, filtre `__iexact`) ne
+    rogne pas davantage. Deux espaces de frappe -- banal sur un fichier de cabinet --
+    font donc deux lignes que la base accepte, et la restauration passe.
+
+    L'outil rognait, lui, et declarait BLOQUANT ce que la restauration accepte. Le
+    verdict n'etait pas seulement faux : il est assorti de « Fusionner deux dossiers est
+    un acte medical », et l'issue la plus probable n'est pas de renoncer, c'est de
+    fusionner deux dossiers de patients reellement distincts.
+    """
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _patient(1, "Durand", "Marie", "1980-01-01"),
+            _patient(2, "Durand ", "Marie", "1980-01-01"),
+        ],
+        capsys,
+    )
+    assert "Clefs en double                   : 0" in sortie
+    assert "BLOQUANT" not in sortie
+    assert code == 0
+
+
 def test_deux_homonymes_de_dates_de_naissance_differentes_ne_bloquent_pas(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
