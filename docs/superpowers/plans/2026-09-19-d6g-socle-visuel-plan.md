@@ -322,7 +322,24 @@ qui sait que seules six choses changent lit six choses.
 >    `cabinet-general.html`.
 >
 > ⚠️ **Et la fiche de recette se relit contre sa propre capture avant le commit** : T15 a versé
-> deux attendus que le PNG du même commit démentait.
+> deux attendus que le PNG du même commit démentait. **Tout écart visible se chiffre et
+> s'écrit dans `docs/recette.md`** — attendu, « Ne couvre pas », ou différence de rendu
+> assumée —, **jamais seulement dans le rapport de tâche**, qui est gitignoré : celui qui
+> exécute la recette ne le lira pas.
+>
+> ⚠️ **Cinquième piège, mesuré par T14 et invisible aux deux contrôles du lot : le `.row`
+> manquant.** Deux `col-*` frères sans `.row` commun **restent des classes parfaitement
+> valides en Bootstrap 5** — le grep de jetons ne voit rien, le contrôle d'orphelinage ne
+> voit rien, aucun test ne rougit. Seul le **contexte flex** manque, et les colonnes
+> s'empilent au lieu d'être côte à côte. Même famille que le couple
+> `form-horizontal`/`form-group` : ⚠️ **en Bootstrap 3, plusieurs conteneurs posaient
+> `display:flex` ou ses marges négatives implicitement**, et rien ne le remplace. Après
+> chaque écran, **regarder les paires en-tête/contenu et les colonnes voisines à 1 280 px** :
+> si elles s'empilent, il manque un `.row` sur leur parent commun.
+> ⚠️ **Et la précondition de `radio|checkbox → form-check` ne se tient pas toujours depuis le
+> gabarit** : le rendu par défaut de Django ne permet pas de classer le `<label>` d'un champ
+> de formulaire. T14 a dû passer par un gabarit de widget local
+> (`partials/radio-option-form-check.html`) — c'est le geste à reprendre, pas un contournement.
 
 
 **Ce patron est normatif.** Chaque tâche T5–T15 réécrit ses étapes en entier avec ses propres
