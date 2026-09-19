@@ -46,6 +46,7 @@ from ..receivers import (
 )
 from ..signals import post_reload_db
 from ..utils import LoggerWriter
+from . import reprise_archive
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,14 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
             f.close()
 
         logger.info("Dump file was persisted for future loading.")
+        # La reprise des numeros de facture se fait sur le dump, **avant** `loaddata` :
+        # les migrations sont montees sur une base vide, donc la reprise de `0060` ne
+        # voit jamais les lignes de l'archive, et le doublon violerait
+        # `unique_facture_numero_par_cabinet` a l'insertion (D10, C2). Hors de la
+        # transaction : c'est une lecture-ecriture de fichier temporaire, elle n'a rien a
+        # faire dans la transaction de base, et un echec y est un `OSError` deja rattrape
+        # par le bloc englobant.
+        reprise_archive.reprendre_le_dump(fixture)
         receivers_senders = [
             (receiver_examination, models.Examination),
             (receiver_newpatient, models.Patient),
