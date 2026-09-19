@@ -679,6 +679,21 @@ décrits à l'entrée de clôture, pas ici.
 
 ### Constats versés le 2026-09-19, à instruire après la clôture de D6g
 
+- ⚠️ **`block_disconnect_all_signal.__exit__` reconnecte aveuglément**
+  (`libreosteoweb/api/receivers.py`). Il connecte ce qu'on lui a passé sans vérifier que
+  `__enter__` l'avait déconnecté : donner la même liste à deux blocs imbriqués sur deux
+  signaux différents branche chaque récepteur sur **les deux** en sortie. C'est ce qui a
+  produit le défaut fermé par `77eb331`, dont l'appelant seul a été corrigé. Durcir `__exit__`
+  sur le retour de `Signal.disconnect` fermerait la classe entière. ⚠️ **L'aide est partagée
+  avec `sans_receivers` et du code applicatif** : l'élargissement se décide, il ne s'improvise
+  pas.
+- **`tests/functional/conftest.py` remplace `settings.HAYSTACK_CONNECTIONS` par un
+  dictionnaire neuf**, là où `libreosteoweb/tests/conftest.py` documente qu'il faut **muter en
+  place**. Mesuré : cela fonctionne aujourd'hui parce que `BaseEngine.__init__` relit
+  `settings`, mais `haystack.connections.connections_info` reste figé sur `data/whoosh_index`
+  et sert encore à choisir le moteur. **Isolation correcte par accident, pas par
+  construction.**
+
 - **Le cliquet d'arbre statique ne couvre pas le contenu des paquets.**
   `tests/qualite/test_contrat_arbre_statique.py` garde le **jeu de paquets** servis sous
   `static/components/`, pas ce qu'ils contiennent. Conséquence : le recomptage des fichiers
@@ -993,6 +1008,44 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-19 — Une restauration tuait l'indexation temps réel pour toute la durée du
+  processus** (`77eb331`). Régression introduite le jour même par `c5c902a` (D10 T2), trouvée
+  par une suite fonctionnelle à **sept rouges** et refermée le jour même.
+
+  ⚠️ **La cause n'est pas celle qu'on cherchait.** Cinq des sept rouges touchaient des écrans
+  qui **cherchent**, et trois commits du jour avaient touché l'index : l'hypothèse de tête
+  était la purge d'index de D10 T3. Elle est **écartée par la mesure** — une sonde `pytest`
+  relevant l'état de l'index et la table des signaux avant et après chaque test montre que
+  l'index reste bien dans le `tmp_path` du test. **Ce qui change, c'est la table des
+  signaux** : `post_save` passe de 3 à 4 récepteurs et `post_delete` de 2 à 3, et
+  `handle_delete` se retrouve branché sur `post_save`.
+
+  **Le mécanisme, et il vaut d'être retenu** : `restaurer()` passait **la même liste**
+  `[(handle_save, None), (handle_delete, None)]` aux **deux** `block_disconnect_all_signal`,
+  l'un sur `post_save`, l'autre sur `post_delete`. Or `__exit__` **reconnecte ce qu'on lui a
+  donné sans vérifier que `__enter__` l'avait déconnecté** : à la sortie, chaque récepteur est
+  branché sur les deux signaux. `post_save` déclenchait donc `handle_delete` juste après
+  `handle_save` — **toute fiche enregistrée après une restauration ressortait de l'index
+  aussitôt entrée**. En exploitation, une seule restauration suffisait, et l'effet durait
+  jusqu'au redémarrage du processus.
+
+  **Le correctif est une liste par signal**, plus le commentaire qui explique le piège. Le
+  test qui le tient vérifie un **comportement** — une fiche créée **après** une restauration
+  est trouvable — et non un rouage. Rouge avant, vert après. Suite fonctionnelle : **139
+  passed, 1 failed** contre 7 failed avant, le rouge restant étant celui de D6g T15, instruit.
+
+  ⚠️ **Ce que le correctif ne ferme pas** : `block_disconnect_all_signal.__exit__`
+  (`libreosteoweb/api/receivers.py`) reconnecte toujours aveuglément. L'appelant est corrigé,
+  **pas l'aide** — le même piège reste tendu pour le prochain. Durcir `__exit__` sur le retour
+  de `Signal.disconnect` fermerait la classe de défauts entière ; l'aide est partagée avec
+  `sans_receivers` et du code applicatif, donc l'élargissement se décide, il ne s'improvise
+  pas. **Entrée ouverte ci-dessous.**
+
+  **Leçon de méthode, payée ici** : chaque tâche ne lançait que son propre fichier de tests,
+  et le contrôleur rapportait « deux rouges » sur cette foi. Les cinq autres n'existaient
+  qu'**en suite complète** — les mêmes tests joués seuls rendent `7 passed`. **La seule mesure
+  qui vaut pour une suite est la suite entière, jouée seule.**
 
 - **2026-09-19 — Une course de la suite fonctionnelle, latente depuis D9, est fermée**
   (`6906e5f`). `test_la_vignette_en_edition_survit_a_la_suppression_d_une_seance` était
