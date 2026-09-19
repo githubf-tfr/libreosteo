@@ -379,11 +379,21 @@ vécu depuis.
 - Les seules migrations que le fork ajoute à l'amont sont `0056` à `0060`. Trois portent un
   risque sur données réelles : `0057` (unicité patient nom/prénom/naissance), `0058`
   (montants en `numeric(10,2)`) et `0060` (unicité `(officesettings_id, number)`).
-  Un parc non conforme se manifeste par un **412 « archive incorrecte »** sur `0057` /
-  `0060`, et **par un 412 également sur un dépassement `0058`** — ⚠️ le **500** annoncé
-  ici jusqu'au 2026-09-19 est faux : `api/services/sauvegarde.py:181-185` attrape
-  explicitement `decimal.InvalidOperation`, qui ne dérive pas de `DatabaseError`, et la
-  rend en `ArchiveInvalide`, donc en 412 comme les deux autres.
+  Un parc non conforme se manifeste par un **412 « archive incorrecte »** sur `0057`, et
+  **par un 412 également sur un dépassement `0058`** — ⚠️ le **500** annoncé ici jusqu'au
+  2026-09-19 est faux : `api/services/sauvegarde.py:181-185` attrape explicitement
+  `decimal.InvalidOperation`, qui ne dérive pas de `DatabaseError`, et la rend en
+  `ArchiveInvalide`, donc en 412 comme l'autre.
+  ⚠️ **`0060` ne refuse plus rien depuis le 2026-09-19** (lot D10) : un doublon
+  `(cabinet, numéro)` **est repris au chargement**, c'est-à-dire **renuméroté**, au lieu de
+  faire échouer la restauration. Le motif est celui de `0060` elle-même — un doublon de
+  numéro est une **erreur de numérotation dont la réparation est mécanique**, contrairement à
+  un doublon de dossier patient, dont la fusion est un **acte médical**. ⚠️ **Ces numéros
+  sont ceux de documents fiscaux qui ont pu être remis à des patients** : l'outil de
+  diagnostic liste `(identifiant, numéro actuel, numéro après reprise)` **avant** toute
+  action, et c'est la seule occasion de les voir. **Qui restaure sans avoir lancé l'outil
+  subit une renumérotation silencieuse** — l'écran de restauration n'en rend pas encore
+  compte, entrée ouverte ci-dessous.
 - Au 2026-09-08 le parc réel les satisfaisait toutes les trois : 44 766 objets chargés sans
   un rejet, zéro doublon de numéro de facture, aucun préfixe, plage contiguë.
 
@@ -391,12 +401,21 @@ vécu depuis.
 
 1. **Export neuf depuis la production**, par la fonction d'archive du produit.
 2. **Diagnostic en lecture seule**, exécuté **par l'utilisateur lui-même** sur son archive,
-   par un script hors dépôt n'écrivant que des agrégats. ⚠️ **L'outil est prêt depuis le
-   2026-09-19** : `/tmp/diagnostic-parc-20260919/` porte `diagnostic_parc.py`,
-   `MODE-D-EMPLOI.md` et ses tests. **`/tmp` ne survit pas à un redémarrage** — le recopier
-   ailleurs avant d'éteindre, sinon il est à réécrire. Il n'entre pas au dépôt, à dessein. ⚠️ **La donnée de santé ne transite
-   ni par la session ni par ses sous-agents** — règle tenue le 2026-09-07, à tenir de
-   nouveau. Le script est à réécrire : il n'a jamais été versionné, à dessein.
+   par un outil n'écrivant que des agrégats. ⚠️ **L'outil est `outils/diagnostic_archive.py`,
+   versionné, et c'est la seule référence** :
+
+   ```bash
+   python3 outils/diagnostic_archive.py /chemin/vers/archive.db
+   ```
+
+   Il tourne **hors `.venv`, hors Django, bibliothèque standard seule**, sur la machine de
+   l'utilisateur. Code de sortie **0** si rien ne bloque, **1** si un point bloque, **2** si
+   l'outil lui-même a échoué — les trois sont distincts depuis le 2026-09-19, un exploitant
+   qui scripte `if diagnostic; then restore; fi` doit pouvoir les séparer. ⚠️ **Le brouillon
+   jeté sous `/tmp/diagnostic-parc-20260919/` le 2026-09-19 est caduc** : il a été écrit
+   parce que ce journal affirmait à tort que l'outil n'était pas versionné, et son contenu
+   utile a été porté dans l'outil du dépôt. ⚠️ **La donnée de santé ne transite ni par la
+   session ni par ses sous-agents** — règle tenue le 2026-09-07, à tenir de nouveau.
    Agrégats attendus : nombre de factures, de cabinets, couples `(cabinet, numéro)` en
    double, numéros non convertibles, préfixes, contiguïté de la plage,
    `invoice_start_sequence`, et doublons `(nom, prénom, naissance)` pour `0057`.
