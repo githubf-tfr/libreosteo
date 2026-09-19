@@ -429,9 +429,9 @@ de la passe de recette courante.
 - **Instance de référence** : une instance **dédiée** bâtie sur la version antérieure au lot
   (`f5b3351`). ⚠️ **Jamais l'instance de production.**
 - **Périmètre** : non arrêté. À choisir au lancement de la passe.
-- **Entrées connues à y verser** : les placeholders d'adresse (cf. *Défauts versés par D6e*),
-  et **la famille « praticien sans nom »**, trois symptômes d'une même cause, tous
-  antérieurs au lot et tous visibles dès que le compte connecté n'a ni nom ni prénom :
+- **Entrées connues à y verser** : **la famille « praticien sans nom »**, trois symptômes
+  d'une même cause, tous antérieurs au lot et tous visibles dès que le compte connecté n'a
+  ni nom ni prénom :
   - la formulation « 55 minutes par … » de la chronologie, préposition orpheline —
     `timesince` y remplace `angular-timeago`, supprimé par D5 ;
   - « Séance du 13 septembre 2026 par » en titre du volet de consultation, même orphelin ;
@@ -440,6 +440,10 @@ de la passe de recette courante.
     recoller la ligne de nom au commentaire ; mesuré à l'écran, cette ligne rend `" "` —
     une hauteur de **0 px** — et la marge négative tire le commentaire sous le formulaire.
     La règle est d'amont, D6e n'y a pas touché.
+
+  ⚠️ **Les placeholders d'adresse en sont sortis.** Versés ici le 2026-09-13 comme décision
+  d'affordance, ils ont été **rétablis** le 2026-09-18 (`98439de`, cf. « Terminé ») sur les
+  quatre entrées ; la passe n'a plus à les trancher.
 
 ### Sécurité
 
@@ -510,21 +514,6 @@ affichait donc ce lien en permanence comme non suivi, et quatre lots l'ont conto
 que la cause soit écrite quelque part. La barre finale est retirée et la raison est
 désormais en commentaire à côté du motif.
 
-### Défauts et écarts constatés au cadrage de D6b (2026-09-09, non corrigés)
-
-Relevés en cadrant D6b, qui interdit tout changement de comportement produit. Aucun n'est
-corrigé par ce lot ; chacun attend le chantier qui réécrit son écran.
-
-- ~~**`libreosteoweb/templates/partials/office-settings.html:200`** — `<label
-  for"invoice_start_sequence">` : `for` sans signe égal, donc attribut inerte et libellé
-  associé à rien.~~ — **fermé le 2026-09-12 par D6d** : le gabarit est remplacé par
-  `pages/fragments/cabinet-general.html`, dont le libellé porte un `for` réel
-  (`id_for_label`, ligne 180) ; le commentaire de la ligne 176 garde la trace du legs.
-- ~~**`libreosteoweb/templates/partials/rebuild-index.html:20,24`** — `<div class)"col-md-2">` :
-  parenthèse au lieu d'un signe égal, l'attribut de classe n'est jamais posé.~~ — **fermé le
-  2026-09-12 par D6d** : le gabarit est remplacé par `pages/reindexation.html`, dont aucune
-  classe n'est écrite ainsi.
-
 ### Défauts constatés par la passe de recette du 2026-09-12 (non corrigés)
 
 Relevés par la passe complète (cf. « Terminé »), arbitrés au code après coup. **Les deux
@@ -592,35 +581,6 @@ décrits à l'entrée de clôture, pas ici.
   reste est le schéma, pas l'affichage** — et il ne se pose pas dans un lot de dette : la
   clef touche le schéma **et** les données d'un parc en service, donc elle se joint à la
   reprise du parc de production (§ ci-dessus).
-- **Les deux routes du choix de cabinet produisent une URL invalide, et le middleware y
-  redirige.** `libreosteoweb/urls.py:22-23` déclare `path(r"/")` — un segment littéral `/` —
-  sous le préfixe vide de `Libreosteo/urls.py:298`. Mesuré :
-  `reverse("officesettings-set")` rend **`/%2F`**, slash encodé compris, et
-  `reverse("officesettings-reset")` de même. Deux consommateurs réels :
-  `middleware.py:196-197`, qui **redirige** vers cette URL, et `partials/menu.html:74`, le
-  lien « Changer de cabinet ».
-
-  ⚠️ **La garde n'est pas celle que ce journal décrivait.** L'entrée du 2026-09-10 dit le
-  multi-cabinet « inatteignable » parce qu'aucun code n'écrit `session["officesettings"]` —
-  c'est exact, mais ce n'est pas ce qui ferme le chemin. Le chemin est gardé par
-  `request.has_multiple_office`, vrai dès qu'il existe **plus d'une fiche cabinet en base**
-  (`middleware.py:185`). Créer un second cabinet suffit donc à l'ouvrir, et la redirection
-  part alors vers `/%2F`.
-
-  **Non mesuré, et à mesurer avant de corriger** : ce que fait effectivement cette
-  redirection — 404, boucle, ou résolution silencieuse. Le déduire serait précisément
-  l'erreur que ce dépôt s'interdit.
-
-  **Conservé à l'octet par D6f** (arbitrage A1 de sa spec, multi-cabinet hors périmètre) :
-  le lot qui tue la coquille n'est pas celui qui touche au routage du cabinet. Relevé par
-  l'écriture du plan de D6f, le 2026-09-13.
-- **Les placeholders des quatre entrées d'adresse ont disparu.** L'écran AngularJS posait
-  `e-placeholder="{{ patient.address_street }}"` — le **libellé** du champ — sur rue,
-  complément, code postal et ville ; l'écran migré rend quatre boîtes vides sans aucune
-  indication. Relevé à l'écran pendant la recette, **non corrigé** : le rétablir est une
-  décision d'affordance qui appartient à la passe de comparaison avec l'ancienne version, pas
-  à une correction de défaut. Le précédent existe déjà dans le dépôt
-  (`nouveau_patient.py:98`, `"placeholder": self.fields[nom].label`).
 - **La garde de sortie se désarme sur trois chemins qui ne sont pas des enregistrements, et
   l'inventaire écrit ici en annonçait un.** La revue de branche a mesuré les trois ; la
   phrase « c'est le seul endroit du dossier où la règle *seul un résultat réel désarme*
@@ -663,39 +623,6 @@ décrits à l'entrée de clôture, pas ici.
   `.timeline > li.timeline-inverted` depuis le point de fork. **Retenu**, et versé comme
   sixième changement de produit à l'entrée de clôture plutôt qu'annulé : revenir à la
   colonne unique serait figer une expression morte comme si elle était une décision.
-- **Le dossier ouvert sur la consultation en cours rend deux fois la même séance.**
-  `contexte_chronologie` liste **toutes** les séances, celle en cours comprise, et son
-  entrée ouvre le volet dans l'onglet « Consultations » pendant que
-  `#current-examination-volet` rend la même séance en édition. Le document porte alors deux
-  `#close-examination`, deux `#examinationDate` et deux copies divergentes du même
-  formulaire. Sans conséquence mesurée — les deux volets sont préfixés et chacun reçoit sa
-  propre réponse —, mais c'est un doublon d'autorité sur une donnée clinique. À trancher :
-  exclure la séance en cours de la chronologie, comme `ng-if="previousExamination.data ==
-  null"` le faisait par un autre chemin.
-
-### Défauts versés par D6f (2026-09-18, non corrigés, à trancher hors lot de migration)
-
-Même règle que pour D6d et D6e : un lot de migration ne tranche pas un défaut de produit.
-Chacun vient avec son emplacement, sa mesure et ce qui l'a fait apparaître.
-
-- **Une classe entière de tests fonctionnels est verte par accident** — le motif que
-  `0a8817b` a corrigé sur un seul site. Le motif : cliquer « Éditer », attendre le **bouton**
-  « Fin d'édition », puis agir. Cette barrière ne prouve rien, le bouton étant posé
-  synchronement par le clic précédent (cf. le défaut d'interface ci-dessus) ; ce qu'il faut
-  attendre est le **fragment**, qui porte le seul écouteur.
-
-  **Mesure de la classe, faite à la clôture** : **30** sites cliquent « Éditer » dans
-  `tests/functional/`. **Quatre** posent la barrière qui ne prouve rien —
-  `test_patient.py:239`, `test_texte_riche.py:44`, `test_code_postal.py:149`,
-  `test_consultation.py:465` (via `bouton_fin_d_edition`). Les autres n'en posent aucune. Tous
-  sont verts **parce que le geste suivant vise un élément du fragment** et que l'auto-attente
-  de Playwright leur sert de barrière **par accident** — jamais parce qu'ils l'auraient
-  prouvé. La liste est à reconstater avant correction, pas à recopier.
-
-  **Remède proposé** : un helper `entrer_en_edition(page, panneau)` dans
-  `tests/functional/helpers.py` qui clique « Éditer » **et attend le fragment**
-  (`expect(page.locator("#<panneau>-formulaire")).to_be_attached()`), puis la substitution
-  mécanique des sites. **Destinataire : un lot de dette de test**, pas un lot de migration.
 
 ### Dette technique (constat, pas action)
 
@@ -854,11 +781,14 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   machine), donc sans effet constaté ; un rejeu sur une autre architecture y verrait
   probablement diverger l'empreinte (a) pour une raison étrangère à l'arbre de
   dépendances lui-même — à vérifier alors, et à exclure de l'empreinte si la divergence
-  se confirme. ⚠️ **À traiter avec les trois autres entrées `R-INST-07` de ce journal** —
-  lectures statiques périmées (§ Défauts constatés par la passe de recette du
-  2026-09-12), « État requis » hors énumération (§ Couverture du cahier de recette) et
-  seconde passe à rejouer (ci-dessus) : les quatre ne se ferment que par une réécriture
-  unique de la fiche.
+  se confirme. ⚠️ **Elle est désormais seule de son espèce** : les trois autres entrées
+  `R-INST-07` de ce journal — lectures statiques périmées, « État requis » hors énumération
+  et seconde passe à rejouer — sont fermées le 2026-09-18 par la réécriture de la fiche
+  (`3ad110b`, cf. « Terminé »), et les deux sous-sections qui en portaient deux ont disparu
+  avec elles. **Celle-ci ne l'est pas** : la fiche réécrite ne nomme ni `.yarn-integrity` ni
+  `systemParams`, et l'empreinte (a) hashe toujours `node_modules/**`, ce fichier compris.
+  Elle se ferme donc seule, par une exclusion ajoutée à l'empreinte — pas par une réécriture
+  de plus.
 
 ### Constats de facturation (2026-09-06)
 
@@ -923,10 +853,16 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   suspens »), application de l'arbitrage du 2026-09-06 sur `Invoice.date` (cf.
   « Décisions actées »), création du type d'événement qui trace la redatation.
 - **Whoosh** — moteur de recherche sans mainteneur depuis 2016 (`Whoosh==2.7.4`), porte
-  la recherche du produit ; déjà signalé comme dette de fond par D4 (cf. « Renvoyé par
-  D4 » ci-dessus).
-- **Ménage** — dépendances mortes, chapitre « Installation » du `README.rst`,
-  reliquats de recette déjà renvoyés par D4 et D5.
+  la recherche du produit. Signalé comme dette de fond dès D4, dans la puce « Ménage des
+  dépendances mortes » **retirée le 2026-09-18** quand le reste de son contenu a été purgé
+  (`f9804d7`, cf. « Terminé ») : ce candidat est désormais le seul endroit du journal où il
+  vit.
+- ~~**Ménage** — dépendances mortes, chapitre « Installation » du `README.rst`,
+  reliquats de recette déjà renvoyés par D4 et D5.~~ — **sans objet depuis le 2026-09-18** :
+  les trois dépendances mortes sont purgées et le chapitre « Installation » réécrit
+  (`f9804d7`), les reliquats de recette soldés par la remise en correspondance du cahier
+  (`3ad110b`) ; cf. « Terminé ». Ce qui subsistait sous ce nom est `Whoosh` seul, **dette de
+  fond et non ménage**, porté par la puce ci-dessus.
 
 ### Dette technologique — analyse automatisée du 2026-09-02, triée le 2026-09-04
 
@@ -944,6 +880,50 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-18 — Quatre défauts soldés, dont une boucle de redirection sur le choix de
+  cabinet** (`98439de`). `906 passed`, couverture **94,94 %** ; `140 passed` fonctionnels.
+
+  **Les quatre entrées d'adresse retrouvent leur placeholder.** Deux sont réparées dans le
+  formulaire (`api/views/pages/dossier_patient.py`, motif de `nouveau_patient.py:98`) ; les
+  deux autres — code postal et ville — ne sont **jamais rendues par ce formulaire**, le
+  gabarit `pages/fragments/dossier-code-postal.html` les écrivant lui-même en HTML brut, et
+  reçoivent donc leur placeholder là, alimenté depuis les libellés déjà calculés.
+
+  **La chronologie n'affiche plus la séance en cours** : `contexte_chronologie` reçoit
+  `exclue_de_la_liste`, et le document ne porte plus deux `#close-examination`. ⚠️ **Nuance
+  à ne pas perdre** : la coïncidence entre volet sélectionné et volet en cours n'est **pas**
+  neutralisée, parce qu'un test de suppression l'exploite délibérément pour obtenir trois
+  boutons dans un seul document. En navigation normale le doublon disparaît ; **en visite
+  directe de l'URL il subsiste**, sans conséquence mesurée — exactement ce que le journal
+  constatait.
+
+  ⚠️ **Le choix de cabinet ne produisait ni 404 ni résolution silencieuse : une boucle
+  infinie** (`RedirectCycleError`). C'est la mesure que l'entrée exigeait avant tout
+  correctif, et elle a déplacé la cause. **Ce n'était pas `urls.py`** : la garde anti-boucle
+  de `middleware.py` comparait `request.path`, que le serveur rend déjà décodé (`//`), au
+  `reverse()` encodé (`/%2F`) — jamais égaux, donc jamais « on y est déjà », donc une
+  seconde redirection vers la même cible. Les deux formes sont désormais comparées décodées.
+  **`urls.py` reste à l'octet** : le commentaire A1 y protège la coexistence des deux noms de
+  route, et cette raison tient toujours.
+
+  **Les quatre barrières de tests fonctionnels sont explicitées, pas corrigées.** ⚠️ Le
+  défaut de produit ayant été fermé entre-temps par `4e6063d`, ces barrières étaient
+  devenues **légitimes par accident** : le bouton « Fin d'édition » porte `editionArrivee`,
+  variable posée par le `x-init` du **fragment**, si bien que sa visibilité suit l'arrivée du
+  fragment par ricochet. Le helper `entrer_en_edition` (`tests/functional/helpers.py`),
+  substitué sur les quatre sites, vaut pour l'**explicitation** de l'intention et pour couper
+  la dépendance à un détail d'implémentation qui pourrait bouger sans que personne s'en
+  aperçoive — pas comme correction d'une preuve fausse.
+
+  **Deux sous-sections de « À faire » disparaissent avec ces fermetures** : « Défauts versés
+  par D6f », que ce commit vide, et « Défauts et écarts constatés au cadrage de D6b », qui ne
+  portait plus que ses deux entrées barrées, fermées le 2026-09-12 par D6d.
+
+  **Ce que ce commit ne ferme pas** : dans « Défauts versés par D6e », `OfficeEvent.reference`
+  sans clef étrangère reste joint à la reprise du parc de production, et les deux entrées qui
+  subsistent — le chemin 1 de la garde de sortie, l'alternance des panneaux de la chronologie
+  — sont volontaires et restent pour mémoire.
 
 - **2026-09-18 — Le chapitre « Installation » du `README.rst` réécrit et trois dépendances
   mortes purgées** (`f9804d7`). `900 passed`, couverture **94,93 %**.
