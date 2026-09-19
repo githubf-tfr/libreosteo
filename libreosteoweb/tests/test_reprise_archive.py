@@ -25,6 +25,7 @@ import pathlib
 from typing import Any
 
 from libreosteoweb.api.services import reprise_archive
+from libreosteoweb.api.utils import maximum_numerique_des_numeros
 
 
 def _facture(pk: int, cabinet: int, numero: str) -> dict:
@@ -186,6 +187,90 @@ def test_un_dump_aux_elements_heteroclites_est_repris_sans_lever(
     objets = json.loads(pathlib.Path(chemin).read_text(encoding="utf-8"))
     assert objets[0] == "bruit"
     assert objets[1]["fields"]["number"] == "10000"
+
+
+# Les cinq entrees sur lesquelles la reproduction naive par l'expression `CHIFFRES`
+# (`^([A-Za-z]{0,3})(\d+)$`, deja presente dans l'outil) diverge de
+# `convert_to_long(..., strip_string_prefix=True)`. Mesure du 2026-09-19 :
+#
+#   « ABCD12 »  quatre lettres  -> `CHIFFRES` n'apparie pas ; le produit lit 12
+#   « +12 »     signe           -> `CHIFFRES` n'apparie pas ; le produit lit 12
+#   « -12 »     signe           -> `CHIFFRES` n'apparie pas ; le produit lit -12
+#   «  12 »     espace de tete  -> l'ancre `^` refuse ; `int()` l'ignore, lit 12
+#   « 12_3 »    tiret bas       -> `CHIFFRES` n'apparie pas ; `int()` lit 123
+#
+# Les deux temoins de fin ne divergent pas, et le disent : la liste est un constat, pas
+# une collection de curiosites.
+NUMEROS_ADVERSARIAUX = ["ABCD12", "+12", "-12", " 12", "12_3", "10000", "AB10000"]
+
+
+def test_l_outil_de_diagnostic_lit_un_numero_comme_le_produit() -> None:
+    """Le premier des deux versants de l'equivalence : la lecture d'un numero.
+
+    `outils/diagnostic_archive.py` n'importe ni Django ni `libreosteoweb` : il se copie
+    tel quel sur la machine qui detient l'archive, et `reprise.py` tirerait `netifaces`
+    par `api/utils.py`. La regle y est donc **reproduite**, et rien ne ferait de bruit si
+    les deux lectures divergeaient -- l'outil annoncerait seulement, en silence, autre
+    chose que ce que la restauration fera.
+
+    Ce versant-ci est le seul qui voie les cinq entrees adversariales : le plancher de
+    renumerotation (999999) ecrase la valeur numerique d'un petit numero dans le plan,
+    et une divergence de lecture y resterait invisible.
+    """
+    from outils import diagnostic_archive
+
+    # Les deux listes entieres, et non une assertion par entree : une divergence doit
+    # montrer d'un coup toutes les entrees qui ont bouge, pas seulement la premiere.
+    par_l_outil = [
+        diagnostic_archive._maximum_numerique([n]) for n in NUMEROS_ADVERSARIAUX
+    ]
+    par_le_produit = [maximum_numerique_des_numeros([n]) for n in NUMEROS_ADVERSARIAUX]
+
+    assert par_l_outil == par_le_produit
+
+
+def test_l_outil_de_diagnostic_annonce_exactement_ce_que_la_reprise_fera() -> None:
+    """Le second versant : le plan complet, et le seul endroit ou les deux
+    implementations de la regle se rencontrent.
+
+    C'est lui qui rend la clause de transparence (D10, C1b) opposable : ce que l'outil
+    annonce est ce que la restauration fera.
+
+    Le jeu d'entrees porte les cinq valeurs de `NUMEROS_ADVERSARIAUX`, plus le piege qui
+    ne se voit qu'ici : `#15` porte « 12 » et `#16` « 12 » precede d'une espace. La
+    restauration ne rogne pas le numero -- ce ne sont donc pas des doublons, et aucun des
+    deux ne doit figurer au plan. Un outil qui appellerait `.strip()`, comme le fait
+    `doublons_numeros` juste a cote, en annoncerait un.
+    """
+    from outils import diagnostic_archive
+
+    objets = [
+        _cabinet(1, "10001"),
+        _facture(1, 1, "10000"),
+        _facture(2, 1, "10000"),
+        _facture(3, 1, "AB10000"),
+        _facture(4, 1, "AB10000"),
+        _facture(5, 1, "ABCD12"),
+        _facture(6, 1, "ABCD12"),
+        _facture(7, 1, "+12"),
+        _facture(8, 1, "+12"),
+        _facture(9, 1, "-12"),
+        _facture(10, 1, "-12"),
+        _facture(11, 1, "12_3"),
+        _facture(12, 1, "12_3"),
+        _facture(13, 1, ""),
+        _facture(14, 1, ""),
+        _facture(15, 1, "12"),
+        _facture(16, 1, " 12"),
+        _facture(17, 2, "10000"),
+    ]
+
+    attendu = reprise_archive.planifier_sur_objets(objets).renumerotations
+
+    assert diagnostic_archive.plan_de_renumerotation(objets) == sorted(attendu)
+    # Un plan vide des deux cotes satisferait l'egalite sans rien prouver : le jeu doit
+    # bien produire une renumerotation par doublon, et aucune pour « 12 » / «  12 ».
+    assert [identifiant for identifiant, _, _ in attendu] == [2, 4, 6, 8, 10, 12, 14]
 
 
 def test_une_facture_sans_cabinet_est_ignoree(tmp_path: pathlib.Path) -> None:

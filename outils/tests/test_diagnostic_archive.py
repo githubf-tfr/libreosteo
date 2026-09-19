@@ -33,9 +33,16 @@ def _patient(pk: int, nom: str, prenom: str, naissance: str, **champs: Any) -> d
 
 
 def _archive(chemin: pathlib.Path, objets: list[dict[str, Any]]) -> str:
-    """Un zip de la meme forme que celui de l'onglet « Archive and restore database »."""
+    """Un zip de la meme forme que celui de l'onglet « Archive and restore database ».
+
+    Le `meta` porte la version que le rapport suppose, et non une version figee : depuis
+    que l'outil signale l'ecart entre les deux, une archive d'une autre version ferait
+    imprimer a chaque cas de ce fichier un avertissement disant que le doublon de numero
+    « BLOQUE toujours » -- juste a cote du « NE BLOQUE PAS » de la section 0060. L'ecart
+    de version a son propre cas, `test_une_archive_d_une_autre_version_est_signalee`.
+    """
     with zipfile.ZipFile(chemin, "w") as archive:
-        archive.writestr("meta", "0.6.8\n")
+        archive.writestr("meta", "%s\n" % diagnostic_archive.VERSION_SUPPOSEE)
         archive.writestr("dump.json", json.dumps(objets))
     return str(chemin)
 
@@ -141,22 +148,118 @@ def test_un_meme_numero_dans_deux_cabinets_distincts_ne_bloque_pas(
     assert code == 0
 
 
-def test_un_meme_numero_dans_un_meme_cabinet_bloque_et_dit_pourquoi_reprise_ne_sauve_pas(
+def test_un_meme_numero_dans_un_meme_cabinet_ne_bloque_plus_et_annonce_la_reprise(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """Depuis D10, une archive a doublons de numero est **reprise au chargement**, comme
+    `0060` reprend une base en place : elle ne bloque plus. Ce qui reste du, et que ce
+    test garde, c'est la clause de transparence -- l'outil dit lesquelles changent, et de
+    quoi en quoi, **avant** que quoi que ce soit ne change."""
     code, sortie = _diagnostiquer(
         tmp_path,
         [
-            _objet("invoice", 1, number="10005", officesettings_id=1, amount=55.0),
-            _objet("invoice", 2, number="10005", officesettings_id=1, amount=55.0),
+            _objet("officesettings", 1, invoice_start_sequence="10001"),
+            _objet("invoice", 1, number="10000", officesettings_id=1, amount=55.0),
+            _objet("invoice", 2, number="10000", officesettings_id=1, amount=55.0),
         ],
         capsys,
     )
     assert "Couples (cabinet, numero) en double : 1" in sortie
-    assert "Factures concernees (identifiants) : [1, 2]" in sortie
-    assert "api/invoicing/reprise.py" in sortie
-    assert "base est VIDE" in sortie
-    assert code == 1
+    assert "NE BLOQUE PAS" in sortie
+    assert "#2 : 10000 devient 1000000" in sortie
+    assert "remis a des patients" in sortie
+    assert code == 0
+
+
+def test_une_archive_saine_n_annonce_aucune_renumerotation(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Le versant negatif : sans doublon, aucune liste, et rien qui alarme."""
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _objet("officesettings", 1, invoice_start_sequence="10002"),
+            _objet("invoice", 1, number="10000", officesettings_id=1, amount=55.0),
+            _objet("invoice", 2, number="10001", officesettings_id=1, amount=55.0),
+        ],
+        capsys,
+    )
+    assert "Numeros qui changeront            : 0" in sortie
+    assert "devient" not in sortie
+    assert code == 0
+
+
+def test_la_renumerotation_annoncee_conserve_le_prefixe(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Le prefixe fait partie du numero imprime sur la facture : il est conserve."""
+    _, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _objet("invoice", 1, number="AB10000", officesettings_id=1, amount=55.0),
+            _objet("invoice", 2, number="AB10000", officesettings_id=1, amount=55.0),
+        ],
+        capsys,
+    )
+    assert "#2 : AB10000 devient AB1000000" in sortie
+
+
+def test_la_liste_de_renumerotation_ne_porte_aucune_donnee_de_sante(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """L'invariant du lot, porte jusque dans la section neuve.
+
+    `test_aucun_nom_ni_date_de_naissance_n_est_imprime` garde le chemin 0057 ; celui-ci
+    garde le chemin 0060, le seul que D10 ait rendu bavard. La liste annoncee ne porte
+    qu'un identifiant et deux numeros de facture -- des pieces comptables, pas des
+    donnees de sante -- et l'archive qui la produit porte pourtant, autour, tout ce qui
+    ne doit jamais sortir."""
+    _, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _patient(1, "Durand", "Marie", "1980-01-01"),
+            _objet("examination", 1, reason="lombalgie", status_reason="lombalgie"),
+            _objet("document", 1, document_file="documents/radio-epaule.pdf"),
+            _objet("invoice", 1, number="10000", officesettings_id=1, amount=55.0),
+            _objet("invoice", 2, number="10000", officesettings_id=1, amount=55.0),
+        ],
+        capsys,
+    )
+    assert "#2 : 10000 devient 1000000" in sortie
+    assert "Durand" not in sortie
+    assert "Marie" not in sortie
+    assert "1980-01-01" not in sortie
+    assert "lombalgie" not in sortie
+    assert "radio-epaule" not in sortie
+
+
+def test_le_rapport_nomme_la_version_du_produit_qu_il_suppose(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Un outil qui circule peut etre lance contre une archive d'une instance plus
+    ancienne, ou un doublon de numero bloque toujours. Le rapport doit dire sur quelle
+    version il raisonne, sans quoi son « ne bloque pas » envoie sur un 412."""
+    _, sortie = _diagnostiquer(tmp_path, [], capsys)
+
+    assert (
+        "Version supposee par ce rapport   : %s" % diagnostic_archive.VERSION_SUPPOSEE
+        in sortie
+    )
+
+
+def test_une_archive_d_une_autre_version_est_signalee(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    chemin = tmp_path / "archive.db"
+    with zipfile.ZipFile(chemin, "w") as archive:
+        archive.writestr("meta", "0.6.7\n")
+        archive.writestr("dump.json", "[]")
+
+    diagnostic_archive.main(str(chemin))
+    sortie = capsys.readouterr().out
+
+    assert "L'archive a ete produite par 0.6.7" in sortie
+    assert "BLOQUE toujours" in sortie
 
 
 def test_les_prefixes_et_la_plage_numerique_sont_rendus_en_contexte(
@@ -350,7 +453,10 @@ def test_une_archive_saine_rend_zero_et_le_dit(
         ],
         capsys,
     )
-    assert "Version de l'archive (meta)       : 0.6.8" in sortie
+    assert (
+        "Version de l'archive (meta)       : %s" % diagnostic_archive.VERSION_SUPPOSEE
+        in sortie
+    )
     assert "Objets dans le dump               : 4" in sortie
     assert "VERDICT : aucun obstacle" in sortie
     assert code == 0
