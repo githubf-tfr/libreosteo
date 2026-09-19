@@ -21,6 +21,7 @@ repertoire reste a trente-deux fichiers, et l'etat d'avant se ressort par `git s
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -38,6 +39,54 @@ from tests.functional.helpers import (
     ouvrir_nouvelle_consultation,
     saisir_consultation,
 )
+
+
+@pytest.fixture(scope="session")
+def browser_type_launch_args(
+    browser_type_launch_args: dict[str, Any],
+) -> dict[str, Any]:
+    """Ajoute `--disable-partial-raster` au Chromium qui prend les references.
+
+    **Sans ce drapeau, une capture de reference n'est pas reproductible**, et
+    `animations="disabled"` n'y change rien. Mesure du 2026-09-19 : six rejeux du module
+    ont fait bouger `profil-375.png`, `comptabilite-1280.png` et `premier-compte-1280.png`
+    sans qu'aucun ecran n'ait change ; et une rafale de douze captures du **meme** ecran,
+    sans rien toucher entre elles, donne deux valeurs distinctes sur cinq ecrans des
+    trente-deux, trois sur `dossier-patient-1280`.
+
+    L'ecart est minuscule et toujours de la meme nature : deux a onze pixels, plus ou
+    moins un niveau, sur les **coins arrondis** d'un controle Bootstrap pose a une
+    ordonnee fractionnaire -- le `a.btn.btn-default` de la comptabilite
+    (`border-radius: 4px 0 0 4px`, `rect.y = 153.59375`), le champ de recherche du
+    bandeau, le bouton « Enregistrer » du profil. Ce n'est donc ni une date rendue, ni un
+    compteur, ni une police en differe, ni un ordre d'arrivee htmx : le contenu est
+    identique, c'est sa rasterisation qui varie.
+
+    La cause est le **partial raster** de Chromium : une tuile deja rasterisee est
+    reutilisee et seule la zone invalidee est redessinee, si bien que l'antialiasing d'un
+    coin arrondi depend de l'histoire de la tuile -- de la largeur precedente, du
+    document precedent -- et non du seul etat de la page. D'ou la signature observee : la
+    premiere capture qui suit un changement de fenetre ou de document differe des
+    suivantes, et l'ecart reapparait plus tard sans raison. Le drapeau desactive cette
+    reutilisation ; la meme rafale de douze donne alors une seule valeur sur les
+    trente-deux ecrans, et le controle negatif (`--disable-checker-imaging` seul) ramene
+    les cinq flottements.
+
+    Deux parades ont ete mesurees et **ecartees** : attendre 500 ms laisse 6 flottements
+    sur 25 tirages, deux `requestAnimationFrame` en laissent 6 — le temps qui passe ne
+    fige rien. Une capture jetable prise avant la bonne en laisse 0 sur 25 **au meme
+    endroit**, mais c'est un cautere : elle ne fait que payer la premiere rasterisation,
+    et `dossier-patient-1280` continue d'osciller entre trois valeurs au-dela.
+
+    La surcharge ne deborde pas sur la suite fonctionnelle : `python_files` ne collecte
+    pas ce module (cf. l'en-tete), il ne se lance donc jamais dans la meme session que
+    les `test_*.py`, et cette fixture ne s'applique qu'aux tests de ce fichier.
+    """
+    return {
+        **browser_type_launch_args,
+        "args": [*browser_type_launch_args.get("args", []), "--disable-partial-raster"],
+    }
+
 
 RACINE = Path(__file__).resolve().parents[2]
 CAPTURES = RACINE / "docs" / "recette" / "captures" / "d6g"
@@ -58,6 +107,9 @@ def capturer(page: Page, slug: str) -> None:
     reference qui bouge a chaque rejeu n'est pas une reference, et T2 a T16 rejouent ce
     module quatorze fois. Playwright fige alors toute animation et toute transition CSS a
     son etat final, ce qui est justement l'etat que la recette decrit.
+
+    Il ne suffit pas non plus : la reproductibilite tient aussi au drapeau pose par
+    `browser_type_launch_args` ci-dessus, qui traite un tout autre etage.
     """
     CAPTURES.mkdir(parents=True, exist_ok=True)
     for largeur, hauteur in FORMATS:
