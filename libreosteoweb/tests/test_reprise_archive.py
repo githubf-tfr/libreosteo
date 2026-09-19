@@ -189,6 +189,49 @@ def test_un_dump_aux_elements_heteroclites_est_repris_sans_lever(
     assert objets[1]["fields"]["number"] == "10000"
 
 
+def test_un_cabinet_dont_les_champs_valent_null_ne_fait_pas_lever_l_ecriture(
+    tmp_path: pathlib.Path,
+) -> None:
+    """La clause de P4, sur le versant qui l'avait perdue : celui qui **ecrit**.
+
+    `planifier_sur_objets` respectait la clause -- `isinstance(objet, dict)` puis
+    `objet.get("fields") or {}`. `appliquer_sur_objets` ecrivait
+    `objet["fields"]["invoice_start_sequence"] = ...` sans garde, et levait `TypeError:
+    'NoneType' object does not support item assignment` sur un `officesettings` dont
+    `fields` vaut `null`.
+
+    ⚠️ **Et `TypeError` n'est dans aucun `except` du chemin appelant** : ni dans
+    `services/sauvegarde.py::restaurer`, ni dans
+    `views/administration.py::LoadDump.post`, qui rattrapent `VersionIncompatible`,
+    `(ArchiveInvalide, OSError)` et `BaseIndisponible`. Un defaut d'archive serait donc
+    ressorti en **500**, alors que l'arbitrage P4 dit exactement le contraire : « lever
+    ici ferait ressortir en 500 ce qui est un defaut d'archive, donc un 412 ».
+    """
+    cabinet_sans_champs = {
+        "model": "libreosteoweb.officesettings",
+        "pk": 1,
+        "fields": None,
+    }
+    chemin = _ecrire(
+        tmp_path,
+        [_facture(1, 1, "10000"), _facture(2, 1, "10000"), cabinet_sans_champs],
+    )
+
+    plan = reprise_archive.reprendre_le_dump(chemin)
+
+    # La renumerotation des factures a bien eu lieu : la garde n'a pas rendu la reprise
+    # inerte, elle a seulement laisse intact ce qui n'est pas ecrivable.
+    assert plan.renumerotations == [(2, "10000", "1000000")]
+    objets = json.loads(pathlib.Path(chemin).read_text(encoding="utf-8"))
+    numeros = {
+        o["pk"]: o["fields"]["number"]
+        for o in objets
+        if o["model"] == "libreosteoweb.invoice"
+    }
+    assert numeros == {1: "10000", 2: "1000000"}
+    assert cabinet_sans_champs in objets
+
+
 # Les cinq entrees sur lesquelles la reproduction naive par l'expression `CHIFFRES`
 # (`^([A-Za-z]{0,3})(\d+)$`, deja presente dans l'outil) diverge de
 # `convert_to_long(..., strip_string_prefix=True)`. Mesure du 2026-09-19 :
