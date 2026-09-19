@@ -22,18 +22,22 @@
     {# depot a deja payes (S3 defaut A). C'est un gain, ecrit comme tel (A13). #}
     {# `hx-push-url` tient l'URL affichee a jour : sans elle, un rafraichissement ramenerait a #}
     {# la periode par defaut (C7). #}
-    <form class="form-inline" hx-get="{% url 'comptabilite' %}"
+    {# `form-inline` (annexe A) disparait sans equivalent direct. Le style est repris par #}
+    {# `d-flex flex-wrap align-items-center gap-3` sur le formulaire : les champs restent #}
+    {# cote a cote a 1280 px et passent a la ligne a 375 px, comme sous Bootstrap 3 (meme #}
+    {# motif que T12, `form-horizontal` -> `row`/`col-sm-*`, style repris et non abandonne). #}
+    <form class="d-flex flex-wrap align-items-center gap-3" hx-get="{% url 'comptabilite' %}"
           hx-target="#liste-comptabilite" hx-swap="outerHTML" hx-push-url="true">
-      <div class="form-group">
+      <div class="mb-3">
         <label for="debut">{% trans 'From' %}</label>
         {% include "pages/fragments/comptabilite-champ-date.html" with identifiant="debut" valeur=debut %}
       </div>
-      <div class="form-group">
+      <div class="mb-3">
         <label for="fin">{% trans 'To' %}</label>
         {% include "pages/fragments/comptabilite-champ-date.html" with identifiant="fin" valeur=fin %}
       </div>
       {% if utilisateurs|length > 1 %}
-      <div class="form-group">
+      <div class="mb-3">
         <label for="therapeut">{% trans 'By' %}</label>
         <select class="form-control" id="therapeut" name="therapeut">
           <option value="">{% trans 'All' %}</option>
@@ -43,7 +47,7 @@
         </select>
       </div>
       {% endif %}
-      <button class="btn btn-default" type="submit" data-testid="filtrer-periode">{% trans 'Search' %}</button>
+      <button class="btn btn-secondary" type="submit" data-testid="filtrer-periode">{% trans 'Search' %}</button>
     </form>
 
     {# Les trois plages predefinies, calculees par le serveur : le mois en cours, l'annee en #}
@@ -55,13 +59,13 @@
     {# retombaient sur le therapeute par defaut de la vue (l'utilisateur connecte), #}
     {# perdant toute selection faite via la liste deroulante (defaut de recette). #}
     <div class="btn-group">
-      <a class="btn btn-default" href="?plage=mois" data-testid="plage-mois"
+      <a class="btn btn-secondary" href="?plage=mois" data-testid="plage-mois"
          hx-get="{% url 'comptabilite' %}?plage=mois" hx-target="#liste-comptabilite"
          hx-swap="outerHTML" hx-push-url="true" hx-include="#therapeut">{{ libelle_mois }}</a>
-      <a class="btn btn-default" href="?plage=annee" data-testid="plage-annee"
+      <a class="btn btn-secondary" href="?plage=annee" data-testid="plage-annee"
          hx-get="{% url 'comptabilite' %}?plage=annee" hx-target="#liste-comptabilite"
          hx-swap="outerHTML" hx-push-url="true" hx-include="#therapeut">{{ libelle_annee }}</a>
-      <a class="btn btn-default" href="?plage=annee-precedente" data-testid="plage-annee-precedente"
+      <a class="btn btn-secondary" href="?plage=annee-precedente" data-testid="plage-annee-precedente"
          hx-get="{% url 'comptabilite' %}?plage=annee-precedente" hx-target="#liste-comptabilite"
          hx-swap="outerHTML" hx-push-url="true" hx-include="#therapeut">{{ libelle_annee_precedente }}</a>
     </div>

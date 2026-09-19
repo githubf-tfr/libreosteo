@@ -5,4 +5,4 @@
 {# elle est donc **refaite a chaque changement de periode** et reposee hors-bande, sans #}
 {# quoi l'export retelechargerait la periode d'avant (defaut de recette R-FAC-02). #}
 {# L'`id` est l'ancrage de ce remplacement : aucune classe de presentation ne l'est. #}
-<a class="btn btn-default" id="export-comptabilite" href="{{ url_export }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}><i class="fa fa-download fa-fw"></i> {% trans 'XLSX' %}</a>
+<a class="btn btn-secondary" id="export-comptabilite" href="{{ url_export }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}><i class="fa fa-download fa-fw"></i> {% trans 'XLSX' %}</a>

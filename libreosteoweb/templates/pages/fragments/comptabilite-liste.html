@@ -19,60 +19,69 @@
     <p><b>{% trans 'Total amount on selected period' %}</b>: <span>{{ total }}</span></p>
   </div>
 
-  <table class="table table-striped table-hover">
-    <thead>
-      <tr>
-        <th>{% trans 'Invoice nr' %}</th>
-        <th>{% trans 'Date' %}</th>
-        <th>{% trans 'Patient' %}</th>
-        <th>{% trans 'Amount' %}</th>
-        <th>{% trans 'Paiment mean' %}</th>
-        <th>{% trans 'Status' %}</th>
-        <th>{% trans 'By' %}</th>
-        <th>{% trans 'Actions' %}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for facture in factures %}
-      <tr>
-        <td>{{ facture.number|default:"n/a" }}</td>
-        <td>{{ facture.date|date:"l j F Y" }}</td>
-        <td>{{ facture.patient_first_name }} {{ facture.patient_family_name }}</td>
-        {# Le montant est formate par la vue, comme le total : `{{ facture.amount }}` #}
-        {# rendrait « 55,55 » et casserait `test_montant_a_centimes`, qui attend #}
-        {# « 55.55 € » a l'octet. #}
-        <td>{{ facture.montant_affiche }} €</td>
-        <td>{{ facture.moyen_affiche }}</td>
-        <td>
-          <span class="label label-default">{{ facture.statut_libelle }}</span>
-          {% if facture.status == 3 %}<span data-testid="statut-facture-annulee-comptabilite"></span>{% endif %}
-        </td>
-        <td><span>{{ facture.canceled_by.number|default_if_none:"" }}</span></td>
-        <td>
-          <div class="btn-group" x-data="{ ouvert: false }" @click.outside="ouvert = false">
-            <button class="btn btn-default btn-xs dropdown-toggle" type="button"
-                    data-testid="actions-facture" @click="ouvert = !ouvert">Actions <span class="caret"></span></button>
-            {# `x-show` sur un `<ul class="dropdown-menu">` : Bootstrap 3 pose #}
-            {# `.dropdown-menu { display: none }`, et l'etat initial est **faux**, donc #}
-            {# Alpine ecrit `display: none` puis `display: ''` — il n'emprunte jamais la #}
-            {# branche qui *retire* la propriete sur un etat initialement vrai (legs de #}
-            {# D6c). Le `:style` explicite est neanmoins pose, pour ne dependre d'aucun #}
-            {# raccourci. #}
-            <ul class="dropdown-menu" data-testid="menu-actions-facture"
-                :style="ouvert ? 'display: block' : 'display: none'">
-              <li><a href="{% url 'invoice_view' facture.id %}" target="_blank">{% trans 'Print' %}</a></li>
-              {% if facture.status != 3 %}
-              {# La periode et le therapeute affiches voyagent en requete (GET), pour que #}
-              {# la modale puisse les reposer en champs caches (POST) : la liste rafraichie #}
-              {# apres l'annulation reste celle que l'utilisateur regardait. #}
-              <li><a href="#" hx-get="{% url 'comptabilite-annuler' facture.id %}?debut={{ debut|date:'Y-m-d' }}&fin={{ fin|date:'Y-m-d' }}&therapeut={{ therapeut_id|default_if_none:'' }}"
-                     hx-target="#modale">{% trans 'Cancel' %}</a></li>
-              {% endif %}
-            </ul>
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {# `table-responsive` (annexe, particularite T10) : a 375 px les huit colonnes debordent #}
+  {# toujours de la largeur utile (etat d'avant, mesure par T1) ; l'enveloppe confine le #}
+  {# defilement horizontal au tableau, la page elle-meme n'en porte plus. Utilitaire #}
+  {# Bootstrap 5 qui survit sans changer aucun geste. #}
+  <div class="table-responsive">
+    <table class="table table-striped table-hover">
+      <thead>
+        <tr>
+          <th>{% trans 'Invoice nr' %}</th>
+          <th>{% trans 'Date' %}</th>
+          <th>{% trans 'Patient' %}</th>
+          <th>{% trans 'Amount' %}</th>
+          <th>{% trans 'Paiment mean' %}</th>
+          <th>{% trans 'Status' %}</th>
+          <th>{% trans 'By' %}</th>
+          <th>{% trans 'Actions' %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for facture in factures %}
+        <tr>
+          <td>{{ facture.number|default:"n/a" }}</td>
+          <td>{{ facture.date|date:"l j F Y" }}</td>
+          <td>{{ facture.patient_first_name }} {{ facture.patient_family_name }}</td>
+          {# Le montant est formate par la vue, comme le total : `{{ facture.amount }}` #}
+          {# rendrait « 55,55 » et casserait `test_montant_a_centimes`, qui attend #}
+          {# « 55.55 € » a l'octet. #}
+          <td>{{ facture.montant_affiche }} €</td>
+          <td>{{ facture.moyen_affiche }}</td>
+          <td>
+            <span class="badge text-bg-secondary">{{ facture.statut_libelle }}</span>
+            {% if facture.status == 3 %}<span data-testid="statut-facture-annulee-comptabilite"></span>{% endif %}
+          </td>
+          <td><span>{{ facture.canceled_by.number|default_if_none:"" }}</span></td>
+          <td>
+            <div class="btn-group" x-data="{ ouvert: false }" @click.outside="ouvert = false">
+              {# `caret` (annexe A) disparait sans equivalent : Bootstrap 5 dessine sa propre #}
+              {# fleche en `::after` de `.dropdown-toggle` (meme motif que `partials/menu.html`, #}
+              {# D6g T4) ; le garder afficherait deux fleches. #}
+              <button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
+                      data-testid="actions-facture" @click="ouvert = !ouvert">Actions</button>
+              {# `x-show` sur un `<ul class="dropdown-menu">` : Bootstrap 3 pose #}
+              {# `.dropdown-menu { display: none }`, et l'etat initial est **faux**, donc #}
+              {# Alpine ecrit `display: none` puis `display: ''` — il n'emprunte jamais la #}
+              {# branche qui *retire* la propriete sur un etat initialement vrai (legs de #}
+              {# D6c). Le `:style` explicite est neanmoins pose, pour ne dependre d'aucun #}
+              {# raccourci. #}
+              <ul class="dropdown-menu" data-testid="menu-actions-facture"
+                  :style="ouvert ? 'display: block' : 'display: none'">
+                <li><a href="{% url 'invoice_view' facture.id %}" target="_blank">{% trans 'Print' %}</a></li>
+                {% if facture.status != 3 %}
+                {# La periode et le therapeute affiches voyagent en requete (GET), pour que #}
+                {# la modale puisse les reposer en champs caches (POST) : la liste rafraichie #}
+                {# apres l'annulation reste celle que l'utilisateur regardait. #}
+                <li><a href="#" hx-get="{% url 'comptabilite-annuler' facture.id %}?debut={{ debut|date:'Y-m-d' }}&fin={{ fin|date:'Y-m-d' }}&therapeut={{ therapeut_id|default_if_none:'' }}"
+                       hx-target="#modale">{% trans 'Cancel' %}</a></li>
+                {% endif %}
+              </ul>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>

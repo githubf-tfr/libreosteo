@@ -4095,22 +4095,45 @@ d'homonyme) est couvert par `tests/functional/test_patient.py`
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/comptabilite-1280.png`
 et `comptabilite-375.png`.
 
-**⚠️ État d'avant, antérieur au lot — débordement horizontal à 375 px.** La capture de
-référence `comptabilite-375.png` fait **551 px de large**, et non 375 : en pleine page,
-cette largeur est celle du contenu. Le tableau des factures et ses huit colonnes débordent
-la fenêtre, et l'écran défile latéralement. **C'est l'état sous Bootstrap 3, mesuré le
-2026-09-19 avant toute modification** : la tâche **T10**, propriétaire de cet écran, hérite
-d'une référence qui déborde et ne doit pas prendre ce débordement pour une régression
-qu'elle aurait introduite.
+**⚠️ État d'avant, antérieur au lot — débordement horizontal à 375 px, corrigé par T10.**
+La capture de référence versée par T1 faisait **603 px de large** (mesure exacte, en-tête
+IHDR du PNG — le chiffre de 551 px porté ici avant T10 était imprécis) au lieu de 375 : en
+pleine page, cette largeur est celle du contenu. Le tableau des factures et ses huit
+colonnes débordaient la fenêtre, et l'écran défilait latéralement. **C'était l'état sous
+Bootstrap 3**, et T10, propriétaire de cet écran, en héritait sans que ce débordement soit
+une régression de sa part.
+
+**T10 l'a corrigé, sans y être tenu, par `table-responsive`** (annexe A, particularité
+autorisée par le brief) : le tableau seul défile désormais horizontalement, dans sa propre
+boîte, quand il ne tient pas dans 375 px ; la page ne défile plus. La capture
+`comptabilite-375.png` fait maintenant **375 px de large**, exactement la largeur de la
+fenêtre — mesuré, rejoué deux fois, identique à l'octet près.
 
 **Étapes**
 
 1. Menu latéral → *Comptabilité*, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T10>
+   Attendu : le titre *Comptabilité* est entièrement visible ; les champs *Du*/*Au* et le
+   bouton *Rechercher* du formulaire de filtre sont côte à côte sur une même ligne ; les
+   trois boutons de plage prédéfinie (mois, année, année précédente) et le bouton d'export
+   *XLSX* sont visibles sous le formulaire ; le tableau des factures affiche ses huit
+   colonnes sans défilement, avec l'étiquette d'état et le bouton *Actions* de chaque ligne
+   atteignables au clic ; aucune barre de défilement horizontale sur la page.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T10>
+   Attendu : le titre *Comptabilité* reste entièrement visible ; les champs du formulaire de
+   filtre passent à la ligne (le champ *Du* seul, puis le champ *Au* et le bouton
+   *Rechercher* sur la ligne suivante), chaque champ restant lisible et son libellé associé ;
+   les trois boutons de plage prédéfinie restent sur une seule ligne, suivis du bouton
+   *XLSX* sur la ligne suivante ; le tableau des factures est contenu dans sa propre boîte
+   à défilement horizontal — ses premières colonnes (numéro, date, patient, montant) sont
+   visibles sans défiler ; **aucune barre de défilement horizontale sur la page elle-même**
+   (corrigé, voir l'encadré ci-dessus).
 
-**Ne couvre pas** : <écrit par T10>
+**Ne couvre pas** : atteindre au clic l'étiquette d'état et le bouton *Actions* du tableau à
+375 px demande de faire défiler le tableau lui-même horizontalement, dans sa propre boîte —
+ce geste n'est pas visible sur la capture de référence, qui montre l'état initial non
+défilé ; c'est le comportement attendu de `table-responsive`, pas un défaut. Le contenu
+soumis (filtre de période, annulation d'une facture avec refus affiché, export XLSX) est
+couvert par `tests/functional/test_facturation.py`.
 
 ### R-VIS-10 — Socle visuel : import/export
 
