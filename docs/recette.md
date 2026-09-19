@@ -3913,23 +3913,51 @@ recettent en R-VIS-03 — cette fiche n'en vérifie que la présence et l'atteig
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/diagnostic-texte-riche-1280.png`
 et `diagnostic-texte-riche-375.png`.
 
-**⚠️ État d'avant, antérieur au lot — débordement horizontal à 375 px.** La capture de
-référence `diagnostic-texte-riche-375.png` fait **574 px de large**, et non 375 : en pleine
-page, cette largeur est celle du contenu. Le tableau « Par champ » et ses six colonnes
-débordent donc la fenêtre, et l'écran défile latéralement. **C'est l'état sous Bootstrap 3,
-mesuré le 2026-09-19 avant toute modification** : la tâche **T6**, propriétaire de cet
-écran, hérite d'une référence qui déborde et ne doit pas prendre ce débordement pour une
-régression qu'elle aurait introduite. Qu'elle le corrige ou le laisse est sa décision, mais
-elle le constate ici.
+**⚠️ Débordement horizontal à 375 px, antérieur au lot et non corrigé par T6.** La capture
+de référence `diagnostic-texte-riche-375.png` fait **607 px de large**, et non 375 : en
+pleine page, cette largeur est celle du contenu. Le tableau « Par champ » et ses six
+colonnes débordent donc la fenêtre, et l'écran défile latéralement. La mesure d'avant
+(574 px, sous Bootstrap 3, prise à T1) diffère légèrement de celle-ci (607 px) par un effet
+de métriques de police entre Bootstrap 3 et 5, déjà en place depuis T4 — pas par le geste de
+T6. **T6 le constate et le laisse** : son unique geste sur ce gabarit est le retrait de
+`page-header`, une classe sans règle en Bootstrap 3 comme en Bootstrap 5 (aucune entrée
+`.page-header` dans `libreosteo.css`), et les deux captures de cette fiche sont
+**strictement identiques, à l'octet près**, à celles prises juste avant ce retrait :
+`md5sum` sur les quatre fichiers (avant/après T6, aux deux largeurs) donne la même paire de
+sommes. Ce débordement ne relève donc pas de l'annexe A (aucun jeton de correspondance ne le
+couvre) et sa correction, une refonte de tableau, dépasse le mandat de T6.
 
 **Étapes**
 
-1. Ouvrir `/office/rich-text-diagnostic`, connecté, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T6>
+1. Ouvrir `/office/rich-text-diagnostic`, connecté (compte `is_staff`), fenêtre à
+   **1 280 px de large**.
+   Attendu : le titre **« Diagnostic du texte riche »** est entièrement visible sous la
+   barre de navigation. Le bandeau bleu clair (`alert alert-info`) affiche ses deux phrases
+   d'avertissement sans être coupé. Le tableau **« Par champ »** et ses six colonnes
+   (Modèle, Champ, Enregistrements non vides, Valeur la plus longue, Valeurs portant un
+   espace de tête ou de queue, Valeurs portant un retour chariot) tiennent entièrement dans
+   la largeur de **1 280 px**, sans barre de défilement horizontale. Dans la barre, à
+   droite, les trois entrées **test**, **?** et le champ **Recherche…** restent atteignables
+   au clic, comme décrit en R-VIS-03.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T6>
+   Attendu : la barre de navigation se replie derrière le bouton hamburger, à côté du
+   logo **LibreOsteo**, comme décrit en R-VIS-03. Le titre et le bandeau
+   d'avertissement restent entièrement visibles, leur texte se réenroulant à la largeur de
+   l'écran. Le tableau **« Par champ »** en revanche **déborde** : il mesure 607 px, contre
+   375 px de fenêtre, et une barre de défilement horizontale apparaît sous ce tableau — état
+   antérieur au lot, inchangé par T6 (voir l'avertissement ci-dessus).
 
-**Ne couvre pas** : <écrit par T6>
+**Ne couvre pas** : le débordement horizontal du tableau « Par champ » à 375 px, antérieur
+au lot (voir l'avertissement ci-dessus) ; le contenu des tableaux « Inventaire du balisage »
+et « Stabilité au passage par l'analyseur du navigateur » sur un corpus non vide — la fixture
+de capture n'en pose aucun, les deux tableaux y restent vides et les compteurs à 0 — couvert
+par `tests/functional/test_diagnostic_texte_riche.py` (deux tests, tous deux verts sur
+l'état de cette tâche). Ni le détail du bandeau et du menu utilisateur, qui appartiennent au
+socle commun et se recettent en R-VIS-03 — cette fiche n'en vérifie que la présence et
+l'atteignabilité sur cet écran précis. Ni l'atteignabilité de cet écran depuis le menu : il
+est **hors menu par construction** (D6e, AR6), accessible par son URL seule, et
+`test_atteignabilite.py` l'exclut explicitement — cette fiche part donc directement de
+l'URL, pas d'un clic dans le menu.
 
 ### R-VIS-06 — Socle visuel : reconstruction de l'index
 

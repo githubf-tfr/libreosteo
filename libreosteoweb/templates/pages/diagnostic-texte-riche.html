@@ -13,7 +13,8 @@
 
 {% block contenu %}
 <div id="page-wrapper">
-  <h1 class="page-header" data-testid="titre-diagnostic">{% trans 'Rich text diagnostic' %}</h1>
+  {# D6g T6 : page-header disparait sans equivalent (comme T12, T13). #}
+  <h1 data-testid="titre-diagnostic">{% trans 'Rich text diagnostic' %}</h1>
 
   {# Ce que cette page est, et ce qu'elle n'est pas — en clair, en tete, comme C7 l'exige. #}
   <div class="alert alert-info" role="note" data-testid="avertissement-diagnostic">
