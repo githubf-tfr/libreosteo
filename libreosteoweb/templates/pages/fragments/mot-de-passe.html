@@ -9,12 +9,12 @@
   {% if erreur %}
   <div class="alert alert-danger" role="alert" data-testid="erreur-mot-de-passe">{{ erreur }}</div>
   {% endif %}
-  <div class="form-group">
+  <div class="mb-3">
     <label for="password1">{% trans 'Password' %}</label>
     <input type="password" class="form-control" required name="password1" id="password1"
            placeholder="{% trans 'Password' %}">
   </div>
-  <div class="form-group">
+  <div class="mb-3">
     <label for="password2">{% trans 'Confirm the password' %}</label>
     <input type="password" class="form-control" required name="password2" id="password2"
            placeholder="{% trans 'Password' %}">

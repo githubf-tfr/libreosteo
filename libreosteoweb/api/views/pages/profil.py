@@ -49,7 +49,7 @@ class FormulaireIdentite(forms.ModelForm):
         kwargs.setdefault("auto_id", "%s")
         super().__init__(*args, **kwargs)
         for nom, champ in self.fields.items():
-            champ.widget.attrs["class"] = "form-control input-lg"
+            champ.widget.attrs["class"] = "form-control form-control-lg"
         # `required` sur le nom et l'adresse : `user-profile.html` les marquait ainsi, et
         # l'engagement du chantier est « memes ecrans ». Le prenom ne l'etait pas.
         self.fields["last_name"].required = True

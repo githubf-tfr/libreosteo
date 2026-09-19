@@ -7,24 +7,25 @@
           hx-swap="innerHTML">
       {% csrf_token %}
       {% for vue in modules %}
-      <div class="col-xs-12 col-sm-12 col-md-2 col-md-offset-1">
+      <div class="col-12 col-sm-12 col-md-2 offset-md-1">
         <h2>{{ vue.nom }}</h2>
         <em>modules activés</em>
       </div>
-      <div class="col-xs-12 col-sm-12 col-md-9">
+      <div class="col-12 col-sm-12 col-md-9">
         {% for module in vue.modules %}
         <div class="row dashboard-catalog-item">
-          <div class="col-xs-12 col-sm-4 col-md-4 checkbox">
+          {# D6g T12 : checkbox -> form-check suppose form-check-input/form-check-label sur les enfants (annexe A, precondition tacite). #}
+          <div class="col-12 col-sm-4 col-md-4 form-check">
             {# Le libelle enveloppe la case : c'est ce qui rend #}
             {# `page.get_by_label("Historique des évènements")` valide, et c'est ainsi que #}
             {# le gabarit d'avant l'ecrivait deja. Une case decochee n'est pas envoyee par #}
             {# le navigateur : la vue lit la presence du nom, jamais sa valeur. #}
-            <label>
-              <input type="checkbox" name="{{ module.nom }}" {% if module.actif %}checked{% endif %} />
+            <label class="form-check-label">
+              <input type="checkbox" class="form-check-input" name="{{ module.nom }}" {% if module.actif %}checked{% endif %} />
               {{ module.libelle }}
             </label>
           </div>
-          <div class="col-xs-10 col-xs-offset-1 col-sm-8 col-md-7">
+          <div class="col-10 offset-1 col-sm-8 col-md-7">
             <img src="{% static module.image %}" alt="" />
           </div>
         </div>
@@ -32,7 +33,7 @@
         {% endfor %}
       </div>
       {% endfor %}
-      <div class="col-xs-12 col-sm-12 col-md-2 col-md-offset-3">
+      <div class="col-12 col-sm-12 col-md-2 offset-md-3">
         {# `data-testid="enregistrer-affichage"` : pose par D6d T4 sur le gabarit d'avant, #}
         {# reporte ici a l'octet. Sans lui, les deux boutons « Enregistrer » de la page #}
         {# produiraient une violation de mode strict, que Playwright ne rejoue jamais. #}

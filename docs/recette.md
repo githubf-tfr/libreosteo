@@ -4053,11 +4053,38 @@ et `profil-375.png`.
 **Étapes**
 
 1. Menu utilisateur → *Profil utilisateur*, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T12>
+   Attendu : le titre **Profil utilisateur** est entièrement visible, sans trait ni marge
+   excessive sous lui (D6g T12 : `page-header` disparaît sans équivalent, comme T13 et
+   T15). Sous le titre, deux onglets sur un même filet horizontal, *Utilisateur* actif et
+   encadré, *Paramètres d'affichage* inactif. Le champ **Nom utilisateur** occupe toute la
+   largeur du formulaire, fond grisé, en lecture seule. Sous lui, les champs **Nom** et
+   **Prénom** sont **côte à côte**, chacun sur la moitié de la largeur (D6g T12 :
+   `col-xs-6` devient `col-6`, sans palier, donc toujours actif). Le champ **Adresse
+   électronique** occupe à nouveau toute la largeur. Le bouton **Modifier le mot de
+   passe** (gris) suit, puis un filet horizontal sépare le formulaire d'identité du bloc
+   thérapeute : les quatre champs **Adeli**, **SIRET**, **Qualité** et **Pied de page de
+   facture** portent chacun leur étiquette à gauche et leur champ de saisie à droite, sur
+   une même ligne, sans chevauchement (D6g T12 : `form-horizontal` et `form-group`
+   disparaissent sans équivalent direct ; `row` reprend ici le comportement de mise en
+   ligne que `form-horizontal` donnait à `form-group`). Le bouton **Enregistrer** (bleu)
+   clôt le formulaire. Aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T12>
+   Attendu : le titre et les deux onglets restent lisibles sur une seule ligne. **Nom** et
+   **Prénom** restent côte à côte, inchangés (même motif qu'à 1 280 px : `col-6` n'a pas de
+   palier). En revanche, chacun des quatre champs du bloc thérapeute (**Adeli**, **SIRET**,
+   **Qualité**, **Pied de page de facture**) affiche son étiquette **au-dessus** de son
+   champ de saisie, empilés : à cette largeur, `col-sm-2`/`col-sm-10` sont sous leur palier
+   `sm` (576 px) et perdent leur alignement côte à côte — comportement attendu, pas une
+   régression. Aucune barre de défilement horizontale.
 
-**Ne couvre pas** : <écrit par T12>
+**Ne couvre pas** : l'onglet *Paramètres d'affichage* (les modules à cocher avec leur
+aperçu image) et la modale *Modifier le mot de passe* — ni l'un ni l'autre n'est dans les
+deux captures versées, qui ne portent que l'onglet *Utilisateur* ouvert par défaut,
+conformément au script `capture_socle_visuel.py`. Le premier est prouvé par le geste
+(`tests/functional/test_therapeute.py::test_modules_d_affichage_du_profil`) et a été
+vérifié par l'œil pendant cette tâche, sans capture retenue (budget de 32 fichiers,
+2 par écran) ; le second est décrit par `R-AUTH-05`, dont T12 reste seul propriétaire du
+gabarit `fragments/mot-de-passe.html` qu'il exerce.
 
 ### R-VIS-12 — Socle visuel : tableau de bord
 
