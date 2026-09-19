@@ -15,11 +15,13 @@
 import logging
 
 from django.contrib.auth import user_logged_in, user_logged_out
+from django.core.management import call_command
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 
 from ..models import Examination, LoggedInUser, OfficeEvent, Patient, PatientDocument
+from .signals import post_reload_db
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -114,3 +116,38 @@ def on_user_logged_in(sender, request, **kwargs):
 @receiver(user_logged_out)
 def on_user_logged_out(sender, request, **kwargs):
     LoggedInUser.objects.filter(user=kwargs.get("user")).delete()
+
+
+@receiver(post_reload_db)
+def purge_index_apres_rechargement(sender, **kwargs):
+    """Purge l'index de recherche apres un rechargement de base. Et rien de plus.
+
+    **Le defaut ferme.** Le vidage de `restaurer` passe par un curseur brut (`sqlflush`),
+    donc l'ORM n'est pas traverse et aucun `post_delete` n'est emis : les entrees de
+    l'ancien parc dont l'identifiant n'est pas reutilise par l'archive survivaient dans
+    l'index, et une recherche pouvait rendre un lien vers un patient qui n'existe plus.
+    `post_reload_db` etait le remede prevu par l'amont -- emis a la ligne 167 de
+    `services/sauvegarde.py` et **sans aucun recepteur depuis le commit de fork**.
+
+    **La borne est la decision, pas une paresse d'implementation.** On ne reconstruit
+    pas. La migration `0023_auto_20160312_1443.py:40-45` enchainait la purge et la
+    reconstruction de l'index ; la seconde moitie n'a pas sa place ici. Mesure de
+    `docs/recette.md`, fiche `R-RCH-02` : **11 s pour 101 patients**, lineairement, sous
+    un plafond `--http-timeout 180` (`Docker/build/http-ready/Dockerfile:184`). Un parc
+    de l'ordre de 1 500 patients approcherait la borne : une reconstruction synchrone
+    dans la requete de restauration transformerait une restauration reussie en 504.
+    L'ecran de restauration renvoie donc a « Reindexer », que l'exploitant declenche
+    quand il veut.
+
+    **L'echec de la purge ne defait pas la restauration.** L'index est un cache
+    reconstructible ; la base, non. Le refus de purger se journalise et s'arrete la,
+    exactement comme `RebuildIndex` journalise l'echec d'une reconstruction.
+    """
+    try:
+        call_command("clear_index", interactive=False)
+    except Exception:
+        logger.exception(
+            "L'index de recherche n'a pas pu etre purge apres le rechargement de la "
+            "base. La restauration, elle, a reussi : reconstruire l'index depuis "
+            "« Reindexer »."
+        )
