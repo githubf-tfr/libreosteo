@@ -1169,6 +1169,9 @@ msgstr "Fichier d'archive à restaurer"
 msgid "Confirm restore"
 msgstr "Confirmer la restauration"
 
+msgid "After a restore, the search index is emptied: rebuild it from the user menu, entry « Rebuild index »."
+msgstr "Après une restauration, l'index de recherche est vidé : reconstruisez-le depuis le menu utilisateur, entrée « Réindexer »."
+
 msgid "Loading in progress"
 msgstr "Chargement en cours"
 
