@@ -446,11 +446,6 @@ de la passe de recette courante.
 - Données de santé stockées dans un SQLite non chiffré par défaut. Enjeu RGPD à
   qualifier (le chiffrement au repos relève peut-être de l'hôte plutôt que de l'app).
 
-### Suivi amont
-
-- Faire un premier `git fetch upstream` pour établir la ligne de base du suivi amont
-  avant toute divergence, et alimenter la section « Suivi amont » ci-dessous.
-
 ### Reproduction de la CI en local (vérifié le 2026-08-30, sandbox)
 
 La chaîne complète de la CI tourne dans la sandbox. Résultats d'une exécution réelle :
@@ -529,16 +524,6 @@ corrigé par ce lot ; chacun attend le chantier qui réécrit son écran.
   parenthèse au lieu d'un signe égal, l'attribut de classe n'est jamais posé.~~ — **fermé le
   2026-09-12 par D6d** : le gabarit est remplacé par `pages/reindexation.html`, dont aucune
   classe n'est écrite ainsi.
-- **Le job CI `quality` ne joue pas `make check`, il en réécrit les commandes**
-  (`.github/workflows/main.yml`, étapes `Lint`, `Model migration status`, `Unit tests and
-  coverage`). `CLAUDE.md` écrit que `make check` est « exactement le job `quality` » : c'est
-  vrai du contenu, faux du mécanisme, et rien ne tient les deux listes synchrones. Une étape
-  ajoutée au `Makefile` ne tournerait donc pas en CI — c'est pourquoi le cliquet de D6b est un
-  test `pytest` sous `tests/qualite/` et non une cible de `Makefile`.
-- **La dette des tests fonctionnels orphelins s'est rouverte.** La commande de la clause 6 de
-  la spec D7 rend aujourd'hui **2** lignes : les deux tests de bundles posés par D6a
-  (`229ffc8`) qu'aucune fiche de `docs/recette.md` ne nomme. Rien n'exécute cette commande
-  automatiquement, donc la dette se rouvre à chaque test ajouté sans fiche.
 
 ### Défauts constatés par la passe de recette du 2026-09-12 (non corrigés)
 
@@ -561,23 +546,19 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
 - **L'import de masse n'affiche aucun indicateur d'attente.** L'intégration de 100 patients
   répond en **114 s** et le navigateur reçoit bien la réponse — l'ancien défaut du
   2026-09-01 est donc fermé —, mais rien à l'écran ne signale le travail en cours pendant
-  ces presque deux minutes. Préexiste à D6d, qui n'a pas changé ce point.
+  ces presque deux minutes. ⚠️ **La cause écrite ici était fausse** : « préexiste à D6d, qui
+  n'a pas changé ce point » ne tient pas. `git log -L` sur
+  `pages/fragments/import-analyse.html` montre que `hx-indicator="#import-en-cours"`,
+  `hx-disabled-elt="this"`, `hx-request='{"timeout": 180000}'` et le
+  `<span class="htmx-indicator" id="import-en-cours">` ont été **introduits par D6d T8**
+  (`bcbde5d`) — donc par le lot même que la passe auditait. L'indicateur **existe** dans le
+  gabarit ; ce que la passe a constaté est qu'il ne s'est pas vu. **L'entrée reste ouverte**,
+  le défaut étant indéterminable sans exécution, mais **la passe est à rejouer sur cet écran
+  avant qu'un correctif ne soit ouvert** — la cause à instruire est l'indicateur posé qui ne
+  s'affiche pas, plus son absence.
 - **Deux boutons de `R-SAU-02` commencent par « Restaurer », et viser le mauvais ne produit
   aucun message.** Le geste correct rend bien `412` et l'alerte attendue. Relevé comme
   piège de geste par l'exécutant ; ressemble à un défaut d'ergonomie, non instruit.
-- **`R-INST-07` : six de ses huit lectures statiques ne correspondent plus à l'arbre.**
-  27 références `@components/` au lieu de 29, deux références `npm:` sans SHA40 (`alpinejs`
-  et `htmx`, entrées avec D6c), `--frozen-lockfile` absent de `.github/workflows/main.yml`.
-  La fiche porte un cliquet de reproductibilité du build : **il ne se relâche pas depuis
-  une session de recette**, et l'exécutant a eu raison de n'y pas toucher. À instruire hors
-  passe — soit l'arbre a dérivé, soit la fiche doit être remise à jour, et seule une
-  lecture du chantier D5 peut le dire. **Mesuré le 2026-09-18, l'écart s'est creusé** :
-  `package.json` ne porte plus que **deux** refs `@components/` (D6f T10, `6db03a8`), et
-  l'étape 4 de la fiche (`docs/recette.md:787-812`) falsifie une ref `@components/angular`
-  qui n'existe plus. ⚠️ **À traiter avec les trois autres entrées `R-INST-07` de ce
-  journal** — « État requis » hors énumération (§ Couverture du cahier de recette), seconde
-  passe à rejouer et portabilité de `.yarn-integrity` (§ Renvoyé par D5) : les quatre ne se
-  ferment que par une réécriture unique de la fiche.
 
 ### Défauts versés par D6d (2026-09-12, non corrigés, à trancher hors lot de migration)
 
@@ -602,60 +583,15 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
-- **Le catalogue compilé est produit par un faux `msgfmt` : il perd des traductions et il
-  perd sa table de hachage, et rien ne le voit.** `msgfmt` est absent de la machine ; le
-  dépôt recompile `locale/fr/LC_MESSAGES/django.mo` par le `msgfmt.py` d'exemple de CPython.
-  **Une seule cause, deux symptômes** — cette entrée absorbe le constat de table de hachage,
-  décrit séparément dans cette même section jusqu'au 2026-09-18.
-
-  **Symptôme 1 — des entrées disparaissent.** Ce script ne remet le drapeau `fuzzy` à zéro
-  que sur une ligne de commentaire : toute entrée qui suit un bloc `#, fuzzy` sans commentaire
-  intercalaire hérite du drapeau et **disparaît du `.mo`**.
-
-  **Mesuré le 2026-09-13**, sur le catalogue tel qu'il était au commit `b026fbc` : recompiler
-  le `.po` **sans l'avoir modifié** faisait passer le `.mo` de **366 à 356 entrées**. Les dix
-  perdues : « Active », « Administrator », « Last name », « The password was changed. »,
-  « The two passwords do not match. », « This value is too long. », « You do not have
-  permission to perform this action. », « modify », « no », « yes ». Autrement dit, « oui » et
-  « non » repassaient en anglais à l'écran.
-
-  **Symptôme 2 — le `.mo` est écrit sans table de hachage.** Django le lit sans broncher —
-  la table est facultative et Python l'ignore —, d'où un fichier qui **rétrécit en gagnant
-  vingt entrées** ; décompilé et vérifié par la revue : 340 → 360 entrées, zéro manquante,
-  zéro différente, en-tête, charset et pluriels intacts. À régénérer quand `msgfmt` sera
-  installé.
-
-  **Aucun cliquet ne lit le `.mo`.** `tests/qualite/test_contrat_traductions.py` lit le `.po`,
-  qui est la source versionnée, et reste vert pendant que le catalogue compilé se vide — c'est
-  écrit noir sur blanc dans ses propres limites (« un `.mo` périmé »).
-
-  **État au 2026-09-13** : le trou est bouché par une note de commentaire posée dans le `.po`
-  (D6f T5), et la recompilation ne perd plus rien — mesuré, 373 entrées des deux côtés. **Mais
-  le compilateur reste faux**, et le correctif tient à la présence d'une ligne de commentaire au
-  bon endroit. **À trancher hors lot, une seule décision pour les deux symptômes** :
-  installer un vrai `msgfmt`, ou poser le cliquet qui compare le `.mo` au `.po`. ⚠️ **La
-  seconde branche est prise depuis le 2026-09-13** : D6f T5 a posé
-  `tests/qualite/test_contrat_catalogue_compile.py`, qui compare le `.mo` au `.po` et
-  rougit si une entrée s'y perd. **Cette entrée reste ouverte sur la première branche
-  seule** — un vrai `msgfmt` sur la machine —, le cliquet constatant la perte sans
-  l'empêcher. **Et les
-  `msgid` dupliqués `January`..`December` du `.po`, préalables, feront broncher un vrai
-  `msgfmt`** le jour où il tournera.
-- **`api/events` répond 500 dès qu'un événement du journal désigne un patient supprimé.**
-  `libreosteoweb/api/serializers/administration.py:66` fait un `.get()` **nu** sur la branche
-  `Patient`, là où la branche `Examination` est gardée. Et `OfficeEvent.reference` est un
-  `IntegerField` **sans clef étrangère** (`libreosteoweb/models.py:470`) : supprimer un patient
-  ne supprime pas ses entrées de journal, qui continuent de le référencer par un identifiant
-  désormais mort. La suppression RGPD d'une fiche suffit donc à casser la ressource.
-
-  **Mesuré pendant D6f (T4 et sa revue), hors périmètre du lot.** La vue neuve du journal
-  (`views/pages/tableau_de_bord.py`, `nom_du_patient`) rend une chaîne vide dans ce cas : elle
-  est **plus robuste que la voie DRF**, et cette divergence est un progrès assumé, non une
-  régression. Le défaut reste entier sur `api/events`, que D6f ne touche pas (arbitrage A4 : le
-  lot ne retire aucune ressource du registre DRF, y compris celles qu'il orpheline).
-
-  À trancher hors lot : garder la branche `Patient` comme l'est déjà `Examination`, ou poser la
-  clef étrangère qui manque — le second choix touche le schéma et les données existantes.
+- **`OfficeEvent.reference` n'a pas de clef étrangère : le journal garde des références
+  mortes.** `libreosteoweb/models.py:470` déclare un `IntegerField` nu. Supprimer un patient
+  — geste légal, et obligatoire au titre du RGPD — ne supprime pas ses entrées de journal,
+  qui continuent de le désigner par un identifiant désormais mort. ⚠️ **Le 500 d'`api/events`
+  que cette entrée décrivait est fermé** (`eb27039`, cf. « Terminé ») : les deux surfaces qui
+  lisent cette référence rendent désormais une chaîne vide sur un patient supprimé. **Ce qui
+  reste est le schéma, pas l'affichage** — et il ne se pose pas dans un lot de dette : la
+  clef touche le schéma **et** les données d'un parc en service, donc elle se joint à la
+  reprise du parc de production (§ ci-dessus).
 - **Les deux routes du choix de cabinet produisent une URL invalide, et le middleware y
   redirige.** `libreosteoweb/urls.py:22-23` déclare `path(r"/")` — un segment littéral `/` —
   sous le préfixe vide de `Libreosteo/urls.py:298`. Mesuré :
@@ -678,25 +614,6 @@ décrits à l'entrée de clôture, pas ici.
   **Conservé à l'octet par D6f** (arbitrage A1 de sa spec, multi-cabinet hors périmètre) :
   le lot qui tue la coquille n'est pas celui qui touche au routage du cabinet. Relevé par
   l'écriture du plan de D6f, le 2026-09-13.
-- **Trois actions jointives de 10 px dans l'édition d'une vignette de document, dont une
-  suppression irréversible.** `pages/fragments/document-edition.html` rend « valider »,
-  « annuler » et « supprimer » en trois `button.close` flottants, mesurés à l'écran à
-  13×13 px, 10×13 px et 10×13 px, **bord à bord** (x = 92‑105, 105‑115, 115‑125) ; les trois
-  portent le même `aria-label="Close"`, si bien qu'un lecteur d'écran annonce trois fois
-  « Close » pour trois gestes différents. Un clic à un pixel près efface le document au lieu
-  d'annuler la saisie. **Défaut d'amont, reproduit à l'octet** : `patient-detail.html:292-294`
-  d'avant la migration porte exactement les mêmes classes et les mêmes `aria-label`. Ce n'est
-  donc pas une régression de D6e — et c'est précisément pour cela qu'il est versé plutôt que
-  corrigé ici : élargir les cibles et nommer les trois actions est une décision d'ergonomie,
-  à prendre avec D6g (base visuelle).
-- **Deux autorités écrivent `edition`, et seul l'ordre de parcours d'Alpine les tient
-  d'accord.** `libreosteoweb/templates/pages/fragments/dossier-corps.html:30` lit
-  `consultation_ouverte`, clef que seule la vue `nouvelle_consultation` pose, tandis que le
-  `x-data` racine de `dossier-patient.html` initialise la même variable depuis
-  `consultation_en_cours`. Trouvé par le diagnostic du défaut n° 4 de la recette, qui ne l'a
-  pas corrigé pour la bonne raison : **le correctif serait invisible, donc improuvable** —
-  aucune assertion ne distinguerait le produit corrigé du produit actuel. À trancher avec le
-  reste : une seule autorité sur `edition`, ou la clef unique.
 - **Les placeholders des quatre entrées d'adresse ont disparu.** L'écran AngularJS posait
   `e-placeholder="{{ patient.address_street }}"` — le **libellé** du champ — sur rue,
   complément, code postal et ville ; l'écran migré rend quatre boîtes vides sans aucune
@@ -704,13 +621,6 @@ décrits à l'entrée de clôture, pas ici.
   décision d'affordance qui appartient à la passe de comparaison avec l'ancienne version, pas
   à une correction de défaut. Le précédent existe déjà dans le dépôt
   (`nouveau_patient.py:98`, `"placeholder": self.fields[nom].label`).
-- **Une vue de commentaires rend `200` sur formulaire invalide, sans écrire ni rien dire.**
-  `libreosteoweb/api/views/pages/documents.py`, `commentaires_de_seance` : l'utilisateur
-  voit le volet se rafraîchir à l'identique et croit avoir enregistré. Livré par T11,
-  trouvé par la revue de T13. **Il a déjà coûté trois preuves vides** : trois tests
-  repointés sur cette route seraient passés au vert sans rien créer, le format de test par
-  défaut étant `json` là où la vue lit `request.POST`. À trancher : refuser en `4xx` avec
-  le motif rendu, comme le font les autres surfaces du lot.
 - **La garde de sortie se désarme sur trois chemins qui ne sont pas des enregistrements, et
   l'inventaire écrit ici en annonçait un.** La revue de branche a mesuré les trois ; la
   phrase « c'est le seul endroit du dossier où la règle *seul un résultat réel désarme*
@@ -768,63 +678,6 @@ décrits à l'entrée de clôture, pas ici.
 Même règle que pour D6d et D6e : un lot de migration ne tranche pas un défaut de produit.
 Chacun vient avec son emplacement, sa mesure et ce qui l'a fait apparaître.
 
-- **L'`autofocus` de `partials/register.html:13` peut corrompre une saisie programmatique.**
-  Le champ `input[name="username"]` porte `autofocus=""` alors qu'il est **inséré après le
-  chargement du document**. Le navigateur ne pose pas ce focus de façon synchrone : il
-  planifie une tâche différée (« flush autofocus candidates », HTML Standard) qui **reprend**
-  le focus à un instant non garanti — y compris **entre** un `focus()` explicite et l'écriture
-  d'un second champ. Le texte destiné au champ suivant atterrit alors dans `username`.
-
-  **Mesuré** pendant la dette n° 1 de D6f, par une boucle de diagnostic jetable :
-  **7 anomalies sur 120 essais** (≈ 5,8 %) sans barrière, **0 sur 80** avec.
-
-  ⚠️ **Le remède posé est une barrière de *test*** (`expect(…).to_be_focused()` dans
-  `tests/functional/test_installation.py`, commit `d4646a6`) : **aucune ligne de production
-  n'a changé**. Le mécanisme n'est pas propre à Playwright — un gestionnaire de mots de passe
-  de navigateur qui remplit le formulaire par script au moment de son apparition percute le
-  même `autofocus` chez un praticien réel. C'est pour cela que le défaut est versé et non
-  clos.
-
-  **Réserve sur la mesure** : les 7/120 viennent d'une boucle qui réutilise le même contexte
-  de navigateur — c'est une mesure du *mécanisme*, pas du protocole du lot ; vingt lancements
-  isolés du fichier réel sont restés verts.
-
-  **Destinataire : D6g**, ou le lot qui rouvre l'installation. Remède le plus étroit : retirer
-  l'`autofocus` du gabarit, ou ne le poser qu'une fois le fragment inséré.
-
-- **Le bandeau d'actions du dossier annonce « Fin d'édition » avant que l'édition n'existe.**
-  `pages/fragments/actions-dossier.html:40` écrit `edition = actif` **de façon synchrone** au
-  clic sur « Éditer », et `:41` affiche aussitôt le bouton « Fin d'édition »
-  (`x-show="edition !== null"`). Or le seul écouteur de `dossier-fin-edition` arrive **plus
-  tard**, avec le fragment d'édition : `hx-trigger="submit, dossier-fin-edition from:body"`
-  sur `#general-formulaire` (`dossier-identite-edition.html:12-15`).
-
-  Un clic dans cette fenêtre diffuse `dossier-fin-edition` dans un document où personne ne
-  l'écoute : aucun POST ne part, `edition` retombe à `null`, puis le fragment arrive et
-  **repose** `edition = 'general'` (`dossier-identite-edition.html:11`). Le praticien qui
-  demande à sortir d'édition **s'y retrouve**.
-
-  ⚠️ **Qualification, arbitrée à la clôture : c'est une incohérence d'état, pas une perte de
-  données.** Dans cette fenêtre le formulaire n'est pas encore affiché — rien n'a pu être
-  saisi, donc rien ne peut être perdu. Ne pas la relire comme une perte.
-
-  **Fenêtre mesurée** côté test, entre la réponse du serveur et le geste suivant : **20 à
-  50 ms**. Étroite, mais franchie dès que la machine ralentit (cf. l'entrée de clôture de
-  D6f). **Destinataire : D6g.** Remède le plus étroit : conditionner l'affichage de « Fin
-  d'édition » à l'arrivée du fragment plutôt qu'à l'écriture synchrone d'`edition`.
-
-- **Aucune cible ne garantit que l'arbre statique servi localement corresponde à l'image.**
-  `collectstatic` **n'enlève jamais** ce qu'il a copié une fois, et rien dans le dépôt ne le
-  rejoue à blanc. Constaté par la clôture de D6f : `static/` portait **5 096 fichiers,
-  76 Mo**, dont **4 764 résiduels** — tout AngularJS, jQuery, hallo, bootstrap-tour, des
-  paquets que T10 avait pourtant sortis de `package.json`. Après purge et `make static` :
-  **332 fichiers, 7,7 Mo**, `static/components` ne portant plus qu'`alpinejs` et `htmx`.
-
-  **Remède le plus étroit** : purger l'arbre en tête de `make static` (ou une cible dédiée) —
-  et, mieux, un cliquet qui rougit quand l'arbre servi porte un fichier qu'aucune dépendance
-  déclarée ne produit. **Destinataire : D6g**, qui rouvre déjà la chaîne de construction pour
-  `COMPRESS_OFFLINE`.
-
 - **Une classe entière de tests fonctionnels est verte par accident** — le motif que
   `0a8817b` a corrigé sur un seul site. Le motif : cliquer « Éditer », attendre le **bouton**
   « Fin d'édition », puis agir. Cette barrière ne prouve rien, le bouton étant posé
@@ -843,47 +696,6 @@ Chacun vient avec son emplacement, sa mesure et ce qui l'a fait apparaître.
   `tests/functional/helpers.py` qui clique « Éditer » **et attend le fragment**
   (`expect(page.locator("#<panneau>-formulaire")).to_be_attached()`), puis la substitution
   mécanique des sites. **Destinataire : un lot de dette de test**, pas un lot de migration.
-
-**Les quatre défauts de la passe au navigateur (T12) qui n'ont pas été corrigés.** Les trois
-premiers sont **préexistants** — antériorité établie par lecture comparative `3c2473b` →
-`ab854fe` (`git diff` vide sur `sb-admin-2.css`, `bootstrap.min.css` et `libreosteo.css`),
-pas par une passe sur le commit d'avant-lot.
-
-- **En affichage étroit, la barre déployée recouvre le titre et la première tuile** (D-2).
-  À 700 px comme à 400 px, hamburger ouvert : `nav.navbar-fixed-top` occupe y = 0 → **239**,
-  le `h1` « Tableau de bord » y = 90 → 140 — **entièrement recouvert**, 149 px — et la
-  première tuile y = 190 → 290, **recouverte sur 49 px**. Cause : `partials/menu.html:6`
-  (`navbar-fixed-top`, donc hors flux) et `libreosteo.css:20` (`body { padding-top: 50px }`,
-  décalage **constant**, dimensionné pour la barre repliée). Remède : `navbar-static-top`
-  sous media query étroite, ou un décalage qui suive la hauteur réelle. **D6g**, ou hors
-  chantier si l'affichage étroit n'est pas une cible produit.
-
-- **En affichage étroit, trois entrées du menu utilisateur ne sont pas atteignables — dont
-  « Déconnexion »** (D-3). À 400×800, menu ouvert, le `ul[data-testid="menu-utilisateur"]`
-  occupe y = 168 → 329 alors que `#headerNavbar` s'arrête à y = 238 : **91 px de
-  débordement**, et le conteneur **n'est pas défilable** (`scrollHeight` = `clientHeight`
-  = 187). `elementFromPoint` au centre de « Import/export », « Réindexer » et
-  « Déconnexion » renvoie un `DIV` de la page, pas le lien. Cause : `ul.dropdown-menu` en
-  `position: absolute` dans un `#headerNavbar` que Bootstrap 3 borne à `max-height: 340px`,
-  le menu vivant dans `navbar-top-links` et non `navbar-nav`. Remède : rendre le
-  `ul.dropdown-menu` statique sous media query étroite — quelques lignes de CSS.
-  **Sévère : la déconnexion est inatteignable sur téléphone. D6g.**
-
-- **La barre latérale de la page 404 recouvre son titre** (D-5). `.sidebar` occupe
-  x = 0 → 250, y = 101 → 207 ; le `h1` « Ooops ! » x = 131 → 1271, y = 169 → 238 :
-  **38 px de hauteur sur 119 px de largeur** masqués. Cause : `sb-admin-2.css:14-26`,
-  `#page-wrapper` sans `margin-left` alors que `.sidebar` est en surimpression sur 250 px.
-  Remède : une ligne, `#page-wrapper { margin: 0 0 0 250px }` sous `min-width: 768px` —
-  **à vérifier sur le tableau de bord, qui partage la feuille**. Amont, hors chantier, ou
-  D6g si l'on veut une page d'erreur propre.
-
-- **L'infobulle du mini-graphe affiche des horodatages bruts** (D-7). Texte relevé :
-  `2026-09-01 00:00:00+02:00 - 2026-09-14 13:32:14.311865+00:00 - 22` — la borne de fin est
-  l'instant du rendu, microsecondes comprises, dans un fuseau différent de celui de la borne
-  de début. Le format nommé par la spec (« début - fin - valeur ») est **tenu** : c'est de la
-  lisibilité, aucun contrat cassé. Cause : `{{ sommet.libelle }}` interpolé sans filtre
-  (`pages/tableau-de-bord.html:62` et ses deux jumeaux). Remède : un `|date:"j M Y"`, ou un
-  libellé déjà formaté côté vue. **D6g.**
 
 ### Dette technique (constat, pas action)
 
@@ -980,18 +792,6 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   interroge, jamais sa conséquence — et le fait que la préservation n'empêche **aucune**
   écriture d'aboutir (étape 5). Tout KO est **noté, jamais corrigé pendant la passe**.
 
-### Couverture du cahier de recette (à compléter, pas cette tâche)
-
-- **Le champ « État requis » de `R-INST-07`** (`docs/recette.md:753`) porte la valeur
-  `aucun`, hors de l'énumération E0 | E1 | E2 du chapitre 2 (`docs/recette.md:350-359`).
-  Cohérent avec le contenu de la fiche — elle ne monte aucune instance, elle bâtit et
-  compare deux constructions — mais le schéma documenté ne prévoit pas cette valeur.
-  Constaté par la revue finale de D5, non traité. ⚠️ **À traiter avec les trois autres
-  entrées `R-INST-07` de ce journal** — lectures statiques périmées (§ Défauts constatés
-  par la passe de recette du 2026-09-12), seconde passe à rejouer et portabilité de
-  `.yarn-integrity` (§ Renvoyé par D5) : les quatre ne se ferment que par une réécriture
-  unique de la fiche.
-
 ### Renvoyé par D4 (2026-09-06)
 
 - **`--processes 1 --threads 1` n'est pas levé.** Ce n'est plus un garde-fou
@@ -1004,59 +804,9 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   déplace un transfert « sans ajouter le moindre parallélisme applicatif ». Les deux
   lectures ne se contredisent pas — intégrité et sérialisation ne sont pas la même
   chose —, mais rien ne se lève ici sans traiter `--offload-threads` dans le même geste.
-- **Ménage des dépendances mortes.** `argparse==1.2.1` (dans la stdlib depuis
-  Python 2.7), `setuptools-bower` (version unique de 2014, Bower mort),
-  `cherrypy==18.10.0` (importé par le seul mode standalone, `server.py:24` et
-  `winserver.py:37`, hors cible depuis S4), et l'usage direct de `pytz`
-  (`libreosteoweb/api/serializers/consultation.py:15,82,85`, que Django n'impose
-  plus depuis 5.0). **`Whoosh==2.7.4` mérite une mention à part** : dernière release
-  2016, projet sans mainteneur depuis dix ans, et il porte la recherche du produit —
-  c'est de la **dette de fond, pas du ménage**, et elle ne se solde pas dans un lot
-  de montée de version.
-- **Sept mentions périmées du `README.rst`**, inventoriées par D4 et laissées en
-  l'état parce que les corriger serait réécrire le chapitre « Installation » :
-  `:113-114` propose `make build` puis `make run`, cible qui lance le conteneur seul
-  avec des volumes nommés et **sans PostgreSQL** (`Makefile:22-23`), ce que le mode
-  conteneur refuse depuis D2 — la procédure ne peut plus aboutir ; `:118-126` donne
-  un bloc `.env` où manquent `LIBREOSTEO_IMAGE_TAG` (obligatoire depuis D2),
-  `LIBREOSTEO_SECRET_KEY` (obligatoire depuis S6) et `LIBREOSTEO_ALLOWED_HOSTS`,
-  `Docker/deploy/pg/.env.example` étant désormais la seule source à jour ; `:133`
-  décrit le volume `SETTINGS` sans dire que `__init__.py` **et** `local.py` y sont
-  tous deux obligatoires ; `:398` et `:464` conseillent le module de réglages
-  `standalone`, hors cible depuis S4 ; `:411` présente sqlite comme le moteur
-  par défaut et PostgreSQL comme une variante, l'inverse de la décision de S4 ;
-  `:448-454` documente le serveur CherryPy `./server.py`, même mode hors cible ;
-  `:10` porte un copyright arrêté en 2021. **Les deux premiers empêchent une
-  installation de réussir en suivant le texte, les cinq autres décrivent des modes
-  abandonnés** : le tri appartient au lot qui prendra le `README.rst`. (Numéros de
-  ligne relevés dans l'arbre le 2026-09-18 ; les repérer par le texte s'ils bougent
-  encore.)
-- **Le champ `**Prérequis**` de `R-INST-06`** (`docs/recette.md:689`) est hors du
-  schéma de fiche du chapitre 2 (`docs/recette.md:350-361` : Domaine, Couverture
-  auto, État requis, Étapes — pas de `Prérequis`). Sans urgence : le schéma est déjà
-  en retard sur l'usage, `**Constat**` étant dans le même cas sur **quatorze** fiches
-  (`grep -c '^\*\*Constat\*\*' docs/recette.md`, mesuré le 2026-09-18), et
-  `**Prérequis**` sur une seconde, `R-INST-07` (`:756`).
 
 ### Renvoyé par D5 (2026-09-06)
 
-- **La passe de confirmation de `R-INST-07` reste à jouer, reconduite par D6a
-  (2026-09-07).** La passe 1 de D5 a eu lieu le 2026-09-06T10:47:31+02:00 (commit
-  `d84fdb2`), empreinte des artefacts servis
-  `dbc5212bc4e4ef443230336407d164d3a9c0fe2e0f494d501f28b421f811b33a`, sur neuf noms
-  `output.<hash>`. **Cette valeur devient caduque** : D6a a changé cinq des neuf bundles
-  (trois par le retrait de `ngRoute`, deux par le retrait des règles CSS orphelines) et en
-  a fait disparaître un sixième, déjà touché (le bundle JS de `404.html`, retiré en bloc —
-  cf. « Terminé » ci-dessous, § D6a). La référence porte désormais sur l'empreinte de D6a,
-  2026-09-07T02:45:20+02:00 (commit `a29d205`) :
-  `4f388c0a9c7a988e39ce4a58a98719370678e3a3daa501176c86946d2c3ed21e`, sur **huit** noms.
-  Une seconde passe, à une date réellement différente, reste à jouer pour confirmer la
-  reproductibilité dans le temps. ⚠️ **À traiter avec les trois autres entrées
-  `R-INST-07` de ce journal** — lectures statiques périmées (§ Défauts constatés par la
-  passe de recette du 2026-09-12), « État requis » hors énumération (§ Couverture du
-  cahier de recette) et portabilité de `.yarn-integrity` (ci-dessous) : les quatre ne se
-  ferment que par une réécriture unique de la fiche, et la passe ne se rejoue pas sur une
-  fiche périmée.
 - **`FROM python:3.14-alpine` reste le dernier intrant mobile de la chaîne de
   construction**, et c'est assumé, pas oublié : le couplage aux versions `apk` de
   `nodejs`/`npm` que ce même lot épingle est voulu, puisqu'il fait échouer la
@@ -1194,6 +944,197 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `rcssmin` et `rjsmin` épinglés.
 
 ## Terminé
+
+- **2026-09-18 — Le chapitre « Installation » du `README.rst` réécrit et trois dépendances
+  mortes purgées** (`f9804d7`). `900 passed`, couverture **94,93 %**.
+
+  **Les sept mentions périmées sont traitées, les deux qui empêchaient une installation
+  d'aboutir en premier.** `make build` puis `make run` lançaient le conteneur seul, sans
+  PostgreSQL, et `settings/container.py` lève à l'import si la clef est vide ou si le moteur
+  n'est pas PostgreSQL : la procédure du texte ne pouvait pas réussir. Elle est réécrite sur
+  le déploiement de référence `Docker/deploy/pg/`, vérifiée contre `.env.example` et le
+  `docker-compose.yml`. Les modes sqlite, standalone et CherryPy sont recadrés comme **code
+  toujours présent mais hors cible depuis S4** — sans prétendre qu'ils ont disparu. Le
+  copyright arrêté en 2021 porte désormais sa seconde ligne, 2014-2026.
+
+  ⚠️ **L'inventaire « Vendored third-party assets » décrivait un arbre mort, et sur cinq
+  lignes, pas trois.** `libreosteoweb/static/js/` ne porte plus que `composants/` et le
+  répertoire `js/plugins/` a entièrement disparu. Les moitiés CSS qui subsistent sont
+  conservées, et `typeahead.css` comme `metisMenu.min.css` sont documentés comme
+  **consommés** par `404.html` — c'est l'avertissement A3 de D6f, qu'un ménage naïf
+  rouvrirait.
+
+  **Trois dépendances sortent.** `argparse` n'était importé nulle part ; `cherrypy` quitte
+  `requirements/requirements.txt` ; `pytz` est remplacé par `zoneinfo`, avec un test qui
+  distingue réellement les deux **types** — un test purement comportemental serait resté
+  vert, UTC n'ayant pas d'heure d'été. `setuptools-bower`, quatrième nom de l'entrée, était
+  déjà sorti avec D5 (`2a5cb44`).
+
+  ⚠️ **`server.py` et `winserver.py` sont gardés, et c'est un refus fondé, pas un oubli** :
+  le `Dockerfile` les copie, le périmètre `mypy` les liste, et `setup.py` en fait les points
+  d'entrée des constructions Windows et macOS. Chercher le consommateur plutôt que le nom
+  est une leçon que ce dépôt a déjà payée deux fois.
+
+  **Ce que ce commit ne ferme pas** : `Whoosh==2.7.4` reste — **dette de fond, pas du
+  ménage**, portée par § « Candidats pour D7 » ; et dans « Renvoyé par D4 », la levée de
+  `--processes 1 --threads 1` reste entière. Le `README.rst` garde par ailleurs une mention
+  périmée **hors des sept inventoriées** : le paragraphe d'introduction de « Reproducible
+  frontend build » décrit encore le gel par refs Git sur SHA 40-hex, qui n'existe plus —
+  `R-INST-07` porte la réserve et fait foi sur ce point.
+
+- **2026-09-18 — Le cahier de recette remis en correspondance avec l'arbre, et un cliquet
+  posé** (`3ad110b`). `900 passed`, couverture **94,93 %** ; `docs/recette.md` +465/−100,
+  `tests/qualite/test_contrat_recette.py` neuf.
+
+  **`R-INST-07` réécrite : elle était décrochée de l'arbre au point d'être injouable.** Son
+  étape 2 attendait **29** refs `@components/` là où il y en a **2**, et son étape 4
+  falsifiait une ref `@components/angular` disparue. La fiche est refaite sur le gel réel —
+  versions exactes sans plage, `yarn.lock` versionné, `--frozen-lockfile` à chaque appel,
+  yarn par tarball à somme SHA-256 vérifiée, et les quatre versions exactes de la chaîne qui
+  produit les octets servis. Les attendus sont **mesurés**, pas déduits : le message de yarn
+  sous gel retiré est cité à l'octet.
+
+  ⚠️ **Elle corrige une affirmation fausse que ce journal a portée pendant deux lots.**
+  `--frozen-lockfile` est bien absent de `.github/workflows/main.yml`, mais il est
+  **atteint** par `make static`, que la CI appelle — et c'est cette cible qui porte le
+  drapeau. La fiche lisait le mauvais fichier ; la garde, elle, tenait.
+
+  **Cette réécriture ferme trois des quatre entrées qui convergeaient vers elle** : les
+  lectures statiques périmées (§ Défauts constatés par la passe de recette du 2026-09-12),
+  le champ `État requis : aucun` hors énumération (§ Couverture du cahier de recette,
+  désormais vide et retirée du journal) et la seconde passe à rejouer (§ Renvoyé par D5) —
+  dont l'empreinte de référence `4f388c0a…` au commit `a29d205` est **caduque**, l'arbre
+  frontend ayant perdu vingt-sept dépendances depuis. Le protocole des deux passes vit
+  désormais dans la fiche elle-même (étapes 1 et 3), plus dans une valeur stockée ici.
+
+  **Le schéma de fiche rattrape l'usage.** `Prérequis` et `Constat` étaient employés sans
+  être décrits — `Constat` sur quatorze fiches — et `État requis : aucun` sortait de
+  l'énumération `E0 | E1 | E2`. Les trois sont au chapitre 2, ce qui ferme du même geste
+  l'entrée `R-INST-06` de « Renvoyé par D4 ».
+
+  **Six `date -u` étaient interprétés en heure locale** ; ils portent désormais le décalage
+  explicitement.
+
+  ⚠️ **Huit tests fonctionnels n'étaient nommés par aucune fiche — le journal en annonçait
+  deux.** La dette s'était rouverte faute de garde, et ce n'étaient plus les mêmes tests. Les
+  huit sont rattachés, et `tests/qualite/test_contrat_recette.py` **rejoue désormais la
+  détection** — falsifié par un test bidon. Sans lui la dette se rouvrira au prochain test
+  écrit sans fiche : c'est déjà arrivé une fois. Le cliquet a d'ailleurs rougi dans la foulée
+  sur huit tests neufs écrits en parallèle de sa pose ; ils sont rattachés eux aussi, et un
+  attendu périmé de `R-TAB-01` est corrigé au passage.
+
+  **Ce que ce commit ne ferme pas** : `R-INST-07` reste **à jouer** — deux passes à deux
+  dates réellement différentes —, mais c'est de la recette, portée par la fiche, plus par le
+  backlog. Et la quatrième entrée convergente, la portabilité de
+  `node_modules/.yarn-integrity` (§ Renvoyé par D5), **reste ouverte** : l'empreinte (a)
+  hashe toujours `node_modules/**`, ce fichier compris, et rien dans la fiche réécrite ne
+  l'exclut. Son renvoi « à traiter avec les trois autres entrées `R-INST-07` » est donc
+  devenu orphelin, et il est laissé tel quel.
+
+- **2026-09-18 — Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur
+  téléphone** (`1ba00e9`). `900 passed`, couverture **94,93 %** ; quatre fichiers de preuve
+  fonctionnels, dont deux neufs.
+
+  ⚠️ **Décision de produit prise à cette occasion : l'affichage étroit est une cible.**
+  L'entrée D-2 laissait le point ouvert (« hors chantier si l'affichage étroit n'est pas une
+  cible produit »). Il est tranché par l'usage : sous 768 px le menu utilisateur ne s'ouvrait
+  pas et **un praticien sur téléphone ne pouvait pas se déconnecter**. Une déconnexion
+  inatteignable est une impasse fonctionnelle autant qu'un problème de sécurité, et cela
+  suffit à faire de l'affichage étroit une cible produit.
+
+  **La déconnexion est atteignable** (D-3). Mesure du défaut : `elementFromPoint` au centre
+  du lien rendait le contenu du tableau de bord, pas le lien. Un clic Playwright seul ne
+  discrimine pas ce défaut — il fait défiler avant de cliquer —, d'où un test qui interroge
+  `elementFromPoint` plutôt qu'un test qui clique.
+
+  **La barre déployée ne recouvre plus le titre ni la première tuile** (D-2) : même cause,
+  même bloc de media query.
+
+  **La barre latérale de la page 404 ne recouvre plus son titre** (D-5). Le correctif est
+  **scopé à `#wrapper`**, qui n'existe que dans `404.html` : un correctif nu sur
+  `#page-wrapper` aurait déplacé le tableau de bord, qui partage la feuille. Un garde-fou le
+  prouve — il rougit sous la forme non scopée.
+
+  ⚠️ **L'infobulle du mini-graphe n'avait pas la cause écrite ici** (D-7). Ce n'était pas le
+  gabarit : `Statistics.get_history_statistics` composait **déjà** la chaîne, et **aucun
+  filtre Django n'aurait pu la rattraper**. Le remède est côté vue.
+
+  ⚠️ **L'`autofocus` sur fragment inséré avait un périmètre plus large que l'entrée ne le
+  disait** : **trois** fragments, pas un — ils passent à `x-init="$el.focus()"`. **Les deux
+  `autofocus` qui restent au dépôt sont laissés à dessein** — `account/login.html:53` et
+  `account/create_admin_account.html:53` sont des **pages complètes**, leur champ existe dans
+  le document initial et la tâche différée du navigateur ne peut pas y détourner une saisie.
+  Ne pas les « corriger ».
+
+  **Ce que ce commit ne ferme pas** : dans « Défauts versés par D6f », la classe de tests
+  fonctionnels verte par accident reste ouverte — le helper `entrer_en_edition` n'est pas
+  posé et les sites ne sont pas substitués.
+
+- **2026-09-18 — Quatre défauts de l'écran du dossier patient soldés** (`4e6063d`).
+  `900 passed`, couverture **94,93 %** ; trois fichiers de preuve, dont un neuf.
+
+  **« Fin d'édition » n'est plus annoncé avant l'arrivée du fragment.** Le bouton s'affichait
+  sur `edition !== null`, posé **synchronement** par le clic sur « Éditer », alors que le
+  seul écouteur de `dossier-fin-edition` arrive avec la réponse du serveur : cliquer dans
+  cette fenêtre diffusait l'événement dans le vide, puis le fragment reposait `edition`, et
+  le praticien qui demandait à sortir d'édition s'y retrouvait. Une variable
+  `editionArrivee`, posée par le `x-init` de chaque fragment, conditionne désormais
+  l'affichage.
+
+  **`commentaires_de_seance` refuse en `422` avec le motif rendu**, volet laissé déplié et
+  saisie préservée, sur le patron de `document_edition`. Elle rendait `200` sur formulaire
+  invalide : rien n'était écrit, rien n'était dit.
+
+  ⚠️ **La double autorité sur `edition` n'était pas ce que ce journal en disait.** L'entrée
+  annonçait un correctif « invisible donc improuvable » : **c'est faux**, et la mesure le
+  montre. `dossier-corps.html` lisait `consultation_ouverte`, clef que **seule** la vue
+  `nouvelle_consultation` posait ; toute autre recomposition du corps — dont la réponse à
+  `consultation-modifiee` — ne la posait jamais, et `edition` retombait à `null` **malgré une
+  consultation en cours**. C'était un bug **reproductible par `GET /patient/<id>/body`**,
+  plus large que l'incohérence décrite. Unifié sur `consultation_en_cours`, seule clef posée
+  partout.
+
+  **Les trois actions jointives portent trois libellés distincts**, déjà traduits au
+  catalogue, et un écart les sépare. Elles partageaient `aria-label="Close"` — dont une
+  suppression irréversible à dix pixels de « annuler ».
+
+  **Ce que ce commit ne ferme pas** : dans « Défauts versés par D6e » restent l'URL `/%2F` du
+  choix de cabinet, les placeholders d'adresse disparus, le chemin 1 de la garde de sortie,
+  la chronologie alternée, le doublon de séance, et la clef étrangère manquante
+  d'`OfficeEvent.reference`.
+
+- **2026-09-18 — Quatre dettes d'outillage soldées, dont deux cliquets neufs** (`2445b51`,
+  et `ad7e62d` pour la ligne de base amont).
+
+  **Le job CI `quality` appelle désormais `make check PYTHON=python`.** Il en **réécrivait**
+  les commandes (étapes `Lint`, `Model migration status`, `Unit tests and coverage`) alors
+  que `CLAUDE.md` affirme qu'il **est** ce job : rien ne tenait les deux listes synchrones, et
+  une étape ajoutée au `Makefile` n'aurait pas tourné en CI. Même patron que le job
+  `functional`, qui appelle déjà `make static`.
+
+  ⚠️ **Le catalogue compilé : la cause écrite ici était fausse deux fois.** `msgfmt` n'est
+  **pas** absent de la machine — GNU gettext **0.23.2** y répond —, et les prétendus `msgid`
+  dupliqués `January`..`December` n'en sont pas : le second jeu porte
+  `msgctxt "alt. month"`, et `msgfmt --check` sort en **0**. Le vrai défaut était plus
+  simple : **aucune cible n'invoquait `msgfmt`**, la recompilation était un geste manuel non
+  versionné. Le `.mo` passe de `hash_size = 0` à **499**, à **374** entrées inchangées, et la
+  cible neuve du `Makefile` **refuse de tourner si `msgfmt` manque** plutôt que de produire
+  un `.mo` dégradé en silence — les paquets système ne persistent pas sur cette machine.
+
+  **`make static` purge l'arbre servi en tête de cible.** `collectstatic` n'enlève jamais ce
+  qu'il a copié, et D6f a payé **4 764** fichiers résiduels qui faisaient passer la suite sur
+  du code que l'image ne contient pas. `tests/qualite/test_contrat_arbre_statique.py` rougit
+  sur un résiduel — falsifié par un paquet factice.
+
+  **La ligne de base du suivi amont est posée** (`ad7e62d`) : `refs/remotes/upstream` était
+  vide et la section « Suivi amont » aussi, alors que le `CLAUDE.md` du projet en fait le
+  registre des portages. Elle est écrite là-bas et n'est pas répétée ici ; la sous-section
+  « Suivi amont » de « À faire », qui ne portait que cette demande, est retirée.
+
+  **Ce que ce commit ne ferme pas** : « Défauts et écarts constatés au cadrage de D6b » ne
+  porte plus que ses deux entrées déjà barrées ; dans « Dette technique », l'étape
+  « Translations state » du workflow, supprimée en amont, reste à reconstruire quand les
+  traductions bougeront.
 
 - **2026-09-18 — Cinq défauts versés par D6e soldés** (`7871258`, un seul commit, en TDD).
   `make check` passe de `869` à **`884 passed`**, couverture **94,90 %** — plancher à 94,0 %
@@ -1498,6 +1439,28 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
   **Ce que ce commit ne ferme pas** : la ponctuation des montants, qui diverge entre l'écran
   et la facture imprimée, reste la seule entrée ouverte du § Défauts versés par D6d.
+
+- **2026-09-18 — `api/events` survit à un patient supprimé** (`eb27039`, D6e-2, resté hors du
+  journal jusqu'ici). `848 passed`, couverture **94,55 %**, `makemigrations --check` sans
+  changement.
+
+  La ressource répondait **500** dès qu'une entrée du journal désignait un patient supprimé :
+  `OfficeEventSerializer.get_patient_name`
+  (`libreosteoweb/api/serializers/administration.py`) faisait un `.get()` **nu** sur la
+  branche `Patient`, là où la branche `Examination` voisine était déjà gardée. Supprimer un
+  patient — geste légal, et obligatoire au titre du RGPD — cassait donc le journal pour tout
+  le monde. La branche `Patient` est alignée sur sa voisine : `except ObjectDoesNotExist`,
+  chute sur le `return ""` final. Un patient supprimé rend une chaîne vide, **identique à ce
+  que rend déjà `nom_du_patient`** (`api/views/pages/tableau_de_bord.py`, D6f), dont le
+  commentaire exige que les deux surfaces restent d'accord. Le test qui les compare existait
+  mais ne couvrait pas ce cas : c'était exactement le trou.
+
+  ⚠️ **Ce que ce commit ne ferme pas, et qui doit rester ouvert** : `OfficeEvent.reference`
+  est toujours un `IntegerField` **sans clef étrangère** (`libreosteoweb/models.py:470`). Le
+  journal garde donc des références mortes ; seul l'affichage est réparé. Poser la clef
+  touche le **schéma et les données** d'un parc en service — c'est à joindre à la reprise du
+  parc de production, pas à un lot de dette. L'entrée de « Défauts versés par D6e » est
+  réécrite sur ce seul reliquat.
 
 - **2026-09-18 — D6f clos : la coquille AngularJS est morte, les dix clauses constatées par
   exécution réelle** (treize tâches ; spec
