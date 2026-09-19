@@ -654,15 +654,25 @@ décrits à l'entrée de clôture, pas ici.
   figer une expression morte reviendrait à la prendre pour une décision. Vérifié le
   2026-09-19 : `chronologie.html:30` pose toujours `forloop.counter|divisibleby:2`.
 
-### Portages amont dus (2026-09-19, instruits et non faits)
+### Portages amont dus (2026-09-19) — **faits le jour même**
 
-- **`accounts/logout` doit entrer dans `NO_REROUTE_PATTERN_URL`** (`Libreosteo/settings/base.py:254-259`).
+- ~~**`accounts/logout` doit entrer dans `NO_REROUTE_PATTERN_URL`**~~ — **fait** (`bde1f53`).
+  Le test discrimine par la clef `title` du contexte, posée par `LogoutView.get_context_data`
+  et absente de `LoginView` : un simple 302 aurait été rendu par les deux chemins. ⚠️ **Le
+  geste mort `request.path = ""` est retiré pour la branche logout, et laissé tel quel pour la
+  branche sœur `"web-view" in path`, qui porte exactement le même défaut** — décision
+  explicite, hors périmètre, pas un oubli. Effet de bord assumé : `get_logout_url()`
+  (`middleware.py:35`) n'a plus aucun appelant dans le dépôt.
+  (référence d'origine : `Libreosteo/settings/base.py:254-259`).
   Défaut vérifié dans l'arbre, cf. § « Suivi amont » du 2026-09-19 pour le mécanisme exact.
   **Preuve attendue** : un test qui POSTe vers `/accounts/logout/` sans session valide et
   vérifie que la réponse vient bien de `LogoutView` — ⚠️ **un test qui se contenterait du code
   302 ne prouve rien**, les deux chemins y mènent.
-- **La branche `except` de `LoginRequiredMiddleware.process_request` doit appeler
-  `logout(request)`** avant de rediriger. ⚠️ **Ne pas rediriger vers `get_logout_url()`** :
+- ~~**La branche `except` de `LoginRequiredMiddleware.process_request` doit appeler
+  `logout(request)`** avant de rediriger.~~ — **fait** (`bf40ed1`). Les deux tests existants
+  sont **étendus, pas affaiblis** : ils prouvent la redirection inchangée vers `login` **et**
+  l'absence de `SESSION_KEY` après coup. Rouge reproduit d'abord
+  (`AssertionError: '_auth_user_id' unexpectedly found`). ⚠️ **Ne pas rediriger vers `get_logout_url()`** :
   405 garanti. **Preuve attendue** : après l'échec, `SESSION_KEY` n'est plus dans la session.
   La cible de redirection ne change pas ; seul l'effet de bord est neuf, et c'est lui qui doit
   être prouvé.
