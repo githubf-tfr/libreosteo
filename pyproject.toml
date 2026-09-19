@@ -13,10 +13,11 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["libreosteoweb"]
+source = ["libreosteoweb", "outils"]
 omit = [
     "libreosteoweb/migrations/*",
     "libreosteoweb/tests/*",
+    "outils/tests/*",
 ]
 
 [tool.coverage.report]
@@ -38,6 +39,9 @@ omit = [
 # laissée est d'environ 21 instructions sur 4 257 : de quoi absorber un module neuf
 # partiellement couvert sans faire rougir un commit honnête. 94,5 serait fragile, la
 # valeur ayant déjà oscillé d'un quart de point sans la moindre régression.
+# 2026-09-19 : `outils/` entre dans le denominateur a la cloture de D10. `diagnostic_archive.py`
+# decide d'une reprise de donnees reelles et etait hors du plancher (`source = ["libreosteoweb"]`).
+# Couverture constatee avec le nouveau denominateur : 95,09 %. Le plancher n'a pas bouge.
 fail_under = 94
 
 [tool.ruff]
