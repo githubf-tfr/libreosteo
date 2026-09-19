@@ -593,9 +593,11 @@ itself lands in ``~/.cache/ms-playwright``.) Then run the suite ::
 Reproducible frontend build
 ===========================
 
-The frontend dependency tree is frozen: ``package.json`` addresses every dependency by a
-40-hex Git SHA, ``yarn.lock`` is versioned, and every call to yarn passes
-``--frozen-lockfile``, which fails instead of silently resolving when the two disagree.
+The frontend dependency tree is frozen: ``package.json`` addresses every dependency by an
+exact version — never a range, never a ``^`` or a ``~`` — ``yarn.lock`` is versioned, and
+every call to yarn passes ``--frozen-lockfile``, which fails instead of silently resolving
+when the two disagree. Three dependencies today: ``alpinejs@3.17.2``, ``bootstrap@5.3.8``
+and ``htmx.org@2.0.10``.
 The point of that freeze is checkable, and this is how you check it.
 
 Two full builds made **on two different dates** must produce the same two fingerprints.
@@ -650,16 +652,20 @@ Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
          'find static -type f -not -name manifest.json -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | LC_ALL=C sort | sha256sum; \
           ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css'
 
-   ``-not -name manifest.json`` excludes ``static/CACHE/manifest.json``: django-compressor
-   writes its keys in the completion order of a ``ThreadPoolExecutor``, which is not
-   deterministic between builds, and the file is never read back (``COMPRESS_OFFLINE`` is
-   false), so it has no effect on what is served.
+   ``-not -name manifest.json`` excludes ``static/CACHE/manifest.json`` for one reason only:
+   django-compressor writes its keys in the completion order of a ``ThreadPoolExecutor``,
+   which is not deterministic between builds, so two identical builds would produce two
+   different digests for that file alone. **It is no longer true that the file has no effect
+   on what is served.** ``COMPRESS_OFFLINE`` has been true since the Bootstrap 5 migration:
+   the manifest is now read back at render time, and a missing key raises
+   ``OfflineGenerationError`` instead of silently recompressing. Excluding it from the
+   fingerprint is therefore a statement about *its key order*, not about its importance.
 
    The ``output.<hash>`` file names are already content fingerprints: django-compressor
    builds them as ``CACHE/<kind>/output.<hexdigest(content,12)>.<ext>``. The whole-``static``
-   digest doubles them because not everything sits inside a ``{% compress %}`` block —
-   ``webshim/polyfiller.js`` is loaded outside one, and fonts, images, ``font-awesome/`` and
-   the Bootstrap glyphicons are not in one either.
+   digest doubles them because not everything sits inside a ``{% compress %}`` block: the
+   vendored ``font-awesome/`` fonts, the Bootstrap 3 glyphicon fonts, the images, and the
+   ``@components/`` trees that ``htmx`` and ``alpinejs`` are served from are all outside one.
 
 4. **Compare.** Both fingerprints, and both ``output.<hash>`` names, must be identical
    between the two dates. Any difference is a defect: this project does not intentionally
@@ -676,14 +682,14 @@ in ``Libreosteo/settings/base.py``, inherited by every settings module including
 ``--settings=Libreosteo.settings.base``. The two are therefore expected to produce the same
 bundle names.
 
-The local ``static/CACHE/`` is only reliable right after a clean ``make static``.
-``make static`` passes no ``--clear`` and erases nothing, so a stale bundle from an earlier
-build lingers underneath a new one. Worse, ``{% compress %}`` also compresses on the fly at
-render time, because no setting turns ``COMPRESS_OFFLINE`` on: the first page rendered in
-French writes one more bundle than ``compress --force`` ever writes on its own. Always wipe
-the directory first and read the list before running any test suite::
-
-    rm -rf static/CACHE/
+**Both halves of the warning that used to stand here are now settled**, and the list is
+readable at any time. ``make static`` opens with ``rm -rf $(PWD)/static`` (added at the close
+of D6f, after 4 764 residual files were measured), so no stale bundle lingers underneath a
+new one. And ``{% compress %}`` no longer compresses on the fly at render time:
+``COMPRESS_OFFLINE`` is true since the Bootstrap 5 migration, every bundle is written by
+``manage.py compress`` at build time, and a page that would need one more fails loudly
+instead of writing it. ``compress`` is no longer passed ``--force`` either, for the same
+reason.
 
 Get the local list with ``make static``, then the same ``ls`` used for fingerprint (b)
 above::

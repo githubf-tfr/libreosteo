@@ -52,8 +52,9 @@ reglages_django.STATICFILES_DIRS = [str(RACINE / "static")]
 # django-stubs type `get_finder` comme une fonction nue ; a l'execution c'est un
 # `functools.lru_cache`, qui porte bien `cache_clear`.
 finders.get_finder.cache_clear()  # type: ignore[attr-defined]
-# Le produit sert neuf bundles `output.<hash>` (Docker/build/http-ready/Dockerfile:105) ;
-# la suite doit servir les memes, sans quoi elle recette une chaine et le produit en livre
+# Le produit sert **sept** bundles `output.<hash>` -- six CSS, un JS --, mesures dans
+# l'image reconstruite a D6g T16 et identiques a ceux d'un `make static` local, nom pour nom.
+# La suite doit servir les memes, sans quoi elle recette une chaine et le produit en livre
 # une autre. `Libreosteo.settings` est dev.py, ou COMPRESS_ENABLED est faux : on rebascule.
 reglages_django.COMPRESS_ENABLED = True
 # Indissociable de la ligne precedente. COMPRESS_ROOT vaut STATIC_ROOT par defaut, et on
