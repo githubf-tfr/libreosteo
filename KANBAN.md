@@ -47,9 +47,10 @@ Tenu à la main.
 
 - (2026-09-04) **Cadrage du chantier « dette technique ».** Spec validée :
   `docs/superpowers/specs/2026-09-04-dette-technique-design.md`, établie à partir de
-  l'analyse automatisée du 2026-09-02 (§ « Dette technologique » ci-dessous) triée avec
-  l'utilisateur. Six lots, cinq décisions de méthode ; le détail, les emplacements vérifiés
-  et les critères d'arrêt sont dans la spec et ne sont pas repris ici.
+  l'analyse automatisée du 2026-09-02 (rapport non conservé, § « Dette technologique »
+  du 2026-09-19 close depuis) triée avec l'utilisateur. Six lots, cinq décisions de
+  méthode ; le détail, les emplacements vérifiés et les critères d'arrêt sont dans la
+  spec et ne sont pas repris ici.
   - **D1 Exposition** — documents médicaux réellement servis par Django, noms non
     devinables, refus tracés.
   - **D2 Conteneur** — échec de démarrage visible, `healthcheck` sur `db`, images
@@ -447,8 +448,19 @@ de la passe de recette courante.
 
 ### Sécurité
 
-- Données de santé stockées dans un SQLite non chiffré par défaut. Enjeu RGPD à
-  qualifier (le chiffrement au repos relève peut-être de l'hôte plutôt que de l'app).
+- ~~Données de santé stockées dans un SQLite non chiffré par défaut.~~ — **sans objet**,
+  vérifié le 2026-09-19 : le déploiement cible est conteneur + PostgreSQL, rien d'autre
+  (`CLAUDE.md`, cadrage S4) ; `Libreosteo/settings/container.py:43-52` refuse de démarrer
+  si `DATABASES["default"]["ENGINE"]` ne commence pas par `django.db.backends.postgresql`.
+  Aucun SQLite ne peut porter les données en conteneur.
+
+  **Le chiffrement au repos reste un enjeu réel, déplacé sur PostgreSQL.**
+  `Docker/deploy/pg/docker-compose.yml` monte `${LIBREOSTEO_DB_STORAGE}` (données) et
+  `${LIBREOSTEO_BAK_STORAGE}` (sauvegardes) — deux volumes hôte, en clair sur le disque si
+  l'hôte lui-même ne chiffre pas. Ni `README.rst` ni `docs/` ne mentionnent ce point : la
+  responsabilité (chiffrement de volume, LUKS ou équivalent, à la charge de l'hôte) n'est
+  documentée nulle part. À qualifier avec l'utilisateur : documenter la responsabilité
+  hôte dans le guide de déploiement, ou trancher que c'est hors périmètre du dépôt.
 
 ### Reproduction de la CI en local (vérifié le 2026-08-30, sandbox)
 
@@ -545,9 +557,14 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
   le défaut étant indéterminable sans exécution, mais **la passe est à rejouer sur cet écran
   avant qu'un correctif ne soit ouvert** — la cause à instruire est l'indicateur posé qui ne
   s'affiche pas, plus son absence.
-- **Deux boutons de `R-SAU-02` commencent par « Restaurer », et viser le mauvais ne produit
-  aucun message.** Le geste correct rend bien `412` et l'alerte attendue. Relevé comme
-  piège de geste par l'exécutant ; ressemble à un défaut d'ergonomie, non instruit.
+- ~~**Deux boutons de `R-SAU-02` commencent par « Restaurer », et viser le mauvais ne
+  produit aucun message.**~~ — **fermé le 2026-09-19** : le bouton de soumission de
+  `partials/restore.html:32` (`msgid "Restore"`) devient « Confirmer la restauration »
+  (`msgid "Confirm restore"`), distinct du bouton de navigation « Restaurer la base de
+  données » de `install.html:34`, qui reste inchangé. `docs/recette.md` (fiche
+  `R-SAU-02`) et `tests/functional/test_installation.py` (quatre `get_by_role` mis à
+  jour) suivent le nouveau libellé ; les cinq tests de ce fichier passent, ainsi que les
+  52 de `tests/qualite/`.
 
 ### Défauts versés par D6d (2026-09-12, non corrigés, à trancher hors lot de migration)
 
@@ -639,9 +656,23 @@ décrits à l'entrée de clôture, pas ici.
   reproductible.~~ — **corrigé le 2026-09-06**, D5 : 29 refs figées sur SHA 40-hex,
   `yarn.lock` versionné et opposable par `--frozen-lockfile` aux trois appels. Cf.
   « Terminé ».
-- (S1) **L'état des traductions n'est plus vérifié.** L'étape « Translations state » du
-  workflow a été supprimée ; son contenu était déjà commenté en amont, elle ne vérifiait
-  donc plus rien depuis longtemps. À reconstruire quand les traductions bougeront.
+- ~~(S1) **L'état des traductions n'est plus vérifié.**~~ — **fermé le 2026-09-19** : les
+  traductions ont bougé le jour même (`2445b51`), l'occasion de vérifier plutôt que de
+  reconstruire l'étape supprimée. Les deux cliquets posés par `2445b51`
+  (`test_contrat_traductions.py` sur le `.po`, `test_contrat_catalogue_compile.py` sur le
+  `.mo`) ne suffisaient pas seuls : le premier ne balayait que les gabarits, et son propre
+  docstring listait « les `msgid` posés hors gabarits » parmi ce qu'il ne voyait pas —
+  c'est-à-dire tout le côté serveur (`_()`, `gettext()`, `gettext_lazy()` dans
+  `libreosteoweb/**/*.py`). Mesuré avant correctif : **six chaînes anglaises visibles**
+  à l'écran, jamais vues par aucun cliquet, dont l'erreur de restauration de base de
+  données (`views/administration.py:300`, « The database failed while loading this
+  archive. »). Comblé par une extension de `test_contrat_traductions.py` : balayage des
+  modules Python par `ast` (pas par regex, pour ne pas mordre sur le code mort commenté
+  trouvé dans `serializers/facturation.py`), six traductions ajoutées au `.po`, quatre
+  exceptions documentées (un message repris tel quel du catalogue de
+  `django.contrib.auth`, vérifié par `translation.gettext` ; trois formats déjà en
+  français dans leur littéral source). Catalogue recompilé (`make locale-compile`) ; les
+  52 tests de `tests/qualite/` passent.
 - ~~(S3, tâches 4 et 7) Widget de date webshim : affiche en JOUR/MOIS/ANNÉE, lit en
   MOIS/JOUR/ANNÉE~~ — **corrigé le 2026-09-01**, défaut A de S3 bis, cf. « Terminé ».
 - ~~(S3, tâche 8) `#invoice_start_sequence` ignore silencieusement une saisie textuelle
@@ -739,23 +770,24 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   `nodejs`/`npm` que ce même lot épingle est voulu, puisqu'il fait échouer la
   construction bruyamment dès que la base bouge, plutôt que de laisser Node ou npm
   flotter en silence (cf. le commentaire au-dessus du premier `apk add` du Dockerfile).
-- **La garde SHA-256 de la CI (`.github/workflows/main.yml:44-48`) ne bloque que par le
-  `-eo pipefail` implicite de GitHub Actions**, là où le `Dockerfile` porte sa propre
-  vérification `sha256sum -c` et est donc auto-porteur. Comportement correct — vérifié —
-  mais le caractère bloquant de cette garde n'est lisible nulle part dans le workflow
-  lui-même. À rendre explicite dans un lot ultérieur.
+- ~~**La garde SHA-256 de la CI ne bloque que par le `-eo pipefail` implicite de GitHub
+  Actions**, illisible dans le workflow lui-même.~~ — **fermé le 2026-09-19** :
+  `.github/workflows/main.yml:47` pose un `set -eo pipefail` explicite juste avant la
+  garde, redondant avec le défaut de GitHub Actions (vérifié en local : deux essais
+  `bash -eo pipefail` avec somme fausse puis correcte, même code de sortie qu'avant, `1`
+  puis `0`) mais désormais lisible sans connaître cette convention.
 - **Aucune montée de version frontend.** A6 a gelé l'arbre du 2026-08-30, **CVE connues
   comprises** : c'est assumé et c'est l'objet de D6. Le gel des refs Angular perdra
   d'ailleurs sa valeur avec AngularJS ; les familles vendorisées — Bootstrap 3.2.0 et le
   thème SB Admin 2 en tête — sont le socle visuel et non le framework, et sont le
   sous-ensemble de D5 dont la valeur ne s'évapore pas. Elles sont inventoriées dans le
-  `README.rst`, section « Vendored third-party assets », qui en annonce **huit** — et non
-  neuf comme cette entrée l'écrivait — depuis le retrait d'`animatescroll`. Ce même
-  inventaire note que **DataTables n'a aucun consommateur** : vérifié le 2026-09-18,
-  aucun gabarit de `libreosteoweb/templates/` ne le nomme. ⚠️ **L'inventaire est
-  lui-même à relire** : D6f T10 (`6db03a8`) a supprimé le JavaScript de plusieurs de ces
-  familles sans toucher au tableau du `README.rst`, qui liste encore
-  `js/plugins/jquery.sparkline.min.js`, `js/sb-admin-2.js` et `js/plugins/timeAgo.js`.
+  `README.rst`, section « Vendored third-party assets », qui en annonce **six** depuis
+  `f9804d7` (2026-09-19) — et non huit ni neuf comme cette entrée l'a successivement
+  écrit — après retrait d'`animatescroll` et correction des cinq lignes que D6f T10 avait
+  rendues fausses sans toucher au tableau. Ce même inventaire note que **DataTables n'a
+  aucun consommateur** : vérifié le 2026-09-18, aucun gabarit de
+  `libreosteoweb/templates/` ne le nomme. L'entrée reste ouverte pour le gel A6, CVE
+  comprises.
 - **L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
   Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
   lots restants »). Ce n'est pas une dette de D5 — le gel supprime la dérive dans le
@@ -766,29 +798,28 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 - **`collectstatic` copie des fichiers jamais servis** — documentations et exemples que
   les paquets `@components/…` embarquent et que `collectstatic` recopie en bloc, sans
-  qu'aucun gabarit ni JS n'y fasse référence. Constaté par contre-épreuve (T4, purge des
-  sept dépendances mortes) : **1202 fichiers** alors, le hachage global de `static/`
-  changeant de 1202 fichiers sans qu'aucun des neuf noms `output.<hash>` ne bouge.
-  ⚠️ **Le chiffre est caduc et la mesure est à refaire** : il venait des paquets
-  `@components/…`, ramenés à **deux** (`alpinejs`, `htmx`) par D6e T13 et D6f T10. Le
-  volume restant ne peut se connaître qu'en rejouant `collectstatic` — ce que la passe de
-  correspondance du 2026-09-18 n'a pas fait, et pourquoi elle n'a pas remplacé le chiffre
-  par un autre. Alourdit l'image sans utilité, hors périmètre de D5.
-- **La portabilité de `node_modules/.yarn-integrity` sur une autre architecture n'est
-  pas vérifiée.** Son premier champ, `systemParams`, encode l'architecture et l'ABI de
-  Node (`linux-x64-137`, mesuré ici) ; l'empreinte (a) de `R-INST-07` ne l'exclut pas.
-  Identique caractère pour caractère entre les deux constructions du 2026-09-06 (même
-  machine), donc sans effet constaté ; un rejeu sur une autre architecture y verrait
-  probablement diverger l'empreinte (a) pour une raison étrangère à l'arbre de
-  dépendances lui-même — à vérifier alors, et à exclure de l'empreinte si la divergence
-  se confirme. ⚠️ **Elle est désormais seule de son espèce** : les trois autres entrées
-  `R-INST-07` de ce journal — lectures statiques périmées, « État requis » hors énumération
-  et seconde passe à rejouer — sont fermées le 2026-09-18 par la réécriture de la fiche
-  (`3ad110b`, cf. « Terminé »), et les deux sous-sections qui en portaient deux ont disparu
-  avec elles. **Celle-ci ne l'est pas** : la fiche réécrite ne nomme ni `.yarn-integrity` ni
-  `systemParams`, et l'empreinte (a) hashe toujours `node_modules/**`, ce fichier compris.
-  Elle se ferme donc seule, par une exclusion ajoutée à l'empreinte — pas par une réécriture
-  de plus.
+  qu'aucun gabarit ni JS n'y fasse référence. **Chiffre refait le 2026-09-19** (`make
+  static` puis mesure) : `static/components/` porte **103 fichiers** pour **2** paquets
+  déclarés (`alpinejs`, `htmx`) ; `base.html:102-103` n'en référence que deux —
+  `htmx/dist/htmx.min.js` et `alpinejs/dist/cdn.min.js`. **101 fichiers, 1,7 Mo, jamais
+  servis** sur les 1,9 Mo du répertoire (documentation, sources non minifiées,
+  extensions htmx, métadonnées d'éditeur). Le chiffre de 1202 (T4, 2026-09-06) est bien
+  caduc — il datait d'avant le retrait des sept dépendances mortes puis d'AngularJS et
+  jQuery (D6f T10), qui a ramené `static/` de 5 096 à 332 fichiers au total — mais le
+  résiduel n'est pas devenu marginal : 101 fichiers restent 30 % de l'arbre `static/`
+  actuel. Alourdit l'image sans utilité, hors périmètre de D5 ; aucun cliquet ne le
+  couvre (`test_contrat_arbre_statique.py` vérifie les répertoires de paquets présents,
+  pas leur contenu interne, et le dit).
+- ~~**La portabilité de `node_modules/.yarn-integrity` sur une autre architecture n'est
+  pas vérifiée.**~~ — **fermé le 2026-09-19**, par précaution et non par une divergence
+  mesurée : `README.rst`, empreinte (a), exclut désormais `systemParams` du hash
+  (`sed '/"systemParams"/d'` sur ce seul fichier, avant de le rehacher à part et de
+  réintégrer les deux champs réels — `topLevelPatterns`, `lockfileEntries` — dans
+  l'empreinte globale). Vérifié en local (deux valeurs de `systemParams`, même
+  empreinte finale ; un troisième champ modifié, empreinte différente) : la neutralisation
+  cible bien le seul champ visé, rien d'autre. **La divergence entre architectures reste
+  non mesurée** — aucune machine tierce disponible ici — cette fermeture est une
+  précaution sur le mécanisme documenté du champ, pas la preuve d'un défaut reproduit.
 
 ### Constats de facturation (2026-09-06)
 
@@ -864,22 +895,55 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   (`3ad110b`) ; cf. « Terminé ». Ce qui subsistait sous ce nom est `Whoosh` seul, **dette de
   fond et non ménage**, porté par la puce ci-dessus.
 
-### Dette technologique — analyse automatisée du 2026-09-02, triée le 2026-09-04
-
-> Diagnostic produit par un agent dédié, lecture seule, sur l'arbre de S6 clos. Seuls les
-> points classés élevés ou critiques sont repris ici ; rapport complet non conservé
-> (scratchpad de session, volatil). Trié avec l'utilisateur le 2026-09-04 : ces constats
-> forment le périmètre du chantier « dette technique » (§ Décisions actées), et ils restent
-> ici jusqu'à ce que le lot qui les ferme soit clos.
-
-- **Élevé — frontend en fin de vie.** AngularJS 1.5.11, jQuery 1.12.4, jQuery UI 1.10.4,
-  CVE ouvertes. Objet de D6. Le second volet de ce constat — construction non
-  reproductible : dépendances Git `#*`, `yarn.lock` ignoré, `curl | bash` sans somme de
-  contrôle — est **clos par D5 le 2026-09-06** : 29 refs sur SHA, lock versionné et
-  opposable par `--frozen-lockfile`, tarball yarn vérifié par SHA-256, Node, npm,
-  `rcssmin` et `rjsmin` épinglés.
-
 ## Terminé
+
+- **2026-09-19 — Cinq dettes soldées, dont l'angle mort des traductions côté serveur**
+  (`0d47c13`). `make check` vert : `910 passed`, couverture **94,94 %** ; `52 passed` en
+  `tests/qualite/`.
+
+  ⚠️ **Les deux cliquets de traduction posés le jour même laissaient passer tout le code
+  serveur.** `test_contrat_traductions.py` ne balayait que les gabarits, et son propre
+  docstring nommait cet angle mort sans que personne y revienne. Mesuré avant correctif :
+  **six chaînes anglaises visibles à l'écran**, dont l'erreur de restauration de base de
+  données (`api/views/administration.py:300`). Le balayage des modules Python se fait par
+  `ast` et non par un regex — un regex mordait sur du code mort commenté trouvé dans
+  `serializers/facturation.py`. Six traductions ajoutées au `.po`, catalogue recompilé,
+  **quatre exceptions documentées** : un message repris tel quel du catalogue de
+  `django.contrib.auth` (vérifié par `translation.gettext`), trois formats déjà en français
+  dans leur littéral source.
+
+  **Le piège de geste de `R-SAU-02` se ferme par le libellé, pas par la mise en page.** Le
+  bouton de soumission de `partials/restore.html` devient « Confirmer la restauration »
+  (`msgid "Confirm restore"`), distinct du bouton de navigation « Restaurer la base de
+  données » de `install.html:34`, qui reste inchangé — les deux sont visibles en même temps,
+  htmx chargeant le panneau à côté sans le remplacer. `docs/recette.md` et les quatre
+  `get_by_role` de `tests/functional/test_installation.py` suivent.
+
+  **Les deux renvois de D5 sont soldés, et le second est une précaution assumée.** La garde
+  SHA-256 de la CI porte un `set -eo pipefail` explicite, redondant avec le défaut de GitHub
+  Actions — vérifié en local, deux essais `bash -eo pipefail` avec somme fausse puis
+  correcte, mêmes codes de sortie `1` puis `0` — mais désormais lisible sans connaître cette
+  convention. L'empreinte (a) du `README.rst` exclut `systemParams` de
+  `node_modules/.yarn-integrity`, le champ étant neutralisé seul (vérifié : deux valeurs de
+  `systemParams`, même empreinte ; un autre champ modifié, empreinte différente).
+  ⚠️ **La divergence entre architectures n'est toujours pas mesurée** — aucune machine
+  tierce ici ; c'est le sens documenté du champ qui fonde la fermeture, pas un défaut
+  reproduit.
+
+  **Deux chiffres refaits, une entrée de sécurité classée sans objet.** `static/components/`
+  porte **103 fichiers** pour les **deux** paquets restants, dont **101 jamais servis**
+  (1,7 Mo sur 1,9) : le chiffre de 1202 hérité de D5 T4 était bien caduc, mais le résiduel
+  ne l'est pas devenu marginal pour autant — 30 % de l'arbre `static/` actuel, et aucun
+  cliquet ne le couvre. Les données de santé sur SQLite non chiffré sont **sans objet**
+  depuis S4 : `Libreosteo/settings/container.py:43-52` refuse de démarrer sur tout moteur
+  autre que PostgreSQL. **Le chiffrement au repos reste un enjeu réel**, déplacé sur les deux
+  volumes hôte du `docker-compose.yml` de référence, et documenté nulle part — l'entrée reste
+  ouverte sous cette forme.
+
+  **La section « Dette technologique » disparaît de « À faire »** : son unique constat encore
+  ouvert, le frontend en fin de vie, est l'objet de D6 et vit déjà dans le chapeau du
+  chantier ; son second volet, la construction non reproductible, est clos par D5 depuis le
+  2026-09-06.
 
 - **2026-09-18 — Quatre défauts soldés, dont une boucle de redirection sur le choix de
   cabinet** (`98439de`). `906 passed`, couverture **94,94 %** ; `140 passed` fonctionnels.
