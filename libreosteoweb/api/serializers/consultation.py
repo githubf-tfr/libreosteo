@@ -12,7 +12,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-import pytz
+from zoneinfo import ZoneInfo
+
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
@@ -79,10 +80,10 @@ class ExaminationSerializer(SansRognageMixin):
     def validate_date(self, value):
         to_validate = value
         if timezone.is_naive(value):
-            to_validate = pytz.utc.localize(value)
+            to_validate = value.replace(tzinfo=ZoneInfo("UTC"))
         current = timezone.now()
         if timezone.is_naive(current):
-            current = pytz.utc.localize(current)
+            current = current.replace(tzinfo=ZoneInfo("UTC"))
         # if to_validate >= current:
         #    raise serializers.ValidationError(
         #        _('The examination date is not valid'))

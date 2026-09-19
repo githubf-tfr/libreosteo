@@ -7,7 +7,7 @@
 
 © Jean-Baptiste Gury 2014-2021
 
-© The LibreOsteo Development Team 2014-2021
+© The LibreOsteo Development Team 2014-2026
 
 *LibreOsteo*
 
@@ -104,35 +104,60 @@ Installation with Docker
 You can follow this `Wiki page <https://github.com/libreosteo/LibreOsteo/wiki/Installation-sous-GNU-Linux-avec-Docker>`_ in French
 
 
-Docker for testing only or with PostgreSQL
-==========================================
+Docker with PostgreSQL, the only supported deployment
+======================================================
+
+Container (Docker) with PostgreSQL is the only deployment target that is maintained and
+tested ; the reference compose file is ``Docker/deploy/pg/docker-compose.yml``. ``make
+build`` followed by ``make run`` only starts the http image on its own, with no PostgreSQL
+service and none of the settings below : the container refuses to start in that state, so
+this does not give you a usable instance. Follow the steps below instead.
 
 - Copy this repository in your local environment.
-- Ensure you have docker installed on your machine ::
+- Ensure you have docker installed on your machine.
+- Build both images, tagged with the current commit ::
 
-    make build
-    make run
+    TAG=$(git rev-parse --short HEAD)
+    docker build -t libreosteo/libreosteo-pg:$TAG   -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
+    docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
 
-Point your browser on : http://localhost:8085/ it will guide you towards creating the first admin user.
-
-- To use PostgreSQL with your Docker container, you have to define into your .env file these values ::
+- Copy ``Docker/deploy/pg/.env.example`` to ``.env`` and fill in these values ::
 
     LIBREOSTEO_DB_STORAGE=volumes/libreosteo-db-storage
+    LIBREOSTEO_BAK_STORAGE=volumes/libreosteo-backup
     DATA=volumes/data
     SETTINGS=settings
-    LIBREOSTEO_BAK_STORAGE=volumes/libreosteo-backup
     POSTGRES_USER=libreosteo
     POSTGRES_PASSWORD=libreosteo
+    LIBREOSTEO_SECRET_KEY=<a secret value ; see the comment in .env.example to generate one>
+    LIBREOSTEO_ALLOWED_HOSTS=localhost,127.0.0.1
+    LIBREOSTEO_IMAGE_TAG=<the $TAG used above>
+
+- The ``SETTINGS`` directory itself needs a small Python package that hands the PostgreSQL
+  connection to the container : copy ``Docker/deploy/pg/settings/__init__.py.example`` and
+  ``Docker/deploy/pg/settings/local.py.example`` into it as ``__init__.py`` and ``local.py``,
+  and fill in the database host, user and password there.
 
 Then ::
 
     make run-pg
 
+Point your browser on : http://localhost:8085/ it will guide you towards creating the first admin user.
+
 - LIBREOSTEO_DB_STORAGE define the postgresql storage
-- DATA define the volume where the data will be stored : index of the database and uploaded documents
-- SETTINGS define the directory which contains settings into __init__.py file
 - LIBREOSTEO_BAK_STORAGE define the volume where you can backup your database in PostgreSQL dump format.
+- DATA define the volume where the data will be stored : index of the database and uploaded documents
+- SETTINGS define the directory mounted on ``/Libreosteo/settings`` ; it must contain the
+  ``__init__.py``/``local.py`` pair described above, or the container falls back to an
+  empty settings package and refuses to start
 - POSTGRES_USER and POSTGRES_PASSWORD defines the credential required for your PostgreSQL database
+- LIBREOSTEO_SECRET_KEY is the Django secret key ; the container refuses to start without one
+- LIBREOSTEO_ALLOWED_HOSTS is the comma-separated list of hosts Django accepts requests for
+- LIBREOSTEO_IMAGE_TAG selects which build of the two images above the compose file runs ; the container refuses to start without it
+
+The sqlite and standalone (CherryPy) modes described further below still exist in the
+code, but are no longer a deployment target : they are not maintained or tested, and this
+Docker/PostgreSQL path is the only one to rely on.
 
 
 into your __init__.py file for settings you can have ::
@@ -386,7 +411,11 @@ this specific archive's content is safe against the schema it is about to be for
 
 Use it in production
 ====================
-You can use the software in production by changing some settings.
+The Docker/PostgreSQL deployment documented above is the only one that is maintained and
+tested. What follows documents the underlying settings mechanism, which the Docker image
+also relies on ; it is kept here because the code paths it describes (sqlite, standalone)
+are still in the repository, not because they are recommended production choices on their
+own.
 
 Settings are in the folder
 ::
@@ -394,9 +423,9 @@ Settings are in the folder
    LibreOsteo/settings/
 
 There are some settings in this folder, the base_ settings is the main settings. All settings should
-use this base settings as reference.
-You can define your own base settings, but advice is to use standalone_ setting, and add a local.py file in this
-folder to define your own customization.
+use this base settings as reference. The Docker image builds on top of it with
+container_, which enforces PostgreSQL ; standalone_ (paired with the CherryPy server
+further below) is not maintained since it stopped being a deployment target.
 
 Setting to avoid debug trace
 ----------------------------
@@ -408,7 +437,10 @@ Setting to avoid debug trace
 Setting for Database
 --------------------
 
-For example, to define postgresql as database backend instead of sqlite3 (the default), you can use this definition.
+base_ defaults to sqlite3, but that default is not the deployment target : the Docker
+image forces PostgreSQL through container_, and sqlite is not maintained or recetted
+outside of it. To define postgresql as database backend yourself, you can use this
+definition.
 ::
 
    DATABASES = {
@@ -445,10 +477,10 @@ this other `one <https://docs.nginx.com/nginx/admin-guide/web-server/app-gateway
 
 Docker images are provided with uwsgi as provider of the webapp. uwsgi is built from source at image build time, against the pinned Python interpreter of the image, and serves HTTP directly on port 8085.
 
-With the software, a basic solution is provided with CherryPy_ which provides the ability to have Http server and WSGI implementation.
-Use the following script to start the server already configured to start as is.
-You can encapsulate the call to this script into your boot manager. This script listen on all interfaces of the host to provide the web application.
-The default configured port to provide the application is 8085.
+The repository also carries a standalone script, ``server.py``, which serves the
+application through CherryPy_ instead of uwsgi or a reverse proxy. It is not a
+maintained deployment target since the container/PostgreSQL decision above ; it is
+documented here only because the code and its dependency are still present.
 ::
 
    ./server.py
@@ -461,6 +493,7 @@ To change the default port of the server, write a file server.cfg like this  (to
    server.port = 9000
 
 .. _base : LibreOsteo/settings/base.py
+.. _container : LibreOsteo/settings/container.py
 .. _standalone : LibreOsteo/settings/standalone.py
 .. _CherryPy : https://cherrypy.org/
 
@@ -660,19 +693,26 @@ inherited from ``base.py``.
 Vendored third-party assets
 ===========================
 
-Eight families of third-party assets live under ``libreosteoweb/static/``, are versioned in
+Six families of third-party assets live under ``libreosteoweb/static/``, are versioned in
 git, and are declared in no manifest at all. They are listed here because they are invisible
 to ``package.json`` and to ``yarn.lock``, and because they are the part of the frontend most
 likely to outlive a framework migration. Versions are read from the files themselves; where
 a file carries no version, that is said rather than guessed.
 
-Seven of the eight are loaded by a template. **DataTables is not**, and has not been for as
+Five of the six are loaded by a template. **DataTables is not**, and has not been for as
 long as this fork's history goes: no template under ``libreosteoweb/templates/`` names it,
-at the tip or at the fork point. It is a vendored family with no consumer — the same
-situation as ``css/typeahead.css``, which ``KANBAN.md`` records under the frontend cleanup
-still to be decided. It is listed here because it is present on disk, not because it is
-served. (Glyphicons, by contrast, is loaded: ``css/bootstrap.css`` references the font files
-by path.)
+at the tip or at the fork point. It is a vendored family with no consumer. This is not the
+situation of ``css/typeahead.css`` : it was long believed to be in the same case, until
+``KANBAN.md`` recorded on 2026-09-13 that ``404.html:28`` does load it — as ``404.html:22``
+does for the metisMenu theme below. It is listed here because it is present on disk, not
+because it is served. (Glyphicons, by contrast, is loaded: ``css/bootstrap.css`` references
+the font files by path.)
+
+Two families lost their JavaScript half entirely, with no CSS counterpart to keep them
+present : ``jquery.sparkline`` and the AngularJS ``timeAgo`` directive both lived only
+under ``js/plugins/``, which no longer exists — ``libreosteoweb/static/js/`` now holds only
+``composants/``. Bootstrap, metisMenu and SB Admin 2 lost their JavaScript half the same
+way but keep their CSS half, still loaded by templates.
 
 A ninth family, ``animatescroll``, was listed here until the administration screens were
 migrated: its only callers were three inline scripts, and the file was deleted with them.
@@ -681,18 +721,15 @@ The count is the number of families actually present, not a historical total.
 ===================================  ==============================================  =====================
 Family                               Location                                        Version as shipped
 ===================================  ==============================================  =====================
-Bootstrap                            ``css/bootstrap*.css``, ``js/bootstrap*.js``     3.2.0 (file header)
-Font Awesome                         ``font-awesome/``                                4.5.0 (file header)
-Bootstrap 3 Glyphicons               ``fonts/glyphicons-halflings-regular.*``         ships with Bootstrap 3;
+Bootstrap                            ``css/bootstrap*.css``                          3.2.0 (file header)
+Font Awesome                         ``font-awesome/``                               4.5.0 (file header)
+Bootstrap 3 Glyphicons               ``fonts/glyphicons-halflings-regular.*``        ships with Bootstrap 3;
                                                                                      no version of its own
-jquery.sparkline                     ``js/plugins/jquery.sparkline.min.js``           2.1.2 (file header)
-metisMenu                            ``js/plugins/metisMenu/``,                       1.0.3 (file header)
-                                     ``css/plugins/metisMenu/``
-SB Admin 2 (Start Bootstrap theme)   ``css/sb-admin-2.css``, ``js/sb-admin-2.js``,    not stated in the files
+metisMenu                            ``css/plugins/metisMenu/``                      1.0.3 (file header)
+SB Admin 2 (Start Bootstrap theme)   ``css/sb-admin-2.css``,                         not stated in the files
                                      ``css/plugins/timeline*``
-DataTables Bootstrap theme           ``css/plugins/dataTables.bootstrap.css``,        not stated in the files
+DataTables Bootstrap theme           ``css/plugins/dataTables.bootstrap.css``,       not stated in the files
                                      ``css/plugins/dataTables/``
-timeAgo (AngularJS directive)        ``js/plugins/timeAgo.js``                        not stated in the file
 ===================================  ==============================================  =====================
 
 Two of these explain a purge made in the same lot: ``@components/bootstrap`` used to be
