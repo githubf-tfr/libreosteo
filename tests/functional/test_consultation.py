@@ -16,6 +16,7 @@ from tests.functional.helpers import (
     confirmer_la_modale,
     connexion,
     creer_patient,
+    entrer_en_edition,
     libelle_date_longue,
     notifications_de_succes,
     ouvrir_nouvelle_consultation,
@@ -461,8 +462,7 @@ def test_edition_d_une_consultation_existante(
     expect(volet).to_contain_text("n° 10000")
     expect(volet).to_contain_text("Motif de consultation")
     expect(volet).to_contain_text("Examen normal")
-    page.get_by_role("button", name="Éditer").click()
-    expect(bouton_fin_d_edition(page)).to_be_visible()
+    entrer_en_edition(page, "examinations")
 
     volet.locator("input[placeholder='Motif']").fill("Motif modifie")
     remplir_champ_de_texte_riche(

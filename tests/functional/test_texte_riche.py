@@ -19,7 +19,7 @@ etape 1) : la barre d'outils porte quatorze boutons et non douze, ses info-bulle
 englobant — pas une classe.
 """
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import Patient
@@ -28,6 +28,7 @@ from tests.functional.helpers import (
     attendre_enregistrement_declenche,
     connexion,
     creer_patient,
+    entrer_en_edition,
     remplir_champ_de_texte_riche,
 )
 
@@ -40,8 +41,7 @@ def _saisir_puis_mettre_en_forme(
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
     page.goto(f"{live_server.url}/patient/{patient.id}")
-    page.get_by_role("button", name="Éditer").click()
-    expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
+    entrer_en_edition(page, "general")
     zone = page.locator(f"div[name={champ}]")
     remplir_champ_de_texte_riche(page, zone, texte)
     appliquer_mise_en_forme(page, zone, libelle)

@@ -218,6 +218,24 @@ class TestClassesDuFormulaireDIdentite(_SocleDuDossier):
 
         self.assertEqual([], sans_classe)
 
+    def test_rue_et_complement_portent_leur_libelle_en_placeholder(self) -> None:
+        """L'ecran AngularJS posait `e-placeholder="{{ patient.address_street }}"` -- le
+        libelle du champ -- sur rue et complement ; l'ecran migre rendait deux boites
+        vides sans aucune indication (defaut verse par D6e, KANBAN.md).
+
+        `address_zipcode` et `address_city` n'en font pas partie : ils ne sont pas rendus
+        par ce formulaire (`dossier-code-postal.html` les ecrit lui-meme), cf.
+        `TestCodePostal.test_le_code_postal_et_la_ville_portent_leur_libelle_en_placeholder`.
+        """
+        formulaire = FormulaireIdentite(instance=self.patient)
+
+        for nom, libelle in (
+            ("address_street", "Rue"),
+            ("address_complement", "Complément d&#x27;adresse"),
+        ):
+            with self.subTest(champ=nom):
+                self.assertIn(' placeholder="%s"' % libelle, str(formulaire[nom]))
+
 
 class TestAliasDeNom(_SocleDuDossier):
     """Les quatre alias `e-name` de `patient-detail.html:61,77,92,119`, a l'octet."""
@@ -1117,6 +1135,19 @@ class TestCodePostal(_SocleDuDossier):
         self.assertIn('value="70190"', _attributs_de(html, 'id="zipcode"'))
         self.assertIn('value="Rioz"', _attributs_de(html, 'id="city"'))
 
+    def test_le_code_postal_et_la_ville_portent_leur_libelle_en_placeholder(
+        self,
+    ) -> None:
+        """Meme defaut que `address_street`/`address_complement`
+        (`TestClassesDuFormulaireDIdentite`), sur les deux entrees que
+        `dossier-code-postal.html` ecrit lui-meme : l'ecran AngularJS posait le libelle en
+        placeholder, l'ecran migre rendait deux boites vides."""
+        html = self.client.get(
+            reverse("dossier-general", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertIn('placeholder="Code postal"', _attributs_de(html, 'id="zipcode"'))
+        self.assertIn('placeholder="Ville"', _attributs_de(html, 'id="city"'))
+
 
 class TestConsultations(_SocleDuDossier):
     def test_demarrer_une_consultation_la_cree_en_cours(self) -> None:
@@ -1192,6 +1223,25 @@ class TestConsultations(_SocleDuDossier):
                 args=[self.patient.pk, consultation.pk],
             ),
         )
+
+    def test_la_chronologie_du_document_omet_la_seance_en_cours(self) -> None:
+        """`#current-examination-volet` rend deja la seance en cours : la lister aussi
+        dans la chronologie de l'onglet « Consultations » double l'autorite sur la meme
+        donnee clinique, et son entree menerait au document qui porte deux
+        `#close-examination` (defaut verse par D6e, KANBAN.md)."""
+        with sans_receivers():
+            en_cours = cree_consultation(self.patient, therapeut=self.praticien)
+            anterieure = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+                date=timezone.now() - timedelta(days=10),
+            )
+        html = self.client.get(
+            reverse("dossier-patient-consultations", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertNotIn(page_documents.url_de_seance(self.patient, en_cours), html)
+        self.assertIn(page_documents.url_de_seance(self.patient, anterieure), html)
 
     def test_le_volet_selectionne_est_rendu_sous_la_chronologie(self) -> None:
         """Ecart assume : AngularJS remplacait la chronologie par le volet, ce qui privait
@@ -1998,8 +2048,15 @@ class TestFeuillesDeStyleDuDossier(_SocleDuDossier):
     """
 
     def _dossier_avec_une_seance(self) -> str:
+        # Statut clos et non « en cours » : une seance en cours n'apparait plus dans la
+        # chronologie, `#current-examination-volet` la rendant deja (defaut verse par
+        # D6e, KANBAN.md).
         with sans_receivers():
-            cree_consultation(self.patient, therapeut=self.praticien)
+            cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+            )
         return self.client.get(
             reverse("dossier-patient", args=[self.patient.pk])
         ).content.decode("utf-8")

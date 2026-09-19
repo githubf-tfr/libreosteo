@@ -223,6 +223,10 @@ class FormulaireIdentite(_FormulaireDuDossier):
             "email",
         ):
             self.fields[nom].widget.attrs["class"] = "form-control input-sm"
+        # L'ecran AngularJS posait le libelle en placeholder sur les deux entrees
+        # d'adresse rendues par ce formulaire ; motif repris de `nouveau_patient.py:98`.
+        for nom in ("address_street", "address_complement"):
+            self.fields[nom].widget.attrs["placeholder"] = self.fields[nom].label
         for nom in ("sex", "laterality", "doctor"):
             self.fields[nom].widget.attrs["class"] = "form-control input-sm"
         self.fields["mobile_phone"].widget.attrs["class"] = "form-control input-sm"
@@ -565,6 +569,7 @@ def contexte_du_dossier(
                 "consultation-nouvelle", args=[patient.pk]
             ),
             cible_nouvelle_consultation="#dossier-corps",
+            exclue_de_la_liste=en_cours.pk if en_cours is not None else None,
         ),
         "documents": page_documents.contexte_documents(patient),
         "televersement": page_documents.contexte_televersement(patient),
@@ -1072,6 +1077,10 @@ def choix_de_code_postal(request: HttpRequest) -> HttpResponse:
         {
             "zipcode": request.GET.get("zipcode", ""),
             "city": request.GET.get("city", ""),
+            "placeholder_zipcode": FormulaireIdentite.base_fields[
+                "address_zipcode"
+            ].label,
+            "placeholder_city": FormulaireIdentite.base_fields["address_city"].label,
             "hors_bande": True,
             "completion_code_postal": _reglages_de(request).zipcode_completion_enabled,
             "url_suggestions": reverse("zipcode-suggestions"),

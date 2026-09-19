@@ -20,6 +20,7 @@ from django.contrib.sessions.models import Session
 from django.db import connection
 from django.http import HttpResponse
 from django.test import (
+    Client,
     RequestFactory,
     TestCase,
     TransactionTestCase,
@@ -329,6 +330,31 @@ class TestOfficeSettingsMiddleware(TestCase):
         self.assertEqual(reponse.status_code, 302)
         self.assertEqual(reponse.url, reverse("officesettings-set"))
         self.assertTrue(requete.has_multiple_office)
+
+    def test_le_formulaire_du_choix_de_cabinet_ne_se_redirige_pas_lui_meme(self):
+        """`reverse("officesettings-set")` rend `/%2F`, slash encode compris
+        (`urls.py`, A1) : une fois decode par le serveur, le chemin effectivement recu
+        vaut `//` et ne correspond plus **litteralement** a la chaine encodee que la garde
+        de `middleware.py:196` compare. Sans corriger cette comparaison, la garde se
+        retrouve toujours vraie et redirige une seconde fois vers elle-meme -- mesure a la
+        boucle infinie (defaut verse par D6e, KANBAN.md).
+        """
+        OfficeSettings.objects.create(office_name="Cabinet secondaire", currency="EUR")
+        requete = self.fabrique.get("/%2F")
+        requete.user = self.user
+        requete.session = {}
+        self.assertIsNone(self.middleware.process_request(requete))
+
+    def test_le_navigateur_atteint_le_formulaire_sans_boucler(self):
+        """Bout en bout, avec le vrai client de test : mesure directe de ce que produit
+        la redirection (KANBAN.md l'exigeait avant toute correction). Avant correctif,
+        `Client.get(follow=True)` levait `RedirectCycleError` -- l'equivalent
+        `ERR_TOO_MANY_REDIRECTS` d'un navigateur reel."""
+        OfficeSettings.objects.create(office_name="Cabinet secondaire", currency="EUR")
+        client = Client()
+        client.force_login(self.user)
+        reponse = client.get("/", follow=True)
+        self.assertEqual(reponse.status_code, 200)
 
     def test_cabinets_multiples_le_choix_en_session_est_respecte(self):
         second = OfficeSettings.objects.create(

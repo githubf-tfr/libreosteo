@@ -51,7 +51,7 @@
                 <div class="col-md-12">{{ identite.formulaire.address_street }}</div>
                 <div class="col-md-12">{{ identite.formulaire.address_complement }}</div>
                 <div class="col-md-12">
-                  {% include "pages/fragments/dossier-code-postal.html" with zipcode=identite.formulaire.address_zipcode.value city=identite.formulaire.address_city.value hors_bande=False completion_code_postal=identite.completion_code_postal url_suggestions=identite.url_suggestions %}
+                  {% include "pages/fragments/dossier-code-postal.html" with zipcode=identite.formulaire.address_zipcode.value city=identite.formulaire.address_city.value placeholder_zipcode=identite.libelles.address_zipcode placeholder_city=identite.libelles.address_city hors_bande=False completion_code_postal=identite.completion_code_postal url_suggestions=identite.url_suggestions %}
                   <ul id="suggestions-code-postal" class="list-unstyled"></ul>
                 </div>
               </div>

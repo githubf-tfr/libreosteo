@@ -653,6 +653,23 @@ def joindre_document(
     expect(page.locator("div.document_create")).to_have_count(0)
 
 
+def entrer_en_edition(page: Page, panneau: str) -> None:
+    """Clique « Editer » et attend l'arrivee du fragment d'edition, pas un rouage du bouton.
+
+    **Ce que quatre sites faisaient a la place** : attendre que le bouton « Fin d'edition »
+    devienne visible. Depuis `4e6063d`, ce bouton porte `editionArrivee`, une variable posee
+    par le `x-init` du **fragment** d'edition lui-meme -- sa visibilite ne prouve donc plus
+    rien sur le bouton, elle **suit** l'arrivee du fragment par ricochet. La preuve reste
+    juste par accident : elle cesserait de l'etre au premier refactor qui deplacerait cette
+    variable. `panneau` vise directement ce que le produit garantit -- le formulaire
+    d'edition, identifie par `#<panneau>-formulaire` (`dossier-identite-edition.html`,
+    `dossier-antecedents-edition.html`, `dossier-comptes-rendus-edition.html`,
+    `consultation-edition.html`, un par volet).
+    """
+    page.get_by_role("button", name="Éditer").click()
+    expect(page.locator(f"#{panneau}-formulaire")).to_be_attached()
+
+
 def bouton_fin_d_edition(page: Page) -> Locator:
     """Le bouton « Fin d'édition » **du bandeau d'actions**, jamais celui d'un volet.
 

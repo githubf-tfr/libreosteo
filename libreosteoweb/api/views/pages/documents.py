@@ -203,6 +203,7 @@ def contexte_chronologie(
     consultation_en_cours: bool = False,
     url_nouvelle_consultation: str = "",
     cible_nouvelle_consultation: str = "",
+    exclue_de_la_liste: int | None = None,
 ) -> dict[str, Any]:
     """Le contexte de `pages/fragments/chronologie.html`.
 
@@ -212,8 +213,15 @@ def contexte_chronologie(
 
     `url_nouvelle_consultation` et `cible_nouvelle_consultation` appartiennent a l'ecran qui
     ouvre une consultation : ils sont vides ici, et T12 les remplit.
+
+    `exclue_de_la_liste` : la seance en cours, quand `#current-examination-volet` la rend
+    deja dans son propre volet. Sans cette exclusion, son entree de chronologie ouvre le
+    meme volet une seconde fois sous « Consultations » -- deux `#close-examination` pour
+    une seule seance (defaut verse par D6e, KANBAN.md).
     """
     seances = models.Examination.objects.filter(patient=patient).order_by("-date")
+    if exclue_de_la_liste is not None:
+        seances = seances.exclude(pk=exclue_de_la_liste)
     commentaires = _commentaires_par_seance(patient)
     return {
         "patient": patient,

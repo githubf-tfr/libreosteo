@@ -44,6 +44,7 @@ from tests.functional.helpers import (
     attendre_enregistrement_declenche,
     connexion,
     creer_patient,
+    entrer_en_edition,
 )
 from zipcode_lookup.models import ZipcodeMapping
 
@@ -145,8 +146,7 @@ def _ouvrir_le_dossier_en_edition(page: Page, live_server: LiveServer) -> Patien
     creer_patient(page)
     patient = Patient.objects.get(family_name="Picard")
     page.goto(f"{live_server.url}/patient/{patient.id}")
-    page.get_by_role("button", name="Éditer").click()
-    expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
+    entrer_en_edition(page, "general")
     return patient
 
 

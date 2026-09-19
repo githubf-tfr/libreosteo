@@ -428,6 +428,25 @@ class TestChronologie(_SocleDuPatient):
     def test_la_chronologie_sans_seance_ne_rend_aucune_entree(self) -> None:
         self.assertEqual(textes(self.rend_la_chronologie(), "titre-seance"), [])
 
+    def test_la_seance_exclue_n_apparait_pas_dans_la_liste(self) -> None:
+        """`#current-examination-volet` rend deja la seance en cours dans son propre
+        volet : sans exclusion, son entree de chronologie duplique l'autorite sur la
+        meme donnee clinique -- le document porte alors deux `#close-examination`
+        (defaut verse par D6e, KANBAN.md)."""
+        with sans_receivers():
+            en_cours = cree_consultation(
+                self.patient, self.user, date=_a_paris(2024, 3, 15)
+            )
+            cree_consultation(self.patient, self.user, date=_a_paris(2024, 1, 1))
+
+        self.assertEqual(
+            textes(
+                self.rend_la_chronologie(exclue_de_la_liste=en_cours.pk),
+                "titre-seance",
+            ),
+            ["Séance du 1 janvier 2024"],
+        )
+
     def test_le_bouton_de_nouvelle_consultation_garde_son_identifiant(self) -> None:
         """`#new-examination-btn` : `helpers.ouvrir_nouvelle_consultation` le clique."""
         self.assertIn('id="new-examination-btn"', self.rend_la_chronologie())
@@ -1339,8 +1358,15 @@ class TestPreservationDesSurfaces(_SocleDuPatient):
     def setUp(self) -> None:
         super().setUp()
         with sans_receivers():
+            # Statut clos et non « en cours » : une seance en cours n'apparait plus dans
+            # la chronologie que le corps rend, `#current-examination-volet` la rendant
+            # deja (defaut verse par D6e, KANBAN.md). Sans ecart, l'entree de
+            # `chronologie-commentaires-<pk>` que ce test regarde n'existerait pas.
             self.seance = cree_consultation(
-                self.patient, self.user, date=_a_paris(2024, 1, 1)
+                self.patient,
+                self.user,
+                date=_a_paris(2024, 1, 1),
+                status=ExaminationStatus.NOT_INVOICED,
             )
         self.depose_un_document()
         self.document = self.document_en_base()

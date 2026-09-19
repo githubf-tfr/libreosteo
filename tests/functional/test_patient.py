@@ -28,6 +28,7 @@ from tests.functional.helpers import (
     connexion,
     creer_patient,
     enregistrements_patient_observes,
+    entrer_en_edition,
     joindre_document,
     libelle_date_longue,
     notifications_d_erreur,
@@ -235,8 +236,7 @@ def test_edition_du_dossier_patient(
     # accessible ne vaut donc jamais « Éditer », ni « Fin d'édition » tout court. La correspondance par
     # sous-chaine reste non ambigue : aucun autre bouton ne porte ces mots (ceux qui
     # editent un document joint portent `aria-label="Edit"`).
-    page.get_by_role("button", name="Éditer").click()
-    expect(page.get_by_role("button", name="Fin d'édition")).to_be_visible()
+    entrer_en_edition(page, "general")
     expect(page.locator("button:has-text('Supprimer')")).to_be_visible()
     page.fill("input[name=original_name]", "dupont")
     page.select_option("select[name=sex]", label="Masculin")

@@ -14,6 +14,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 from re import compile
+from urllib.parse import unquote
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, logout
@@ -193,7 +194,15 @@ class OfficeSettingsMiddleware(MiddlewareMixin):
                     return
                 # Redirect to the Office Settings form if not already
                 # redirected
-                if request.path != reverse("officesettings-set"):
+                #
+                # `unquote()` **des deux cotes**, pas seulement de `reverse()` : le
+                # `path(r"/")` de `urls.py` (A1) rend `/%2F`, slash encode compris, mais
+                # une fois recu le chemin est deja decode par le serveur -- `request.path`
+                # vaut alors `//`, jamais `/%2F`. Comparer les deux formes brutes ne
+                # reconnaissait donc jamais "on y est deja", et redirigeait vers la cible
+                # une seconde fois : une boucle infinie plutot qu'un formulaire (defaut
+                # verse par D6e, KANBAN.md).
+                if unquote(request.path) != unquote(reverse("officesettings-set")):
                     return rediriger(request, reverse("officesettings-set"))
         else:
             current_officesettings = OfficeSettings.objects.first()
