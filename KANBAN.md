@@ -654,6 +654,22 @@ décrits à l'entrée de clôture, pas ici.
   figer une expression morte reviendrait à la prendre pour une décision. Vérifié le
   2026-09-19 : `chronologie.html:30` pose toujours `forloop.counter|divisibleby:2`.
 
+### Constats versés le 2026-09-19, à instruire après la clôture de D6g
+
+- **Le cliquet d'arbre statique ne couvre pas le contenu des paquets.**
+  `tests/qualite/test_contrat_arbre_statique.py` garde le **jeu de paquets** servis sous
+  `static/components/`, pas ce qu'ils contiennent. Conséquence : le recomptage des fichiers
+  jamais servis — l'entrée « `collectstatic` copie des fichiers jamais servis », § Renvoyé par
+  D5 — **ne sera gardé par aucun cliquet**, et son chiffre redeviendra faux sans que rien ne
+  rougisse. C'est le mécanisme exact qui a fait vivre un chiffre périmé de 1202 fichiers
+  pendant douze jours.
+- **Le décompte de `static/components/` est à refaire une fois D6g clos, et pas avant.**
+  Mesuré le 2026-09-19 en cours de lot : **322 fichiers, 12 Mo, 3 paquets** pour **3 fichiers
+  réellement référencés** — mais c'est un **état transitoire**, Bootstrap 5 étant entré sans
+  que Bootstrap 3 ne soit encore sorti. ⚠️ **Ne pas lire ce chiffre comme une régression** :
+  le ménage est une clause de sortie de D6g, tâche T16. Le chiffre qui comptera est celui
+  d'après.
+
 ### Dette technique (constat, pas action)
 
 - **Bootstrap 3 vendorisé, en fin de support et sans correctifs de sécurité.**
@@ -909,10 +925,22 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   non plus (remplacé par `pages/fragments/consultation-edition.html`). **Toujours aucune
   borne minimale**, vérifié le 2026-09-19.
 
-### Candidats pour D7 (2026-09-06, non décidés)
+### Candidats pour D7 (2026-09-06) — **clos sans objet le 2026-09-19**
 
-> D7 n'est pas décidé : il se cadre à la clôture de D6, avec ce que D6 aura produit.
-> Trois candidats identifiés le 2026-09-06 :
+> ⚠️ **Cette section est close, et son titre même était devenu trompeur.** « D7 » est un
+> numéro **déjà consommé** : le lot D7 Facturation a été livré le 2026-09-07 et recetté le
+> 2026-09-08. Les deux candidats restants sont instruits par le cadrage du 2026-09-19,
+> `docs/superpowers/specs/2026-09-19-d10-reprise-sure-du-parc-design.md`, qui porte le
+> **numéro D10** pour cette raison — et qui les dissout tous les deux à la mesure :
+> « Facturation » décrit quatre items **tous faits**, et Whoosh ne coûte pas ce que son nom
+> suggère (zéro dépendance transitive, importe sous CPython 3.14.2). Whoosh est requalifié en
+> **limitation assumée**, avec ses trois conditions de révision nommées dans la spec.
+>
+> Le texte d'origine est conservé ci-dessous, barré ou non, parce qu'il porte l'état des
+> preuves à sa date. Ne pas le lire comme une liste de travail.
+
+> ~~D7 n'est pas décidé : il se cadre à la clôture de D6, avec ce que D6 aura produit.
+> Trois candidats identifiés le 2026-09-06 :~~
 
 - ~~**Facturation** — unicité `(officesettings_id, number)` avec la reprise de parc que
   la contrainte exige, garde-fou de séquence en comparaison numérique (cf. « Points en
