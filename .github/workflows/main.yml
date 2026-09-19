@@ -19,15 +19,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements/requirements.txt
           pip install -r requirements/requ-dev.txt
-      - name: Lint
-        run: |
-          ruff check .
-          ruff format --check .
-          mypy
-      - name: Model migration status
-        run: python ./manage.py makemigrations --check
-      - name: Unit tests and coverage
-        run: pytest
+      - name: Quality (lint + migrations + tests)
+        # Meme raison que le job `functional` pour `make static PYTHON=python` :
+        # ce job n'a pas de .venv, tout est installe dans l'interpreteur courant.
+        # `check` = `lint migrations-check test` (Makefile) = les trois anciennes
+        # etapes, dans le meme ordre, via une seule cible au lieu de trois copies.
+        run: make check PYTHON=python
 
   functional:
     runs-on: ubuntu-latest

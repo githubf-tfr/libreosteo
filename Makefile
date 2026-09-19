@@ -47,6 +47,13 @@ test:
 
 static:
 	@echo "Preparation de l'arbre statique servi"
+	# Purge en tete : `collectstatic` n'enleve jamais ce qu'il a copie une fois. Dans
+	# l'image Docker, `.dockerignore` exclut `static/` du contexte et l'arbre repart
+	# donc neuf a chaque construction ; en local, rien ne le fait sans cette ligne, et
+	# les paquets retires de package.json restent servis (mesure a la cloture de D6f :
+	# 4 764 fichiers residuels). tests/qualite/test_contrat_arbre_statique.py rougit
+	# si l'un d'eux revient.
+	rm -rf $(PWD)/static
 	# Les quatre commandes de Docker/build/http-ready/Dockerfile:105, dans cet ordre.
 	# Les deux --settings ne sont pas decoratifs : `Libreosteo.settings` est dev.py, ou
 	# COMPRESS_ENABLED est faux ; sous ce reglage `compress` n'ecrit aucun bundle et
@@ -71,8 +78,24 @@ migrations-check:
 	@echo "Etat des migrations"
 	$(PYTHON) ./manage.py makemigrations --check
 
+# Rejoue la compilation `.po` -> `.mo` avec le vrai `msgfmt` (paquet systeme `gettext`,
+# pose par .tools/libreosteo-devenv.sh). Avant cette cible, seul un compilateur maison
+# avait jamais tourne sur ce depot (cf. tests/qualite/test_contrat_catalogue_compile.py) ;
+# le `.mo` versionne en portait la trace, une table de hachage absente (`hash_size = 0`).
+# `--check` fait echouer msgfmt lui-meme sur un `.po` invalide ; le Makefile ne rattrape
+# que l'absence de l'outil, jamais une compilation degradee en silence.
+locale-compile:
+	@echo "Compilation des catalogues de traduction (.po -> .mo)"
+	@command -v msgfmt >/dev/null 2>&1 || { \
+		echo "msgfmt introuvable (paquet systeme 'gettext') : cette cible ne produit" >&2; \
+		echo "jamais un .mo degrade a la place. Installer gettext, cf. .tools/libreosteo-devenv.sh." >&2; \
+		exit 1; \
+	}
+	msgfmt --check -o locale/fr/LC_MESSAGES/django.mo locale/fr/LC_MESSAGES/django.po
+	msgfmt --check -o locale/fr/LC_MESSAGES/djangojs.mo locale/fr/LC_MESSAGES/djangojs.po
+
 check: lint migrations-check test
 
-.PHONY: lint test test-functional migrations-check check static
+.PHONY: lint test test-functional migrations-check locale-compile check static
 
 .DEFAULT_GOAL := help
