@@ -41,7 +41,7 @@
 {#    (`.dropdown-item.disabled`). L'alignement a droite des deux menus, lui, vit dans #}
 {#    `libreosteo.css` : `.dropdown-menu-end` de Bootstrap 5 ne pose ses valeurs que sous #}
 {#    `[data-bs-popper]`, attribut que seul son JavaScript ecrit. #}
-<nav class="navbar navbar-expand-md navbar-light bg-light fixed-top" role="navigation" style="margin-bottom: 0">
+<nav class="navbar navbar-expand-md bg-light fixed-top" role="navigation" style="margin-bottom: 0">
   <div>
     {% if request.has_multiple_office %}
       <a class="navbar-brand" href="/" style="max-width:13%;padding-top:5px">{{request.officesettings.office_name}}</a>
@@ -72,7 +72,7 @@
     </ul>
     <ul class="nav lo-barre-liens order-2">
     <!-- /.dropdown -->
-      {# Le serveur marque `open` **avant** qu'Alpine ne demarre (`defer`), et #}
+      {# Le serveur marque `show` **avant** qu'Alpine ne demarre (`defer`), et #}
       {# `@click.outside` ne referme plus pendant la visite : c'est la parite exacte du #}
       {# rabonnement de `tour.js:51` sur `hidden.bs.dropdown`, sans le rabonnement. #}
       <li class="dropdown" @click.outside="if (visiteEtape === 0) { menuUtilisateur = false }">

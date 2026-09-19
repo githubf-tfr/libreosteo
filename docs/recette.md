@@ -3817,7 +3817,9 @@ opposable ; un écart se corrige, il ne s'absorbe pas.
 
 1. Se connecter, puis rester sur l'URL racine, fenêtre à **1 280 px de large**.
    Attendu : la barre de navigation occupe toute la largeur, fond gris très clair, et elle
-   reste collée en haut au défilement. De gauche à droite : la marque **LibreOsteo**, puis
+   reste collée en haut au défilement. **La zone de contenu est blanche et se détache du
+   fond gris de la page** — les deux teintes viennent de `libreosteo.css`, où D6g T4 les a
+   portées depuis le thème supprimé ; un écran entièrement blanc est un défaut. De gauche à droite : la marque **LibreOsteo**, puis
    les deux entrées **Nouveau patient** et **Comptabilité**, chacune précédée de son icône.
    Le bouton de repli (hamburger) n'est **pas** visible à cette largeur. À droite, dans cet
    ordre : le champ **Recherche…** soudé à son bouton loupe gris, puis **test** précédé de
@@ -3853,10 +3855,14 @@ onglets et l'encart de visite guidée, qui appartiennent au même socle mais se 
 les écrans qui les émettent.
 
 ⚠️ **Ce que la bascule change à l'écran et qui n'est pas un défaut** : les liens de la barre
-sont désormais **soulignés**, la marque touche le bord gauche de la fenêtre, et le fond gris
-qui entourait la zone de contenu a disparu (il venait de `sb-admin-2.css`, thème supprimé par
-D6g). C'est le rendu de **Bootstrap 5 nu**, que le lot assume (§ Écartés de la spec) : on ne
-reproduit pas les couleurs de SB Admin.
+sont désormais **soulignés**, la marque touche le bord gauche de la fenêtre, les tailles de
+police et les teintes de bouton sont celles de Bootstrap 5. C'est le rendu de **Bootstrap 5
+nu**, que le lot assume (§ Écartés de la spec) : on ne reproduit pas le thème SB Admin.
+
+⚠️ **Ce qui, en revanche, **est** un défaut** : un écran entièrement blanc. Le fond gris de la
+page et le blanc de la zone de contenu sont deux règles **portées** de `sb-admin-2.css` vers
+`libreosteo.css` (blocs 0 et 1) ; si l'un des deux disparaissait, le contraste qui délimite la
+zone de contenu disparaîtrait avec lui. `tests/qualite/test_contrat_styles.py` exige les deux.
 
 ### R-VIS-04 — Socle visuel : résultats de recherche
 

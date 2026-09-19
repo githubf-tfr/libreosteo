@@ -1554,6 +1554,36 @@ seules les deux captures et les attendus de la fiche prouvent la mise en page.
 explicitement sur *aucune barre de défilement horizontale* et *le titre du dossier
 entièrement visible*.
 
+⚠️ **Cinquième point nommé, versé par la revue de T4 : `pages/fragments/actions-dossier.html`
+est le seul fragment d'écran qui s'injecte dans la barre du socle, et sa mise en forme est
+morte depuis le commit de T4.** Sa ligne 43 porte encore
+`<ul class="nav navbar-top-links navbar-right" id="actions-dossier">` : il est passé à
+`{% include "partials/menu.html" with gabarit_actions="pages/fragments/actions-dossier.html" %}`
+(`dossier-patient.html:101`), rendu **dans** `#headerNavbar`, et réémis hors-bande par
+`hx-swap-oob` à chaque réponse qui recompose le dossier.
+
+Or `navbar-top-links` est un nom de **SB Admin 2** : T4 a renommé la règle en
+`.lo-barre-liens` et le dossier patient ne charge plus `sb-admin-2.css`. **Ce fragment ne
+reçoit donc plus aucune mise en forme**, et son ordre visuel dans la barre a changé — il est
+le dernier enfant flex de `#headerNavbar`, alors que `navbar-right` le faisait flotter à
+droite, avant le formulaire de recherche.
+
+**Ce que l'annexe A ne dira pas à T15, et qu'elle doit savoir** : la table donne
+`navbar-top-links` et `navbar-right` comme **sans équivalent**, donc « style à reprendre ».
+Le style à reprendre est ici exactement celui que T4 a écrit pour la barre du socle :
+
+- `navbar-top-links` → **`lo-barre-liens`**, le nom que porte désormais la règle ;
+- `navbar-right` → **un `order-*`**, pas un `ms-auto` : `#headerNavbar` est une boîte flex
+  au-dessus de 768 px, et T4 y a déjà posé `ms-auto order-1` sur le formulaire de recherche
+  et `order-2` sur les deux menus déroulants. Ce fragment doit prendre sa place **dans cette
+  numérotation**, et la passe au navigateur de T15 doit le regarder aux **deux** largeurs ;
+- `navbar-btn` (posé sur les quatre boutons) est également **sans équivalent**, et ce qu'il
+  réalisait — l'alignement vertical d'un bouton dans une barre — n'est plus nécessaire dans
+  une boîte flex `align-items: center`.
+
+**Aucun test ne verra cette perte** : `test_patient.py` clique les boutons par leur libellé,
+jamais par leur classe. Seules les deux captures de `R-VIS-14` et l'observation le montrent.
+
 ---
 
 ## Task 16 : `404.html`, le ménage, les réglages, l'image, la clôture

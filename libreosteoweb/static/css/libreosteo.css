@@ -74,14 +74,21 @@ body { padding-top: 50px; }
    page**, jamais un theme — on ne reproduit pas les couleurs de SB Admin avec les variables
    de Bootstrap 5 (§ Ecartes de la spec). Les commentaires d'origine sont conserves.
 
-   Ce qui n'est **pas** porte, et pourquoi (consommateur cherche, jamais le seul nom) :
+   ⚠️ **Deux regles de la feuille ne sont ni dans les seize inatteignables ni dans les
+   quatre blocs, et A2 ne les nomme pas.** La verification du Step 3 les a trouvees ; leur
+   sort a ete tranche par le controleur a la revue de T4 :
 
-   - `body { background-color: #f8f8f8 }` et `#wrapper { width: 100% }`, les deux seules
-     regles de la feuille qui ne soient ni dans les seize inatteignables ni dans les quatre
-     blocs. La premiere est une **couleur de theme** (le fond gris autour de la zone de
-     contenu, qui reste blanche par `#page-wrapper` ci-dessous) : elle tombe sous l'ecart
-     explicite de la spec. La seconde est inerte — `#wrapper` est un `<div>`, donc deja
-     large de 100 %. Ecart declare au rapport de tache T4.
+   - `body { background-color: #f8f8f8 }` est **portee** (bloc 0 ci-dessous). Le lot
+     autorise l'aspect a differer, pas un fond a disparaitre sur onze ecrans sans que
+     personne l'ait demande. Motif decisif : le bloc 1 porte deja `#page-wrapper {
+     background-color: #fff }`, qui est **tout aussi** une couleur de cette feuille — porter
+     le blanc du contenu et refuser le gris du fond ne laisserait pas « Bootstrap 5 nu »,
+     cela laisserait **du blanc sur du blanc**, c'est-a-dire la disparition d'un contraste.
+   - `#wrapper { width: 100% }` n'est **pas** portee : elle est inerte, `#wrapper` etant un
+     `<div>`, donc deja large de 100 %.
+
+   Ce qui n'est pas porte non plus, et pourquoi (consommateur cherche, jamais le seul nom) :
+
    - `.navbar-top-links .dropdown-messages`, `.dropdown-tasks`, `.dropdown-alerts` : leur
      unique consommateur est `404.html` (lignes 63, 115, 203), qui charge encore
      `sb-admin-2.css` et dont A3/T16 remplace le menu fige par `{% include
@@ -93,6 +100,15 @@ body { padding-top: 50px; }
    feuille) et continue de recevoir ces regles de `sb-admin-2.css`. Il est porte ici parce
    que c'est T4 qui porte les quatre blocs ; c'est T16 qui renommera les classes du gabarit.
    ------------------------------------------------------------------------------------ */
+
+/* Bloc 0 — le fond de page (sb-admin-2.css:7-9). C'est le gris qui entoure la zone de
+   contenu ; sans lui, `#page-wrapper { background-color: #fff }` du bloc 1 ne se detache
+   plus de rien et l'ecran entier devient blanc. Bootstrap 5 pose `--bs-body-bg: #fff` sur
+   `body` : la regle doit donc venir apres lui, ce que l'ordre de chargement garantit
+   (`libreosteo.css` est liee dans `css_page`, apres le socle de `base.html`). */
+body {
+    background-color: #f8f8f8;
+}
 
 /* Bloc 1 — la mise en page de neuf ecrans (sb-admin-2.css:15-26). */
 #page-wrapper {

@@ -56,7 +56,9 @@ declarations **comme si elles etaient inconditionnelles**, confondant `body { pa
    `libreosteoweb/static/css/libreosteo.css`, ou D6g T4 a porte les quatre blocs vivants
    de `sb-admin-2.css` (A2) et reecrit les correctifs d'affichage etroit (A4). Les deux
    sont concatenees : ce qui est exige l'est du socle servi, pas d'un fichier nomme ;
-3. `EXIGENCES` gagne huit entrees, chacune avec la phrase qui dit ce qu'elle realise.
+3. `EXIGENCES` gagne huit entrees, chacune avec la phrase qui dit ce qu'elle realise ;
+4. les trois renommages `lo-` de la tache sont tenus **des deux cotes** — la regle qui les
+   realise et le gabarit qui les pose (§ « Les trois renommages du socle », plus bas).
 
 **Revue R1 (2026-09-14, correctif D-1) :** le socle a porte un temps un `@media` pour
 `.lo-visite-encart`, et ce cliquet a ete etendu pour le lire. **Revue R2, le lendemain**
@@ -108,7 +110,10 @@ EXIGENCES: dict[str, dict[str, str]] = {
     # poser et de retirer la classe sur <body> **sans que rien ne se passe**.
     ".modal-open": {"overflow": "hidden"},
     # Le decalage sous la barre fixe. Sans lui, le contenu demarre sous la barre.
-    "body": {"padding-top": "50px"},
+    # Le fond de page, porte de sb-admin-2.css (A2, bloc 0, arbitrage de la revue de T4) :
+    # c'est le gris qui entoure la zone de contenu. Sans lui, le `background-color: #fff`
+    # de `#page-wrapper` ci-dessous ne se detache plus de rien — du blanc sur du blanc.
+    "body": {"padding-top": "50px", "background-color": "#f8f8f8"},
     # D-2 : sous 768 px la barre rentre dans le flux, et le decalage constant ci-dessus
     # — dimensionne pour la barre repliee — ne la recouvre plus une fois deployee.
     "(max-width: 767px) | body": {"padding-top": "0"},
@@ -222,7 +227,7 @@ _CONFORME = """
       .lo-visite-encart--centree { position: fixed; top: 30%; left: 50%; right: auto;
         margin-right: 0; transform: translateX(-50%); }
       .modal-open { overflow: hidden; }
-      body { padding-top: 50px; }
+      body { padding-top: 50px; background-color: #f8f8f8; }
       #page-wrapper { padding: 0 15px; min-height: 568px; background-color: #fff; }
       @media (max-width: 767px) {
           body { padding-top: 0; }
@@ -345,6 +350,81 @@ def test_le_detecteur_signale_une_regle_de_media_absente() -> None:
         "*",
         "selecteur absent",
     ) in manquantes(source, EXIGENCES)
+
+
+# --- Les trois renommages du socle, tenus des deux cotes ---------------------------------
+
+# D6g T4 (AP6) : trois familles de classes de **SB Admin 2**, theme que le lot supprime, ont
+# pris un nom du produit. Un renommage a moitie defait **reste vert** : la classe peut rester
+# posee dans le gabarit pendant que la regle qui la realise meurt, ou l'inverse, et rien ne
+# rougit. C'est la forme symetrique de la lecon que ce depot a payee deux fois
+# (`angular-timeago` en D5, `ngRoute` en D6a) : chercher le consommateur, jamais le seul nom.
+#
+# La valeur est la liste des gabarits qui **posent** la classe. Une liste vide dit qu'aucun
+# ne la pose encore, et pourquoi.
+RENOMMAGES_DU_SOCLE: dict[str, tuple[str, ...]] = {
+    # `navbar-top-links` : la barre superieure et son menu deroulant, dont depend le
+    # correctif D-3 d'affichage etroit.
+    "lo-barre-liens": ("libreosteoweb/templates/partials/menu.html",),
+    # `dropdown-user` : le menu utilisateur, que cinq helpers du filet ouvrent.
+    "lo-menu-utilisateur": ("libreosteoweb/templates/partials/menu.html",),
+    # `sidebar`, `sidebar-nav`, `sidebar-search` : la barre laterale de `404.html`.
+    # ⚠️ **Aucun gabarit ne la pose encore, et c'est voulu** : `404.html` est autonome — il
+    # n'etend pas `base.html`, ne charge pas cette feuille, et recoit toujours ces regles de
+    # `css/sb-admin-2.css`. C'est T16 qui l'y posera en le faisant heriter du socle. D'ici
+    # la, seul le cote feuille mord, et cette entree est ce qui le rappellera a T16 : la
+    # liste se remplit dans le commit qui migre le gabarit.
+    "lo-barre-laterale": (),
+}
+
+_TAG_DJANGO = re.compile(r"\{[%{#].*?[%}#]\}", re.S)
+_ATTRIBUT_CLASS = re.compile(r"""class\s*=\s*(?:"([^"]*)"|'([^']*)')""")
+
+
+def classes_posees(source_html: str) -> set[str]:
+    """Les classes reellement posees par un gabarit, commentaires Django exclus.
+
+    Les balises `{% %}`, `{{ }}` et `{# #}` sont retirees **avant** la recherche des
+    attributs `class` : un exemple ecrit dans un commentaire ne pose rien. C'est le piege
+    mesure sur `outils/rupture_bs5.py`, qui lui les retire apres et compte donc les
+    commentaires — a ne pas reproduire ici.
+    """
+    sans_django = _TAG_DJANGO.sub(" ", source_html)
+    posees: set[str] = set()
+    for double, simple in _ATTRIBUT_CLASS.findall(sans_django):
+        posees.update((double or simple).split())
+    return posees
+
+
+def test_chaque_renommage_du_socle_est_realise_par_une_regle() -> None:
+    """Le cote **feuille** : une classe posee sans regle ne fait rien, en silence."""
+    posees = declarations(FEUILLE.read_text(encoding="utf-8"))
+    for nom in sorted(RENOMMAGES_DU_SOCLE):
+        porteurs = [selecteur for selecteur in posees if ".%s" % nom in selecteur]
+        assert porteurs, (
+            "aucune regle de libreosteo.css ne realise `.%s` : le renommage de D6g T4 a "
+            "ete defait d'un cote, et rien d'autre ne le voit" % nom
+        )
+
+
+def test_chaque_renommage_du_socle_est_pose_par_son_gabarit() -> None:
+    """Le cote **gabarit** : une regle sans classe posee est du CSS mort, en silence."""
+    for nom in sorted(RENOMMAGES_DU_SOCLE):
+        for chemin in RENOMMAGES_DU_SOCLE[nom]:
+            posees = classes_posees((RACINE / chemin).read_text(encoding="utf-8"))
+            assert nom in posees, (
+                "%s ne pose plus la classe `%s` : la regle de libreosteo.css qui la "
+                "realise est devenue morte, et aucun test d'ecran ne le voit"
+                % (chemin, nom)
+            )
+
+
+def test_le_lecteur_de_classes_ignore_un_commentaire_django() -> None:
+    """Sans cette exclusion, un exemple ecrit dans un `{# #}` passerait pour une classe
+    posee — et le cliquet ci-dessus resterait vert sur un gabarit qui ne pose plus rien."""
+    assert classes_posees(
+        '{# <i class="lo-exemple"></i> #}<p class="lo-vraie">x</p>'
+    ) == {"lo-vraie"}
 
 
 # --- Le cliquet -------------------------------------------------------------------------

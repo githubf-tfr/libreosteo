@@ -101,7 +101,12 @@ RUPTURE = {
     "visible-xs": None,
     "visible-sm": None,
     # barre de navigation
-    "navbar-default": "navbar-light bg-light",
+    # ⚠️ `navbar-light` **n'existe plus** : retiree en Bootstrap 5.3, mesuree absente de la
+    # feuille servie (`grep -c "navbar-light"` rend 0 sur bootstrap.min.css 5.3.8 ; seule
+    # `navbar-dark` subsiste). La poser serait une classe morte. `bg-light` fait tout le
+    # travail : Bootstrap 3 posait `.navbar-default{background-color:#f8f8f8}`, et c'est
+    # cette teinte-la que l'utilitaire rend.
+    "navbar-default": "bg-light",
     "navbar-fixed-top": "fixed-top",
     "navbar-static-top": None,
     "navbar-toggle": "navbar-toggler",
