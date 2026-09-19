@@ -182,3 +182,37 @@ class TestIndexApresRechargement(TransactionTestCase):
             0,
             "Le recepteur de post_reload_db reconstruit l'index au lieu de le purger.",
         )
+
+
+class TestIndexationTempsReelApresRechargement(TransactionTestCase):
+    """Voir `TestIndexPendantLeRechargement` pour la raison de `TransactionTestCase` et
+    de `serialized_rollback`."""
+
+    serialized_rollback = True
+
+    def setUp(self):
+        call_command("clear_index", interactive=False)
+
+    def test_une_fiche_creee_apres_une_restauration_entre_dans_l_index(self):
+        """La restauration suspend l'indexation temps reel ; elle doit la rendre intacte.
+
+        Le defaut que ce test ferme : les deux receveurs du processeur de Haystack
+        etaient donnes en bloc aux deux signaux, donc reconnectes aux deux en sortie.
+        `post_save` declenchait `handle_delete` juste apres `handle_save` et toute fiche
+        enregistree apres une restauration ressortait de l'index aussitot entree --
+        pour toute la duree du processus, pas seulement pendant la restauration."""
+        sauvegarde.restaurer(
+            archive_de_restauration(libreosteoweb.__version__, contenu_dump="[]"),
+            libreosteoweb.__version__,
+        )
+
+        with sans_receivers():
+            Patient.objects.create(
+                family_name="Zzensuite", first_name="Lea", birth_date=date(1990, 5, 4)
+            )
+
+        self.assertEqual(
+            len(SearchQuerySet().models(Patient).auto_query("Zzensuite")),
+            1,
+            "L'indexation temps reel ne survit pas a une restauration.",
+        )

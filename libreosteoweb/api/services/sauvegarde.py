@@ -139,10 +139,15 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
         processeur = cast(
             HaystackConfig, configuration_applications.get_app_config("haystack")
         ).signal_processor
-        receveurs_d_index = [
-            (processeur.handle_save, None),
-            (processeur.handle_delete, None),
-        ]
+        # Une liste par signal. `block_disconnect_all_signal.__exit__` connecte ce qu'on
+        # lui a donne, sans verifier que `__enter__` l'avait bien deconnecte : donner la
+        # meme liste aux deux blocs reconnectait chaque receveur aux **deux** signaux en
+        # sortie, et pas seulement au sien. `post_save` declenchait alors `handle_delete`
+        # juste apres `handle_save` -- toute fiche enregistree apres une restauration
+        # ressortait de l'index aussitot entree, pour toute la duree du processus, pas
+        # seulement pendant la restauration.
+        receveurs_a_l_enregistrement = [(processeur.handle_save, None)]
+        receveurs_a_la_suppression = [(processeur.handle_delete, None)]
 
         # `transaction.atomic()` englobe le vidage ET le rechargement : c'est la seule
         # facon de ne pas laisser l'instance vide quand `loaddata` echoue. Avant, une
@@ -155,10 +160,10 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
                 signal=signals.post_save, receivers_senders=receivers_senders
             ),
             block_disconnect_all_signal(
-                signal=signals.post_save, receivers_senders=receveurs_d_index
+                signal=signals.post_save, receivers_senders=receveurs_a_l_enregistrement
             ),
             block_disconnect_all_signal(
-                signal=signals.post_delete, receivers_senders=receveurs_d_index
+                signal=signals.post_delete, receivers_senders=receveurs_a_la_suppression
             ),
         ):
             logger.info("Signals were disactivated, perform clearing of the database")
