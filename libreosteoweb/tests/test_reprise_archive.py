@@ -239,8 +239,20 @@ def test_l_outil_de_diagnostic_annonce_exactement_ce_que_la_reprise_fera() -> No
     Le jeu d'entrees porte les cinq valeurs de `NUMEROS_ADVERSARIAUX`, plus le piege qui
     ne se voit qu'ici : `#15` porte « 12 » et `#16` « 12 » precede d'une espace. La
     restauration ne rogne pas le numero -- ce ne sont donc pas des doublons, et aucun des
-    deux ne doit figurer au plan. Un outil qui appellerait `.strip()`, comme le fait
-    `doublons_numeros` juste a cote, en annoncerait un.
+    deux ne doit figurer au plan.
+
+    ⚠️ **Le cabinet 3 porte un numero a huit chiffres, et c'est lui qui rend le terme
+    `maximum` observable.** Sous `max(maximum or 0, PLANCHER_RENUMEROTATION)`, tout
+    cabinet dont le plus grand numero reste sous 999999 -- c'etait le cas de tous les
+    autres, le plus grand valant 10000 -- ecrase `maximum` par le plancher : supprimer ce
+    terme des deux implementations ne changeait alors **aucune** des deux sorties, et la
+    mutation passait en silence. Le parc qui active cette branche n'est pas theorique :
+    c'est un parc **deja repris une fois**, dont les numeros sont deja dans la bande a
+    sept chiffres, et qu'un second diagnostic retrouve tel quel.
+
+    L'assertion sur ce cabinet porte donc la **valeur** attendue, et pas seulement
+    l'egalite des deux versants : muter les deux cotes a la fois ne la satisferait pas
+    davantage.
     """
     from outils import diagnostic_archive
 
@@ -263,6 +275,9 @@ def test_l_outil_de_diagnostic_annonce_exactement_ce_que_la_reprise_fera() -> No
         _facture(15, 1, "12"),
         _facture(16, 1, " 12"),
         _facture(17, 2, "10000"),
+        _cabinet(3, "10000002"),
+        _facture(18, 3, "10000001"),
+        _facture(19, 3, "10000001"),
     ]
 
     attendu = reprise_archive.planifier_sur_objets(objets).renumerotations
@@ -270,7 +285,19 @@ def test_l_outil_de_diagnostic_annonce_exactement_ce_que_la_reprise_fera() -> No
     assert diagnostic_archive.plan_de_renumerotation(objets) == sorted(attendu)
     # Un plan vide des deux cotes satisferait l'egalite sans rien prouver : le jeu doit
     # bien produire une renumerotation par doublon, et aucune pour « 12 » / «  12 ».
-    assert [identifiant for identifiant, _, _ in attendu] == [2, 4, 6, 8, 10, 12, 14]
+    assert [identifiant for identifiant, _, _ in attendu] == [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        19,
+    ]
+    # Le cabinet 3, seul au-dessus du plancher : la valeur, pas seulement l'egalite.
+    # Sans le terme `maximum`, `#19` passerait a « 1000000 » au lieu de « 10000002 ».
+    assert (19, "10000001", "10000002") in attendu
 
 
 def test_une_facture_sans_cabinet_est_ignoree(tmp_path: pathlib.Path) -> None:
