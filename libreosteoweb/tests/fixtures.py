@@ -13,10 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
+import io
+import zipfile
 from contextlib import contextmanager
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import signals
 from django.utils import timezone
 
@@ -107,3 +110,14 @@ def facturation(status="invoiced", amount=50.0, paiment_mode="cash", reason=None
         "reason": reason,
         "check": {},
     }
+
+
+def archive_de_restauration(version, contenu_dump="[]", avec_dump=True):
+    """Construit une archive de restauration en mémoire, au format produit par backup_db."""
+    tampon = io.BytesIO()
+    with zipfile.ZipFile(tampon, "w") as archive:
+        if avec_dump:
+            archive.writestr("dump.json", contenu_dump)
+        archive.writestr("meta", version)
+    tampon.seek(0)
+    return SimpleUploadedFile("sauvegarde.zip", tampon.read(), "application/zip")

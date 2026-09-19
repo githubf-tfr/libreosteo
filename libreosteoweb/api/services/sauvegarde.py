@@ -24,6 +24,7 @@ import zipfile
 from io import StringIO
 from typing import cast
 
+from django.apps import apps as configuration_applications
 from django.conf import settings
 from django.core.files import File
 from django.core.files.base import ContentFile
@@ -33,6 +34,7 @@ from django.core.management.base import CommandError
 from django.core.serializers.base import DeserializationError
 from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.db.models import signals
+from haystack.apps import HaystackConfig
 
 from libreosteoweb import models
 from libreosteoweb.management.commands.backup_db import backup_db
@@ -119,6 +121,29 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
             (receiver_newpatient, models.Patient),
         ]
 
+        # Le processeur de Haystack ecoute `post_save` **globalement** et sans garde
+        # `raw` (`haystack/signals.py:69-78`, `:38-51`) : sans cette deconnexion, chaque
+        # objet charge par `loaddata` est indexe comme un objet sauve a la main, une fois
+        # par objet -- 44 766 ecritures d'index pour la restauration du 2026-09-08 -- et a
+        # l'interieur d'une transaction que l'index ne sait pas annuler. Une restauration
+        # qui echoue laissait donc dans l'index des patients qui n'existent nulle part.
+        # `signal_processor` est l'instance vivante que Haystack a construite depuis
+        # `HAYSTACK_SIGNAL_PROCESSOR`, portee par le `AppConfig` de l'app `haystack`
+        # (`haystack/apps.py:23-31`) -- pas par `haystack.connections`, qui n'expose que
+        # les backends de recherche. C'est cette instance qui est connectee, et donc
+        # elle qu'il faut donner a `block_disconnect_all_signal`. `sender=None` parce
+        # que le processeur s'est connecte sans sender (« Naive : listen to all model
+        # saves »). `get_app_config` est type `AppConfig` (classe de base) par les
+        # stubs Django ; `signal_processor` n'existe que sur `HaystackConfig`, la
+        # sous-classe reellement enregistree pour l'app `haystack`.
+        processeur = cast(
+            HaystackConfig, configuration_applications.get_app_config("haystack")
+        ).signal_processor
+        receveurs_d_index = [
+            (processeur.handle_save, None),
+            (processeur.handle_delete, None),
+        ]
+
         # `transaction.atomic()` englobe le vidage ET le rechargement : c'est la seule
         # facon de ne pas laisser l'instance vide quand `loaddata` echoue. Avant, une
         # archive illisible detectee pendant `loaddata` laissait la base tronquee, et
@@ -128,6 +153,12 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
             transaction.atomic(),
             block_disconnect_all_signal(
                 signal=signals.post_save, receivers_senders=receivers_senders
+            ),
+            block_disconnect_all_signal(
+                signal=signals.post_save, receivers_senders=receveurs_d_index
+            ),
+            block_disconnect_all_signal(
+                signal=signals.post_delete, receivers_senders=receveurs_d_index
             ),
         ):
             logger.info("Signals were disactivated, perform clearing of the database")
