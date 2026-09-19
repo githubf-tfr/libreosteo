@@ -34,6 +34,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
 GABARITS = RACINE / "libreosteoweb" / "templates"
+BANC = RACINE / "tests" / "functional" / "banc" / "vues.py"
 
 # Liste close. Elle ne s'allonge jamais : un gabarit legitime n'a pas besoin d'un
 # {% if %} dans un bloc compress, la condition de compression etant par nature
@@ -102,3 +103,68 @@ def test_l_exception_leguee_existe_toujours() -> None:
             f"{nom} ne porte plus de condition dans un bloc compress : retirer son "
             "entree d'EXCEPTIONS, le cliquet n'a plus besoin d'elle."
         )
+
+
+# --- Les gabarits qui ne sont pas des fichiers ------------------------------------------
+
+BLOC_COMPRESS = re.compile(r"\{%\s*compress\b[^%]*%\}.*?\{%\s*endcompress\s*%\}", re.S)
+
+
+def blocs_compress(source: str) -> list[str]:
+    """Les blocs `{% compress %}…{% endcompress %}`, contenu compris, tels qu'ecrits."""
+    return BLOC_COMPRESS.findall(source)
+
+
+def blocs_absents_des_gabarits_fichiers(
+    source_banc: str, gabarits: list[str]
+) -> list[str]:
+    """Les blocs du banc qu'aucun gabarit fichier ne porte **a l'octet**."""
+    return [
+        bloc
+        for bloc in blocs_compress(source_banc)
+        if not any(bloc in g for g in gabarits)
+    ]
+
+
+def test_le_detecteur_signale_un_bloc_du_banc_absent_du_produit() -> None:
+    banc = '{% compress js %}<script src="a.js"></script>{% endcompress %}'
+    assert blocs_absents_des_gabarits_fichiers(banc, ["rien"]) == [banc]
+
+
+def test_le_detecteur_ne_signale_pas_un_bloc_repris_a_l_octet() -> None:
+    bloc = '{% compress js %}<script src="a.js"></script>{% endcompress %}'
+    assert blocs_absents_des_gabarits_fichiers(bloc, ["avant " + bloc + " apres"]) == []
+
+
+def test_tout_bloc_compress_du_banc_est_celui_d_un_gabarit_fichier() -> None:
+    """D6g T16 : `COMPRESS_OFFLINE` ne connait que les gabarits **fichiers**.
+
+    Le banc de composants (`tests/functional/banc/vues.py`) rend ses pages depuis des
+    chaines Python, par `engines["django"].from_string`. `manage.py compress` ne les balaie
+    pas : un bloc `{% compress %}` qui n'existe qu'ici produit une clef que le manifeste
+    hors-ligne ne porte jamais, et la page rend une `OfflineGenerationError`. Mesure du
+    2026-09-19 : six tests de `test_socle_composants.py` rouges des la pose du reglage, sur
+    un bloc `js_page` ecrit sur trois lignes la ou `pages/dossier-patient.html:111` l'ecrit
+    sur une.
+
+    La parade n'est pas de sortir le banc de la compression -- il recetterait alors une
+    chaine que le produit ne sert pas, exactement ce que
+    `test_la_page_sert_les_bundles_compresses` interdit -- mais de **reprendre le bloc du
+    produit a l'octet**. Ce cliquet est ce qui l'exige.
+    """
+    gabarits = [
+        chemin.read_text(encoding="utf-8")
+        for chemin in sorted(GABARITS.rglob("*.html"))
+    ]
+    # Garde de cecite, des deux cotes : un banc sans bloc compress, ou un balayage de
+    # gabarits qui ne lirait plus rien, rendrait ce cliquet vert et muet.
+    source_banc = BANC.read_text(encoding="utf-8")
+    assert blocs_compress(source_banc), "aucun bloc compress lu dans le banc"
+    assert gabarits, "aucun gabarit lu sous libreosteoweb/templates/"
+
+    fautifs = blocs_absents_des_gabarits_fichiers(source_banc, gabarits)
+    assert not fautifs, (
+        "bloc {% compress %} du banc qu'aucun gabarit fichier ne porte a l'octet : sa "
+        "clef sera absente du manifeste hors-ligne et la page rendra une "
+        "OfflineGenerationError :\n" + "\n".join(fautifs)
+    )

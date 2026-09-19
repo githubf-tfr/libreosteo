@@ -161,9 +161,16 @@ PAGE_TEXTE_RICHE = """
 </div>
 {% endblock %}
 {% block js_page %}
-{% compress js %}
-<script src="{% static "js/composants/texte-riche.js" %}"></script>
-{% endcompress %}
+{# D6g T16 : ce bloc est **byte pour byte** celui de `pages/dossier-patient.html:111`, et #}
+{# ce n'est pas une coquetterie. Depuis que `COMPRESS_OFFLINE` est pose, la clef du #}
+{# manifeste est une empreinte du contenu du bloc : la forme sur trois lignes qui vivait #}
+{# ici produisait une clef que `manage.py compress` ne calcule jamais -- il ne balaie que #}
+{# les gabarits **fichiers**, et ce gabarit-ci est une chaine Python rendue par #}
+{# `from_string`. Le banc rendait donc une OfflineGenerationError. Aligne sur la forme du #}
+{# produit, il sert exactement le bundle que le produit sert, ce qui est justement ce qu'un #}
+{# banc de composants doit faire. Toute retouche de l'une des deux lignes doit etre faite #}
+{# sur les deux. #}
+{% compress js %}<script src="{% static "js/composants/texte-riche.js" %}"></script>{% endcompress %}
 {% endblock %}
 """
 

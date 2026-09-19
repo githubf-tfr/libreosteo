@@ -91,6 +91,17 @@ DEMONSTRATION = False
 
 COMPRESS_ENABLED = True
 
+# D6g, A8. Pose en **derniere** tache du lot, et c'est delibere : le poser en premier
+# aurait fait echouer au rendu toute page dont un bloc {% compress %} bouge encore, avec
+# une OfflineGenerationError dont le message ne designe pas la cause. Pose ici, il est une
+# **preuve** : si les blocs se compilent hors ligne apres la migration, chacun est
+# deterministe. Le piege qu'il arme -- un {% if %} dans un bloc compress -- est deja garde
+# par tests/qualite/test_contrat_compression.py, dont la liste EXCEPTIONS est vide.
+# Retour arriere : cette ligne seule (repli d'A8).
+# `container.py` et `standalone.py` en heritent ; `dev.py` n'est pas touche, COMPRESS_ENABLED
+# y etant faux -- {% compress %} y rend le contenu d'origine et ne cherche aucun manifeste.
+COMPRESS_OFFLINE = True
+
 # Application definition
 
 INSTALLED_APPS = [

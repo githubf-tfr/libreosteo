@@ -62,7 +62,7 @@ static:
 	$(YARN) install --frozen-lockfile
 	$(PYTHON) ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base
 	$(PYTHON) ./manage.py compilejsi18n
-	$(PYTHON) ./manage.py compress --force --settings=Libreosteo.settings.base
+	$(PYTHON) ./manage.py compress --settings=Libreosteo.settings.base
 
 test-functional: static
 	@echo "Tests fonctionnels Playwright"
