@@ -654,6 +654,19 @@ décrits à l'entrée de clôture, pas ici.
   figer une expression morte reviendrait à la prendre pour une décision. Vérifié le
   2026-09-19 : `chronologie.html:30` pose toujours `forloop.counter|divisibleby:2`.
 
+### Portages amont dus (2026-09-19, instruits et non faits)
+
+- **`accounts/logout` doit entrer dans `NO_REROUTE_PATTERN_URL`** (`Libreosteo/settings/base.py:254-259`).
+  Défaut vérifié dans l'arbre, cf. § « Suivi amont » du 2026-09-19 pour le mécanisme exact.
+  **Preuve attendue** : un test qui POSTe vers `/accounts/logout/` sans session valide et
+  vérifie que la réponse vient bien de `LogoutView` — ⚠️ **un test qui se contenterait du code
+  302 ne prouve rien**, les deux chemins y mènent.
+- **La branche `except` de `LoginRequiredMiddleware.process_request` doit appeler
+  `logout(request)`** avant de rediriger. ⚠️ **Ne pas rediriger vers `get_logout_url()`** :
+  405 garanti. **Preuve attendue** : après l'échec, `SESSION_KEY` n'est plus dans la session.
+  La cible de redirection ne change pas ; seul l'effet de bord est neuf, et c'est lui qui doit
+  être prouvé.
+
 ### Constats versés le 2026-09-19, à instruire après la clôture de D6g
 
 - **Le cliquet d'arbre statique ne couvre pas le contenu des paquets.**
@@ -5338,6 +5351,37 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
   force a logout clean cookies and redirect » — touche `Libreosteo/settings/base.py`,
   `libreosteoweb/middleware.py`, `libreosteoweb/search_indexes.py`. Non examiné, non porté :
   décision remise au prochain lot qui touchera ces fichiers.
+
+- **2026-09-19 — le commit amont est examiné, décomposé, et il porte un défaut réel.** C'est
+  un commit-valise, un message pour trois sujets ; le classement se fait sujet par sujet.
+  **Les douze autres branches amont n'ont aucun commit postérieur à la ligne de base** —
+  vérifié par date, pas seulement par `merge-base`. Seule `dependabot/pip/…drf-3.17.2`
+  (`9e92f68`, 2026-09-01) existe, et elle est **dépassée** : le fork épingle déjà
+  `djangorestframework==3.18.0`.
+  - **Retrait de `DocumentIndex`** → **à connaître, pas à porter.** Divergence déjà acquise :
+    le fork a neutralisé le symptôme autrement, la vue filtre sur `Patient`
+    (`test_recherche.py::test_seuls_les_patients_remontent`). Signal conservé pour qui
+    rouvrirait un jour la recherche documentaire.
+  - ⚠️ **`accounts/logout` absent de `NO_REROUTE_PATTERN_URL`** → **à porter, défaut réel et
+    atteignable en production.** Vérifié dans l'arbre : `middleware.py:146-151` calcule
+    `path = request.path.lstrip("/")`, puis, pour l'URL de déconnexion, écrit
+    `request.path = ""` — **il mute l'attribut de la requête, pas la variable locale `path`**,
+    qui vaut toujours `"accounts/logout"` au test `any(m.match(path) for m in get_exempts())`.
+    Le motif ne matche pas, et la requête est redirigée vers `login?next=` **sans jamais
+    atteindre `LogoutView`**. Chemin réel : une session qui expire pendant qu'un praticien
+    clique sur « déconnexion ». Le même geste mort frappe la branche `"web-view" in path`.
+  - ⚠️ **Le portage littéral casserait le fork.** L'amont redirige vers `get_logout_url()` ;
+    or `LogoutView` est restreinte à POST/OPTIONS depuis Django 5.2, ce que le fork a déjà
+    corrigé (`c1e6dd6`, 2026-09-06). Une redirection **GET** vers cette URL rend **405**. Le
+    portage appelle donc `logout(request)` — déjà importé `middleware.py:20` — et redirige
+    vers `login` comme aujourd'hui.
+  - **Échec de l'authentificateur externe sans vidage de session** → **à porter, en second.**
+    Le point d'extension `LIBREOSTEO_AUTHENTICATOR` existe et est testé, mais **n'est
+    configuré dans aucun réglage livré** : dormant. ⚠️ Les deux tests qui figent le
+    comportement actuel (`test_echec_de_l_authentificateur_renvoie_a_la_connexion` et sa
+    variante htmx) viennent de commits de **couverture** (S2, D6c), pas d'une décision de
+    conception : c'est une préservation **accidentelle** du défaut amont, et non une
+    limitation assumée au sens du `CLAUDE.md`. La distinction a été instruite, pas supposée.
 
 ## Points en suspens
 
