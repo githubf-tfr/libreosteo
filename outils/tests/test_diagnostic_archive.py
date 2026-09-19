@@ -32,7 +32,10 @@ def _patient(pk: int, nom: str, prenom: str, naissance: str, **champs: Any) -> d
     )
 
 
-def _archive(chemin: pathlib.Path, objets: list[dict[str, Any]]) -> str:
+# `list[Any]` et non `list[dict]` : une archive est un fichier, qui a pu etre edite a la
+# main, et `test_un_dump_aux_elements_heteroclites_est_diagnostique_sans_lever` y met
+# justement des elements qui ne sont pas des objets.
+def _archive(chemin: pathlib.Path, objets: list[Any]) -> str:
     """Un zip de la meme forme que celui de l'onglet « Archive and restore database ».
 
     Le `meta` porte la version que le rapport suppose, et non une version figee : depuis
@@ -49,7 +52,7 @@ def _archive(chemin: pathlib.Path, objets: list[dict[str, Any]]) -> str:
 
 def _diagnostiquer(
     tmp_path: pathlib.Path,
-    objets: list[dict[str, Any]],
+    objets: list[Any],
     capsys: pytest.CaptureFixture[str],
 ) -> tuple[int, str]:
     code = diagnostic_archive.main(_archive(tmp_path / "archive.db", objets))
@@ -92,6 +95,35 @@ def test_la_casse_ne_distingue_pas_deux_dossiers(
     )
     assert "Clefs en double                   : 1" in sortie
     assert code == 1
+
+
+def test_une_espace_de_frappe_distingue_deux_dossiers_comme_la_contrainte_le_fait(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Le cas symetrique du precedent, et le plus couteux des deux.
+
+    `unique_patient_nom_prenom_naissance` est `UniqueConstraint(Lower("family_name"),
+    Lower("first_name"), "birth_date")` : elle abaisse la casse et **ne rogne rien**. Le
+    validateur applicatif (`UniqueTogetherIgnoreCaseValidator`, filtre `__iexact`) ne
+    rogne pas davantage. Deux espaces de frappe -- banal sur un fichier de cabinet --
+    font donc deux lignes que la base accepte, et la restauration passe.
+
+    L'outil rognait, lui, et declarait BLOQUANT ce que la restauration accepte. Le
+    verdict n'etait pas seulement faux : il est assorti de « Fusionner deux dossiers est
+    un acte medical », et l'issue la plus probable n'est pas de renoncer, c'est de
+    fusionner deux dossiers de patients reellement distincts.
+    """
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _patient(1, "Durand", "Marie", "1980-01-01"),
+            _patient(2, "Durand ", "Marie", "1980-01-01"),
+        ],
+        capsys,
+    )
+    assert "Clefs en double                   : 0" in sortie
+    assert "BLOQUANT" not in sortie
+    assert code == 0
 
 
 def test_deux_homonymes_de_dates_de_naissance_differentes_ne_bloquent_pas(
@@ -168,6 +200,30 @@ def test_un_meme_numero_dans_un_meme_cabinet_ne_bloque_plus_et_annonce_la_repris
     assert "NE BLOQUE PAS" in sortie
     assert "#2 : 10000 devient 1000000" in sortie
     assert "remis a des patients" in sortie
+    assert code == 0
+
+
+def test_une_espace_de_frappe_ne_fait_pas_un_couple_en_double(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Le compte annonce doit porter sur la clef que la contrainte utilise.
+
+    Le commentaire de `unique_facture_numero_par_cabinet` le dit en toutes lettres :
+    « Sur la valeur BRUTE de la colonne ». `doublons_numeros` rognait, et une archive
+    portant « 12 » et « 12 » precede d'une espace faisait imprimer, a deux lignes
+    d'ecart, « Couples (cabinet, numero) en double : 1 » et « Numeros qui changeront :
+    0 » -- deux chiffres qui se contredisent, dont un faux.
+    """
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _objet("invoice", 1, number="12", officesettings_id=1, amount=55.0),
+            _objet("invoice", 2, number=" 12", officesettings_id=1, amount=55.0),
+        ],
+        capsys,
+    )
+    assert "Couples (cabinet, numero) en double : 0" in sortie
+    assert "Numeros qui changeront            : 0" in sortie
     assert code == 0
 
 
@@ -462,6 +518,46 @@ def test_une_archive_saine_rend_zero_et_le_dit(
     assert code == 0
 
 
+def test_un_dump_aux_elements_heteroclites_est_diagnostique_sans_lever(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """L'outil ne rend pas un verdict plus severe que la restauration.
+
+    Le produit tolere ce dump-la et le teste :
+    `libreosteoweb/tests/test_reprise_archive.py::
+    test_un_dump_aux_elements_heteroclites_est_repris_sans_lever`. L'outil, lui, levait
+    -- `AttributeError: 'str' object has no attribute 'get'` dans `_du_modele` sur un
+    element qui n'est pas un objet, et la meme sur un objet dont `fields` vaut `null`.
+
+    Une archive est un fichier, qui a pu etre edite a la main. Un dump defectueux est un
+    defaut d'archive, que `loaddata` refuse en 412 ; ce n'est pas a cet outil de le
+    trancher par une trace Python.
+    """
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            "bruit",
+            42,
+            None,
+            ["une liste"],
+            {"model": "libreosteoweb.patient", "pk": 1, "fields": None},
+            {"model": "libreosteoweb.invoice", "pk": 2, "fields": None},
+            {"model": "libreosteoweb.examination", "pk": 3, "fields": None},
+            {"model": "libreosteoweb.document", "pk": 4, "fields": None},
+            {"model": "libreosteoweb.officesettings", "pk": 5, "fields": None},
+        ],
+        capsys,
+    )
+    # Les cinq objets sont comptes, et non sautes avec le bruit : le durcissement
+    # n'a pas rendu l'outil aveugle a ce qu'il doit voir.
+    assert "Objets dans le dump               : 9" in sortie
+    assert "Patients                          : 1" in sortie
+    assert "Factures                          : 1" in sortie
+    assert "Consultations                     : 1" in sortie
+    assert "Documents                         : 1" in sortie
+    assert code == 0
+
+
 def test_un_dump_json_nu_est_accepte(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -480,7 +576,7 @@ def test_un_zip_sans_dump_json_est_refuse_avec_un_message_lisible(
     chemin = tmp_path / "archive.db"
     with zipfile.ZipFile(chemin, "w") as archive:
         archive.writestr("meta", "0.6.8")
-    with pytest.raises(SystemExit) as echec:
+    with pytest.raises(diagnostic_archive.ArchiveIllisible) as echec:
         diagnostic_archive.main(str(chemin))
     assert "dump.json" in str(echec.value)
 
@@ -488,6 +584,110 @@ def test_un_zip_sans_dump_json_est_refuse_avec_un_message_lisible(
 def test_un_dump_qui_n_est_pas_une_liste_est_refuse(tmp_path: pathlib.Path) -> None:
     chemin = tmp_path / "dump.json"
     chemin.write_text(json.dumps({"model": "libreosteoweb.patient"}))
-    with pytest.raises(SystemExit) as echec:
+    with pytest.raises(diagnostic_archive.ArchiveIllisible) as echec:
         diagnostic_archive.main(str(chemin))
     assert "dumpdata" in str(echec.value)
+
+
+# --- Codes de sortie : deux verdicts, et un « pas de verdict » ------------------
+
+
+def test_un_verdict_bloquant_sort_en_un(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Le temoin : le 1 reste reserve au verdict, et `executer` ne le dilue pas."""
+    chemin = _archive(
+        tmp_path / "archive.db",
+        [
+            _patient(1, "Durand", "Marie", "1980-01-01"),
+            _patient(2, "Durand", "Marie", "1980-01-01"),
+        ],
+    )
+
+    code = diagnostic_archive.executer(["diagnostic_archive.py", chemin])
+
+    assert code == diagnostic_archive.SORTIE_BLOQUANT == 1
+    assert "VERDICT : au moins un point BLOQUANT" in capsys.readouterr().out
+
+
+def test_une_archive_saine_sort_en_zero(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    chemin = _archive(tmp_path / "archive.db", [])
+
+    code = diagnostic_archive.executer(["diagnostic_archive.py", chemin])
+
+    assert code == diagnostic_archive.SORTIE_SANS_OBSTACLE == 0
+    assert "VERDICT : aucun obstacle" in capsys.readouterr().out
+
+
+def test_une_archive_illisible_ne_sort_pas_sur_le_code_du_verdict_bloquant(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Un zip sans `dump.json` n'est pas un verdict sur l'archive : rien n'a ete lu.
+
+    Elle sortait pourtant en 1, code du verdict « au moins un point bloquant » :
+    `raise SystemExit("message")` vaut 1.
+    """
+    chemin = tmp_path / "archive.db"
+    with zipfile.ZipFile(chemin, "w") as archive:
+        archive.writestr("meta", "0.6.8")
+
+    code = diagnostic_archive.executer(["diagnostic_archive.py", str(chemin)])
+
+    assert code == diagnostic_archive.SORTIE_INCONCLUSIF
+    assert code != diagnostic_archive.SORTIE_BLOQUANT
+    erreurs = capsys.readouterr().err
+    assert "ARCHIVE ILLISIBLE" in erreurs
+    assert "AUCUN VERDICT (code 2)" in erreurs
+
+
+def test_un_defaut_technique_de_l_outil_ne_sort_pas_non_plus_sur_le_code_du_verdict(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Le cas que le mode d'emploi ne couvrait pas : l'outil plante a mi-rapport.
+
+    Un exploitant qui ecrit `if diagnostic_archive archive.db; then restaurer; fi` ne
+    distinguait pas une trace Python d'un verdict bloquant -- meme code, rapport tronque.
+    La trace reste imprimee ; elle cesse seulement de se faire passer pour un verdict.
+    """
+
+    def _casse(objets: list[Any]) -> diagnostic_archive.Comptees:
+        raise RuntimeError("defaut simule dans l'outil")
+
+    monkeypatch.setattr(diagnostic_archive, "raison_egale_motif", _casse)
+    chemin = _archive(tmp_path / "archive.db", [])
+
+    code = diagnostic_archive.executer(["diagnostic_archive.py", chemin])
+
+    assert code == diagnostic_archive.SORTIE_INCONCLUSIF
+    assert code != diagnostic_archive.SORTIE_BLOQUANT
+    capture = capsys.readouterr()
+    # Le rapport s'arrete la ou l'outil a plante : les sections d'avant sont sorties,
+    # le verdict non. C'est exactement ce que le code de sortie doit dire.
+    assert "--- 0060 :" in capture.out
+    assert "VERDICT" not in capture.out
+    # La trace n'est pas avalee.
+    assert "RuntimeError: defaut simule dans l'outil" in capture.err
+    assert "DEFAUT TECHNIQUE DE L'OUTIL" in capture.err
+
+
+def test_un_appel_sans_argument_imprime_le_mode_d_emploi_et_ne_rend_aucun_verdict(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = diagnostic_archive.executer(["diagnostic_archive.py"])
+
+    assert code == diagnostic_archive.SORTIE_INCONCLUSIF
+    assert "MODE D'EMPLOI" in capsys.readouterr().out
+
+
+def test_le_mode_d_emploi_nomme_les_trois_codes_de_sortie() -> None:
+    """Le mode d'emploi est le seul endroit ou l'exploitant lit ces codes ; le laisser
+    dire « 1 si au moins un point bloquant, 0 sinon » aurait laisse le 2 invisible."""
+    mode_d_emploi = diagnostic_archive.__doc__ or ""
+
+    assert "0  aucun point bloquant" in mode_d_emploi
+    assert "1  au moins un point bloquant" in mode_d_emploi
+    assert "2  l'outil n'a pas conclu" in mode_d_emploi

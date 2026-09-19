@@ -59,7 +59,7 @@ MODELE_FACTURE = "libreosteoweb.invoice"
 MODELE_REGLAGES = "libreosteoweb.officesettings"
 
 
-def planifier_sur_objets(objets: list[dict[str, Any]]) -> PlanReprise:
+def planifier_sur_objets(objets: list[Any]) -> PlanReprise:
     """Le plan de renumerotation d'un dump `dumpdata`, sans rien ecrire.
 
     Le cabinet se lit dans `officesettings_id` : le modele porte un champ litteralement
@@ -86,19 +86,35 @@ def planifier_sur_objets(objets: list[dict[str, Any]]) -> PlanReprise:
     return planifier(factures, sequences)
 
 
-def appliquer_sur_objets(objets: list[dict[str, Any]], plan: PlanReprise) -> None:
-    """Ecrit le plan dans les objets du dump, en place."""
+def appliquer_sur_objets(objets: list[Any], plan: PlanReprise) -> None:
+    """Ecrit le plan dans les objets du dump, en place.
+
+    ⚠️ **Rien n'est ecrit dans un objet dont `fields` n'est pas un dictionnaire**, et
+    c'est la meme clause qu'en haut de ce module : ce module ne juge jamais de la
+    validite d'une archive. `objet["fields"][...] = ...` sans garde levait `TypeError:
+    'NoneType' object does not support item assignment` sur un `officesettings` dont
+    `fields` vaut `null` -- et `TypeError` n'est dans aucun `except` du chemin appelant
+    (`services/sauvegarde.py::restaurer`, `views/administration.py::LoadDump.post`).
+    Un defaut d'archive serait donc ressorti en **500** au lieu du **412** que
+    `loaddata` rend, exactement ce que l'arbitrage P4 interdit.
+
+    `isinstance` et non `or {}` comme dans `planifier_sur_objets` : cette passe-ci
+    **ecrit**, et il lui faut le dictionnaire reel, pas un substitut jetable.
+    """
     nouveaux = {
         identifiant: nouveau for identifiant, _ancien, nouveau in plan.renumerotations
     }
     for objet in objets:
         if not isinstance(objet, dict):
             continue
+        champs = objet.get("fields")
+        if not isinstance(champs, dict):
+            continue
         identifiant = objet.get("pk")
         if objet.get("model") == MODELE_FACTURE and identifiant in nouveaux:
-            objet["fields"]["number"] = nouveaux[identifiant]
+            champs["number"] = nouveaux[identifiant]
         elif objet.get("model") == MODELE_REGLAGES and identifiant in plan.sequences:
-            objet["fields"]["invoice_start_sequence"] = plan.sequences[identifiant]
+            champs["invoice_start_sequence"] = plan.sequences[identifiant]
 
 
 def reprendre_le_dump(chemin: str) -> PlanReprise:

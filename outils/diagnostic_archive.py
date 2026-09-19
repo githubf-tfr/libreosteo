@@ -17,8 +17,21 @@ MODE D'EMPLOI
    fichier tel quel, sous son nom d'origine ; il accepte aussi un `dump.json` nu.
 
 2. Lire le rapport. Il s'imprime sur la sortie standard ; aucun fichier n'est ecrit,
-   rien n'est restaure, rien n'est envoye. Le code de sortie vaut 1 si au moins un
-   point bloquant a ete trouve, 0 sinon.
+   rien n'est restaure, rien n'est envoye.
+
+   Code de sortie -- ⚠️ **deux sont des verdicts, le troisieme n'en est pas un** :
+
+     0  aucun point bloquant : l'archive peut etre chargee telle quelle.
+     1  au moins un point bloquant : la restauration echouera telle quelle.
+     2  l'outil n'a pas conclu : mauvais usage, archive illisible, ou defaut
+        technique de l'outil lui-meme. Le rapport est absent ou tronque, et rien
+        n'a ete verifie. **Ce n'est ni un « ok », ni un « bloquant ».**
+
+   La distinction n'est pas cosmetique. Qui ecrit `if diagnostic_archive archive.db;
+   then restaurer; fi` prend le code de sortie pour un verdict : une trace Python
+   sortait, elle aussi, en 1 -- avec un rapport tronque au milieu -- et rien ne la
+   distinguait du verdict « bloquant ». Le sens en etait inverse : le 1 d'un
+   plantage ne dit rien de l'archive.
 
 CE QUI BLOQUE, CE QUI NE BLOQUE PAS, QUI DECIDE
 ===============================================
@@ -66,6 +79,7 @@ import decimal
 import json
 import re
 import sys
+import traceback
 import zipfile
 from typing import Any, NamedTuple
 
@@ -89,6 +103,22 @@ PREFIXE_ALPHABETIQUE = re.compile(r"^[A-Za-z]*")
 # chargement n'existe pas et un doublon (cabinet, numero) reste bloquant -- dire « ne
 # bloque pas » a un exploitant sur une instance plus ancienne l'enverrait droit sur un 412.
 VERSION_SUPPOSEE = "0.6.9.dev0"
+
+# Codes de sortie, cf. MODE D'EMPLOI. Les deux premiers sont des verdicts sur l'archive,
+# le troisieme dit que l'outil n'en a rendu aucun.
+SORTIE_SANS_OBSTACLE = 0
+SORTIE_BLOQUANT = 1
+SORTIE_INCONCLUSIF = 2
+
+
+class ArchiveIllisible(Exception):
+    """L'archive n'est pas lisible : rien n'a ete diagnostique, et rien ne le sera.
+
+    ⚠️ **Ce n'est pas un verdict sur le contenu de l'archive**, et c'est pourquoi elle
+    ne sort pas en `SORTIE_BLOQUANT`. Elle sortait en 1 du temps ou elle etait un
+    `SystemExit` porteur d'un message : `SystemExit("...")` vaut 1, exactement le code
+    du verdict « au moins un point bloquant ».
+    """
 
 
 class Doublons(NamedTuple):
@@ -114,8 +144,30 @@ class Numerotation(NamedTuple):
     maximum: int | None
 
 
-def _du_modele(objets: list[dict[str, Any]], modele: str) -> list[dict[str, Any]]:
-    return [o for o in objets if o.get("model") == "libreosteoweb.%s" % modele]
+def _du_modele(objets: list[Any], modele: str) -> list[dict[str, Any]]:
+    """Les objets d'un modele, en ignorant tout ce qui n'est pas un objet.
+
+    ⚠️ **Le `isinstance` n'est pas decoratif.** Une archive est un fichier, qui a pu etre
+    edite a la main : rien n'y garantit que chaque element soit un dictionnaire. La
+    restauration le sait et s'en garde exactement ainsi
+    (`api/services/reprise_archive.py::planifier_sur_objets`, teste par
+    `test_un_dump_aux_elements_heteroclites_est_repris_sans_lever`). Sans cette garde,
+    l'outil levait `AttributeError: 'str' object has no attribute 'get'` sur un dump que
+    le produit, lui, reprend sans broncher -- un verdict plus severe que la restauration
+    qu'il est cense annoncer.
+    """
+    cible = "libreosteoweb.%s" % modele
+    return [o for o in objets if isinstance(o, dict) and o.get("model") == cible]
+
+
+def _champs(objet: dict[str, Any]) -> dict[str, Any]:
+    """`fields` d'un objet, vide s'il est absent ou `null`.
+
+    `objet.get("fields", {})` ne suffit pas : le defaut ne joue que si la clef est
+    **absente**, alors qu'un dump peut porter `"fields": null` -- et `None.get` leve. La
+    forme retenue est celle du produit, `objet.get("fields") or {}`.
+    """
+    return objet.get("fields") or {}
 
 
 def _cle_patient(champs: dict[str, Any]) -> tuple[str, str, Any]:
@@ -125,22 +177,33 @@ def _cle_patient(champs: dict[str, Any]) -> tuple[str, str, Any]:
     partie. L'ajouter comptait distincts deux dossiers que la contrainte refuse --
     meme nom, meme prenom, meme naissance, dont un seul porte un nom de naissance --
     et l'outil declarait alors « ok » un parc qui prend un 412 en pleine restauration.
-    `Lower()` cote PostgreSQL, `.lower()` ici : equivalents sur les caracteres latins
-    usuels, non garantis identiques au caractere exotique pres ; seule la contrainte
-    fait foi.
+
+    ⚠️ **Aucun rognage.** La contrainte est `UniqueConstraint(Lower("family_name"),
+    Lower("first_name"), "birth_date")` : elle abaisse la casse et ne rogne rien, et le
+    validateur applicatif (`UniqueTogetherIgnoreCaseValidator`, filtre `__iexact`) ne
+    rogne pas davantage. Un `.strip()` ici -- il y en a eu un -- declarait BLOQUANT un
+    parc portant « Durand » et « Durand », deux espaces de frappe pres, que la
+    restauration accepte sans broncher. Le verdict n'etait pas seulement faux : assorti
+    de « Fusionner deux dossiers est un acte medical », son issue la plus probable
+    n'etait pas de renoncer, c'etait de fusionner deux dossiers distincts.
+
+    **L'ecart qui reste, et il est assume** : `Lower()` cote PostgreSQL, `.lower()` ici.
+    Les deux coincident sur les caracteres latins usuels ; au caractere exotique pres
+    (`Lower()` suit la collation de la base, `str.lower()` suit Unicode), ils peuvent
+    diverger. Seule la contrainte fait foi.
     """
     return (
-        (champs.get("family_name") or "").strip().lower(),
-        (champs.get("first_name") or "").strip().lower(),
+        (champs.get("family_name") or "").lower(),
+        (champs.get("first_name") or "").lower(),
         champs.get("birth_date"),
     )
 
 
-def doublons_patients(objets: list[dict[str, Any]]) -> Doublons:
+def doublons_patients(objets: list[Any]) -> Doublons:
     patients = _du_modele(objets, "patient")
     groupes: dict[tuple[str, str, Any], list[Any]] = collections.defaultdict(list)
     for patient in patients:
-        groupes[_cle_patient(patient.get("fields", {}))].append(patient.get("pk"))
+        groupes[_cle_patient(_champs(patient))].append(patient.get("pk"))
     doubles = [ids for ids in groupes.values() if len(ids) > 1]
     return Doublons(
         total=len(patients),
@@ -149,7 +212,7 @@ def doublons_patients(objets: list[dict[str, Any]]) -> Doublons:
     )
 
 
-def doublons_numeros(objets: list[dict[str, Any]]) -> Doublons:
+def doublons_numeros(objets: list[Any]) -> Doublons:
     """Doublons de la clef de `unique_facture_numero_par_cabinet` (0060).
 
     Le cabinet se lit dans `officesettings_id` : le modele porte un champ
@@ -157,12 +220,20 @@ def doublons_numeros(objets: list[dict[str, Any]]) -> Doublons:
     serialiseur de Django ecrit le nom du champ. `fields["officesettings"]` vaut donc
     toujours `None` -- toutes les factures tombaient dans un seul cabinet fantome, ce
     qui declarait en doublon deux cabinets portant legitimement le meme numero.
+
+    ⚠️ **Le numero est pris tel quel, sans `.strip()`.** Le commentaire de la contrainte
+    le dit en toutes lettres (`models.py`) : « Sur la valeur BRUTE de la colonne ».
+    Rogner ici n'etait pas une ambiguite de lecture mais un faux positif, et il se lisait
+    a deux lignes d'ecart dans le rapport : une archive portant « 12 » et « 12 » precede
+    d'une espace imprimait « Couples (cabinet, numero) en double : 1 » **et** « Numeros
+    qui changeront : 0 ». Le plan de renumerotation, lui, n'a jamais rogne -- c'est le
+    compte qui mentait.
     """
     factures = _du_modele(objets, "invoice")
     groupes: dict[tuple[Any, str], list[Any]] = collections.defaultdict(list)
     for facture in factures:
-        champs = facture.get("fields", {})
-        cle = (champs.get("officesettings_id"), (champs.get("number") or "").strip())
+        champs = _champs(facture)
+        cle = (champs.get("officesettings_id"), champs.get("number") or "")
         groupes[cle].append(facture.get("pk"))
     doubles = [ids for ids in groupes.values() if len(ids) > 1]
     return Doublons(
@@ -172,13 +243,13 @@ def doublons_numeros(objets: list[dict[str, Any]]) -> Doublons:
     )
 
 
-def numerotation(objets: list[dict[str, Any]]) -> Numerotation:
+def numerotation(objets: list[Any]) -> Numerotation:
     """Contexte de lecture du point 0060 ; aucun de ces chiffres ne bloque seul."""
     non_convertibles = 0
     prefixes: collections.Counter[str] = collections.Counter()
     valeurs: list[int] = []
     for facture in _du_modele(objets, "invoice"):
-        numero = (facture.get("fields", {}).get("number") or "").strip()
+        numero = (_champs(facture).get("number") or "").strip()
         correspondance = CHIFFRES.match(numero)
         if correspondance:
             prefixes[correspondance.group(1) or "(aucun)"] += 1
@@ -229,7 +300,7 @@ def _maximum_numerique(numeros: list[str]) -> int | None:
     return maximum
 
 
-def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str, str]]:
+def plan_de_renumerotation(objets: list[Any]) -> list[tuple[Any, str, str]]:
     """Ce que la restauration changerait : `(identifiant, numero actuel, numero apres)`.
 
     Reproduit `reprise.planifier` a la regle pres : dans chaque cabinet, les factures
@@ -238,17 +309,17 @@ def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str,
     numeros consecutifs qui suivent `max(maximum numerique du cabinet,
     PLANCHER_RENUMEROTATION)`, prefixe conserve.
 
-    ⚠️ Le numero est pris **tel quel**, sans `.strip()`, contrairement a
-    `doublons_numeros` : `api/services/reprise_archive.py::planifier_sur_objets` ne
-    rogne rien, et « 12 » precede d'une espace n'est donc pas, pour la restauration, le
-    meme numero que « 12 ». Rogner ici annoncerait une renumerotation qui n'aura pas lieu.
+    ⚠️ Le numero est pris **tel quel**, sans `.strip()`, comme dans `doublons_numeros` :
+    `api/services/reprise_archive.py::planifier_sur_objets` ne rogne rien, et « 12 »
+    precede d'une espace n'est donc pas, pour la restauration, le meme numero que « 12 ».
+    Rogner ici annoncerait une renumerotation qui n'aura pas lieu.
     """
     par_cabinet: dict[Any, list[tuple[Any, str]]] = collections.defaultdict(list)
     for facture in _du_modele(objets, "invoice"):
         identifiant = facture.get("pk")
         if identifiant is None:
             continue
-        champs = facture.get("fields") or {}
+        champs = _champs(facture)
         cabinet = champs.get("officesettings_id")
         if cabinet is None:
             continue
@@ -282,7 +353,7 @@ def plan_de_renumerotation(objets: list[dict[str, Any]]) -> list[tuple[Any, str,
     return sorted(plan)
 
 
-def montants_hors_bornes(objets: list[dict[str, Any]]) -> Montants:
+def montants_hors_bornes(objets: list[Any]) -> Montants:
     """Montants que le passage en `numeric(10, 2)` ne rend pas tels quels.
 
     Deux sorts differents, et un seul bloque : au-dela de deux decimales, la valeur
@@ -294,7 +365,7 @@ def montants_hors_bornes(objets: list[dict[str, Any]]) -> Montants:
     hors_capacite: list[str] = []
     for modele in ("invoice", "officesettings", "paiment"):
         for objet in _du_modele(objets, modele):
-            brut = objet.get("fields", {}).get("amount")
+            brut = _champs(objet).get("amount")
             if brut is None:
                 continue
             identifiant = "%s#%s" % (modele, objet.get("pk"))
@@ -318,7 +389,7 @@ def montants_hors_bornes(objets: list[dict[str, Any]]) -> Montants:
     return Montants(a_arrondir=sorted(a_arrondir), hors_capacite=sorted(hors_capacite))
 
 
-def raison_egale_motif(objets: list[dict[str, Any]]) -> Comptees:
+def raison_egale_motif(objets: list[Any]) -> Comptees:
     """Consultations dont la raison de non-facturation vaut exactement le motif clinique.
 
     Controle ouvert par D9 : la cloture depuis le volet en edition prerremplissait
@@ -330,7 +401,7 @@ def raison_egale_motif(objets: list[dict[str, Any]]) -> Comptees:
     consultations = _du_modele(objets, "examination")
     identifiants: list[Any] = []
     for consultation in consultations:
-        champs = consultation.get("fields", {})
+        champs = _champs(consultation)
         motif = (champs.get("reason") or "").strip()
         raison = (champs.get("status_reason") or "").strip()
         if motif and raison and motif == raison:
@@ -338,7 +409,7 @@ def raison_egale_motif(objets: list[dict[str, Any]]) -> Comptees:
     return Comptees(total=len(consultations), identifiants=sorted(identifiants))
 
 
-def documents_avant_0056(objets: list[dict[str, Any]]) -> Comptees:
+def documents_avant_0056(objets: list[Any]) -> Comptees:
     """Documents dont le chemin de stockage precede 0056.
 
     Avant 0056, `upload_to` valait la chaine fixe "documents" : le nom televerse
@@ -351,20 +422,18 @@ def documents_avant_0056(objets: list[dict[str, Any]]) -> Comptees:
     identifiants = [
         document.get("pk")
         for document in documents
-        if not DOCUMENT_DEPUIS_0056.match(
-            document.get("fields", {}).get("document_file") or ""
-        )
+        if not DOCUMENT_DEPUIS_0056.match(_champs(document).get("document_file") or "")
     ]
     return Comptees(total=len(documents), identifiants=sorted(identifiants))
 
 
-def charger(chemin: str) -> tuple[str | None, list[dict[str, Any]]]:
+def charger(chemin: str) -> tuple[str | None, list[Any]]:
     """Rend (version lue dans `meta`, objets du dump). N'ecrit jamais rien."""
     if zipfile.is_zipfile(chemin):
         with zipfile.ZipFile(chemin) as archive:
             noms = archive.namelist()
             if "dump.json" not in noms:
-                raise SystemExit(
+                raise ArchiveIllisible(
                     "Ce zip ne porte aucun 'dump.json' : est-ce bien l'archive "
                     "produite par l'onglet « Archive and restore database » ?"
                 )
@@ -380,7 +449,7 @@ def charger(chemin: str) -> tuple[str | None, list[dict[str, Any]]]:
         with open(chemin, encoding="utf-8") as flux:
             objets = json.load(flux)
     if not isinstance(objets, list):
-        raise SystemExit(
+        raise ArchiveIllisible(
             "Dump inattendu : la racine n'est pas une liste d'objets, ce n'est pas "
             "un export `dumpdata` Django."
         )
@@ -523,11 +592,39 @@ def main(chemin: str) -> int:
         print("VERDICT : aucun obstacle, l'archive peut etre chargee telle quelle.")
         print("Les points qui ne bloquent pas restent a lire : ils ne refusent rien,")
         print("mais peuvent reclamer une decision ou une verification.")
-    return 1 if bloquant else 0
+    return SORTIE_BLOQUANT if bloquant else SORTIE_SANS_OBSTACLE
+
+
+def executer(argv: list[str]) -> int:
+    """Le programme complet : rend un code de sortie et ne leve jamais.
+
+    ⚠️ **Le `except Exception` est le correctif, pas un filet paresseux.** Sans lui,
+    n'importe quel defaut de l'outil ressortait en trace Python -- donc en code 1, celui
+    du verdict « au moins un point bloquant » -- avec un rapport tronque a l'endroit du
+    plantage. La trace reste imprimee, sur la sortie d'erreur : elle n'est pas avalee,
+    elle cesse seulement de se faire passer pour un verdict.
+    """
+    if len(argv) != 2:
+        print((__doc__ or "").strip())
+        return SORTIE_INCONCLUSIF
+    try:
+        return main(argv[1])
+    except ArchiveIllisible as illisible:
+        print("ARCHIVE ILLISIBLE : %s" % illisible, file=sys.stderr)
+    except Exception:
+        traceback.print_exc()
+        print(
+            "DEFAUT TECHNIQUE DE L'OUTIL : le rapport ci-dessus est tronque et "
+            "aucun verdict n'a ete rendu.",
+            file=sys.stderr,
+        )
+    print(
+        "AUCUN VERDICT (code %d) : l'archive n'a PAS ete declaree saine, et n'a PAS "
+        "ete declaree bloquante." % SORTIE_INCONCLUSIF,
+        file=sys.stderr,
+    )
+    return SORTIE_INCONCLUSIF
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print((__doc__ or "").strip())
-        raise SystemExit(2)
-    raise SystemExit(main(sys.argv[1]))
+    raise SystemExit(executer(sys.argv))
