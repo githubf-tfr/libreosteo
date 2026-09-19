@@ -388,7 +388,10 @@ vécu depuis.
 
 1. **Export neuf depuis la production**, par la fonction d'archive du produit.
 2. **Diagnostic en lecture seule**, exécuté **par l'utilisateur lui-même** sur son archive,
-   par un script hors dépôt n'écrivant que des agrégats. ⚠️ **La donnée de santé ne transite
+   par un script hors dépôt n'écrivant que des agrégats. ⚠️ **L'outil est prêt depuis le
+   2026-09-19** : `/tmp/diagnostic-parc-20260919/` porte `diagnostic_parc.py`,
+   `MODE-D-EMPLOI.md` et ses tests. **`/tmp` ne survit pas à un redémarrage** — le recopier
+   ailleurs avant d'éteindre, sinon il est à réécrire. Il n'entre pas au dépôt, à dessein. ⚠️ **La donnée de santé ne transite
    ni par la session ni par ses sous-agents** — règle tenue le 2026-09-07, à tenir de
    nouveau. Le script est à réécrire : il n'a jamais été versionné, à dessein.
    Agrégats attendus : nombre de factures, de cabinets, couples `(cabinet, numéro)` en
@@ -896,6 +899,34 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-19 — L'outil de diagnostic du parc de production est écrit, éprouvé, et il n'entre
+  pas au dépôt.** Étape 2 de la reprise de parc. Python 3 de la bibliothèque standard seule —
+  l'utilisateur l'exécute hors du dépôt, sans `.venv`, sans Django —, sept agrégats, sortie en
+  code 1 si un point bloquant est trouvé. **39 tests verts** sur une archive synthétique
+  couvrant chaque agrégat en cas sain et en cas fautif. La donnée de santé ne transite ni par
+  la session ni par ses sous-agents : le script n'imprime que des comptes et des identifiants
+  numériques.
+
+  ⚠️ **Un doublon `(cabinet, numéro)` bloque bel et bien la reprise, et le sous-agent avait
+  conclu l'inverse.** La correction a demandé la mesure : `0060` renumérote au lieu de refuser
+  — son commentaire de tête le dit — **mais cette renumérotation ne voit jamais les lignes
+  d'une archive**. Le chemin retenu monte les migrations sur une base **vide**, donc
+  `reprise.appliquer` ne traite rien, puis l'archive entre par `loaddata` dans un schéma où la
+  contrainte est **déjà posée** : `IntegrityError` à l'`INSERT`, rattrapée par
+  `api/services/sauvegarde.py::restaurer`, rendue en **412** par `LoadDump.post`
+  (`api/views/administration.py:286-292`) — le même 412 que pour `0057`. L'annonce du présent
+  journal était juste ; c'est le sous-agent qui confondait les deux chemins. **Le mode d'emploi
+  porte désormais ce raisonnement en clair** : qui trouvera `api/invoicing/reprise.py` conclura
+  le contraire, comme lui.
+
+  **Ce que le diagnostic apprend de neuf sur le code** : `0057` refuse sur le triplet
+  **insensible à la casse** (`Lower(family_name)`, `Lower(first_name)`, `birth_date`) ;
+  `0058` se borne à `10**8` avec un arrondi façon cast PostgreSQL, **différent de `round()`
+  Python**, reproduit à l'identique dans le script ; les deux champs du contrôle D9 sont
+  `Examination.reason` et `Examination.status_reason` (`models.py:179` et `:197`) ; l'ancien
+  `upload_to` de `Document.document_file` était la chaîne fixe `"documents"`, le nouveau
+  produit `documents/<uuid4>`, ce qui les distingue par motif.
 
 - **2026-09-19 — La passe de recette due est jouée, et elle est verte de bout en bout.**
   `R-PAT-13` (cinq attendus sur cinq), `R-PAT-12` étape 6, `R-PAT-08` (dix étapes sur dix),
