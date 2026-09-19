@@ -12,7 +12,7 @@
 {# rend un formulaire lie y met la valeur **postee**. #}
 {# L'option vide reste sans libelle, comme la liste d'`editable-select` qu'elle remplace : #}
   {# c'est la ligne de lecture qui dit « non renseigne - non renseigne », pas le selecteur. #}
-  <select name="doctor" class="form-control input-sm">
+  <select name="doctor" class="form-control form-control-sm">
     <option value=""{% if not selection %} selected{% endif %}></option>
     {% for medecin in medecins %}<option value="{{ medecin.id }}"{% if medecin.id|stringformat:"s" == selection|stringformat:"s" %} selected{% endif %}>{{ medecin.family_name }} - {{ medecin.city }}</option>
     {% endfor %}
@@ -20,7 +20,7 @@
   {# `title` conserve a l'octet : `test_medecins.py:22` clique `button[title='Ajouter un #}
   {# médecin']`. Les classes Bootstrap 3 et Font Awesome sont reprises telles quelles de #}
   {# `doctor-selector.html:7`. #}
-  <button type="button" class="btn btn-default btn-xs fa fa-plus" title="{% trans 'Add a doctor' %}"
+  <button type="button" class="btn btn-secondary btn-sm fa fa-plus" title="{% trans 'Add a doctor' %}"
           hx-get="{% url 'medecin-nouveau' %}?patient={{ patient.id }}&amp;prefixe={{ prefixe|urlencode }}"
           hx-target="#modale" hx-swap="innerHTML"></button>
 </span>

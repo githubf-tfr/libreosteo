@@ -11,40 +11,40 @@
 {% if volet.consultation.status > 0 and volet.consultation.status < 3 %}
 <div class="row">
   <div class="col-md-4">
-    <div class="panel panel-default">
-      <div class="panel-heading"><span>{% trans 'Invoice' %}</span></div>
-      <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+    <div class="card">
+      <div class="card-header"><span>{% trans 'Invoice' %}</span></div>
+      <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
         {% if volet.derniere_facture %}
         {# `ng-if="model.invoice_by_email"` : l'envoi n'est propose que si le patient a une #}
         {# adresse **et** que l'envoi de courriel est active sur l'instance. #}
         {% if volet.envoi_par_courriel %}
-        <button type="button" id="sendInvoiceBtn" class="btn btn-success btn-xs" autocomplete="off"
+        <button type="button" id="sendInvoiceBtn" class="btn btn-success btn-sm" autocomplete="off"
                 title="{% trans 'Send' %}"
                 hx-get="{{ volet.url_envoi }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-envelope"></i> </button>
         {% endif %}
         {# L'impression reste ce qu'elle etait : un lien vers la facture dans un onglet. #}
         {# `$window.open` puis `print()` apres 750 ms etait un contournement d'Angular ; un #}
         {# `<a target="_blank">` fait la meme chose sans minuterie. #}
-        <a id="printInvoiceBtn" class="btn btn-success btn-xs" target="_blank"
+        <a id="printInvoiceBtn" class="btn btn-success btn-sm" target="_blank"
            href="{% url 'invoice_view' volet.derniere_facture.id %}" title="{% trans 'Print' %}"><i class="fa fa-print"></i> </a>
         {# **Branche par D6e T12.** T10 l'avait laisse inerte, faute de route : l'annulation #}
         {# depuis la consultation suit le chemin d'`examination.js:226-268`, qui enchaine #}
         {# une confirmation puis, en mode « facture corrective », la modale de facturation. #}
         {# Les deux etapes postent sur la meme URL, distinguees par `etape=confirme`. #}
-        <button type="button" id="cancelInvoiceBtn" class="btn btn-danger btn-xs"
+        <button type="button" id="cancelInvoiceBtn" class="btn btn-danger btn-sm"
                 title="{% trans 'Cancel' %}"
                 hx-get="{{ volet.url_annulation_facture }}?prefixe={{ volet.prefixe }}"
                 hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-ban"></i> </button>
         <span><a href="{% url 'invoice_view' volet.derniere_facture.id %}" target="_blank">n° {{ volet.derniere_facture.number }}</a></span>
         {% else %}
         <span>
-          <button type="button" id="invoiceExaminationBtn" class="btn btn-success btn-xs"
+          <button type="button" id="invoiceExaminationBtn" class="btn btn-success btn-sm"
                   title="{% trans 'To invoice' %}"
                   hx-get="{{ volet.url_facturation }}?prefixe={{ volet.prefixe }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-euro"></i> {% trans 'To invoice' %}</button>
         </span>
         {% endif %}
         {% if volet.derniere_facture and volet.consultation.status < 2 %}
-        <button type="button" id="finishPaimentBtn" class="btn btn-success btn-xs"
+        <button type="button" id="finishPaimentBtn" class="btn btn-success btn-sm"
                 title="{% trans 'Regularize' %}"
                 hx-get="{{ volet.url_regularisation }}?prefixe={{ volet.prefixe }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-euro"></i> {% trans 'Regularize' %}</button>
         {% endif %}
@@ -52,20 +52,20 @@
         {# Le depliage est un `<details>` natif : `data-toggle="collapse"` exige le #}
         {# JavaScript de Bootstrap, donc jQuery, que les pages htmx ne chargent pas. #}
         <details>
-          <summary id="unfold_invoices" class="pull-right btn btn-xs"><i class="fa fa-angle-double-down"></i><span class="sr-only">{% trans 'Unfold' %}</span></summary>
+          <summary id="unfold_invoices" class="float-end btn btn-sm"><i class="fa fa-angle-double-down"></i><span class="visually-hidden">{% trans 'Unfold' %}</span></summary>
           <ul class="list-unstyled" style="margin-top:10px;">
             {% for facture in volet.factures %}
             <li>
-              <a class="btn btn-success btn-xs" target="_blank" href="{% url 'invoice_view' facture.id %}"><i class="fa fa-print"></i> </a>
+              <a class="btn btn-success btn-sm" target="_blank" href="{% url 'invoice_view' facture.id %}"><i class="fa fa-print"></i> </a>
               <span><a href="{% url 'invoice_view' facture.id %}" target="_blank">n° {{ facture.number }}</a></span>
               {% if facture.type == 'invoice' %}
-                {% if facture.status == 0 or facture.status is None %}<span class="label label-default">{% trans 'Draft' %}</span>
-                {% elif facture.status == 1 %}<span class="label label-danger">{% trans 'Not paid' %}</span>
-                {% elif facture.status == 2 %}<span class="label label-success">{% trans 'Paid' %}</span>
-                {% elif facture.status == 3 %}<span class="label label-warning" data-testid="statut-facture-annulee-consultation">{% trans 'Cancelled' %}</span>
+                {% if facture.status == 0 or facture.status is None %}<span class="badge text-bg-secondary">{% trans 'Draft' %}</span>
+                {% elif facture.status == 1 %}<span class="badge text-bg-danger">{% trans 'Not paid' %}</span>
+                {% elif facture.status == 2 %}<span class="badge text-bg-success">{% trans 'Paid' %}</span>
+                {% elif facture.status == 3 %}<span class="badge text-bg-warning" data-testid="statut-facture-annulee-consultation">{% trans 'Cancelled' %}</span>
                 {% endif %}
               {% elif facture.type == 'creditnote' and facture.status == 2 %}
-                <span class="label label-success">{% trans 'Credit note' %}</span>
+                <span class="badge text-bg-success">{% trans 'Credit note' %}</span>
               {% endif %}
             </li>
             {% endfor %}
@@ -79,9 +79,9 @@
 {% elif volet.consultation.status == 3 %}
 <div class="row">
   <div class="col-md-3">
-    <div class="panel panel-default">
-      <div class="panel-heading"><span>{% trans 'Not invoiced' %}</span></div>
-      <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+    <div class="card">
+      <div class="card-header"><span>{% trans 'Not invoiced' %}</span></div>
+      <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
         {{ volet.consultation.status_reason }}
       </div>
     </div>

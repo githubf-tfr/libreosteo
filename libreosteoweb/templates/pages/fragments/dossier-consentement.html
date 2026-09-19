@@ -22,7 +22,7 @@
       </form>
       <button type="button" class="btn btn-danger" @click="refuse = true">{% trans 'Refuse' %}</button>
     </div>
-    <div class="alert alert-danger center-block" role="alert" x-show="refuse" style="display: none">{% trans 'You have to delete this folder' %}</div>
+    <div class="alert alert-danger mx-auto" role="alert" x-show="refuse" style="display: none">{% trans 'You have to delete this folder' %}</div>
   </div>
   {% endif %}
 </div>

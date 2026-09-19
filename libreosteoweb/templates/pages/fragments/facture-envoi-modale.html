@@ -13,8 +13,8 @@
   {% csrf_token %}
   <p>{% trans 'Are you sure to send this invoice ?' %}</p>
   {% if erreur %}<div class="alert alert-danger" role="alert">{{ erreur }}</div>{% endif %}
-  <div class="form-group">
-    <label class="sr-only" for="email">{% trans 'Destination email' %}</label>
+  <div class="mb-3">
+    <label class="visually-hidden" for="email">{% trans 'Destination email' %}</label>
     <div class="input-group">
       <input type="email" class="form-control" id="email" name="email"
              placeholder="{% trans 'Email' %}" value="{{ courriel|default_if_none:'' }}">

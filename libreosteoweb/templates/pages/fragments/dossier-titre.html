@@ -9,7 +9,8 @@
 {# **Les deux noms sont modifiables hors mode edition et ne s'ouvrent pas pendant l'edition** #}
 {# — l'acquis de D8, que sept tests de `test_patient.py` gardent et que `R-PAT-08` decrit en #}
 {# dix etapes. C'est `pages/fragments/dossier-titre-cellule.html` qui le porte. #}
-<h1 class="page-header" id="dossier-titre" data-testid="titre-patient"{% if hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
+{# D6g T15 : `page-header` disparait sans equivalent (comme T13, `tableau-de-bord.html`). #}
+<h1 id="dossier-titre" data-testid="titre-patient"{% if hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
   {% include "pages/fragments/dossier-titre-cellule.html" with patient=patient champ="family_name" edition=False %}
   {% if patient.original_name %}<span>({{ patient.original_name }})</span>{% endif %}
   {% include "pages/fragments/dossier-titre-cellule.html" with patient=patient champ="first_name" edition=False %}

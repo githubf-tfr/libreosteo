@@ -32,12 +32,12 @@
 <li class="documenttile animate col-md-3" id="document-vignette-{{ entree.document.id }}"{% if preserver %} hx-preserve="true"{% endif %}
     x-data="{ deplie: false }"
     :class="{ 'col-md-12': deplie, 'col-md-3': !deplie }">
-  <div class="thumbnail doc_thumbnail"
+  <div class="card doc_thumbnail"
        :class="{ 'doc_thumbnail': !deplie, 'doc_expand': deplie }">
-    <button type="button" class="left close document-close" aria-label="Close"
+    <button type="button" class="btn-close document-close" aria-label="Close"
             x-show="deplie" style="display: none;"
-            @click="deplie = false"><span aria-hidden="true">&times;</span></button>
-    <button type="button" class="close document-edit" aria-label="Edit"
+            @click="deplie = false"></button>
+    <button type="button" class="btn-close document-edit" aria-label="Edit"
             hx-get="{{ entree.url_edition }}"
             hx-target="#document-vignette-{{ entree.document.id }}"
             hx-swap="outerHTML"><span aria-hidden="true"><i class="fa fa-edit"></i></span></button>

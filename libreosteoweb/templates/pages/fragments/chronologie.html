@@ -20,7 +20,7 @@
 {# est sans qu'aucun code ne la pousse. #}
 <div>
   <div style="margin-top:20px">
-    <button id="new-examination-btn" type="button" class="btn btn-primary center-block"
+    <button id="new-examination-btn" type="button" class="btn btn-primary mx-auto"
             {% if url_nouvelle_consultation %}hx-post="{{ url_nouvelle_consultation }}" hx-target="{{ cible_nouvelle_consultation }}" hx-swap="outerHTML"{% endif %}
             {% if consultation_en_cours %}disabled{% endif %}>{% trans 'Start an examination' %}</button>
   </div>
@@ -40,7 +40,7 @@
           <div class="timeline-heading">
             <h4 class="timeline-title" data-testid="titre-seance">{% trans 'Session of ' %}{{ entree.seance.date|date:"j F Y" }}</h4>
             {% if entree.seance.office and request.officesettings and entree.seance.office_id != request.officesettings.id %}
-            <p class="text-muted text-right">{{ entree.seance.office.office_name }}</p>
+            <p class="text-muted text-end">{{ entree.seance.office.office_name }}</p>
             {% endif %}
             <p>
               <small class="text-muted"><i class="fa fa-clock-o"></i> {{ entree.seance.date|timesince }} {% trans 'by' %} <span class="text-uppercase">{{ entree.seance.therapeut.last_name }}</span> {{ entree.seance.therapeut.first_name }}</small>

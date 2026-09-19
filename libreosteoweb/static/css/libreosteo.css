@@ -450,7 +450,9 @@ div.readyForEditMode {
     top:0px;
 }
 
-.inner-spaced .panel-body {
+/* D6g T15 : `panel-body` devient `card-body` (annexe A) sur le dossier patient, seul
+   consommateur de `.inner-spaced`. */
+.inner-spaced .card-body {
     margin-left: 5px;
     margin-right : 5px;
 }
@@ -613,19 +615,25 @@ ul li.documenttile  {
     margin-bottom: 15px;
 }
 
-.panel-heading .badge {
+/* D6g T15 : `panel-heading` devient `card-header` (annexe A). Porte la pastille de type
+   de consultation (`consultation.html`, `consultation-edition.html`). */
+.card-header .badge {
     float: right;
 }
 
-.panel-primary > .panel-heading .badge-danger {
+/* D6g T15 : `panel-primary` devient `text-bg-primary`, `panel-heading` devient
+   `card-header` (annexe A). Aucun gabarit ne pose `badge-danger`/`badge-warning`
+   (verifie par grep) : regles deja mortes avant ce lot, non touchees au-dela du
+   renommage des deux jetons qui leur restent accroches. */
+.text-bg-primary > .card-header .badge-danger {
 	color: #a94442;
 }
 
-.panel-primary > .panel-heading .badge-danger  {
+.text-bg-primary > .card-header .badge-danger  {
 	color: #c9302c;
 }
 
-.panel-primary > .panel-heading .badge-warning  {
+.text-bg-primary > .card-header .badge-warning  {
 	color: #ec971f;
 }
 
@@ -714,7 +722,9 @@ input.ng-invalid:focus {
    deborder la pastille de 17 px sous son en-tete, l'icone restant seule sur le bandeau.
    On ramene le selecteur a la taille de la pastille, sans toucher a la pastille de
    lecture, qui ne porte que du texte. */
-.panel-heading .badge select.form-control {
+/* D6g T15 : `panel-heading` devient `card-header` (annexe A) ; ferme le rouge de
+   test_la_pastille_de_type_tient_dans_son_en_tete. */
+.card-header .badge select.form-control {
   display: inline-block;
   width: auto;
   height: 20px;

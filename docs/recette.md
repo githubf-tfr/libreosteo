@@ -4137,11 +4137,51 @@ et `dossier-patient-375.png`.
 **Étapes**
 
 1. Ouvrir le dossier d'un patient portant une consultation et un document, fenêtre à **1 280 px de large**.
-   Attendu : <écrit par T15>
+   Attendu : le bandeau du socle porte, dans cet ordre, *Nouveau patient*, *Comptabilité*,
+   **Éditer**, **Supprimer**, puis — repoussés à droite par la marge automatique du
+   formulaire — le champ *Recherche…*, le menu **test** et le menu **?** (D6g T15 :
+   `navbar-right` disparaît sans équivalent, remplacé par `order-0` sur la barre d'actions
+   du dossier, qui reprend ainsi sa position d'avant la bascule, entre *Comptabilité* et le
+   formulaire de recherche). Le titre **Picard Jean-Luc 91 ans 2 mois** est entièrement
+   visible sur une seule ligne. Les quatre onglets (*Infos générales*, *Antécédents*,
+   *Compte-rendus médicaux*, *Consultations*) sont alignés sur un même filet horizontal,
+   *Infos générales* actif et souligné. Les panneaux *Infos patient* et *Note importante*
+   sont côte à côte, en pleine couleur (D6g, annexe A : `panel-info` devient
+   `text-bg-info`, `panel-danger` devient `text-bg-danger` — la carte entière est teintée,
+   plus seulement son en-tête, à la différence de Bootstrap 3) ; le texte du panneau
+   *Infos patient* reste lisible en noir sur fond bleu clair. Sous *Infos patient*, le
+   panneau *Traitement en cours* occupe la largeur de la première colonne. Aucune barre de
+   défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
-   Attendu : <écrit par T15>
+   Attendu : le titre **Picard Jean-Luc 91 ans 2 mois** se répartit sur deux lignes mais
+   reste entièrement visible, sans troncature ni recouvrement. Les quatre onglets restent
+   lisibles sur une seule ligne, sans se chevaucher. Le bandeau du socle est réduit au
+   bouton hamburger seul (`navbar-expand-md`, sous 768 px) : **Éditer** et **Supprimer** ne
+   sont donc pas visibles sans l'ouvrir — geste identique à R-VIS-03, non rejoué ici. Les
+   panneaux (*Infos patient*, *Note importante*, *Traitement en cours*) s'empilent en
+   pleine largeur, dans le même ordre qu'à 1 280 px. Aucune barre de défilement
+   horizontale.
 
-**Ne couvre pas** : <écrit par T15>
+**Ne couvre pas** :
+
+- les onglets *Antécédents*, *Compte-rendus médicaux* et *Consultations* : la capture de
+  référence s'arrête sur *Infos générales* ;
+- les trois boutons d'action d'une vignette de document en édition (*Valider*, *Annuler*,
+  *Supprimer* — `document-edition.html`) : observés hors capture de référence pendant cette
+  tâche, ils combinent désormais `btn-close` (fond en croix, D6g annexe A) avec leur icône
+  Font Awesome propre (`fa-check`/`fa-close`/`fa-trash`) — les deux se superposent, et
+  l'icône devient difficile a distinguer sur *Valider* et *Supprimer*. Consequence directe
+  et mesuree du renommage litteral `close` → `btn-close` sur des boutons qui n'employaient
+  pas le glyphe `×` ; aucune des quatre regles de `libreosteo.css` qui appartiennent a
+  cette tache ne couvre ce cas, non corrige ici, verse en reserve du rapport de tache ;
+- les sept modales (facturation, suppressions, envoi de facture, nouveau médecin) : déjà
+  passées à `btn-close` par T4, seulement rejouées ici, pas re-capturées ;
+- la position d'*Éditer*/*Supprimer* dans le menu mobile déployé (bouton hamburger cliqué)
+  à 375 px : au-dessus de 768 px `order-0` replace la barre d'actions a sa position
+  d'avant migration (boite flex) ; en dessous, `#headerNavbar` cesse d'etre flex et ses
+  enfants s'empilent dans l'ordre du DOM — *Éditer*/*Supprimer* apparaissent alors en
+  dernier, apres le champ de recherche : toujours atteignables, mais dans un ordre
+  different du bureau. Observe hors capture de reference.
 
 ### R-VIS-15 — Socle visuel : page inexistante
 

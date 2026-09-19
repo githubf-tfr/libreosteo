@@ -51,13 +51,14 @@ AJOUTS_DE_T1 = {
     # 2 au 2026-09-19 (T1) ; les deux repris par D6g T3 (register.html, restore.html).
     "well-md": ("card", 0),
     "well-sm": ("card", 0),
-    # 3 au 2026-09-19 (T1) ; 2 repris par D6g T13 (evenement.html, evenements-page.html).
-    # Le troisieme site, `button.left.close.document-close`, n'appartient pas a l'ecran
-    # de T13 et reste a reprendre par la tache qui migrera ce gabarit.
-    "left": (None, 1),
+    # 3 au 2026-09-19 (T1) ; 2 repris par D6g T13 (evenement.html, evenements-page.html),
+    # le troisieme (`button.left.close.document-close`, document-vignette.html) par D6g
+    # T15.
+    "left": (None, 0),
     # 1 au 2026-09-19 (T1) ; repris par D6g T3 (menu.html).
     "badge-info": ("text-bg-info", 0),
-    "fa-1": (None, 3),
+    # 3 au 2026-09-19 (T1) ; repris par D6g T15 (document-edition.html).
+    "fa-1": (None, 0),
     "fa-wrench-o": ("fa-wrench", 1),
 }
 
@@ -96,4 +97,4 @@ def test_la_mesure_du_depot_pese_les_occurrences_de_ces_sept_jetons() -> None:
     releve = {jeton: jetons[jeton] for jeton in AJOUTS_DE_T1}
 
     assert releve == {jeton: n for jeton, (_, n) in AJOUTS_DE_T1.items()}
-    assert sum(releve.values()) == 6
+    assert sum(releve.values()) == 2

@@ -50,7 +50,7 @@
   {% endif %}
 
   {% if not facturation_seule %}
-  <div class="radio">
+  <div class="form-check">
     <label>
       <input type="radio" name="status" value="notinvoiced" x-model="mode"
              {% if donnees.status == 'notinvoiced' %}checked{% endif %}>
@@ -58,7 +58,7 @@
     </label>
   </div>
   {% endif %}
-  <div class="radio">
+  <div class="form-check">
     <label>
       <input type="radio" name="status" value="invoiced" x-model="mode"
              {% if facturation_seule or donnees.status == 'invoiced' %}checked{% endif %}>
@@ -66,8 +66,8 @@
     </label>
   </div>
 
-  <div class="form-group" x-show="mode === 'notinvoiced'"{% if donnees.status != 'notinvoiced' %} style="display: none;"{% endif %}>
-    <label class="sr-only" for="reason">{% trans 'Reason' %}</label>
+  <div class="mb-3" x-show="mode === 'notinvoiced'"{% if donnees.status != 'notinvoiced' %} style="display: none;"{% endif %}>
+    <label class="visually-hidden" for="reason">{% trans 'Reason' %}</label>
     {# `disabled` hors mode : un champ masque mais actif reste soumis **et valide**, et un #}
     {# refus natif sur un champ invisible est muet et infocalisable (le navigateur ne peut #}
     {# pas y amener le praticien). Un champ desactive n'est ni valide ni soumis. #}
@@ -77,8 +77,8 @@
   </div>
 
   <div x-show="mode === 'invoiced'"{% if not facturation_seule and donnees.status != 'invoiced' %} style="display: none;"{% endif %}>
-    <div class="form-group">
-      <label class="sr-only" for="amount">{% trans 'Amount' %}</label>
+    <div class="mb-3">
+      <label class="visually-hidden" for="amount">{% trans 'Amount' %}</label>
       <div class="input-group">
         {# **Le refus de la virgule est conserve, son mecanisme change.** Angular rendait #}
         {# `<input type="text">` sans `pattern` et desactivait « Valider » quand #}
@@ -96,11 +96,11 @@
                pattern="[0-9]+([.][0-9]{1,2})?"
                title="{% trans 'Amount is invalid' %}"
                placeholder="{% trans 'Amount' %}" value="{{ montant }}">
-        <div class="input-group-addon">{{ devise }}</div>
+        <div class="input-group-text">{{ devise }}</div>
       </div>
     </div>
     {% for moyen in moyens %}
-    <div class="radio">
+    <div class="form-check">
       <label>
         <input type="radio" name="paiment_mode" value="{{ moyen.code }}"
                {% if donnees.paiment_mode == moyen.code %}checked{% endif %}>
@@ -108,7 +108,7 @@
       </label>
     </div>
     {% endfor %}
-    <div class="radio">
+    <div class="form-check">
       <label>
         <input type="radio" name="paiment_mode" value="notpaid"
                {% if donnees.paiment_mode == 'notpaid' %}checked{% endif %}>{% trans 'Not paid' %}

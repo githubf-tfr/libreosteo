@@ -20,9 +20,9 @@
 {# #}
 {# `placeholder_zipcode` et `placeholder_city` : le libelle du champ, comme #}
 {# `nouveau_patient.py:98` le pose sur les entrees d'adresse (defaut verse par D6e). #}
-<input type="text" name="zipcode" id="zipcode" class="form-control input-sm" style="display: inline; width: 100px"
+<input type="text" name="zipcode" id="zipcode" class="form-control form-control-sm" style="display: inline; width: 100px"
        value="{{ zipcode }}" placeholder="{{ placeholder_zipcode }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}
        {% if completion_code_postal %}hx-get="{{ url_suggestions }}" hx-trigger="input changed"
        hx-target="#suggestions-code-postal" hx-swap="innerHTML"{% endif %}>
-<input type="text" name="city" id="city" class="form-control input-sm" style="display: inline; width: 200px"
+<input type="text" name="city" id="city" class="form-control form-control-sm" style="display: inline; width: 200px"
        value="{{ city }}" placeholder="{{ placeholder_city }}"{% if hors_bande %} hx-swap-oob="true"{% endif %}>

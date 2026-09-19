@@ -54,11 +54,11 @@
         enctype="multipart/form-data"
         x-data="{ choisi: {{ choisi|yesno:'true,false' }}, nom: '' }">
     {% csrf_token %}
-    <div class="form-group">
+    <div class="mb-3">
       <label for="addDocumentMedicalReport">{% trans 'Add document' %}</label>
       <input type="file" id="addDocumentMedicalReport" name="fichiers" multiple
              @change="choisi = $el.files.length > 0; nom = $el.files.length ? $el.files[0].name : ''">
-      <p class="help-block" x-show="!choisi"{% if choisi %} style="display: none"{% endif %}>{% trans 'Add document as medical report. Could be image, pdf, text file, ...' %}</p>
+      <p class="form-text" x-show="!choisi"{% if choisi %} style="display: none"{% endif %}>{% trans 'Add document as medical report. Could be image, pdf, text file, ...' %}</p>
     </div>
     {% if formulaire.errors %}
     <div class="alert alert-danger" role="alert">
@@ -66,19 +66,19 @@
     </div>
     {% endif %}
     <template x-if="choisi">
-      <div class="form-group document_create">
+      <div class="mb-3 document_create">
         {# **Le nom du fichier choisi**, repris de `filemanager.html:5` #}
         {# (`<label for="titleDoc">{$ f.file.name $}</label>`). `R-DOC-01` etape 2 l'attend #}
         {# en toutes lettres, et `test_patient.py` le lit : il ne vient d'aucune reponse #}
         {# serveur — un `<input type="file">` ne transmet que le fichier — donc c'est le #}
         {# navigateur qui le porte, et Alpine qui le rend. #}
         <label for="{{ formulaire.title.id_for_label }}" x-text="nom"></label>
-        <button type="submit" class="btn label label-info"
+        <button type="submit" class="btn badge text-bg-info"
                 hx-indicator="#televersement-en-cours-{{ patient.id }}">{% trans 'Click to send' %}</button>
-        <span id="televersement-en-cours-{{ patient.id }}" class="htmx-indicator label label-warning">{% trans 'in progress...' %}</span>
+        <span id="televersement-en-cours-{{ patient.id }}" class="htmx-indicator badge text-bg-warning">{% trans 'in progress...' %}</span>
         {{ formulaire.title }}
         {{ formulaire.document_date }}
-        <p class="help-block">{% trans 'Notes' %}</p>
+        <p class="form-text">{% trans 'Notes' %}</p>
         {% include "pages/fragments/texte-riche.html" with nom="notes" valeur=formulaire.notes.value libelle=libelle_notes editable=True testid="notes-document" %}
       </div>
     </template>

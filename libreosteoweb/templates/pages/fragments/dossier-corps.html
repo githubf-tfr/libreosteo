@@ -71,9 +71,9 @@
          hx-get="{% url 'dossier-comptes-rendus' patient.id %}"
          hx-trigger="dossier-editer-medicalreports from:body"
          hx-target="#medicalreports-corps" hx-swap="outerHTML">
-      <div class="panel panel-primary">
-        <div class="panel-heading">{{ comptes_rendus.champ.libelle }}</div>
-        <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+      <div class="card text-bg-primary">
+        <div class="card-header">{{ comptes_rendus.champ.libelle }}</div>
+        <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
           {# **La cible d'edition ne porte que le champ de texte riche.** Englober la liste #}
           {# des vignettes la ferait detruire puis reconstruire a chaque entree en edition, #}
           {# et `test_enregistrer_le_patient_ne_dedouble_pas_la_tuile` compte les etats #}
@@ -87,7 +87,7 @@
           {# son identite, son etat Alpine et sa selection de fichier. Poser l'attribut sur une #}
           {# reponse d'autorite l'empecherait de rafraichir son propre element. #}
           {# **Une surface de saisie permanente ajoutee plus tard dans le corps se marque ici.** #}
-          <div class="form-group">
+          <div class="mb-3">
             {% include "pages/fragments/document-televersement.html" with patient=televersement.patient formulaire=televersement.formulaire choisi=televersement.choisi hors_bande=False preserver=True %}
           </div>
           {% include "pages/fragments/documents-liste.html" with patient=documents.patient documents=documents.documents hors_bande=False preserver=True %}

@@ -71,25 +71,25 @@
   <div class="btn-toolbar lo-barre-texte-riche" role="toolbar" aria-label="{{ libelle }}"
        :style="{ visibility: actif ? 'visible' : 'hidden' }" style="visibility: hidden;">
     <div class="btn-group">
-      <button type="button" class="btn btn-default btn-xs" title="bold" @mousedown.prevent @click.prevent="commande('bold')"><b>B</b></button>
-      <button type="button" class="btn btn-default btn-xs" title="italic" @mousedown.prevent @click.prevent="commande('italic')"><i>I</i></button>
-      <button type="button" class="btn btn-default btn-xs" title="underline" @mousedown.prevent @click.prevent="commande('underline')"><u>U</u></button>
-      <button type="button" class="btn btn-default btn-xs" title="strikethrough" @mousedown.prevent @click.prevent="commande('strikethrough')"><s>S</s></button>
+      <button type="button" class="btn btn-secondary btn-sm" title="bold" @mousedown.prevent @click.prevent="commande('bold')"><b>B</b></button>
+      <button type="button" class="btn btn-secondary btn-sm" title="italic" @mousedown.prevent @click.prevent="commande('italic')"><i>I</i></button>
+      <button type="button" class="btn btn-secondary btn-sm" title="underline" @mousedown.prevent @click.prevent="commande('underline')"><u>U</u></button>
+      <button type="button" class="btn btn-secondary btn-sm" title="strikethrough" @mousedown.prevent @click.prevent="commande('strikethrough')"><s>S</s></button>
     </div>
     <div class="btn-group">
-      <button type="button" class="btn btn-default btn-xs" title="p" @mousedown.prevent @click.prevent="commande('formatBlock', 'p')">P</button>
-      <button type="button" class="btn btn-default btn-xs" title="h1" @mousedown.prevent @click.prevent="commande('formatBlock', 'h1')">H1</button>
-      <button type="button" class="btn btn-default btn-xs" title="h2" @mousedown.prevent @click.prevent="commande('formatBlock', 'h2')">H2</button>
-      <button type="button" class="btn btn-default btn-xs" title="h3" @mousedown.prevent @click.prevent="commande('formatBlock', 'h3')">H3</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="p" @mousedown.prevent @click.prevent="commande('formatBlock', 'p')">P</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="h1" @mousedown.prevent @click.prevent="commande('formatBlock', 'h1')">H1</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="h2" @mousedown.prevent @click.prevent="commande('formatBlock', 'h2')">H2</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="h3" @mousedown.prevent @click.prevent="commande('formatBlock', 'h3')">H3</button>
     </div>
     <div class="btn-group">
-      <button type="button" class="btn btn-default btn-xs" title="Left" @mousedown.prevent @click.prevent="commande('justifyLeft')">&#8676;</button>
-      <button type="button" class="btn btn-default btn-xs" title="Center" @mousedown.prevent @click.prevent="commande('justifyCenter')">&#8596;</button>
-      <button type="button" class="btn btn-default btn-xs" title="Right" @mousedown.prevent @click.prevent="commande('justifyRight')">&#8677;</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="Left" @mousedown.prevent @click.prevent="commande('justifyLeft')">&#8676;</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="Center" @mousedown.prevent @click.prevent="commande('justifyCenter')">&#8596;</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="Right" @mousedown.prevent @click.prevent="commande('justifyRight')">&#8677;</button>
     </div>
     <div class="btn-group">
-      <button type="button" class="btn btn-default btn-xs" title="OL" @mousedown.prevent @click.prevent="commande('insertOrderedList')">1.</button>
-      <button type="button" class="btn btn-default btn-xs" title="UL" @mousedown.prevent @click.prevent="commande('insertUnorderedList')">&bull;</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="OL" @mousedown.prevent @click.prevent="commande('insertOrderedList')">1.</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="UL" @mousedown.prevent @click.prevent="commande('insertUnorderedList')">&bull;</button>
     </div>
     {# Le quatorzieme bouton est un menu, pas une commande : `halloblock` #}
     {# (hallo.js:606-689) ouvre les six memes elements, dont `pre` et `blockquote` qu'aucun #}
@@ -97,14 +97,14 @@
     {# une feuille : `x-show` retire la propriete au lieu d'y ecrire une valeur, et un #}
     {# `display:none` venu d'une classe ne serait alors jamais leve (legs de D6c, dfb2473). #}
     <div class="btn-group" x-data="{ menuOuvert: false }">
-      <button type="button" class="btn btn-default btn-xs" title="block" @mousedown.prevent @click.prevent="menuOuvert = !menuOuvert">&para;</button>
+      <button type="button" class="btn btn-secondary btn-sm" title="block" @mousedown.prevent @click.prevent="menuOuvert = !menuOuvert">&para;</button>
       <div class="btn-group-vertical" x-show="menuOuvert" style="display: none; position: absolute; top: 100%; left: 0; z-index: 1000;">
-        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'h1'); menuOuvert = false">h1</button>
-        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'h2'); menuOuvert = false">h2</button>
-        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'h3'); menuOuvert = false">h3</button>
-        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'p'); menuOuvert = false">p</button>
-        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'pre'); menuOuvert = false">pre</button>
-        <button type="button" class="btn btn-default btn-xs" @mousedown.prevent @click.prevent="commande('formatBlock', 'blockquote'); menuOuvert = false">blockquote</button>
+        <button type="button" class="btn btn-secondary btn-sm" @mousedown.prevent @click.prevent="commande('formatBlock', 'h1'); menuOuvert = false">h1</button>
+        <button type="button" class="btn btn-secondary btn-sm" @mousedown.prevent @click.prevent="commande('formatBlock', 'h2'); menuOuvert = false">h2</button>
+        <button type="button" class="btn btn-secondary btn-sm" @mousedown.prevent @click.prevent="commande('formatBlock', 'h3'); menuOuvert = false">h3</button>
+        <button type="button" class="btn btn-secondary btn-sm" @mousedown.prevent @click.prevent="commande('formatBlock', 'p'); menuOuvert = false">p</button>
+        <button type="button" class="btn btn-secondary btn-sm" @mousedown.prevent @click.prevent="commande('formatBlock', 'pre'); menuOuvert = false">pre</button>
+        <button type="button" class="btn btn-secondary btn-sm" @mousedown.prevent @click.prevent="commande('formatBlock', 'blockquote'); menuOuvert = false">blockquote</button>
       </div>
     </div>
   </div>

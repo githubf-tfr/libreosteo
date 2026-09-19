@@ -31,9 +31,9 @@
       {# saisir. La cible du lien est celle de l'onglet « Consultations » du dossier, que #}
       {# seul l'appelant connait — d'ou `volet.url_liste`. #}
       {% if not volet.en_cours %}
-      <a class="close pull-right" data-testid="fermer-le-volet"
+      <a class="btn-close float-end" data-testid="fermer-le-volet"
          href="{{ volet.url_liste }}" title="{% trans 'Close this panel' %}"
-        ><span aria-hidden="true">&times;</span><span class="sr-only">{% trans 'Close' %}</span></a>
+        ><span class="visually-hidden">{% trans 'Close' %}</span></a>
       {% endif %}
     </div>
   </div>
@@ -48,7 +48,7 @@
           {% trans 'by' %} <span class="text-uppercase">{{ volet.consultation.therapeut.last_name }}</span>
           {{ volet.consultation.therapeut.first_name }}</h4>
         {% if volet.autre_cabinet %}
-        <p class="text-muted text-right">{% trans 'Performed at ' %} {{ volet.consultation.office.office_name }}</p>
+        <p class="text-muted text-end">{% trans 'Performed at ' %} {{ volet.consultation.office.office_name }}</p>
         {% endif %}
       </div>
     </div>
@@ -57,15 +57,15 @@
 
     <div class="row">
       <div class="col-md-12">
-        <div class="panel panel-primary">
-          <div class="panel-heading">
+        <div class="card text-bg-primary">
+          <div class="card-header">
             {{ volet.champs.reason_description.libelle }}
             <div class="badge">
               <i class="fa fa-check"></i>
               <span>{{ volet.libelle_du_type|lower }}</span>
             </div>
           </div>
-          <div class="panel-body row" style="margin-left: 1px; margin-right: 1px;">
+          <div class="card-body row" style="margin-left: 1px; margin-right: 1px;">
             <div class="row">
               <div class="col-md-12" style="padding-bottom:25px">
                 <div class="col-md-12"><strong>{{ volet.consultation.reason }}</strong></div>
@@ -100,9 +100,9 @@
 
     <div class="row" style="padding-top:15px">
       <div class="col-md-12">
-        <div class="panel panel-primary">
-          <div class="panel-heading">{{ volet.champs.diagnosis.libelle }}</div>
-          <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+        <div class="card text-bg-primary">
+          <div class="card-header">{{ volet.champs.diagnosis.libelle }}</div>
+          <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
             {% include "pages/fragments/texte-riche.html" with nom="diagnosis" valeur=volet.champs.diagnosis.valeur libelle=volet.champs.diagnosis.libelle editable=False %}
           </div>
         </div>
@@ -111,9 +111,9 @@
 
     <div class="row">
       <div class="col-md-12">
-        <div class="panel panel-primary">
-          <div class="panel-heading">{{ volet.champs.treatments.libelle }}</div>
-          <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+        <div class="card text-bg-primary">
+          <div class="card-header">{{ volet.champs.treatments.libelle }}</div>
+          <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
             {% include "pages/fragments/texte-riche.html" with nom="treatments" valeur=volet.champs.treatments.valeur libelle=volet.champs.treatments.libelle editable=False %}
           </div>
         </div>
@@ -122,9 +122,9 @@
 
     <div class="row">
       <div class="col-md-12">
-        <div class="panel panel-success inner-spaced">
-          <div class="panel-heading">{{ volet.champs.conclusion.libelle }}</div>
-          <div class="panel-body row">
+        <div class="card text-bg-success inner-spaced">
+          <div class="card-header">{{ volet.champs.conclusion.libelle }}</div>
+          <div class="card-body row">
             {% include "pages/fragments/texte-riche.html" with nom="conclusion" valeur=volet.champs.conclusion.valeur libelle=volet.champs.conclusion.libelle editable=False %}
           </div>
         </div>
@@ -137,7 +137,7 @@
         {# `ng-show="model.status < 1"` : une consultation deja facturee ne se cloture pas #}
         {# une seconde fois. #}
         {% if volet.consultation.status < 1 %}
-        <button type="button" id="close-examination" class="btn btn-success pull-right"
+        <button type="button" id="close-examination" class="btn btn-success float-end"
                 hx-get="{{ volet.url_cloture }}?prefixe={{ volet.prefixe }}" hx-target="#modale" hx-swap="innerHTML">{% trans 'Close' %}</button>
         {% endif %}
       </div>
@@ -149,17 +149,17 @@
   <div class="col-md-5">
     <div class="row">
       <div class="col-md-6">
-        <div class="panel panel-danger">
-          <div class="panel-heading">{{ volet.champs.important_info.libelle }}</div>
-          <div class="panel-body">
+        <div class="card text-bg-danger">
+          <div class="card-header">{{ volet.champs.important_info.libelle }}</div>
+          <div class="card-body">
             {% include "pages/fragments/texte-riche.html" with nom="important_info" valeur=volet.champs.important_info.valeur libelle=volet.champs.important_info.libelle editable=False %}
           </div>
         </div>
       </div>
       <div class="col-md-6">
-        <div class="panel panel-info">
-          <div class="panel-heading">{{ volet.champs.current_treatment.libelle }}</div>
-          <div class="panel-body">
+        <div class="card text-bg-info">
+          <div class="card-header">{{ volet.champs.current_treatment.libelle }}</div>
+          <div class="card-body">
             {% include "pages/fragments/texte-riche.html" with nom="current_treatment" valeur=volet.champs.current_treatment.valeur libelle=volet.champs.current_treatment.libelle editable=False %}
           </div>
         </div>
@@ -167,9 +167,9 @@
     </div>
     <div class="row">
       <div class="col-md-12">
-        <div class="panel panel-info inner-spaced">
-          <div class="panel-heading">{% trans 'Infos patient' %}</div>
-          <div class="panel-body row">
+        <div class="card text-bg-info inner-spaced">
+          <div class="card-header">{% trans 'Infos patient' %}</div>
+          <div class="card-body row">
             <div class="row">
               <div class="col-md-3">{{ volet.champs.laterality.libelle }} :</div>
               <div class="col-md-4">{{ volet.libelle_de_lateralite }}</div>
@@ -199,9 +199,9 @@
     {% for champ in volet.antecedents %}
     <div class="row">
       <div class="col-md-12">
-        <div class="panel panel-primary inner-spaced">
-          <div class="panel-heading">{{ champ.libelle }}</div>
-          <div class="panel-body row">
+        <div class="card text-bg-primary inner-spaced">
+          <div class="card-header">{{ champ.libelle }}</div>
+          <div class="card-body row">
             {% include "pages/fragments/texte-riche.html" with nom=champ.nom valeur=champ.valeur libelle=champ.libelle editable=False %}
           </div>
         </div>

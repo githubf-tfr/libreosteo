@@ -40,11 +40,11 @@
           hx-swap="outerHTML">
       {% csrf_token %}
       <div class="input-group">
-        <input id="btn-input-{{ entree.seance.id }}" type="text" class="form-control input-sm"
+        <input id="btn-input-{{ entree.seance.id }}" type="text" class="form-control form-control-sm"
                name="comment" placeholder="{% trans 'Comment' %}" value="{{ entree.formulaire.comment.value|default_if_none:'' }}">
-        <span class="input-group-btn">
-          <button class="btn btn-warning btn-sm" id="btn-chat-{{ entree.seance.id }}" type="submit">{% trans 'Send' %}</button>
-        </span>
+        {# `input-group-btn` disparait sans equivalent (annexe A, comme `menu.html`) : le #}
+        {# bouton d'un `input-group` Bootstrap 5 est un enfant direct du groupe. #}
+        <button class="btn btn-warning btn-sm" id="btn-chat-{{ entree.seance.id }}" type="submit">{% trans 'Send' %}</button>
       </div>
       {# `entree.formulaire` ne voyage que sur le refus : `entree_de_seance` le vaut a #}
       {# `None` sur les deux autres chemins (chronologie initiale, envoi reussi), et #}

@@ -25,15 +25,15 @@
 {# faisait `edit_doc(doc, false)`, qui rechargeait les documents du patient. #}
 {% trans 'Notes' as libelle_notes %}
 <li class="documenttile animate col-md-12" id="document-vignette-{{ entree.document.id }}">
-  <div class="thumbnail doc_expand">
+  <div class="card doc_expand">
     {# `data-surface-de-saisie` : meme raison que le bloc de televersement. #}
     <form id="formulaire-document-{{ entree.document.id }}" method="post" data-surface-de-saisie
           hx-post="{{ entree.url_edition }}"
           hx-target="#document-vignette-{{ entree.document.id }}"
           hx-swap="outerHTML">
       {% csrf_token %}
-      <button type="submit" class="close document-close document-edit document-edit-ok"
-              aria-label="{% trans 'Validate' %}" style="margin-left: 8px"><i class="fa fa-1 fa-check"></i></button>
+      <button type="submit" class="btn-close document-close document-edit document-edit-ok"
+              aria-label="{% trans 'Validate' %}" style="margin-left: 8px"><i class="fa fa-check"></i></button>
       {# **`modifie = false` : ce bouton est le seul abandon de saisie en `GET` du dossier** #}
       {# (4e revue T12). Le desarmement de la garde de sortie suit les **ecritures** — un #}
       {# `GET` est une lecture, et entrer en edition ou chercher un code postal ne doit rien #}
@@ -42,23 +42,23 @@
       {# dossier averti a la sortie alors qu'il n'y avait plus rien a perdre. Les **sept** #}
       {# autres surfaces de saisie n'ont aucun abandon en `GET`, et c'est pourquoi la regle #}
       {# est posee ici plutot que generalisee. #}
-      <button type="button" class="close document-close document-edit document-edit-cancel"
+      <button type="button" class="btn-close document-close document-edit document-edit-cancel"
               aria-label="{% trans 'Cancel' %}" style="margin-left: 8px" @click="modifie = false"
               hx-get="{{ entree.url_vignette }}"
               hx-target="#document-vignette-{{ entree.document.id }}"
-              hx-swap="outerHTML"><i class="fa fa-1 fa-close"></i></button>
-      <button type="button" class="close document-close document-edit document-edit-delete"
+              hx-swap="outerHTML"><i class="fa fa-close"></i></button>
+      <button type="button" class="btn-close document-close document-edit document-edit-delete"
               aria-label="{% trans 'Delete' %}" style="margin-left: 8px"
               hx-get="{{ entree.url_suppression }}"
               hx-target="#modale"
-              hx-swap="innerHTML"><i class="fa fa-1 fa-trash"></i></button>
+              hx-swap="innerHTML"><i class="fa fa-trash"></i></button>
       <p class="document_title"><b>{{ entree.document.title }}</b></p>
       <div class="document_ico"><a href="{{ entree.url_fichier }}" target="_blank"><i class="fa fa-2x {{ entree.classe_icone }}"></i></a></div>
 
-      <div class="form-group animate">
+      <div class="mb-3 animate">
         {{ formulaire.title }}{{ formulaire.title.errors }}
         {{ formulaire.document_date }}{{ formulaire.document_date.errors }}
-        <p class="help-block">{% trans 'Notes' %}</p>
+        <p class="form-text">{% trans 'Notes' %}</p>
         {% include "pages/fragments/texte-riche.html" with nom="notes" valeur=formulaire.notes.value libelle=libelle_notes editable=True %}
         {{ formulaire.notes.errors }}
       </div>

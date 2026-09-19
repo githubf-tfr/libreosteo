@@ -35,8 +35,8 @@
     <div class="btn-group btn-group-vertical">
       {% for sphere in volet.spheres %}
       <div class="btn-group">
-        <label class="btn btn-default" :class="ouvertes['{{ sphere.nom }}'] ? 'btn btn-default active' : 'btn btn-default'">
-          <input type="checkbox" class="sr-only" value="{{ sphere.nom }}"
+        <label class="btn btn-secondary" :class="ouvertes['{{ sphere.nom }}'] ? 'btn btn-secondary active' : 'btn btn-secondary'">
+          <input type="checkbox" class="visually-hidden" value="{{ sphere.nom }}"
                  {% if sphere.ouverte %}checked{% endif %}
                  {# **Lire la case, ne pas basculer l'etat.** Une bascule suppose que les #}
                  {# deux restent alignes ; elles le sont aujourd'hui, mais tout autre #}
@@ -50,11 +50,11 @@
   </div>
   <div class="col-md-8">
     {% for sphere in volet.spheres %}
-    <details open class="panel panel-primary panel-sphere"
+    <details open class="card text-bg-primary panel-sphere"
              :style="ouvertes['{{ sphere.nom }}'] ? 'display: block' : 'display: none'"
              style="display: {% if sphere.ouverte %}block{% else %}none{% endif %};">
-      <summary class="panel-heading">{{ sphere.libelle }}</summary>
-      <div class="panel-body">
+      <summary class="card-header">{{ sphere.libelle }}</summary>
+      <div class="card-body">
         {% include "pages/fragments/texte-riche.html" with nom=sphere.nom valeur=sphere.valeur libelle=sphere.libelle editable=editable %}
       </div>
     </details>

@@ -19,12 +19,12 @@
         hx-trigger="submit, dossier-fin-edition from:body">
     {% csrf_token %}
     <div class="col-md-8">
-      <div class="panel panel-info">
-        <div class="panel-heading">
+      <div class="card text-bg-info">
+        <div class="card-header">
           {% trans 'Patient infos' %}
-          {% if identite.patient.consent %}<span class="pull-right">{% trans 'Consent given on '%}{{ identite.patient.consent|date:"d/m/Y" }}</span>{% endif %}
+          {% if identite.patient.consent %}<span class="float-end">{% trans 'Consent given on '%}{{ identite.patient.consent|date:"d/m/Y" }}</span>{% endif %}
         </div>
-        <div class="panel-body row" style="margin-left: 5px; margin-right: 5px">
+        <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
           {% if identite.formulaire.non_field_errors %}
           <div class="alert alert-danger" role="alert">{{ identite.formulaire.non_field_errors }}</div>
           {% endif %}
@@ -59,11 +59,11 @@
             <div class="col-md-5 left-bordered-col">
               <div class="row">
                 <div class="col-md-12">
-                  <span class="glyphicon glyphicon-phone-alt"></span>
+                  <span class="fa fa-phone"></span>
                   {{ identite.formulaire.phone }}
                 </div>
                 <div class="col-md-12">
-                  <span class="glyphicon glyphicon-earphone"></span>
+                  <span class="fa fa-phone-square"></span>
                   {{ identite.formulaire.mobile_phone }}
                 </div>
                 <div class="col-md-12">
@@ -103,17 +103,17 @@
       </div>
     </div>
     <div class="col-md-4">
-      <div class="panel panel-danger inner-spaced">
-        <div class="panel-heading">{{ identite.champs.important_info.libelle }}</div>
-        <div class="panel-body row">
+      <div class="card text-bg-danger inner-spaced">
+        <div class="card-header">{{ identite.champs.important_info.libelle }}</div>
+        <div class="card-body row">
           {% include "pages/fragments/texte-riche.html" with nom="important_info" valeur=identite.champs.important_info.valeur libelle=identite.champs.important_info.libelle editable=True %}
         </div>
       </div>
     </div>
     <div class="col-md-4">
-      <div class="panel panel-info inner-spaced">
-        <div class="panel-heading">{{ identite.champs.current_treatment.libelle }}</div>
-        <div class="panel-body row">
+      <div class="card text-bg-info inner-spaced">
+        <div class="card-header">{{ identite.champs.current_treatment.libelle }}</div>
+        <div class="card-body row">
           {% include "pages/fragments/texte-riche.html" with nom="current_treatment" valeur=identite.champs.current_treatment.valeur libelle=identite.champs.current_treatment.libelle editable=True %}
         </div>
       </div>
