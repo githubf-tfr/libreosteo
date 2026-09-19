@@ -22,6 +22,8 @@ from django.shortcuts import resolve_url
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic.base import TemplateView
 
+from libreosteoweb.api.permissions import maintenance_available
+
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,13 @@ class CreateAdminAccountView(TemplateView):
         self.form = UserCreationForm()
         return super(TemplateView, self).render_to_response(self.get_context_data())
 
+    # La route est publique : `NO_REROUTE_PATTERN_URL` la soustrait au contrôle
+    # d'authentification du `LoginRequiredMiddleware`. Sans cette garde, un anonyme
+    # se crée un superutilisateur sur une instance en service. Le critère est celui
+    # de l'installation — aucun utilisateur en base — et non « aucun `is_staff` » :
+    # c'est déjà celui du middleware et celui de `display_register`, qui rend le même
+    # formulaire.
+    @maintenance_available
     def post(self, request, *args, **kwargs):
         form = UserCreationForm(request.POST)
         self.redirect_to = request.POST.get(
