@@ -4100,8 +4100,13 @@ d'homonyme) est couvert par `tests/functional/test_patient.py`
 et `comptabilite-375.png`.
 
 **⚠️ État d'avant, antérieur au lot — débordement horizontal à 375 px, corrigé par T10.**
-La capture de référence versée par T1 faisait **603 px de large** (mesure exacte, en-tête
-IHDR du PNG — le chiffre de 551 px porté ici avant T10 était imprécis) au lieu de 375 : en
+La capture immédiatement antérieure à T10 faisait **603 px de large** (mesure exacte, en-tête
+IHDR du PNG). ⚠️ **Les 551 px que cette fiche portait auparavant n'étaient pas une mesure
+imprécise** : c'était la valeur exacte de la capture versée par T1 (`3f72c2d`, 551×812). Le
+passage de 551 à 603 px vient d'un **effet collatéral déclaré de T5** (`9832980`) — l'instrument
+capture plusieurs écrans dans un même parcours, et cet écran, pas encore converti, a reçu le
+fond de page posé par T4. Les deux chiffres sont donc justes, à deux dates différentes ; c'est
+sur les 603 px, mesurés à son propre commit de base, que T10 a travaillé. Au lieu de 375 : en
 pleine page, cette largeur est celle du contenu. Le tableau des factures et ses huit
 colonnes débordaient la fenêtre, et l'écran défilait latéralement. **C'était l'état sous
 Bootstrap 3**, et T10, propriétaire de cet écran, en héritait sans que ce débordement soit
