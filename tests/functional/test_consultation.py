@@ -22,6 +22,7 @@ from tests.functional.helpers import (
     ouvrir_nouvelle_consultation,
     rechercher_patient,
     remplir_champ_de_texte_riche,
+    revenir_a_la_chronologie,
     saisir_consultation,
     saisir_date,
 )
@@ -154,11 +155,11 @@ def naviguer_vers_examen(
     """Ouvre la vue dediee d'une consultation et attend que sa vraie date s'affiche.
 
     **`/patient/<p>/examination/<s>` est une URL de document depuis D6e T12** : le `goto`
-    charge la page, et le serveur y rend l'onglet « Consultations » avec le volet de la
-    seance demandee. Le `page.reload()` qui suivait le `goto` a disparu avec sa raison
-    d'etre : il contournait une navigation `ui-router` qui ne rechargeait rien et laissait
-    le pan « #current-examination » actif, lie a un objet perime — la date affichee etait
-    alors celle du jour, durablement, et ce n'etait pas une course.
+    charge la page, et le serveur y rend l'onglet « Detail de la consultation » avec le
+    volet de la seance demandee. Le `page.reload()` qui suivait le `goto` a disparu avec
+    sa raison d'etre : il contournait une navigation `ui-router` qui ne rechargeait rien
+    et laissait le pan « #current-examination » actif, lie a un objet perime — la date
+    affichee etait alors celle du jour, durablement, et ce n'etait pas une course.
 
     L'assertion qui suit reste : elle sert de barriere avant toute edition.
     """
@@ -455,14 +456,15 @@ def test_edition_d_une_consultation_existante(
         date_initiale,
     )
     # Le dossier peut rendre **deux** volets dans le meme document : celui de la
-    # consultation choisie, dans l'onglet « Consultations », et celui d'une consultation en
-    # cours, dans son propre panneau. Aucune n'est ouverte ici, mais `:visible` reste la
-    # garde : une violation du mode strict n'est jamais rejouee par Playwright.
+    # consultation choisie, dans l'onglet « Detail de la consultation », et celui d'une
+    # consultation en cours, dans son propre panneau. Aucune n'est ouverte ici, mais
+    # `:visible` reste la garde : une violation du mode strict n'est jamais rejouee par
+    # Playwright.
     volet = page.locator('[data-testid="consultation-anterieure"]:visible')
     expect(volet).to_contain_text("n° 10000")
     expect(volet).to_contain_text("Motif de consultation")
     expect(volet).to_contain_text("Examen normal")
-    entrer_en_edition(page, "examinations")
+    entrer_en_edition(page, "examination-detail")
 
     volet.locator("input[placeholder='Motif']").fill("Motif modifie")
     remplir_champ_de_texte_riche(
@@ -515,6 +517,63 @@ def test_l_onglet_consultation_en_cours_revient_apres_une_cloture(
     page.click("#examinations")
     page.click("#new-examination-btn")
     expect(page.locator("#current-examination")).to_be_visible()
+
+
+def test_ouvrir_une_seance_ancienne_bascule_sur_son_onglet(
+    page: Page, live_server: LiveServer, patient_existant: Patient
+) -> None:
+    """Lot B, la decision utilisateur : le clic de chronologie ouvre un onglet.
+
+    Ce que ce test regarde : que le detail soit **actif** apres le clic, et que le panneau
+    de la chronologie ne porte plus aucun volet — c'est cette seconde moitie qui prouve que
+    l'ecran ne s'allonge plus. Ce qu'il laisse passer : l'aspect, sur lequel rien n'est
+    asserte.
+    """
+    connexion(page, live_server)
+    rechercher_patient(page, "Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="notinvoiced", raison="Test")
+    revenir_a_la_chronologie(page)
+
+    page.click("#examinations")
+    page.get_by_test_id("titre-seance").first.click()
+
+    expect(page.locator("#panneau-examination-detail")).to_be_visible()
+    expect(
+        page.locator('#panneau-examinations [data-testid="consultation-anterieure"]')
+    ).to_have_count(0)
+    expect(page.locator("#new-examination-btn")).to_have_count(1)
+
+
+def test_une_seance_ancienne_s_ouvre_pendant_une_seance_en_cours(
+    page: Page, live_server: LiveServer, patient_existant: Patient
+) -> None:
+    """Cas 4 de la spec : six onglets, le detail actif, la seance ouverte intacte.
+
+    Ce que ce test regarde : que les deux volets coexistent dans deux onglets, et que
+    revenir sur « Consultation en cours » retrouve la seance ouverte. Ce qu'il laisse
+    passer : le sort d'une saisie **non envoyee** au moment du clic — c'est
+    `R-CON-07` qui le recette, parce que la boite native de `beforeunload` n'est pas
+    pilotable depuis Playwright sans la neutraliser, ce qui deferait la preuve.
+    """
+    connexion(page, live_server)
+    rechercher_patient(page, "Picard")
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+    cloturer_consultation(page, mode="notinvoiced", raison="Test")
+    revenir_a_la_chronologie(page)
+    ouvrir_nouvelle_consultation(page)
+
+    page.click("#examinations")
+    page.get_by_test_id("titre-seance").first.click()
+
+    expect(page.locator("#examination-detail")).to_be_visible()
+    expect(page.locator("#current-examination")).to_be_visible()
+    expect(page.locator("#panneau-examination-detail")).to_be_visible()
+    page.click("#current-examination")
+    expect(page.locator("#panneau-current-examination")).to_be_visible()
+    expect(page.locator("#panneau-examination-detail")).to_be_hidden()
 
 
 def test_la_consultation_preserve_le_texte_riche_a_l_octet(

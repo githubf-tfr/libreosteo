@@ -36,6 +36,7 @@ from tests.functional.helpers import (
     ouvrir_nouvelle_consultation,
     rechercher_patient,
     remplir_champ_de_texte_riche,
+    revenir_a_la_chronologie,
     saisir_consultation,
     saisir_date,
 )
@@ -759,23 +760,6 @@ def test_suppression_rgpd(page: Page, live_server: LiveServer) -> None:
     assert Invoice.objects.count() == 1
     assert OfficeEvent.objects.count() == 0
     assert PatientDocument.objects.count() == 0
-
-
-def revenir_a_la_chronologie(page: Page) -> None:
-    """Ferme le panneau de detail pour retrouver le bouton « Demarrer une consultation ».
-
-    Apres une cloture, `reloadExaminations` (patient.js) affiche le detail de la
-    consultation qui vient de se fermer a la place de la chronologie
-    (`previousExamination.data` devient non nul, `timeline.html` disparait sous son
-    `ng-if`) : `#new-examination-btn` reste hors du DOM tant que ce panneau est
-    ouvert. Le bouton « × » (`ng-click="model = null"`, examination.html) le referme
-    — meme geste que E2 (chapitre 0, « Seconde consultation, non facturée »). Ne
-    clique que si le panneau est bien ouvert : au tout premier appel d'un test, la
-    chronologie est deja affichee et ce bouton n'existe pas encore dans le DOM.
-    """
-    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
-    if bouton_fermer.count() > 0:
-        bouton_fermer.click()
 
 
 def test_timeline_consultations_et_documents(

@@ -345,10 +345,27 @@ def cloturer_consultation(
     # le corps du dossier est recompose d'un bloc. La barriere reste juste et devient
     # immediatement satisfaite — son cout est nul, et elle continue de distinguer un volet
     # rendu d'un volet vide. Le volet est adresse par son `data-testid` : `#examinationDate`
-    # existe aussi dans la consultation en cours.
+    # existe aussi dans la consultation en cours. Depuis Lot B, la regle serveur rend en
+    # outre l'onglet « Detail de la consultation » actif apres une cloture : c'est
+    # precisement pourquoi ce selecteur se resout sans `:visible`, l'onglet actif etant le
+    # seul a montrer ce volet.
     expect(
         page.locator('[data-testid="consultation-anterieure"] #examinationDate')
     ).not_to_have_text("")
+
+
+def revenir_a_la_chronologie(page: Page) -> None:
+    """Ferme le volet de detail pour retrouver le bouton « Demarrer une consultation ».
+
+    Le lien « x » du volet (`consultation.html:35-37`) mene a
+    `/patient/<id>/examinations` : c'est une navigation de document, pas un `ng-click`.
+    L'onglet « Consultations » redevient actif et l'onglet « Detail de la consultation »
+    disparait de la barre (Q5). La garde `count() > 0` reste : au tout premier appel d'un
+    test, aucun detail n'est encore ouvert et ce lien n'existe pas dans le DOM.
+    """
+    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
+    if bouton_fermer.count() > 0:
+        bouton_fermer.click()
 
 
 def libelle_date_longue(jour: date) -> str:

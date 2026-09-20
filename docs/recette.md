@@ -304,15 +304,18 @@ Bouton « Clôturer ». Dans la fenêtre « Facturation » : choisir « Facturé
 Montant se pré-remplit à `55`, valeur du cabinet — ne pas le modifier), moyen de paiement
 « Chèque », bouton « Valider ».
 
-**3. Seconde consultation, non facturée** — la clôture de la première consultation laisse
-affiché son détail, **au-dessus** de la chronologie (onglet « Consultations » déjà actif).
+**3. Seconde consultation, non facturée** — la clôture de la première consultation ouvre
+l'onglet « Détail de la consultation » et l'active ; la chronologie et « Démarrer une
+consultation » restent sous l'onglet « Consultations », à un clic.
 
 **C'est le second geste que la migration change hors de la liste du plan**, avec `R-CON-01`
 étape 3, et il se lit dans les deux sens : le bouton « Démarrer une consultation » est
 désormais **déjà disponible**, puisque la chronologie n'est plus remplacée par le volet — le
 cliquer directement. Fermer d'abord le volet par le « × » en haut à droite (info-bulle
 « Fermer ce volet ») reste possible et mène au même endroit ; c'était **obligatoire** avant
-D6e, et ce ne l'est plus.
+D6e, et ce ne l'est plus. Avec Lot B, ce geste est désormais un changement d'onglet : le « × »
+ramène sur « Consultations », et l'onglet « Détail de la consultation » disparaît de la
+barre.
 
 | Champ | Valeur |
 |---|---|
@@ -2232,13 +2235,31 @@ est déplacé d'onglet au moment même où son texte disparaît.
    et le compteur est juste. **La préservation ne doit jamais empêcher une écriture
    d'aboutir** : chacune des trois surfaces reste sa propre autorité, et seule la
    recomposition du dossier renonce à la réécrire.
+6. **La limite que ce lot assume, et qu'il faut avoir vue une fois.** Démarrer une
+   consultation, taper un motif **sans clôturer ni quitter l'édition**. Cliquer l'onglet
+   « Consultations », puis, dans la chronologie, une séance ancienne.
+   Attendu : le navigateur **affiche sa boîte « modifications non enregistrées »** — le
+   clic est une navigation de document, et la garde de sortie s'arme. Choisir de
+   **rester** : rien n'est perdu.
+   Puis, **depuis l'onglet « Détail de la consultation »**, jouer une action de statut sur
+   la séance ancienne (annuler sa facture, ou la régulariser).
+   Attendu, et **c'est le comportement assumé, pas un défaut à signaler** : le dossier est
+   recomposé depuis la base, et **le motif tapé dans la séance en cours a disparu, sans un
+   mot**. Revenir sur « Consultation en cours » pour le constater.
+   **Pourquoi on ne le corrige pas** : le corps du dossier est la seule autorité qui
+   recompose les onglets, leurs panneaux, la chronologie et l'encart de facture d'un seul
+   bloc (D6e/C8) ; le préserver l'empêcherait d'afficher le nouveau statut, qui est la
+   raison même du rafraîchissement. Le chemin existait avant ce lot ; Lot B le rend plus
+   atteignable, et cette étape le rend **visible**.
 
 **Constat** : la règle que ce lot inscrit est une règle de conception, pas un correctif de
 circonstance — *un échange ne réécrit que les éléments dont il est l'autorité ; les autres
 sont déclarés préservables à l'`{% include %}` qui renonce*. L'étape 2 est celle qui ne se
 mesure pas automatiquement, et elle porte la limite assumée du lot : après l'étape 1 la
 saisie est **conservée mais invisible** jusqu'au retour sur son onglet, et c'est
-l'avertissement de sortie — non la visibilité — qui ferme le silence.
+l'avertissement de sortie — non la visibilité — qui ferme le silence. La préservation de D9
+couvre les trois surfaces permanentes du corps, jamais les deux volets de consultation, et
+l'étape 6 le montre plutôt que de le taire.
 
 ### Documents patient
 
@@ -2453,14 +2474,12 @@ l'avertissement de sortie — non la visibilité — qui ferme le silence.
    « Facturée ».
 3. Choisir « Non facturée », saisir `Controle` dans le champ qui apparaît
    (placeholder « Motif »), cliquer « Valider ».
-   Attendu : la fenêtre se ferme ; l'onglet « Consultation en cours » disparaît ;
-   l'onglet « Consultations » s'active et affiche le volet de la séance qui vient
-   d'être fermée, portant un encart « Non facturée » contenant `Controle`, **au-dessus
-   de la chronologie** — celle-ci reste visible et porte désormais la séance de plus.
-   Le bouton « Démarrer une consultation » reste donc atteignable sans fermer le volet
-   au préalable : c'est un changement d'écran assumé de D6e, et la contrepartie du
-   défaut du 2026-09-04 (« le panneau *Démarrer une consultation* ne revient pas sans
-   rechargement »), qui tombe avec le mécanisme qui le portait.
+   Attendu : la fenêtre se ferme ; l'onglet « Consultation en cours » disparaît ; **un
+   onglet « Détail de la consultation » apparaît, s'active, et affiche le volet de la
+   séance qui vient d'être clôturée**, portant un encart « Non facturée » contenant
+   `Controle`. L'onglet « Consultations » porte toujours la chronologie et le bouton
+   « Démarrer une consultation », et un seul clic y ramène ; la chronologie, depuis cet
+   onglet, reste visible et porte désormais la séance de plus.
 4. Recharger complètement la page, revenir sur l'onglet « Consultations ».
    Attendu : trois séances sont désormais listées (les deux de l'état E2, plus
    celle-ci) — preuve d'une persistance réelle.
@@ -2484,10 +2503,11 @@ l'avertissement de sortie — non la visibilité — qui ferme le silence.
 
 1. Rechercher `Picard`, onglet « Consultations », ouvrir la première séance
    (facturée).
-   Attendu : panneau « Facture » affichant `n° 10000` ; panneau « Motif » affichant
-   `Motif de consultation` ; libellé « Examen médical : » suivi de `Examen normal` ;
-   bouton « Éditer » visible en haut de page, bouton « Supprimer » absent (la
-   consultation est déjà close).
+   Attendu : **l'écran bascule sur « Détail de la consultation »** ; panneau
+   « Facture » affichant `n° 10000` ; panneau « Motif » affichant `Motif de
+   consultation` ; libellé « Examen médical : » suivi de `Examen normal` ; bouton
+   « Éditer » visible en haut de page, bouton « Supprimer » absent (la consultation
+   est déjà close).
 2. Cliquer « Éditer ».
    Attendu : le bouton « Éditer » est remplacé par « Fin d'édition » ; le champ
    Motif devient un champ de saisie ; la zone Examen médical devient éditable.
@@ -2550,8 +2570,9 @@ l'avertissement de sortie — non la visibilité — qui ferme le silence.
 
 1. Rechercher `Picard`, onglet « Consultations », ouvrir la première séance
    (facturée), cliquer « Éditer ».
-   Attendu : le bouton « Éditer » est remplacé par « Fin d'édition » ; la date de
-   séance, en haut du panneau, devient un champ de saisie.
+   Attendu : **l'écran bascule sur « Détail de la consultation »** ; le bouton
+   « Éditer » est remplacé par « Fin d'édition » ; la date de séance, en haut du
+   panneau, devient un champ de saisie.
 2. Remplacer la date par une date antérieure de sept jours, cliquer « Fin
    d'édition ».
    Attendu : aucun message d'erreur ne s'affiche sous le champ ; le titre du
@@ -2657,11 +2678,13 @@ cachait laissait le praticien **capable de clôturer, mais plus de saisir**.
 
 **Ce que cette fiche garde.** Le bouton « Supprimer » de la barre du haut n'agit pas sur la
 même chose selon l'onglet ouvert : sur « Infos générales » il supprime le **dossier**, sur
-« Consultations » et « Consultation en cours » il supprime la **séance**, et sur
-« Historique » et « Comptes rendus médicaux » il **n'existe pas**. Cette dépendance à
-l'onglet est un comportement du produit d'origine, et la migration l'avait perdue : un
-bouton unique supprimait le dossier depuis les cinq onglets. **Une séance clôturée ne se
-supprime pas** — elle porte une facture.
+« Consultation en cours » il supprime la **séance**, et sur « Historique » et « Comptes
+rendus médicaux » il **n'existe pas**. Cette dépendance à l'onglet est un comportement du
+produit d'origine, et la migration l'avait perdue : un bouton unique supprimait le dossier
+depuis les cinq onglets. Le bouton de l'onglet « Détail de la consultation » a disparu avec
+son seul état atteignable : une séance de statut 0 (supprimable) est la séance **en cours**,
+qui a désormais son propre onglet (tâche 4) — l'onglet de détail ne montre plus que des
+séances closes. **Une séance clôturée ne se supprime pas** — elle porte une facture.
 
 **Étapes**
 
@@ -2675,8 +2698,8 @@ supprime pas** — elle porte une facture.
    supprimait le dossier patient.
 3. Cliquer l'onglet « Consultations », puis, dans la chronologie, la séance la plus
    ancienne (celle facturée `10000`).
-   Attendu : son volet s'ouvre sous la chronologie, et **aucun bouton « Supprimer » n'est
-   visible** : une séance clôturée ne se supprime pas.
+   Attendu : **l'onglet « Détail de la consultation » s'ouvre et s'active**, et **aucun
+   bouton « Supprimer » n'est visible** : une séance clôturée ne se supprime pas.
 4. Cliquer l'onglet « Consultation en cours », puis « Supprimer ».
    Attendu : une fenêtre modale s'ouvre, titre « Confirmer », texte « Êtes-vous sûr(e) de
    supprimer cette consultation ? », boutons « OK » et « Annuler ».
@@ -2690,6 +2713,51 @@ supprime pas** — elle porte une facture.
 7. Recharger complètement la page (touche F5 ou équivalent), onglet « Consultations ».
    Attendu : la chronologie porte exactement deux séances ; le bouton « Démarrer une
    consultation » est de nouveau actif.
+
+### R-CON-07 — Consulter une séance ancienne pendant une séance en cours
+
+- **Domaine** : Consultation
+- **Couverture auto** : partielle —
+  tests/functional/test_consultation.py::test_une_seance_ancienne_s_ouvre_pendant_une_seance_en_cours
+  (six onglets, le détail actif, le retour sur la séance ouverte) et
+  tests/functional/test_consultation.py::test_ouvrir_une_seance_ancienne_bascule_sur_son_onglet
+  (la bascule, et l'absence de volet sous la chronologie). **Ne vérifient pas** : la boîte
+  native « modifications non enregistrées », que Playwright ne peut observer sans la
+  neutraliser — ce qui déferait la preuve —, ni le sort d'une saisie non envoyée à la
+  recomposition du corps. Les étapes 3 et 4 ci-dessous sont donc **manuelles par nature**.
+- **État requis** : E2. Fiche non destructive.
+
+**Ce que cette fiche garde.** Le produit peut désormais montrer une séance ancienne et une
+séance ouverte **en même temps**, dans deux onglets. Les deux onglets ne sont pas deux
+fenêtres : ce sont deux panneaux d'une même page, et toute action de statut recompose le
+dossier entier depuis la base.
+
+**Étapes**
+
+1. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations », bouton « Démarrer une
+   consultation ». Saisir le motif `Motif de la seance ouverte`.
+   Attendu : l'onglet « Consultation en cours » est actif, en saisie.
+2. Cliquer l'onglet « Consultations », puis, dans la chronologie, la séance facturée
+   `10000`.
+   Attendu : le navigateur affiche sa boîte « modifications non enregistrées ». Choisir de
+   **rester**. Cliquer à nouveau la séance et, cette fois, **confirmer**. La barre porte
+   **six** onglets, et « Détail de la consultation » — le **dernier** — est actif, en
+   lecture. « Consultation en cours » est toujours là.
+3. Cliquer « Consultation en cours ».
+   Attendu : la séance ouverte est là, **son motif est** `Motif de la seance ouverte` — il
+   a été enregistré au passage sur le serveur avant la navigation.
+4. **L'étape qui reproduit la limite assumée.** Retaper dans le motif de la séance ouverte
+   `Texte qui va disparaitre`, **sans quitter l'édition**. Cliquer « Détail de la
+   consultation », puis annuler la facture de la séance ancienne et confirmer. Revenir sur
+   « Consultation en cours ».
+   Attendu, **et c'est un OK** : le motif est revenu à `Motif de la seance ouverte` ; le
+   texte non enregistré a disparu **sans message**. Voir le § « Pourquoi on ne le corrige
+   pas » de `R-PAT-13` étape 6. Le signaler comme un KO serait rouvrir « une seule autorité
+   recompose le corps » (D6e/C8).
+5. Cliquer le « × » du volet de détail (info-bulle « Fermer ce volet »).
+   Attendu : l'onglet « Consultations » redevient actif, l'onglet « Détail de la
+   consultation » **disparaît** de la barre, la chronologie et « Démarrer une
+   consultation » sont là.
 
 ### Facturation
 
@@ -2706,8 +2774,9 @@ supprime pas** — elle porte une facture.
 
 1. Sur la fiche patient Picard, onglet « Consultations », ouvrir la première séance
    (facturée).
-   Attendu : panneau « Facture » affichant `n° 10000` ; deux boutons (icône
-   imprimante verte, icône interdiction rouge).
+   Attendu : **l'écran bascule sur « Détail de la consultation »** ; panneau
+   « Facture » affichant `n° 10000` ; deux boutons (icône imprimante verte, icône
+   interdiction rouge).
 2. Cliquer le bouton d'impression (icône imprimante verte).
    Attendu : un nouvel onglet s'ouvre ; titre de page au format
    `AAAA-MM-JJ-10000-Picard_Jean-Luc` (AAAA-MM-JJ = date de la séance ; à l'état
@@ -2800,9 +2869,10 @@ supprime pas** — elle porte une facture.
    (non facturée) de l'état E2 n'a produit aucune ligne.
 2. Retour sur la fiche Picard, onglet « Consultations », ouvrir la seconde séance
    (celle clôturée « Non facturée » à l'état E2).
-   Attendu : le panneau affiche un encart intitulé « Non facturée » contenant le
-   texte `Suivi` (la raison saisie à l'état E2) ; aucun encart « Facture » ne
-   s'affiche : ni numéro de facture, ni bouton d'impression, ni bouton d'annulation.
+   Attendu : **l'écran bascule sur « Détail de la consultation »** ; le panneau
+   affiche un encart intitulé « Non facturée » contenant le texte `Suivi` (la
+   raison saisie à l'état E2) ; aucun encart « Facture » ne s'affiche : ni numéro
+   de facture, ni bouton d'impression, ni bouton d'annulation.
 
 **Constat** : une consultation clôturée sans honoraires ne génère aucune facture, pas même
 à montant zéro — ni ligne en Comptabilité, ni section Facture sur la consultation elle-même
@@ -4689,9 +4759,12 @@ et `dossier-patient-375.png`.
    `navbar-right` disparaît sans équivalent, remplacé par `order-0` sur la barre d'actions
    du dossier, qui reprend ainsi sa position d'avant la bascule, entre *Comptabilité* et le
    formulaire de recherche). Le titre **Picard Jean-Luc 91 ans 2 mois** est entièrement
-   visible sur une seule ligne. Les quatre onglets (*Infos générales*, *Antécédents*,
-   *Compte-rendus médicaux*, *Consultations*) sont alignés sur un même filet horizontal,
-   *Infos générales* actif et souligné. Les panneaux *Infos patient* et *Note importante*
+   visible sur une seule ligne. Les cinq onglets (*Infos générales*, *Antécédents*,
+   *Compte-rendus médicaux*, *Consultations*, *Détail de la consultation*) sont alignés sur
+   un même filet horizontal, *Infos générales* actif et souligné — le cinquième est apparu
+   avec Lot B : la clôture de la consultation de cette étape l'a ouvert, et il reste dans la
+   barre quel que soit l'onglet actif, tant qu'on ne le ferme pas (Q5). Les panneaux *Infos
+   patient* et *Note importante*
    sont côte à côte, **le titre seul porte la couleur** (Lot A, T1 : `.lo-rubrique`,
    `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md`) — *Infos
    patient* en bleu clair pâle (`#d9edf7`, encre `#31708f`), *Note importante* en rouge pâle
@@ -4710,10 +4783,11 @@ et `dossier-patient-375.png`.
    largeur de la première colonne. Aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**.
    Attendu : le titre **Picard Jean-Luc 91 ans 2 mois** se répartit sur deux lignes mais
-   reste entièrement visible, sans troncature ni recouvrement. Les quatre onglets se
-   répartissent sur **deux lignes** (*Infos générales* et *Antécédents* sur la première,
-   *Compte-rendus médicaux* et *Consultations* sur la seconde), tous lisibles, sans se
-   chevaucher. Le bandeau du socle est réduit au
+   reste entièrement visible, sans troncature ni recouvrement. Les cinq onglets se
+   répartissent sur **trois lignes** (*Infos générales* et *Antécédents* sur la première,
+   *Compte-rendus médicaux* et *Consultations* sur la deuxième, *Détail de la consultation*
+   seul sur la troisième), tous lisibles, sans se chevaucher. Le bandeau du socle est
+   réduit au
    bouton hamburger seul (`navbar-expand-md`, sous 768 px) : **Éditer** et **Supprimer** ne
    sont donc pas visibles sans l'ouvrir — geste identique à R-VIS-03, non rejoué ici. Les
    panneaux (*Infos patient*, *Note importante*, *Traitement en cours*) s'empilent en
@@ -4964,7 +5038,7 @@ patron entre les deux gabarits).
 hors du patron `.lo-rubrique`, non touchés par ce lot ; le formulaire d'édition du champ
 **Compte-rendus médicaux** (même classe de couleur que la lecture).
 
-### R-VIS-19 — Socle visuel : dossier patient, onglet Consultations (rubriques teintées)
+### R-VIS-19 — Socle visuel : dossier patient, onglet Détail de la consultation (rubriques teintées)
 
 - **Domaine** : Socle visuel
 - **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1 ; Lot A). Les tests
@@ -4989,13 +5063,14 @@ hors du patron `.lo-rubrique`, non touchés par ce lot ; le formulaire d'éditio
    renseigner aucune autre : c'est ce champ, seul rempli, qui restera seul ouvert une
    fois la séance clôturée. Cliquer **Clôturer**, cocher **Facturée** (montant `55`
    inchangé), cocher **Chèque**, puis **Valider**.
-2. Ouvrir le détail de cette consultation fraîchement clôturée, fenêtre à **1 280 px de
-   large**. Attendu, volet de gauche : le panneau **Détail du motif de consultation /
-   Contexte** (regroupant motif et examen médical), puis **Diagnostic ostéopathique** et
-   **Traitements**, en **titre bleu plein** (`#428bca`, `.lo-rubrique--principale`) et
-   corps blanc ; le panneau **Conclusion** en **titre vert pâle** (`#dff0d8`, encre
-   `#3c763d`, `.lo-rubrique--succes`) et corps blanc. Volet de droite : **Note
-   importante** en **titre rouge pâle** (`#f2dede`, encre `#a94442`,
+2. La clôture de l'étape 1 ouvre et active directement l'onglet **Détail de la
+   consultation** — aucun clic supplémentaire n'est nécessaire pour l'atteindre. Fenêtre à
+   **1 280 px de large**. Attendu, volet de gauche : le panneau **Détail du motif de
+   consultation / Contexte** (regroupant motif et examen médical), puis **Diagnostic
+   ostéopathique** et **Traitements**, en **titre bleu plein** (`#428bca`,
+   `.lo-rubrique--principale`) et corps blanc ; le panneau **Conclusion** en **titre vert
+   pâle** (`#dff0d8`, encre `#3c763d`, `.lo-rubrique--succes`) et corps blanc. Volet de
+   droite : **Note importante** en **titre rouge pâle** (`#f2dede`, encre `#a94442`,
    `.lo-rubrique--alerte`) ; **Infos patient** et les panneaux d'antécédents de la
    consultation en **titre bleu clair pâle** (`#d9edf7`, encre `#31708f`,
    `.lo-rubrique--info`) ou **bleu plein**, selon la rubrique — cf. la table de
