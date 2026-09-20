@@ -37,6 +37,9 @@ lieu d'un effet**. Le nom de la classe est la forme ; `position: relative` est l
   simule ni cascade ni specificite ;
 - les valeurs de gout (largeur, ombre, marge). Seules sont exigees les proprietes sans
   lesquelles le comportement change, et la raison est ecrite a cote de chacune ;
+  exception du lot correctif (2026-09-20) : `.card { margin-bottom: 20px }` (cause C-I)
+  restitue une parite perdue, et les teintes de `.lo-rubrique`/`.lo-tuile` (cause C-II)
+  portent un arbitrage utilisateur -- ni l'une ni l'autre n'est une valeur de gout ;
 - un CSS imbrique autre que `@media` (`@supports`, imbrication native) : le socle n'en
   porte aucun, et l'analyseur ci-dessous ne lit qu'un niveau d'imbrication. Le jour ou il
   en portera un autre, ce test devra etre repris plutot qu'etendu a l'aveugle.
@@ -133,25 +136,28 @@ EXIGENCES: dict[str, dict[str, str]] = {
     # `#wrapper`, qui n'existe que dans 404.html : la forme non scopee deplacerait le
     # tableau de bord, qui partage la feuille (garde-fou dans test_pages_erreur.py).
     "(min-width:768px) | #wrapper #page-wrapper": {"margin-left": "250px"},
-    # Lot A, T2 (2026-09-20) : `.panel { margin-bottom: 20px }` de Bootstrap 3.2.0 n'a pas
-    # de contrepartie en Bootstrap 5 pour `.card` — les rubriques de la fiche patient, les
-    # trois tuiles et le panneau Evenements se touchent (points 3 et 7 de
-    # docs/retours-utilisateur.md). Une rustine en ligne compensait localement l'absence
-    # de cette regle (consultation.html:102) ; elle est retiree avec elle.
+    # Lot A, T2 (2026-09-20) : `.panel { margin-bottom: 20px }` de Bootstrap 3.2.0 n'a
+    # pas de contrepartie en Bootstrap 5 pour `.card` — les rubriques de la fiche
+    # patient, les trois tuiles et le panneau Evenements se touchent (points 3 et 7 de
+    # docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md). Une
+    # rustine en ligne compensait localement l'absence de cette regle
+    # (consultation.html:102) ; elle est retiree avec elle.
     ".card": {"margin-bottom": "20px"},
     # Lot A, T4 (2026-09-20) : reprise de `.chat li .chat-body p { margin: 0 }`
     # (sb-admin-2.css), vivante et non portee par D6g T13, qui n'a repris que `.chat` et
     # `.chat li`. Sans elle, le `p { margin-bottom: 1rem }` de Bootstrap 5 ajoute 16px au
-    # commentaire de chaque entree du journal d'evenements : la ligne passe de 66px
+    # au commentaire de chaque entree du journal d'evenements : la ligne passe de 66px
     # (plancher du badge de 50px) a 80px, soit +21% (point 1 de
-    # docs/retours-utilisateur.md). Le selecteur se borne a `.officeevent`, l'entree de
-    # commentaire amont, car `chat-body` est disparu du balisage et `#liste-evenements p`
-    # atteindrait aussi l'en-tete de jour, jamais vise en amont.
+    # docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md). Le
+    # selecteur se borne a `.officeevent`, l'entree de commentaire amont, car
+    # `chat-body` est disparu du balisage et `#liste-evenements p` atteindrait aussi
+    # l'en-tete de jour, jamais vise en amont.
     "#liste-evenements li.officeevent p": {"margin": "0"},
     # Lot A, T1 (2026-09-20) : patron "rubrique" — le titre porte la teinte, le corps
     # reste blanc, le trait de la carte porte la teinte (points 4, 5, 6 de
-    # docs/retours-utilisateur.md). Renverse R-VIS-14 (docs/recette.md), qui decrivait la
-    # carte entierement teintee comme l'attendu de D6g : arbitrage Q7 de la spec.
+    # docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md). Renverse
+    # R-VIS-14 (docs/recette.md), qui decrivait la carte entierement teintee comme
+    # l'attendu de D6g : arbitrage Q7 de la spec.
     ".lo-rubrique": {"border-color": "var(--lo-rubrique-trait)"},
     ".lo-rubrique > .card-header": {
         "color": "var(--lo-rubrique-encre)",
@@ -191,9 +197,10 @@ EXIGENCES: dict[str, dict[str, str]] = {
         "--lo-rubrique-encre": "#8a6d3b",
     },
     # Lot A, T3 (2026-09-20) : les tuiles du tableau de bord (points 2 et 4 de
-    # docs/retours-utilisateur.md). `panel-green`/`panel-red` (sb-admin-2.css, supprime
-    # par D6g T16) n'avaient aucune correspondance Bootstrap 5 -- ni decidee, ni ecrite
-    # (spec Lot A, M2). Q5 : "Nouveaux patients" reste un aplat plein #428bca, comme
+    # docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md).
+    # `panel-green`/`panel-red` (sb-admin-2.css, supprime par D6g T16) n'avaient aucune
+    # correspondance Bootstrap 5 -- ni decidee, ni ecrite (spec Lot A, M2). Q5 :
+    # "Nouveaux patients" reste un aplat plein #428bca, comme
     # avant le fork -- pas moins de couleur qu'avant, l'amont, pas une desaturation
     # inventee.
     ".lo-tuile": {

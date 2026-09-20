@@ -4529,7 +4529,8 @@ gabarit `fragments/mot-de-passe.html` qu'il exerce.
 - **Domaine** : Socle visuel
 - **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1). Les tests fonctionnels
   de cet écran prouvent les gestes, jamais la mise en page.
-- **État requis** : E1
+- **État requis** : E2 — les captures de référence montrent le journal produit par les
+  fiches qui précèdent (deux consultations, un patient), jamais un état vide.
 
 **Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
 375 px. Les deux captures de référence sont `docs/recette/captures/d6g/tableau-de-bord-1280.png`
@@ -4543,7 +4544,7 @@ et `tableau-de-bord-375.png`.
    le titre, trois pastilles **Semaine** / **Mois** / **Année** : la première en bleu
    (période active), les deux autres en gris. Sous elles, **trois tuiles côte à côte, sans
    chevauchement** : la première pleine largeur **bleue** (`#428bca`, icône « + » à gauche,
-   **0** et *Nouveaux patients* à droite, alignés à droite) ; la deuxième pleine largeur
+   **1** et *Nouveaux patients* à droite, alignés à droite) ; la deuxième pleine largeur
    **verte** (`#5cb85c`, *Consultations*) ; la troisième pleine largeur **rouge**
    (`#d9534f`, *Retour*) — mêmes teintes que la version d'avant le fork (Lot A, T3,
    `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md`, M2 et M4). Un
@@ -4555,9 +4556,10 @@ et `tableau-de-bord-375.png`.
    2026-09-20) et le libellé qui le suit — *Nouveaux patients*, *Consultations*, *Retour* —
    tient entièrement sur **une seule ligne**, sans coupure au milieu d'un mot.
    Sous les tuiles, un panneau **Évènements** : en-tête gris avec une icône de bulles, le
-   mot *Évènements*, et à droite un bouton à chevron ; le corps est une zone blanche —
-   vide si aucun évènement n'a eu lieu ce jour, ou listant chaque entrée sans puce ni
-   retrait, séparée de la suivante par un filet pointillé fin. Chaque entrée occupe **75 px**
+   mot *Évènements*, et à droite un bouton à chevron ; le corps liste, sous l'en-tête de
+   jour *dimanche 20 septembre 2026*, les trois entrées produites par l'état E2 — deux
+   *Nouvelle consultation* et un *Nouveau patient créé*, chacune sur `Picard Jean-Luc` —
+   sans puce ni retrait, séparée de la suivante par un filet pointillé fin. Chaque entrée occupe **75 px**
    de haut, et **85 px** séparent le haut d'une entrée du haut de la suivante, marge basse
    comprise (Lot A, T4 : `#liste-evenements li.officeevent p { margin: 0 }` reprend une
    déclaration vivante de `sb-admin-2.css` que D6g T13 n'avait pas portée ; sans elle,
@@ -4690,7 +4692,10 @@ et `dossier-patient-375.png`.
    sont côte à côte, **le titre seul porte la couleur** (Lot A, T1 : `.lo-rubrique`,
    `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md`) — *Infos
    patient* en bleu clair pâle (`#d9edf7`, encre `#31708f`), *Note importante* en rouge pâle
-   (`#f2dede`, encre `#a94442`), à l'identique de la version d'avant le fork. **Le corps de
+   (`#f2dede`, encre `#a94442`), à l'identique de la version d'avant le fork (`panel
+   panel-danger` sur l'arbre gelé, `git show 8e9e0e77d70:libreosteoweb/templates/partials/
+   patient-detail.html:181` — le souvenir utilisateur d'un titre orange était une
+   approximation ; l'implémentation est juste). **Le corps de
    chaque panneau est blanc** (`#fff`), et le trait qui encadre la carte porte la couleur de
    la rubrique (`#bce8f1` pour *Infos patient*, `#ebccd1` pour *Note importante*). ⚠️ **Ceci
    renverse l'attendu précédent de cette fiche** (carte entièrement teintée), consigné à la
@@ -4944,8 +4949,10 @@ patron entre les deux gabarits).
 1. Ouvrir le dossier du patient E2, onglet **Compte rendu médical**, fenêtre à
    **1 280 px de large**. Attendu : un unique panneau **Compte-rendus médicaux**, **titre
    en fond bleu plein** (`#428bca`, encre blanche), **corps blanc**, bordure bleue
-   assortie. Dans ce même panneau, sous le champ de texte, le bloc de téléversement puis
-   la liste des documents, inchangés par ce lot. Aucune barre de défilement horizontale.
+   assortie. Dans ce même panneau, sous le champ de texte, un espace de 16 px (`mb-3`,
+   restitué par le lot correctif du 2026-09-20 après avoir été retiré à tort) sépare le
+   champ du bloc de téléversement, lui-même suivi de la liste des documents — leur
+   position a bougé avec ce lot, pas leur contenu. Aucune barre de défilement horizontale.
 2. Ramener la fenêtre à **375 px de large**. Attendu : même disposition en pleine
    largeur, panneau **Compte-rendus médicaux** inchangé de couleur. Aucune barre de
    défilement horizontale.
@@ -4995,6 +5002,12 @@ hors du patron `.lo-rubrique`, non touchés par ce lot ; le formulaire d'éditio
 3. Ramener la fenêtre à **375 px de large**. Attendu : tous les panneaux s'empilent en
    pleine largeur, dans le même ordre, chacun gardant sa teinte de titre et son corps
    blanc. Aucune barre de défilement horizontale.
+
+**Fiche non restituée à E2.** Cette fiche laisse une troisième consultation, clôturée et
+facturée : contrairement à `R-CON-06`, l'état E2 n'est **pas** retrouvé à la fin — une
+séance clôturée n'a pas de bouton de suppression (cf. `R-CON-06`, « Ce que cette fiche
+garde »). Toute fiche comptant les séances de `Picard` (par exemple `R-VIS-12`) doit donc
+être rejouée depuis une instance reconstruite (chapitre 0), pas enchaînée après celle-ci.
 
 **Ne couvre pas** : la facturation elle-même (numéro de facture, montant, moyen de
 paiement — `R-FAC-*`), simple moyen ici d'obtenir une séance clôturée ; l'accordéon des

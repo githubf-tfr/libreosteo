@@ -340,10 +340,12 @@ pre {
 /* Lot A, T4 (2026-09-20) : reprise de `.chat li .chat-body p { margin: 0 }`
    (sb-admin-2.css), vivante et non portee par D6g T13, qui n'a repris que `.chat` et
    `.chat li`. Sans elle, le `p { margin-bottom: 1rem }` de Bootstrap 5 ajoute 16px au
-   commentaire de chaque entree : la hauteur de ligne passe de 66px (plancher du badge de
-   50px) a 80px, soit +21% (point 1 de docs/retours-utilisateur.md). Le selecteur se borne
-   a `.officeevent`, l'entree de commentaire amont, car `chat-body` est disparu du balisage
-   et `#liste-evenements p` atteindrait aussi l'en-tete de jour, jamais vise en amont. */
+   commentaire de chaque entree : la hauteur de ligne passe de 66px (plancher du badge
+   de 50px) a 80px, soit +21% (point 1 de
+   docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md). Le selecteur
+   se borne a `.officeevent`, l'entree de commentaire amont, car `chat-body` est disparu
+   du balisage et `#liste-evenements p` atteindrait aussi l'en-tete de jour, jamais vise
+   en amont. */
 #liste-evenements li.officeevent p {
     margin: 0;
 }
@@ -618,22 +620,23 @@ ul li.documenttile  {
   vertical-align: baseline;
 }
 
-/* Lot A, T2 (2026-09-20) : contrepartie de `.panel { margin-bottom: 20px }`
-   (Bootstrap 3.2.0), sans equivalent en Bootstrap 5 pour `.card`. Couvre les rubriques
-   du dossier patient, les trois tuiles du tableau de bord et le panneau Evenements
-   (points 3 et 7 de docs/retours-utilisateur.md). Touche mecaniquement les vignettes de
-   document et la chronologie, elles aussi des `.card` : effet constate, pas vise
-   (spec Lot A, M6). */
+/* Lot A, T2 (2026-09-20) : contrepartie de `.panel { margin-bottom: 20px }` (Bootstrap
+   3.2.0), sans equivalent en Bootstrap 5 pour `.card`. Couvre les rubriques du dossier
+   patient, les trois tuiles du tableau de bord et le panneau Evenements (points 3 et 7
+   de docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md). Touche
+   mecaniquement les vignettes de document et la chronologie, elles aussi des `.card` :
+   effet constate, pas vise (spec Lot A, M6). */
 .card {
     margin-bottom: 20px;
 }
 
 /* Lot A, T1 (2026-09-20) : patron "rubrique" (points 4, 5, 6 de
-   docs/retours-utilisateur.md). `panel panel-X` (Bootstrap 3) ne teintait que
-   `.panel-heading`, en couleur pleine pour `primary` seulement, en fond palle pour les
-   trois autres ; `text-bg-X` (Bootstrap 5) teinte toute la carte, en plein pour les
-   quatre. Renverse R-VIS-14 (docs/recette.md) : la carte entierement teintee etait
-   l'attendu consigne a la cloture de D6g, l'usage reel l'a invalide (spec Lot A, Q7).
+   docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md). `panel
+   panel-X` (Bootstrap 3) ne teintait que `.panel-heading`, en couleur pleine pour
+   `primary` seulement, en fond palle pour les trois autres ; `text-bg-X` (Bootstrap 5)
+   teinte toute la carte, en plein pour les quatre. Renverse R-VIS-14 (docs/recette.md)
+   : la carte entierement teintee etait l'attendu consigne a la cloture de D6g, l'usage
+   reel l'a invalide (spec Lot A, Q7).
    Valeurs reprises a l'octet de Bootstrap 3.2.0 (spec, M4) ; Q1 : palette locale, aucune
    variable --bs-* globale n'est touchee. */
 .lo-rubrique {
@@ -675,9 +678,10 @@ ul li.documenttile  {
 }
 
 /* Lot A, T3 (2026-09-20) : les trois tuiles du tableau de bord (points 2 et 4 de
-   docs/retours-utilisateur.md). La tuile est entierement un `.card-header` (aucun
-   `.card-body`) : la teinter en plein est ici le comportement amont, pas le defaut du
-   point 6 -- ne pas reprendre `.lo-rubrique` ici, patron different. */
+   docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md). La tuile est
+   entierement un `.card-header` (aucun `.card-body`) : la teinter en plein est ici le
+   comportement amont, pas le defaut du point 6 -- ne pas reprendre `.lo-rubrique` ici,
+   patron different. */
 .lo-tuile {
     color: #fff;
     background-color: var(--lo-tuile-fond);

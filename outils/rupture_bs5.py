@@ -26,14 +26,20 @@ RUPTURE = {
     "panel-heading": "card-header",
     "panel-title": "card-title",
     "panel-default": "card",
-    "panel-primary": "text-bg-primary",
-    "panel-info": "text-bg-info",
-    "panel-danger": "text-bg-danger",
-    "panel-success": "text-bg-success",
-    "panel-warning": "text-bg-warning",
-    "panel-green": None,  # SB Admin
-    "panel-red": None,  # SB Admin
-    "panel-yellow": None,  # SB Admin
+    # Lot correctif (2026-09-20) : `text-bg-X` etait la cause C-I du lot A -- il teinte
+    # toute la carte en plein, la ou `panel-X` (Bootstrap 3) ne teintait que l'en-tete.
+    # Corrige vers le patron "rubrique" du lot (spec
+    # docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md).
+    "panel-primary": "lo-rubrique lo-rubrique--principale",
+    "panel-info": "lo-rubrique lo-rubrique--info",
+    "panel-danger": "lo-rubrique lo-rubrique--alerte",
+    "panel-success": "lo-rubrique lo-rubrique--succes",
+    "panel-warning": "lo-rubrique lo-rubrique--avertissement",
+    # Lot correctif (2026-09-20) : cause C-III, sans reponse jusqu'ici -- le lot A a
+    # tranche les tuiles du tableau de bord (Q5, "lo-tuile").
+    "panel-green": "lo-tuile lo-tuile--consultations",
+    "panel-red": "lo-tuile lo-tuile--retours",
+    "panel-yellow": None,  # aucune tuile jaune dans ce produit
     "panel-footer": "card-footer",
     # grille
     "col-xs-12": "col-12",

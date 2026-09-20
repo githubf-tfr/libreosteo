@@ -1,6 +1,6 @@
 {% load i18n %}
 {# Le champ « Notes » de l'onglet « Comptes rendus medicaux », en **edition**. #}
-<div id="medicalreports-corps" data-surface-de-saisie x-init="edition = 'medicalreports'; editionArrivee = true">
+<div id="medicalreports-corps" class="mb-3" data-surface-de-saisie x-init="edition = 'medicalreports'; editionArrivee = true">
   <form id="medicalreports-formulaire"
         hx-post="{{ comptes_rendus.url_enregistrement }}"
         hx-target="#medicalreports-corps" hx-swap="outerHTML"
