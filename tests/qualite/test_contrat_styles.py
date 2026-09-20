@@ -144,8 +144,10 @@ EXIGENCES: dict[str, dict[str, str]] = {
     # `.chat li`. Sans elle, le `p { margin-bottom: 1rem }` de Bootstrap 5 ajoute 16px au
     # commentaire de chaque entree du journal d'evenements : la ligne passe de 66px
     # (plancher du badge de 50px) a 80px, soit +21% (point 1 de
-    # docs/retours-utilisateur.md).
-    "#liste-evenements p": {"margin": "0"},
+    # docs/retours-utilisateur.md). Le selecteur se borne a `.officeevent`, l'entree de
+    # commentaire amont, car `chat-body` est disparu du balisage et `#liste-evenements p`
+    # atteindrait aussi l'en-tete de jour, jamais vise en amont.
+    "#liste-evenements li.officeevent p": {"margin": "0"},
 }
 
 _COMMENTAIRE = re.compile(r"/\*.*?\*/", re.S)
@@ -253,7 +255,7 @@ _CONFORME = """
           #wrapper #page-wrapper { margin-left: 250px; }
       }
       .card { margin-bottom: 20px; }
-      #liste-evenements p { margin: 0; }
+      #liste-evenements li.officeevent p { margin: 0; }
 """
 
 
