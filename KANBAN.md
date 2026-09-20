@@ -367,11 +367,18 @@ Tenu à la main.
 > débloque l'étape 3.
 >
 > **Ce qui est prêt côté dépôt, vérifié le 2026-09-20** : l'image se construit et tourne
-> **dans cette sandbox** — `libreosteo/libreosteo-http:22a2031` et `libreosteo-pg` construites
-> par les deux `docker build` du chapitre 0 de `docs/recette.md`, déploiement
-> `Docker/deploy/pg/` monté, restauration jouée de bout en bout, 1 501 patients semés.
-> ⚠️ **`make build` n'est pas un montage de recette** : la cible fait `docker login` puis
-> `buildx … --push` vers Docker Hub.
+> **dans cette sandbox**, déploiement `Docker/deploy/pg/` monté, restauration jouée de bout
+> en bout, 1 501 patients semés.
+> ⚠️ **Les noms d'images ont changé le 2026-09-20 (commit `3f6c596`)** : les deux images sont
+> désormais bâties et publiées sous **`familletra/`**, le namespace du fork, et non plus sous
+> `libreosteo/`, celui du dépôt Docker Hub **amont**. C'est ce changement qui a permis de
+> retirer le `pull_policy: never` du compose : il n'était là que parce que les deux noms se
+> confondaient. Une machine sans image locale tire donc maintenant celles du fork, ce qui est
+> voulu. Les entrées plus anciennes de ce fichier citent les noms `libreosteo/…` tels qu'ils
+> étaient à leur date : ce sont des mentions d'archive, pas des chemins à réutiliser.
+> ⚠️ **`make build` n'est toujours pas un montage de recette** : la cible fait `docker login`
+> puis `buildx … --push`. Elle pousse désormais chez `familletra/` et non chez amont, ce qui
+> la rend inoffensive pour l'amont mais toujours inadaptée à une simple recette locale.
 >
 > ⚠️ **Deux choses à savoir avant de lancer, toutes deux mesurées** : après la restauration,
 > **la recherche est vide et rien à l'écran ne l'explique** — il faut lancer « Réindexer », et
@@ -384,6 +391,78 @@ Tenu à la main.
 > décisions actées, et rien dans les rubriques datées du 2026-08-30 ci-dessous n'a été
 > discuté ni priorisé par un humain. Une sous-section portant une date de tri ultérieure
 > n'est pas concernée par ce bandeau.
+
+### Premier retour d'usage sur données réelles, et les deux lots qu'il ouvre (2026-09-20)
+
+**Ce qui s'est passé.** Une instance a été montée dans la sandbox à partir des images du
+fork, puis l'utilisateur y a chargé **une archive JSON de sa production** — pas une
+restauration de base. Il a navigué dedans et dicté sept défauts d'affichage, plus une
+demande d'évolution. L'instance et toutes ses données ont été **détruites à sa demande** en
+fin de session ; sa production tourne sur un autre serveur et n'a jamais été touchée.
+
+**Ce que la manipulation a appris, et qui vaut pour la reprise :**
+
+- Le chargement d'une archive JSON tient le **worker unique** (`--processes 1 --threads 1`)
+  et l'application ne sert plus rien pendant ce temps. Ce n'est pas une panne, mais rien à
+  l'écran ne le dit. Même famille que la réindexation de 168,5 s déjà consignée au bandeau
+  P0 ci-dessus.
+- La réindexation Whoosh après chargement présente le même symptôme, et l'index s'écrit dans
+  `DATA_FOLDER/whoosh_index` — donc sous le montage hôte : à faire **une fois**, pas à chaque
+  démarrage du conteneur.
+- ⚠️ **L'archive JSON porte des dates sans fuseau.** Le journal du conteneur rend des
+  `RuntimeWarning: DateTimeField OfficeEvent.date received a naive datetime … while time zone
+  support is active`, également sur `Document.internal_date`. Django les accepte et les
+  interprète dans le fuseau par défaut ; le décalage éventuel ne se voit pas à la relecture.
+  **Non instruit** : personne n'a vérifié si les heures relues correspondent aux heures
+  d'origine. À faire avant de considérer une reprise comme fidèle.
+- Les pièces jointes ne sont **pas** dans un dump JSON. Une reprise par archive JSON seule
+  perd les documents téléversés.
+
+**Les deux lots, cadrés et planifiés le jour même, non exécutés :**
+
+| Lot | Spec | Plan | Taille |
+|---|---|---|---|
+| A — restitution visuelle | `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md` | `docs/superpowers/plans/2026-09-20-lot-a-restitution-visuelle-plan.md` | 9 tâches |
+| B — navigation des consultations | `docs/superpowers/specs/2026-09-20-lot-b-navigation-consultations-design.md` | `docs/superpowers/plans/2026-09-20-lot-b-navigation-consultations-plan.md` | 7 tâches |
+
+Les deux touchent les mêmes fragments de la fiche patient : **exécution séquentielle, lot A
+d'abord**. Les sept défauts et la demande d'évolution sont en clair, en mots d'utilisateur,
+dans `docs/retours-utilisateur.md`. Les arbitrages figurent en fin de chaque spec, avec pour
+chacun qui l'a tranché — session ou utilisateur.
+
+**Le résultat le plus utile du lot A**, parce qu'il change la nature du travail : les sept
+points se réduisent à **trois causes**, et deux sont des correspondances de migration
+Bootstrap 3 → 5 fausses ou omises, pas des choix d'aspect. `panel panel-X` traduit en
+`card text-bg-X` fait déborder la teinte de l'en-tête sur la carte entière **et** remplace
+les teintes pâles par des pleines ; `.panel` portait `margin-bottom: 20px` sans contrepartie
+sur `.card` ; trois déclarations de `sb-admin-2.css` sont parties avec la feuille sans être
+reprises. La densité perdue ne vient pas de la typographie mais d'une marge de paragraphe non
+neutralisée : **+21 %** de hauteur de ligne.
+
+⚠️ **Le lot A renverse la fiche de recette R-VIS-14**, qui décrivait la carte entièrement
+teintée comme l'attendu **voulu** de D6g. Ce n'était donc pas un défaut mais un choix,
+validé en recette, que l'usage réel a contredit. Renversement **confirmé explicitement par
+l'utilisateur**, pas décidé par une session. Deux captures de référence sont à refaire.
+
+⚠️ **Le lot B assume un risque plutôt que de le corriger** : une recomposition de
+`#dossier-corps` re-rend les deux volets depuis la base et **détruit une saisie non envoyée,
+sans un mot**. Le chemin existe déjà ; le lot le rend plus probable en invitant à consulter
+une ancienne séance pendant qu'une autre est ouverte. Le corriger rouvrirait « une seule
+autorité recompose le corps » (D6e/C8). L'utilisateur a choisi de s'en tenir à
+l'avertissement `beforeunload` du navigateur. **Contrepartie obligatoire, inscrite au plan :
+une fiche de recette qui reproduit la perte.** Ce cas n'est pas automatisable — Playwright ne
+peut pas observer cette boîte sans la neutraliser.
+
+**Priorité à trancher par l'utilisateur, non tranchée par la session.** Le bandeau P0 en tête
+de cette section dit que la reprise du parc passe devant tout et que le reste attend. Ces
+deux lots sortent pourtant d'un test de cette reprise, et l'utilisateur a demandé le même
+jour qu'ils soient implémentés. Les deux lectures se défendent : ce sont des défauts
+d'affichage, donc secondaires devant une migration ; mais ce sont aussi les écrans que le
+praticien regardera toute la journée une fois migré. **Personne n'a arbitré.** Une session
+qui reprend ce fichier doit poser la question avant de lancer quoi que ce soit.
+
+**État exact à la reprise** : commits `6743840` (retour d'usage + deux specs) et `f33f487`
+(deux plans). Aucun code applicatif touché, aucune tâche exécutée, aucune instance en vie.
 
 ### Reprise du parc de production sur le fork (décidé le 2026-09-18, à faire)
 
