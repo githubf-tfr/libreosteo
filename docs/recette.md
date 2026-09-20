@@ -4542,10 +4542,13 @@ et `tableau-de-bord-375.png`.
    excessive sous lui (D6g T13 : la classe `page-header` disparaît, sans équivalent). Sous
    le titre, trois pastilles **Semaine** / **Mois** / **Année** : la première en bleu
    (période active), les deux autres en gris. Sous elles, **trois tuiles côte à côte, sans
-   chevauchement** : la première pleine largeur bleue (icône « + » à gauche, **0** et
-   *Nouveaux patients* à droite, alignés à droite) ; la deuxième et la troisième en fond
-   clair, même disposition icône-gauche / chiffre-et-libellé-à-droite, pour *Consultations*
-   et *Retour*. **L'icône de chaque tuile ne recouvre à aucun moment le chiffre ni le
+   chevauchement** : la première pleine largeur **bleue** (`#428bca`, icône « + » à gauche,
+   **0** et *Nouveaux patients* à droite, alignés à droite) ; la deuxième pleine largeur
+   **verte** (`#5cb85c`, *Consultations*) ; la troisième pleine largeur **rouge**
+   (`#d9534f`, *Retour*) — mêmes teintes que la version d'avant le fork (Lot A, T3,
+   `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md`, M2 et M4). Un
+   espace de 20 px sépare chaque tuile du panneau **Évènements** sous elles (Lot A, T2).
+   **L'icône de chaque tuile ne recouvre à aucun moment le chiffre ni le
    libellé qui lui font face** — c'est le défaut corrigé par cette tâche (`col-xs-3` /
    `col-xs-9`, morts depuis Bootstrap 4, recouvraient le dernier sommet du mini-graphe). Le
    chiffre de chaque tuile est rendu à 40 px (`lo-compteur-tuile`, lot correctif D6g,
@@ -4554,8 +4557,10 @@ et `tableau-de-bord-375.png`.
    Sous les tuiles, un panneau **Évènements** : en-tête gris avec une icône de bulles, le
    mot *Évènements*, et à droite un bouton à chevron ; le corps est une zone blanche —
    vide si aucun évènement n'a eu lieu ce jour, ou listant chaque entrée sans puce ni
-   retrait, séparée de la suivante par un filet pointillé fin. Aucune barre de défilement
-   horizontale sur toute la largeur de la fenêtre.
+   retrait, séparée de la suivante par un filet pointillé fin. Chaque entrée occupe 66 px de
+   haut (Lot A, T4 : `#liste-evenements p { margin: 0 }` reprend une déclaration vivante de
+   `sb-admin-2.css` que D6g T13 n'avait pas portée). Aucune barre de défilement horizontale
+   sur toute la largeur de la fenêtre.
 2. Ramener la fenêtre à **375 px de large**.
    Attendu : les trois tuiles s'empilent en pleine largeur, **dans le même ordre**, et
    chacune garde sa disposition interne icône-à-gauche / chiffre-et-libellé-à-droite sans
@@ -4680,10 +4685,15 @@ et `dossier-patient-375.png`.
    visible sur une seule ligne. Les quatre onglets (*Infos générales*, *Antécédents*,
    *Compte-rendus médicaux*, *Consultations*) sont alignés sur un même filet horizontal,
    *Infos générales* actif et souligné. Les panneaux *Infos patient* et *Note importante*
-   sont côte à côte, en pleine couleur (D6g, annexe A : `panel-info` devient
-   `text-bg-info`, `panel-danger` devient `text-bg-danger` — la carte entière est teintée,
-   plus seulement son en-tête, à la différence de Bootstrap 3) ; le texte du panneau
-   *Infos patient* reste lisible en noir sur fond bleu clair. Sous *Infos patient*, le
+   sont côte à côte, **le titre seul porte la couleur** (Lot A, T1 : `.lo-rubrique`,
+   `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md`) — *Infos
+   patient* en bleu clair pâle (`#d9edf7`, encre `#31708f`), *Note importante* en rouge pâle
+   (`#f2dede`, encre `#a94442`), à l'identique de la version d'avant le fork. **Le corps de
+   chaque panneau est blanc** (`#fff`), et le trait qui encadre la carte porte la couleur de
+   la rubrique (`#bce8f1` pour *Infos patient*, `#ebccd1` pour *Note importante*). ⚠️ **Ceci
+   renverse l'attendu précédent de cette fiche** (carte entièrement teintée), consigné à la
+   clôture de D6g puis invalidé par l'usage réel — cf. `KANBAN.md`, entrée du 2026-09-20.
+   Sous *Infos patient*, le
    panneau *Traitement en cours* occupe environ un tiers de la largeur de la grille
    (`col-md-4`), soit à peu près la moitié de la largeur du panneau *Infos patient*
    au-dessus de lui — la grille reprend une nouvelle ligne, elle ne s'aligne pas sur la
@@ -4702,24 +4712,6 @@ et `dossier-patient-375.png`.
 
 **Ne couvre pas** :
 
-- les onglets *Antécédents*, *Compte-rendus médicaux* et *Consultations* : la capture de
-  référence s'arrête sur *Infos générales*.
-
-  **Défaut relevé et corrigé à la passe de clôture de D6g (2026-09-20), hors des deux
-  captures officielles** — ni les 32 captures ni aucun test n'atteignent l'onglet
-  *Consultations* sur une séance passée : `pages/fragments/consultation.html` posait
-  `<div class="col-md-7">` (le volet de lecture) et `<div class="col-md-5">` (patient,
-  antécédents) comme **frères directs sans `.row` commun** — en Bootstrap 3, `.col-md-*`
-  flottait et les deux colonnes se plaçaient côte à côte sans lui ; en Bootstrap 5.3.8 elles
-  ne portent plus que `flex`/`width`, sans effet hors d'un conteneur `display:flex`, et les
-  deux colonnes s'empilaient. **Correctif** : `class="row"` posé sur le conteneur du volet
-  (`<div id="{{ volet.prefixe }}-volet">`), déjà parent direct des deux colonnes — aucun
-  élément ajouté, même geste que `row` sur le `<form>` de R-VIS-13. Vérifié par une passe
-  complémentaire hors captures officielles (script jetable, supprimé après usage, même
-  convention que R-VIS-13) : rectangles mesurés sur une consultation réellement clôturée,
-  `col-md-7`/`col-md-5` côte à côte à 1 280 px (`top` identique, `right` de la première égal
-  au `left` de la seconde) et empilés à 375 px (le `top` de la seconde égale le `bottom` de
-  la première) ;
 - les trois boutons d'action d'une vignette de document en édition (*Valider*, *Annuler*,
   *Supprimer* — `document-edition.html`) et le bouton *Éditer* d'une vignette en lecture
   (`document-vignette.html`) : hors des deux captures de référence, l'onglet
