@@ -148,6 +148,40 @@ EXIGENCES: dict[str, dict[str, str]] = {
     # commentaire amont, car `chat-body` est disparu du balisage et `#liste-evenements p`
     # atteindrait aussi l'en-tete de jour, jamais vise en amont.
     "#liste-evenements li.officeevent p": {"margin": "0"},
+    # Lot A, T1 (2026-09-20) : patron "rubrique" — le titre porte la teinte, le corps
+    # reste blanc, le trait de la carte porte la teinte (points 4, 5, 6 de
+    # docs/retours-utilisateur.md). Renverse R-VIS-14 (docs/recette.md), qui decrivait la
+    # carte entierement teintee comme l'attendu de D6g : arbitrage Q7 de la spec.
+    ".lo-rubrique": {"border-color": "var(--lo-rubrique-trait)"},
+    ".lo-rubrique > .card-header": {
+        "color": "var(--lo-rubrique-encre)",
+        "background-color": "var(--lo-rubrique-fond)",
+        "border-bottom-color": "var(--lo-rubrique-trait)",
+    },
+    ".lo-rubrique > .card-body": {"background-color": "#fff", "color": "#212529"},
+    # Les quatre teintes, reprises a l'octet de l'amont (Bootstrap 3.2.0) — spec, M4.
+    # Q2 : le bleu est #428bca, jamais #337ab7. Q3 : le trait des rubriques palles est
+    # lui-meme palle, pas sature.
+    ".lo-rubrique--principale": {
+        "--lo-rubrique-trait": "#428bca",
+        "--lo-rubrique-fond": "#428bca",
+        "--lo-rubrique-encre": "#fff",
+    },
+    ".lo-rubrique--info": {
+        "--lo-rubrique-trait": "#bce8f1",
+        "--lo-rubrique-fond": "#d9edf7",
+        "--lo-rubrique-encre": "#31708f",
+    },
+    ".lo-rubrique--alerte": {
+        "--lo-rubrique-trait": "#ebccd1",
+        "--lo-rubrique-fond": "#f2dede",
+        "--lo-rubrique-encre": "#a94442",
+    },
+    ".lo-rubrique--succes": {
+        "--lo-rubrique-trait": "#d6e9c6",
+        "--lo-rubrique-fond": "#dff0d8",
+        "--lo-rubrique-encre": "#3c763d",
+    },
 }
 
 _COMMENTAIRE = re.compile(r"/\*.*?\*/", re.S)
@@ -256,6 +290,19 @@ _CONFORME = """
       }
       .card { margin-bottom: 20px; }
       #liste-evenements li.officeevent p { margin: 0; }
+      .lo-rubrique { border-color: var(--lo-rubrique-trait); }
+      .lo-rubrique > .card-header { color: var(--lo-rubrique-encre);
+        background-color: var(--lo-rubrique-fond);
+        border-bottom-color: var(--lo-rubrique-trait); }
+      .lo-rubrique > .card-body { background-color: #fff; color: #212529; }
+      .lo-rubrique--principale { --lo-rubrique-trait: #428bca; --lo-rubrique-fond: #428bca;
+        --lo-rubrique-encre: #fff; }
+      .lo-rubrique--info { --lo-rubrique-trait: #bce8f1; --lo-rubrique-fond: #d9edf7;
+        --lo-rubrique-encre: #31708f; }
+      .lo-rubrique--alerte { --lo-rubrique-trait: #ebccd1; --lo-rubrique-fond: #f2dede;
+        --lo-rubrique-encre: #a94442; }
+      .lo-rubrique--succes { --lo-rubrique-trait: #d6e9c6; --lo-rubrique-fond: #dff0d8;
+        --lo-rubrique-encre: #3c763d; }
 """
 
 
@@ -401,6 +448,42 @@ RENOMMAGES_DU_SOCLE: dict[str, tuple[str, ...]] = {
     # tableau de bord. Sans equivalent Bootstrap 5 (annexe A), retire par T13 sans que
     # son style soit repris -- defaut trouve en revue finale (R-VIS-12).
     "lo-compteur-tuile": ("libreosteoweb/templates/pages/tableau-de-bord.html",),
+    # Lot A, T1 (2026-09-20) : le patron "rubrique", 26 sites sur la fiche patient
+    # (spec, M5). Une classe par teinte, portee par plusieurs gabarits.
+    "lo-rubrique": (
+        "libreosteoweb/templates/pages/fragments/consultation.html",
+        "libreosteoweb/templates/pages/fragments/consultation-edition.html",
+        "libreosteoweb/templates/pages/fragments/dossier-identite.html",
+        "libreosteoweb/templates/pages/fragments/dossier-identite-edition.html",
+        "libreosteoweb/templates/pages/fragments/dossier-antecedents.html",
+        "libreosteoweb/templates/pages/fragments/dossier-antecedents-edition.html",
+        "libreosteoweb/templates/pages/fragments/dossier-corps.html",
+        "libreosteoweb/templates/pages/fragments/consultation-spheres.html",
+    ),
+    "lo-rubrique--principale": (
+        "libreosteoweb/templates/pages/fragments/consultation.html",
+        "libreosteoweb/templates/pages/fragments/consultation-edition.html",
+        "libreosteoweb/templates/pages/fragments/dossier-antecedents.html",
+        "libreosteoweb/templates/pages/fragments/dossier-antecedents-edition.html",
+        "libreosteoweb/templates/pages/fragments/dossier-corps.html",
+        "libreosteoweb/templates/pages/fragments/consultation-spheres.html",
+    ),
+    "lo-rubrique--info": (
+        "libreosteoweb/templates/pages/fragments/consultation.html",
+        "libreosteoweb/templates/pages/fragments/consultation-edition.html",
+        "libreosteoweb/templates/pages/fragments/dossier-identite.html",
+        "libreosteoweb/templates/pages/fragments/dossier-identite-edition.html",
+    ),
+    "lo-rubrique--alerte": (
+        "libreosteoweb/templates/pages/fragments/consultation.html",
+        "libreosteoweb/templates/pages/fragments/consultation-edition.html",
+        "libreosteoweb/templates/pages/fragments/dossier-identite.html",
+        "libreosteoweb/templates/pages/fragments/dossier-identite-edition.html",
+    ),
+    "lo-rubrique--succes": (
+        "libreosteoweb/templates/pages/fragments/consultation.html",
+        "libreosteoweb/templates/pages/fragments/consultation-edition.html",
+    ),
 }
 
 _TAG_DJANGO = re.compile(r"\{[%{#].*?[%}#]\}", re.S)

@@ -19,7 +19,7 @@
         hx-trigger="submit, dossier-fin-edition from:body">
     {% csrf_token %}
     <div class="col-md-8">
-      <div class="card text-bg-info">
+      <div class="card lo-rubrique lo-rubrique--info">
         <div class="card-header">
           {% trans 'Patient infos' %}
           {% if identite.patient.consent %}<span class="float-end">{% trans 'Consent given on '%}{{ identite.patient.consent|date:"d/m/Y" }}</span>{% endif %}
@@ -103,7 +103,7 @@
       </div>
     </div>
     <div class="col-md-4">
-      <div class="card text-bg-danger inner-spaced">
+      <div class="card lo-rubrique lo-rubrique--alerte inner-spaced">
         <div class="card-header">{{ identite.champs.important_info.libelle }}</div>
         <div class="card-body row">
           {% include "pages/fragments/texte-riche.html" with nom="important_info" valeur=identite.champs.important_info.valeur libelle=identite.champs.important_info.libelle editable=True %}
@@ -111,7 +111,7 @@
       </div>
     </div>
     <div class="col-md-4">
-      <div class="card text-bg-info inner-spaced">
+      <div class="card lo-rubrique lo-rubrique--info inner-spaced">
         <div class="card-header">{{ identite.champs.current_treatment.libelle }}</div>
         <div class="card-body row">
           {% include "pages/fragments/texte-riche.html" with nom="current_treatment" valeur=identite.champs.current_treatment.valeur libelle=identite.champs.current_treatment.libelle editable=True %}

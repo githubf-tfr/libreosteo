@@ -132,7 +132,7 @@ _BALISE = re.compile(r"<[a-zA-Z][^>]*>")
 # Un panneau de sphere et son etat : le nom vient du `name` de sa zone de texte riche,
 # l'ouverture du `display` en ligne que le serveur pose.
 _PANNEAU = re.compile(
-    r'<details open class="card text-bg-primary panel-sphere".*?'
+    r'<details open class="card lo-rubrique lo-rubrique--principale panel-sphere".*?'
     r'style="display: (block|none);".*?name="([a-z_]+)"',
     re.DOTALL,
 )

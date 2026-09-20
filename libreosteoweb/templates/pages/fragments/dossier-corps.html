@@ -71,7 +71,7 @@
          hx-get="{% url 'dossier-comptes-rendus' patient.id %}"
          hx-trigger="dossier-editer-medicalreports from:body"
          hx-target="#medicalreports-corps" hx-swap="outerHTML">
-      <div class="card text-bg-primary">
+      <div class="card lo-rubrique lo-rubrique--principale">
         <div class="card-header">{{ comptes_rendus.champ.libelle }}</div>
         <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
           {# **La cible d'edition ne porte que le champ de texte riche.** Englober la liste #}

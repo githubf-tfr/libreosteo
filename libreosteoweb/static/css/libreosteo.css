@@ -627,3 +627,44 @@ ul li.documenttile  {
 .card {
     margin-bottom: 20px;
 }
+
+/* Lot A, T1 (2026-09-20) : patron "rubrique" (points 4, 5, 6 de
+   docs/retours-utilisateur.md). `panel panel-X` (Bootstrap 3) ne teintait que
+   `.panel-heading`, en couleur pleine pour `primary` seulement, en fond palle pour les
+   trois autres ; `text-bg-X` (Bootstrap 5) teinte toute la carte, en plein pour les
+   quatre. Renverse R-VIS-14 (docs/recette.md) : la carte entierement teintee etait
+   l'attendu consigne a la cloture de D6g, l'usage reel l'a invalide (spec Lot A, Q7).
+   Valeurs reprises a l'octet de Bootstrap 3.2.0 (spec, M4) ; Q1 : palette locale, aucune
+   variable --bs-* globale n'est touchee. */
+.lo-rubrique {
+    border-color: var(--lo-rubrique-trait);
+}
+.lo-rubrique > .card-header {
+    color: var(--lo-rubrique-encre);
+    background-color: var(--lo-rubrique-fond);
+    border-bottom-color: var(--lo-rubrique-trait);
+}
+.lo-rubrique > .card-body {
+    background-color: #fff;
+    color: #212529;
+}
+.lo-rubrique--principale {
+    --lo-rubrique-trait: #428bca;
+    --lo-rubrique-fond: #428bca;
+    --lo-rubrique-encre: #fff;
+}
+.lo-rubrique--info {
+    --lo-rubrique-trait: #bce8f1;
+    --lo-rubrique-fond: #d9edf7;
+    --lo-rubrique-encre: #31708f;
+}
+.lo-rubrique--alerte {
+    --lo-rubrique-trait: #ebccd1;
+    --lo-rubrique-fond: #f2dede;
+    --lo-rubrique-encre: #a94442;
+}
+.lo-rubrique--succes {
+    --lo-rubrique-trait: #d6e9c6;
+    --lo-rubrique-fond: #dff0d8;
+    --lo-rubrique-encre: #3c763d;
+}

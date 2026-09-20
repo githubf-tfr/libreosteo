@@ -57,7 +57,7 @@
 
     <div class="row">
       <div class="col-md-12">
-        <div class="card text-bg-primary">
+        <div class="card lo-rubrique lo-rubrique--principale">
           <div class="card-header">
             {{ volet.champs.reason_description.libelle }}
             <div class="badge">
@@ -100,7 +100,7 @@
 
     <div class="row">
       <div class="col-md-12">
-        <div class="card text-bg-primary">
+        <div class="card lo-rubrique lo-rubrique--principale">
           <div class="card-header">{{ volet.champs.diagnosis.libelle }}</div>
           <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
             {% include "pages/fragments/texte-riche.html" with nom="diagnosis" valeur=volet.champs.diagnosis.valeur libelle=volet.champs.diagnosis.libelle editable=False %}
@@ -111,7 +111,7 @@
 
     <div class="row">
       <div class="col-md-12">
-        <div class="card text-bg-primary">
+        <div class="card lo-rubrique lo-rubrique--principale">
           <div class="card-header">{{ volet.champs.treatments.libelle }}</div>
           <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
             {% include "pages/fragments/texte-riche.html" with nom="treatments" valeur=volet.champs.treatments.valeur libelle=volet.champs.treatments.libelle editable=False %}
@@ -122,7 +122,7 @@
 
     <div class="row">
       <div class="col-md-12">
-        <div class="card text-bg-success inner-spaced">
+        <div class="card lo-rubrique lo-rubrique--succes inner-spaced">
           <div class="card-header">{{ volet.champs.conclusion.libelle }}</div>
           <div class="card-body row">
             {% include "pages/fragments/texte-riche.html" with nom="conclusion" valeur=volet.champs.conclusion.valeur libelle=volet.champs.conclusion.libelle editable=False %}
@@ -149,7 +149,7 @@
   <div class="col-md-5">
     <div class="row">
       <div class="col-md-6">
-        <div class="card text-bg-danger">
+        <div class="card lo-rubrique lo-rubrique--alerte">
           <div class="card-header">{{ volet.champs.important_info.libelle }}</div>
           <div class="card-body">
             {% include "pages/fragments/texte-riche.html" with nom="important_info" valeur=volet.champs.important_info.valeur libelle=volet.champs.important_info.libelle editable=False %}
@@ -157,7 +157,7 @@
         </div>
       </div>
       <div class="col-md-6">
-        <div class="card text-bg-info">
+        <div class="card lo-rubrique lo-rubrique--info">
           <div class="card-header">{{ volet.champs.current_treatment.libelle }}</div>
           <div class="card-body">
             {% include "pages/fragments/texte-riche.html" with nom="current_treatment" valeur=volet.champs.current_treatment.valeur libelle=volet.champs.current_treatment.libelle editable=False %}
@@ -167,7 +167,7 @@
     </div>
     <div class="row">
       <div class="col-md-12">
-        <div class="card text-bg-info inner-spaced">
+        <div class="card lo-rubrique lo-rubrique--info inner-spaced">
           <div class="card-header">{% trans 'Infos patient' %}</div>
           <div class="card-body row">
             <div class="row">
@@ -199,7 +199,7 @@
     {% for champ in volet.antecedents %}
     <div class="row">
       <div class="col-md-12">
-        <div class="card text-bg-primary inner-spaced">
+        <div class="card lo-rubrique lo-rubrique--principale inner-spaced">
           <div class="card-header">{{ champ.libelle }}</div>
           <div class="card-body row">
             {% include "pages/fragments/texte-riche.html" with nom=champ.nom valeur=champ.valeur libelle=champ.libelle editable=False %}

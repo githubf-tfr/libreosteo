@@ -50,7 +50,7 @@
   </div>
   <div class="col-md-8">
     {% for sphere in volet.spheres %}
-    <details open class="card text-bg-primary panel-sphere"
+    <details open class="card lo-rubrique lo-rubrique--principale panel-sphere"
              :style="ouvertes['{{ sphere.nom }}'] ? 'display: block' : 'display: none'"
              style="display: {% if sphere.ouverte %}block{% else %}none{% endif %};">
       <summary class="card-header">{{ sphere.libelle }}</summary>

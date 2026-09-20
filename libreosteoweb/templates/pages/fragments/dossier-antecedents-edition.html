@@ -11,7 +11,7 @@
     <div class="row">
       {% for champ in antecedents.champs %}
       <div class="col-md-6">
-        <div class="card text-bg-primary">
+        <div class="card lo-rubrique lo-rubrique--principale">
           <div class="card-header">{{ champ.libelle }}</div>
           <div class="card-body row" style="margin-left: 5px; margin-right: 5px">
             {% include "pages/fragments/texte-riche.html" with nom=champ.nom valeur=champ.valeur libelle=champ.libelle editable=True %}
