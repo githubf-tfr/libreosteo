@@ -178,7 +178,9 @@ RUPTURE = {
     # table du cadrage ne portait pas. Elle a ete batie sur un vocabulaire **extrait des
     # feuilles vendorisees**, donc aveugle par construction a ce qu'aucune feuille ne
     # contenait : `well-md` n'existe dans aucune version de Bootstrap, il n'etait donc dans
-    # aucun vocabulaire. Mesures : 580 au cadrage du 2026-09-19, 593 apres ajout -- c'est
+    # aucun vocabulaire. Mesures : 579 au cadrage du 2026-09-19, 592 apres ajout -- c'est
+    # les chiffres RECOMPTES apres d6319b9, qui a cesse de compter les entrees auto-mappees ;
+    # les 580/593 publies avant ce correctif comptaient `navbar-text`, qui survit en BS5.
     # ce second chiffre qui fait autorite pour les clauses d'arret 1 et 4.
     #
     # Le relevé s'est fait **par famille**, pas par jeton isole : la famille `well` meurt
@@ -202,7 +204,7 @@ RUPTURE = {
     # dette generale, et rendrait le chiffre d'entree incomparable au chiffre de sortie,
     # puisque les corriger ne doit rien a la migration. Ils partent au KANBAN.md comme
     # constat separe. **Ne pas les ajouter ici sans rouvrir cet arbitrage** : le total de
-    # 593 en depend, et les clauses d'arret 1 et 4 avec lui.
+    # 592 en depend, et les clauses d'arret 1 et 4 avec lui.
     "btn-block": "w-100",  # BS5 : plus de bouton pleine largeur par classe ; `d-grid` sinon
     "well-md": "card",  # n'existe dans aucune version de Bootstrap (F9)
     "well-sm": "card",  # zero site aujourd'hui ; meme famille, meme sort
