@@ -33,13 +33,13 @@ TAG=$(git rev-parse --short HEAD)   # tag des deux images : le commit effectivem
 **Étape 1 — image PostgreSQL :**
 
 ```sh
-docker build -t libreosteo/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
+docker build -t familletra/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
 ```
 
 **Étape 2 — image HTTP** (contexte = racine du dépôt) :
 
 ```sh
-docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+docker build -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
 ```
 
 **Étape 3 — environnement compose.** Les deux fichiers de réglages sont fournis par le
@@ -100,14 +100,13 @@ EOF
 ```
 
 **Tag d'image obligatoire.** `LIBREOSTEO_IMAGE_TAG` nomme la construction réellement faite
-aux étapes 1 et 2 ; les deux services la réclament (`${LIBREOSTEO_IMAGE_TAG:?…}`) et portent
-`pull_policy: never`. Absente ou vide, `docker compose` refuse toute commande et ne démarre
+aux étapes 1 et 2 ; les deux services la réclament (`${LIBREOSTEO_IMAGE_TAG:?…}`). Absente
+ou vide, `docker compose` refuse toute commande et ne démarre
 rien : `error while interpolating services.db.image: required variable LIBREOSTEO_IMAGE_TAG
 is missing a value: renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example`.
-Renseignée avec un tag qu'aucune image locale ne porte, l'échec est
-`No such image: libreosteo/libreosteo-pg:<tag>`, **sans aucun tirage** : le dépôt Docker Hub
-d'amont porte les mêmes noms d'images, et rien ne doit en descendre un binaire que ce fork
-n'a pas construit.
+Renseignée avec un tag qu'aucune image locale ne porte, `docker compose` tente le tirage
+depuis `familletra/` — le namespace du fork, et non `libreosteo/`, qui est celui d'amont.
+Un tag jamais poussé échoue alors sur `manifest unknown`.
 
 `docker-compose.yml` transmet ces deux variables au conteneur ; `settings/local.py`
 l'emporte ensuite sur `LIBREOSTEO_SECRET_KEY` pour ce montage précis (import `from settings
@@ -874,7 +873,7 @@ points ; l'étape 4 en retire un et constate le refus.
    docker run --rm \
      -v "$PWD/package.json:/mesure/package.json:ro" \
      -v "$PWD/yarn.lock:/mesure/yarn.lock:ro" \
-     -w /mesure libreosteo/libreosteo-http:$TAG-build \
+     -w /mesure familletra/libreosteo-http:$TAG-build \
      sh -c 'yarn install --frozen-lockfile --ignore-scripts'; echo "code de sortie: $?"
    ```
 
@@ -895,7 +894,7 @@ points ; l'étape 4 en retire un et constate le refus.
 
    ```sh
    docker run --rm -v "$PWD:/mesure" -w /mesure \
-     libreosteo/libreosteo-http:$TAG-build \
+     familletra/libreosteo-http:$TAG-build \
      sh -c 'yarn install --ignore-scripts'; echo "code de sortie: $?"
    sha256sum yarn.lock
    ```

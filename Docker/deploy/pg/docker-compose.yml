@@ -1,15 +1,16 @@
 services:
 # Images du fork, epinglees par une variable obligatoire : sans LIBREOSTEO_IMAGE_TAG,
 # `docker compose` refuse de demarrer avec un message, au lieu de retomber sur :latest.
-# `pull_policy: never` ferme le tirage silencieux : `libreosteo/libreosteo-pg` et
-# `libreosteo/libreosteo-http` sont des noms du depot Docker Hub AMONT ; sans cette clef,
-# une machine qui n'a pas bati les images telechargerait le binaire d'amont sous le nom
-# qu'elle croit etre le sien. Une image absente en local est une erreur, pas une occasion
-# de telecharger. Convention : batir les deux images sous le commit court du depot,
+# Le namespace est `familletra/`, celui du fork, et non `libreosteo/`, qui est celui du
+# depot Docker Hub AMONT. C'est ce changement de nom qui a permis de retirer le
+# `pull_policy: never` d'origine : il n'etait la que parce que les deux noms se
+# confondaient et qu'un tirage aurait descendu le binaire d'amont sous le nom du fork.
+# Le tirage est desormais legitime — une machine qui n'a pas bati les images recupere
+# celles que ce depot a poussees.
+# Convention : batir les deux images sous le commit court du depot,
 # `git rev-parse --short HEAD` — c'est ce qui rend « quelle image tourne » repondable.
   db:
-    image: "libreosteo/libreosteo-pg:${LIBREOSTEO_IMAGE_TAG:?renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example}"
-    pull_policy: never
+    image: "familletra/libreosteo-pg:${LIBREOSTEO_IMAGE_TAG:?renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example}"
     hostname: pg_1
     volumes:
       # Monte sur /var/lib/postgresql, et non sur .../data : depuis PostgreSQL 18,
@@ -44,8 +45,7 @@ services:
       start_period: 30s
       retries: 24
   libreosteo:
-    image: "libreosteo/libreosteo-http:${LIBREOSTEO_IMAGE_TAG:?renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example}"
-    pull_policy: never
+    image: "familletra/libreosteo-http:${LIBREOSTEO_IMAGE_TAG:?renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example}"
     hostname: libreosteo_1
     ports:
       - "8085:8085"

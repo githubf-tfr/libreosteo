@@ -118,8 +118,8 @@ this does not give you a usable instance. Follow the steps below instead.
 - Build both images, tagged with the current commit ::
 
     TAG=$(git rev-parse --short HEAD)
-    docker build -t libreosteo/libreosteo-pg:$TAG   -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
-    docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+    docker build -t familletra/libreosteo-pg:$TAG   -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
+    docker build -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
 
 - Copy ``Docker/deploy/pg/.env.example`` to ``.env`` and fill in these values ::
 
@@ -228,8 +228,8 @@ Throughout, ``$COMPOSE`` stands for
 
        mkdir -p /path/to/db
        TAG=$(git rev-parse --short HEAD)
-       docker build -t libreosteo/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
-       docker build -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+       docker build -t familletra/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
+       docker build -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
        sed -i "s/^LIBREOSTEO_IMAGE_TAG=.*/LIBREOSTEO_IMAGE_TAG=$TAG/" .env
        $COMPOSE up -d db
 
@@ -610,8 +610,8 @@ Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
    ``--no-cache``: it must reuse the very layers the first one produced, so that the
    toolchain being measured is the one that was shipped::
 
-       docker buildx build --no-cache -t libreosteo/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
-       docker buildx build --target build -t libreosteo/libreosteo-http:$TAG-build -f Docker/build/http-ready/Dockerfile .
+       docker buildx build --no-cache -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+       docker buildx build --target build -t familletra/libreosteo-http:$TAG-build -f Docker/build/http-ready/Dockerfile .
 
 2. **Fingerprint (a), the installed tree.** It is *not* read from the shipped image: under
    BuildKit, the builder above, ``VOLUME /Libreosteo/node_modules`` has no effect at build
@@ -627,7 +627,7 @@ Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
        docker run --rm \
          -v "$PWD/package.json:/mesure/package.json:ro" \
          -v "$PWD/yarn.lock:/mesure/yarn.lock:ro" \
-         -w /mesure libreosteo/libreosteo-http:$TAG-build sh -c \
+         -w /mesure familletra/libreosteo-http:$TAG-build sh -c \
          'yarn install --frozen-lockfile --ignore-scripts >/dev/null 2>&1 \
           && find node_modules -type f -not -name .yarn-integrity -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > /tmp/empreinte-a \
           && sed "/\"systemParams\"/d" node_modules/.yarn-integrity | sha256sum | sed "s# -#  node_modules/.yarn-integrity#" >> /tmp/empreinte-a \
@@ -648,7 +648,7 @@ Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
 3. **Fingerprint (b), what is actually served.** This one *is* read from the delivered
    image::
 
-       docker run --rm -w /Libreosteo libreosteo/libreosteo-http:$TAG sh -c \
+       docker run --rm -w /Libreosteo familletra/libreosteo-http:$TAG sh -c \
          'find static -type f -not -name manifest.json -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | LC_ALL=C sort | sha256sum; \
           ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css'
 
@@ -699,7 +699,7 @@ above::
 
 Get the image list with the ``docker run`` already shown for fingerprint (b)::
 
-    docker run --rm -w /Libreosteo libreosteo/libreosteo-http:$TAG sh -c \
+    docker run --rm -w /Libreosteo familletra/libreosteo-http:$TAG sh -c \
       'ls static/CACHE/js/output.*.js static/CACHE/css/output.*.css' | LC_ALL=C sort
 
 Both lists must be identical, and ``diff`` between them must produce no output. Any

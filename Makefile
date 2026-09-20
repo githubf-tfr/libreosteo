@@ -1,7 +1,7 @@
 TAG := latest
 HOST_PORT := 8085
 GUEST_PORT := 8085
-REPOSITORY := libreosteo
+REPOSITORY := familletra
 APP := libreosteo
 help:
 	@echo "Building LibreOsteo docker image"
