@@ -389,6 +389,17 @@ parcours : un onglet dédié invite à agir sur une séance ancienne (facturer, 
 annuler) pendant qu'une autre est ouverte dans l'onglet voisin, et chacune de ces actions
 émet `consultation-modifiee`.
 
+> **Note de correction (mesure, 2026-09-20).** Le mécanisme ci-dessus, et l'arbitrage Q6
+> qui le reprend (§6, § « Arbitrage »), désignent la cause à tort. Une sonde Playwright
+> établit que la perte n'est **pas** causée par une action de statut qui recompose
+> `#dossier-corps`, mais par une **course** entre la frappe et la réponse asynchrone du
+> `POST /examination/<id>/edit` que `quitterEdition()` (`partials/onglets.html:80-86`)
+> déclenche au **premier** clic d'onglet suivant tout chargement de document — y compris un
+> clic sur l'onglet déjà actif. Le chemin le plus court mesuré n'a besoin ni de séance
+> ancienne, ni de facture, ni de navigation. L'**issue** annoncée ci-dessus reste exacte et
+> recettée (`docs/recette.md`, `R-CON-07`, `R-PAT-13` étape 6) ; seule la **cause** l'était
+> pas. Cf. `KANBAN.md`, entrée de clôture du lot B.
+
 Trois façons de le traiter, aucune tranchée ici :
 
 - **(a) l'assumer**, le décrire dans `CLAUDE.md` ou au `KANBAN.md` et le recetter par une

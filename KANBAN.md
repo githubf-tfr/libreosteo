@@ -398,14 +398,11 @@ Tenu à la main.
 ## À faire
 
 > ⚠️ **P0 — la reprise du parc de production passe devant tout le reste** (décidé le
-> 2026-09-20 au matin par l'utilisateur, `fc09c95`), **à l'exception des lots A et B** : plus
-> tard le même jour, une fois les deux lots cadrés (§ « Premier retour d'usage »
-> ci-dessous), l'utilisateur a tranché qu'ils passent avant la migration, **lot A puis
-> lot B**. **Lot A est clos** (cf. « Terminé ») ; **lot B reste à faire.** Une fois lot B
-> clos, le P0 reprend sa place en tête et **tout ce qui suit attend**, y compris le lot
-> correctif et la recette visuelle de D6g, tant que la migration n'est pas faite. Une
-> exception, et une seule : **un défaut qui mettrait la reprise en danger** remonte au P0
-> avec elle.
+> 2026-09-20 par l'utilisateur, `fc09c95`, puis confirmé le même jour une fois les lots A et
+> B cadrés — § « Premier retour d'usage » ci-dessous). **Les deux lots du jour sont clos**
+> (cf. « Terminé ») ; **tout ce qui suit attend**, y compris le lot correctif et la recette
+> visuelle de D6g, tant que la migration n'est pas faite. Une exception, et une seule : **un
+> défaut qui mettrait la reprise en danger** remonte au P0 avec elle.
 >
 > **Le chemin critique passe par l'utilisateur** : l'export neuf de la production, puis
 > `python3 outils/diagnostic_archive.py <archive>` **exécuté par lui, sur sa machine** — la
@@ -464,13 +461,12 @@ fin de session ; sa production tourne sur un autre serveur et n'a jamais été t
 - Les pièces jointes ne sont **pas** dans un dump JSON. Une reprise par archive JSON seule
   perd les documents téléversés.
 
-**Les deux lots, cadrés le jour même : lot A exécuté et clos le même jour, lot B toujours en
-attente.**
+**Les deux lots, cadrés le jour même, exécutés et clos le même jour.**
 
 | Lot | Spec | État |
 |---|---|---|
 | A — restitution visuelle | `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md` | **clos** (quatorze commits, `bb75142`..`a8e1ae2` ; cf. « Terminé »). Le plan d'exécution s'est fondu dans la spec et dans `docs/recette.md`, puis a été supprimé (`CLAUDE.md` : « un plan achevé se fond dans la doc pérenne, puis se supprime »). |
-| B — navigation des consultations | `docs/superpowers/specs/2026-09-20-lot-b-navigation-consultations-design.md` | à faire. Plan : `docs/superpowers/plans/2026-09-20-lot-b-navigation-consultations-plan.md`, 7 tâches. |
+| B — navigation des consultations | `docs/superpowers/specs/2026-09-20-lot-b-navigation-consultations-design.md` | **clos** (six commits, `ad9770b`..`3567a9f` ; cf. « Terminé »). Même sort pour son plan. |
 
 Les deux touchent les mêmes fragments de la fiche patient : **exécution séquentielle, lot A
 d'abord** — c'est l'ordre suivi. Les sept défauts et la demande d'évolution étaient en clair,
@@ -492,14 +488,15 @@ teintée comme l'attendu **voulu** de D6g. Ce n'était donc pas un défaut mais 
 validé en recette, que l'usage réel a contredit. Renversement **confirmé explicitement par
 l'utilisateur**, pas décidé par une session. Les deux captures de référence ont été reprises.
 
-⚠️ **Le lot B assume un risque plutôt que de le corriger** : une recomposition de
-`#dossier-corps` re-rend les deux volets depuis la base et **détruit une saisie non envoyée,
-sans un mot**. Le chemin existe déjà ; le lot le rend plus probable en invitant à consulter
-une ancienne séance pendant qu'une autre est ouverte. Le corriger rouvrirait « une seule
-autorité recompose le corps » (D6e/C8). L'utilisateur a choisi de s'en tenir à
-l'avertissement `beforeunload` du navigateur. **Contrepartie obligatoire, inscrite au plan :
-une fiche de recette qui reproduit la perte.** Ce cas n'est pas automatisable — Playwright ne
-peut pas observer cette boîte sans la neutraliser.
+⚠️ **Le lot B a assumé un risque plutôt que de le corriger**, et la mesure a montré que sa
+cause n'était pas celle prévue au cadrage — détail à l'entrée de clôture, « Terminé » :
+une saisie non envoyée dans les deux volets de consultation peut disparaître sans message.
+Le chemin existait déjà ; le lot le rend plus atteignable. Le corriger rouvrirait « une
+seule autorité recompose le corps » (D6e/C8). L'utilisateur a choisi de s'en tenir à
+l'avertissement `beforeunload` du navigateur. **Contrepartie tenue : `R-CON-07`, la fiche
+de recette qui reproduit la perte**, complétée à la mesure d'un chemin plus court que
+prévu. Ce cas n'est pas automatisable — Playwright ne peut pas observer la boîte native
+sans la neutraliser.
 
 **Priorité arbitrée par l'utilisateur (2026-09-20).** Le bandeau P0 en tête de cette section a
 été posé au matin (`fc09c95`, 10h08), avant que ces deux lots n'existent — il ne visait que le
@@ -510,8 +507,7 @@ mais ce sont aussi les écrans que le praticien regardera toute la journée une 
 Le bandeau P0 ci-dessus est à jour de cet arbitrage.
 
 **État exact à la reprise** : lot A **clos** (quatorze commits, `bb75142`..`a8e1ae2`) ; lot B
-non commencé, spec et plan intacts, aucun code applicatif touché pour ce lot, aucune
-instance en vie.
+**clos** (six commits, `ad9770b`..`3567a9f`) ; aucune instance en vie.
 
 ### Reprise du parc de production sur le fork (décidé le 2026-09-18, à faire)
 
@@ -842,6 +838,20 @@ décrits à l'entrée de clôture, pas ici.
 
 ### Lot correctif ouvert par la clôture de D6g et de D10 (2026-09-19, à faire)
 
+- ⚠️ **Une saisie non envoyée dans le dossier patient peut disparaître silencieusement sur
+  un geste ordinaire, mesuré au lot B.** `partials/onglets.html:88-90` pose
+  `@click.prevent="quitterEdition(); actif = '<cle>'"` sur **chaque** entrée de la barre
+  d'onglets, **sans aucune garde sur l'onglet déjà actif** ; `quitterEdition()`
+  (`pages/dossier-patient.html:78-82`) soumet le formulaire de consultation en cours puis
+  remet `edition = null`, sans attendre la réponse. Cliquer l'onglet où l'on se trouve
+  déjà, puis retaper dans le champ Motif avant que la réponse asynchrone du
+  `POST /examination/<id>/edit` ne revienne, suffit à perdre la frappe sans aucun message
+  — sonde Playwright, aucune séance ancienne, ni facture, ni navigation nécessaires. **Le
+  défaut est antérieur au lot B**, qui ne fait que le rendre plus atteignable (sixième
+  onglet, invite à naviguer pendant une séance ouverte) ; ce n'est pas un effet du lot.
+  Recetté sans être corrigé : `docs/recette.md`, `R-CON-07` étape 2, et `R-PAT-13`.
+  **Lot à cadrer** : la fenêtre de course est étroite mais réelle, et son issue n'est
+  garantie dans aucun sens.
 - ⚠️ **Après une restauration, l'écran de recherche ne distingue pas « index vidé » de
   « patient inexistant ».** KO de la passe du 2026-09-20, cf. « Terminé ». Le produit fait ce
   qu'il doit — purger sans reconstruire —, **mais l'utilisateur ne peut pas le savoir** :
@@ -1255,6 +1265,77 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-20 — Lot B clos : le détail d'une consultation ancienne devient un sixième
+  onglet, l'onglet actif est décidé par le serveur** (plan à sept tâches, six commits,
+  `ad9770b`..`3567a9f`). Spec :
+  `docs/superpowers/specs/2026-09-20-lot-b-navigation-consultations-design.md`. `make check`
+  vert, **990 passed**, couverture **94,95 %** (plancher `fail_under = 94` inchangé), `mypy`
+  sur **183 fichiers** ; suite fonctionnelle **142 passed**. **Aucun module `.py` créé.**
+
+  1. **Ce que le lot change** : sixième onglet `examination-detail`, en dernier après
+     « Consultation en cours » (Q2, garde vrai « le cinquième onglet » de trois fiches et
+     d'un test) ; `#panneau-examinations` réduit à la chronologie et son bouton « Démarrer
+     une consultation », le volet sélectionné en sort pour son propre panneau ; préfixe du
+     volet sélectionné aligné sur la clef d'onglet (`examinations` → `examination-detail` :
+     racine, formulaire, ~25 `auto_id`, `?prefixe=`) ; onglet actif décidé par le serveur —
+     `onglet_du_dossier(selectionnee, en_cours)` remplace `"examinations"` en dur.
+
+  2. ⚠️ **Le risque assumé (Q6), nommé comme tel** : une recomposition de
+     `#dossier-corps` détruit toute saisie non envoyée des deux volets de consultation,
+     **sans un mot** — la forme exacte de D9 sur la seule surface que D9 a délibérément
+     laissée hors de `hx-preserve`. **Lot B ne le crée pas, il le rend plus
+     atteignable.** Recetté par `R-PAT-13` étape 6 et `R-CON-07` étape 5 (ex-4).
+     **Pourquoi on ne corrige pas** : soumettre avant de recomposer (option b) transformerait
+     une facturation en écriture silencieuse de la séance voisine ; restreindre la cible du
+     rafraîchissement (option c) rouvrirait « une seule autorité recompose le corps »
+     (D6e/C8).
+
+  3. **§ Écartés** (spec §7, non rouverts) : le passage en htmx du clic de chronologie
+     (rouvrirait D9 sur sa surface la plus coûteuse, sans passer par `beforeunload`) ; le
+     renommage de `examinations`, ancre que le filet clique en huit endroits et identifiant
+     d'onglet du produit d'origine ; la suppression du repli `elif en_cours` d'`url_corps`,
+     qui fait survivre le volet à la clôture — seul le rendu du détail est borné (§2.4).
+
+  4. **La correction apportée à la spec** : le bouton « Supprimer » de l'onglet de détail
+     n'existe plus. Son seul état atteignable — une séance sélectionnée de statut 0 — **est**
+     la séance en cours (le produit n'ouvre qu'une séance à la fois,
+     `nouvelle_consultation` rend 409), à qui le §2.4 retire son onglet de détail.
+     `ONGLETS_AVEC_SUPPRESSION` passe de trois clefs à deux (`dossier_patient.py`). Sans
+     cette ligne, quelqu'un « réparera » un bouton dont le seul état atteignable a disparu.
+
+  5. **Suivi amont** : rien de repris d'amont dans ce lot.
+
+  ⚠️ **La mesure a établi que la spec et la fiche de recette décrivaient le mécanisme de
+  la perte de travers.** Une sonde Playwright ad hoc (jetable, supprimée après usage, aucun
+  fichier versionné touché pendant l'investigation) établit trois choses. L'**issue**
+  annoncée par `R-CON-07`/`R-PAT-13` est juste : la saisie disparaît bien, sans message. La
+  **cause** racontée était fausse : ce n'est pas « le corps recomposé par une action de
+  statut », c'est une **course** entre la frappe et la réponse asynchrone du
+  `POST /examination/<id>/edit` que `quitterEdition()` (`partials/onglets.html:80-86`)
+  déclenche au **premier** clic d'onglet suivant tout chargement de document — y compris un
+  clic sur l'onglet déjà actif. Le chemin le plus court mesuré n'a besoin **ni de séance
+  ancienne, ni de facture, ni de navigation** : cliquer l'onglet déjà actif, puis retaper,
+  suffit. `R-CON-07` et l'étape 6 de `R-PAT-13` ont été corrigées sur cette mesure
+  (`c9f4b0d`, `3567a9f`) ; note de correction datée posée à la spec, § 5.
+
+  ⚠️ **Un lot correctif est ouvert d'office pour cette perte de données**, cf. « Lot
+  correctif ouvert par la clôture de D6g et de D10 » ci-dessus : le défaut est antérieur au
+  lot B (`partials/onglets.html:88-90`, `pages/dossier-patient.html:78-82`), qui ne fait que
+  l'exposer davantage.
+
+  **Deux fiches du lot A ont dû être reprises, hors brief.** `R-VIS-19` décrivait le détail
+  d'une séance **dans le panneau « Consultations »** — faux depuis que Lot B lui donne son
+  propre onglet ; titre et étape 2 corrigés, deux captures refaites. `R-VIS-14` annonçait
+  « les quatre onglets » — faux depuis qu'un cinquième, puis un sixième onglet sont possibles
+  ; étapes 1 et 2 corrigées, deux captures refaites. Par ailleurs, **neuf captures de
+  `docs/recette/captures/d6g/` avaient changé sans rapport avec le lot** — bruit de rendu
+  (deux captures neuves faisaient exactement le même poids en octets malgré une prise sans
+  navigation entre elles, cf. `capture_socle_visuel.py`) — restituées par `git checkout --`,
+  le dossier reste à **trente-deux** fichiers.
+
+  Le plan d'exécution s'est fondu dans la spec et dans `docs/recette.md`, puis a été
+  supprimé (`CLAUDE.md` : « un plan achevé se fond dans la doc pérenne, puis se supprime »).
 
 - **2026-09-20 — Lot A clos : la fiche patient et le tableau de bord retrouvent l'aspect
   d'avant le fork** (plan à neuf tâches, quatorze commits, `bb75142`..`a8e1ae2`). Spec :
