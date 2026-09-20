@@ -2235,20 +2235,24 @@ est déplacé d'onglet au moment même où son texte disparaît.
    et le compteur est juste. **La préservation ne doit jamais empêcher une écriture
    d'aboutir** : chacune des trois surfaces reste sa propre autorité, et seule la
    recomposition du dossier renonce à la réécrire.
-6. **Ce que ce script précis ne perd pas — et pourquoi la garde de sortie s'arme quand
-   même.** Démarrer une consultation, taper un motif **sans clôturer ni quitter
-   l'édition**. Cliquer l'onglet « Consultations », puis, dans la chronologie, une séance
-   ancienne.
-   Attendu : le navigateur **affiche sa boîte « modifications non enregistrées »** — le
-   clic est une navigation de document, et la garde de sortie s'arme. Choisir de
-   **rester**.
-   **Ce que la mesure établit, et qui corrige l'attendu d'une première rédaction de cette
-   étape** : le clic sur l'onglet « Consultations », juste avant la boîte, a déjà déclenché
-   `quitterEdition()` (`partials/onglets.html:80-86`) — l'enregistrement implicite au
-   changement d'onglet, dont deux tests de `test_patient.py` dépendent explicitement — et
-   son `POST /examination/<id>/edit` a déjà écrit le motif en base **avant même que la
-   boîte ne s'affiche**. La garde s'arme à raison sur le principe (Alpine ne sait pas que
-   la saisie est déjà en sécurité), mais à tort sur le risque réel : ici, il n'y en a pas.
+6. **Ce que ce script précis ne perd pas — et pourquoi la garde de sortie n'est pas la
+   preuve à chercher ici.** Démarrer une consultation, taper un motif **sans clôturer ni
+   quitter l'édition**. Cliquer l'onglet « Consultations », puis, dans la chronologie, une
+   séance ancienne.
+   Attendu : **selon que la réponse de l'enregistrement implicite est encore en vol au
+   moment du second clic**, le navigateur peut afficher sa boîte « modifications non
+   enregistrées » — mais à vitesse humaine elle a le temps de revenir avant, et l'étape
+   **passe légitimement sans elle** : son absence n'est pas un KO. Si elle apparaît,
+   choisir de **rester**. **La preuve déterministe de la garde de sortie n'est pas cette
+   étape** : c'est `R-PAT-13`, étape 2 (rafraîchissement par F5, aucun clic d'onglet
+   intercalé), qui l'apporte.
+   **Ce que la mesure établit** : le clic sur l'onglet « Consultations », juste avant la
+   boîte éventuelle, déclenche `quitterEdition()` (`partials/onglets.html:88-90`) —
+   l'enregistrement implicite au changement d'onglet, dont deux tests de `test_patient.py`
+   dépendent explicitement — et son `POST /examination/<id>/edit` écrit le motif en base.
+   Les deux ne sont simultanément vraies — le `POST` a écrit en base **avant même que la
+   boîte ne s'affiche** — que dans la fenêtre où la réponse n'est pas encore traitée côté
+   client ; passée cette fenêtre, la garde ne trouve plus rien à perdre et ne s'arme plus.
    Puis, **depuis l'onglet « Détail de la consultation »**, jouer une action de statut sur
    la séance ancienne (annuler sa facture, ou la régulariser). Revenir sur « Consultation
    en cours ».
@@ -2717,8 +2721,11 @@ séances closes. **Une séance clôturée ne se supprime pas** — elle porte un
    cours » est toujours là et la séance n'a pas été supprimée.
 6. Cliquer « Supprimer » à nouveau, puis « OK ».
    Attendu : la fenêtre se ferme ; un message de confirmation « Consultation supprimée »
-   s'affiche ; l'onglet « Consultation en cours » **disparaît** ; l'onglet « Consultations »
-   redevient actif et la chronologie ne montre plus que les deux séances d'origine.
+   s'affiche ; l'onglet « Consultation en cours » **disparaît** ; l'onglet « Détail de la
+   consultation », ouvert à l'étape 3, **disparaît lui aussi** — la suppression recompose
+   le dossier sans séance sélectionnée (`supprimer_consultation` passe `consultation=None`,
+   donc `detail` est faux) ; l'onglet « Consultations » redevient actif et la chronologie
+   ne montre plus que les deux séances d'origine.
 7. Recharger complètement la page (touche F5 ou équivalent), onglet « Consultations ».
    Attendu : la chronologie porte exactement deux séances ; le bouton « Démarrer une
    consultation » est de nouveau actif.
@@ -2759,7 +2766,7 @@ dossier entier depuis la base.
    l'affichage en lecture) et **le motif revient à** `Motif de la seance ouverte` — la
    frappe de cette étape n'atteint jamais la base. **Mesuré** : cliquer un onglet, même
    celui où l'on se trouve déjà, déclenche `quitterEdition()`
-   (`partials/onglets.html:80-86`) — l'enregistrement implicite au changement d'onglet,
+   (`partials/onglets.html:88-90`) — l'enregistrement implicite au changement d'onglet,
    dont deux tests de `test_patient.py` dépendent explicitement —, dès qu'une consultation
    est ouverte (`edition` vaut déjà `'current-examination'`, `dossier-corps.html:42`).
    Le `POST /examination/<id>/edit` que ce clic déclenche part avec la valeur d'**avant**
@@ -2769,10 +2776,14 @@ dossier entier depuis la base.
    l'arbitrage Q6.
 3. Cliquer l'onglet « Consultations », puis, dans la chronologie, la séance facturée
    `10000`.
-   Attendu : le navigateur affiche sa boîte « modifications non enregistrées ». Choisir de
-   **rester**. Cliquer à nouveau la séance et, cette fois, **confirmer**. La barre porte
-   **six** onglets, et « Détail de la consultation » — le **dernier** — est actif, en
-   lecture. « Consultation en cours » est toujours là.
+   Attendu : **selon que la réponse de l'enregistrement implicite déclenché par le clic
+   d'onglet est encore en vol**, le navigateur peut afficher sa boîte « modifications non
+   enregistrées » — si elle apparaît, choisir de **rester** puis cliquer à nouveau la
+   séance pour **confirmer** ; si elle n'apparaît pas, le premier clic a déjà navigué :
+   dans les deux cas l'étape passe, ce n'est pas un KO (la preuve déterministe de la garde
+   de sortie est `R-PAT-13`, étape 2). La barre porte **six** onglets, et « Détail de la
+   consultation » — le **dernier** — est actif, en lecture. « Consultation en cours » est
+   toujours là.
 4. Cliquer « Consultation en cours ».
    Attendu : la séance ouverte est là, **son motif est** `Motif de la seance ouverte` — il
    a été enregistré au passage sur le serveur avant la navigation.

@@ -393,7 +393,7 @@ annuler) pendant qu'une autre est ouverte dans l'onglet voisin, et chacune de ce
 > qui le reprend (§6, § « Arbitrage »), désignent la cause à tort. Une sonde Playwright
 > établit que la perte n'est **pas** causée par une action de statut qui recompose
 > `#dossier-corps`, mais par une **course** entre la frappe et la réponse asynchrone du
-> `POST /examination/<id>/edit` que `quitterEdition()` (`partials/onglets.html:80-86`)
+> `POST /examination/<id>/edit` que `quitterEdition()` (`partials/onglets.html:88-90`)
 > déclenche au **premier** clic d'onglet suivant tout chargement de document — y compris un
 > clic sur l'onglet déjà actif. Le chemin le plus court mesuré n'a besoin ni de séance
 > ancienne, ni de facture, ni de navigation. L'**issue** annoncée ci-dessus reste exacte et
