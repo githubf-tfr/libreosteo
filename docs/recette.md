@@ -4715,8 +4715,8 @@ et `dossier-patient-375.png`.
 **Ne couvre pas** :
 
 - **Défaut relevé et corrigé à la passe de clôture de D6g (2026-09-20), hors des deux
-  captures officielles** — ni les 32 captures ni aucun test n'atteignent l'onglet
-  *Consultations* sur une séance passée : `pages/fragments/consultation.html` posait
+  captures officielles de l'époque** — l'onglet *Consultations* sur une séance passée est
+  désormais couvert par R-VIS-19 (Lot A) : `pages/fragments/consultation.html` posait
   `<div class="col-md-7">` (le volet de lecture) et `<div class="col-md-5">` (patient,
   antécédents) comme **frères directs sans `.row` commun** — en Bootstrap 3, `.col-md-*`
   flottait et les deux colonnes se plaçaient côte à côte sans lui ; en Bootstrap 5.3.8 elles
@@ -4899,6 +4899,97 @@ la **mise en page**, jamais les octets.
 - un cabinet dont le pied de page ou le logo seraient renseignés autrement : ces zones sont
   du texte libre de `R-CAB-*`, et leur contenu n'appartient pas à cette fiche ;
 - les largeurs intermédiaires : le document ne répondant à aucune, il n'y a rien à y voir.
+
+### R-VIS-17 — Socle visuel : dossier patient, onglet Antécédents
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1 ; Lot A). Les tests
+  fonctionnels de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E2
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont
+`docs/recette/captures/lot-a/antecedents-1280.png` et `antecedents-375.png`.
+
+**Étapes**
+
+1. Ouvrir le dossier du patient E2, onglet **Antécédents**, fenêtre à **1 280 px de
+   large**. Attendu : quatre panneaux, deux par ligne (`col-md-6`), chacun avec un
+   **titre en fond bleu plein** (`#428bca`, encre blanche — patron `.lo-rubrique--
+   principale`, Lot A T1) et un **corps blanc**. La bordure de chaque panneau est du
+   même bleu que son titre. Un espace vertical d'environ 20 px sépare chaque ligne de
+   panneaux de la suivante (Lot A T2). Aucune barre de défilement horizontale.
+2. Ramener la fenêtre à **375 px de large**. Attendu : les quatre panneaux s'empilent en
+   pleine largeur, dans le même ordre, chacun gardant son titre bleu plein et son corps
+   blanc. Aucune barre de défilement horizontale.
+
+**Ne couvre pas** : le formulaire d'édition en place (mêmes classes de couleur que la
+lecture, `dossier-antecedents-edition.html` ; non recapturé séparément, aucun écart de
+patron entre les deux gabarits).
+
+### R-VIS-18 — Socle visuel : dossier patient, onglet Compte rendu médical
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1 ; Lot A). Les tests
+  fonctionnels de cet écran prouvent les gestes, jamais la mise en page.
+- **État requis** : E2
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont
+`docs/recette/captures/lot-a/compte-rendu-medical-1280.png` et
+`compte-rendu-medical-375.png`.
+
+**Étapes**
+
+1. Ouvrir le dossier du patient E2, onglet **Compte rendu médical**, fenêtre à
+   **1 280 px de large**. Attendu : un unique panneau **Compte-rendus médicaux**, **titre
+   en fond bleu plein** (`#428bca`, encre blanche), **corps blanc**, bordure bleue
+   assortie. Dans ce même panneau, sous le champ de texte, le bloc de téléversement puis
+   la liste des documents, inchangés par ce lot. Aucune barre de défilement horizontale.
+2. Ramener la fenêtre à **375 px de large**. Attendu : même disposition en pleine
+   largeur, panneau **Compte-rendus médicaux** inchangé de couleur. Aucune barre de
+   défilement horizontale.
+
+**Ne couvre pas** : le bloc de téléversement et la liste des documents (vignettes) —
+hors du patron `.lo-rubrique`, non touchés par ce lot ; le formulaire d'édition du champ
+**Compte-rendus médicaux** (même classe de couleur que la lecture).
+
+### R-VIS-19 — Socle visuel : dossier patient, onglet Consultations (rubriques teintées)
+
+- **Domaine** : Socle visuel
+- **Couverture auto** : non — aucun test n'assied un pixel (D6g, F1 ; Lot A). Les tests
+  fonctionnels de cet écran prouvent les gestes, jamais la mise en page. Le défaut
+  d'empilement `col-md-7`/`col-md-5` de cet écran est déjà couvert par R-VIS-14 ; cette
+  fiche-ci ne recette que la **couleur des rubriques**, pas la disposition en colonnes.
+- **État requis** : E2
+
+**Prérequis** : un navigateur pouvant fixer la largeur de la fenêtre à 1 280 px puis à
+375 px. Les deux captures de référence sont
+`docs/recette/captures/lot-a/consultation-1280.png` et `consultation-375.png`.
+
+**Étapes**
+
+1. Ouvrir le dossier du patient E2, onglet **Consultations**, cliquer une consultation
+   clôturée pour afficher son détail. Fenêtre à **1 280 px de large**. Attendu, volet de
+   gauche : le panneau **Détail du motif de consultation / Contexte** (regroupant motif
+   et examen médical), puis **Diagnostic ostéopathique** et **Traitements**, en **titre
+   bleu plein** (`#428bca`, `.lo-rubrique--principale`) et corps blanc ; le
+   panneau **Conclusion** en **titre vert pâle** (`#dff0d8`, encre `#3c763d`,
+   `.lo-rubrique--succes`) et corps blanc. Volet de droite : **Note importante** en
+   **titre rouge pâle** (`#f2dede`, encre `#a94442`, `.lo-rubrique--alerte`) ; **Infos
+   patient** et les panneaux d'antécédents de la consultation en **titre bleu clair
+   pâle** (`#d9edf7`, encre `#31708f`, `.lo-rubrique--info`) ou **bleu plein**, selon la
+   rubrique — cf. la table de correspondance de la spec Lot A, M5. Dans chaque panneau,
+   le **corps reste blanc** et la **bordure de la carte porte la couleur du titre**.
+   Aucune barre de défilement horizontale.
+2. Ramener la fenêtre à **375 px de large**. Attendu : tous les panneaux s'empilent en
+   pleine largeur, dans le même ordre, chacun gardant sa teinte de titre et son corps
+   blanc. Aucune barre de défilement horizontale.
+
+**Ne couvre pas** : l'accordéon des sphères de consultation (`consultation-spheres.html`)
+quand `volet.section_spheres` est faux — capture prise sur une consultation qui en
+affiche au moins une, ouverte ; le formulaire d'édition (mêmes classes de couleur que la
+lecture).
 
 ## Chapitre 4 — Tests sans geste de recette
 
