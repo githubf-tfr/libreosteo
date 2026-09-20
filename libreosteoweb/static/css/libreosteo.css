@@ -673,3 +673,27 @@ ul li.documenttile  {
     --lo-rubrique-fond: #fcf8e3;
     --lo-rubrique-encre: #8a6d3b;
 }
+
+/* Lot A, T3 (2026-09-20) : les trois tuiles du tableau de bord (points 2 et 4 de
+   docs/retours-utilisateur.md). La tuile est entierement un `.card-header` (aucun
+   `.card-body`) : la teinter en plein est ici le comportement amont, pas le defaut du
+   point 6 -- ne pas reprendre `.lo-rubrique` ici, patron different. */
+.lo-tuile {
+    color: #fff;
+    background-color: var(--lo-tuile-fond);
+    border-color: var(--lo-tuile-fond);
+}
+.lo-tuile > .card-header {
+    color: inherit;
+    background-color: transparent;
+    border-bottom-color: var(--lo-tuile-fond);
+}
+.lo-tuile--nouveaux {
+    --lo-tuile-fond: #428bca;
+}
+.lo-tuile--consultations {
+    --lo-tuile-fond: #5cb85c;
+}
+.lo-tuile--retours {
+    --lo-tuile-fond: #d9534f;
+}

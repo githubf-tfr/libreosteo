@@ -190,6 +190,25 @@ EXIGENCES: dict[str, dict[str, str]] = {
         "--lo-rubrique-fond": "#fcf8e3",
         "--lo-rubrique-encre": "#8a6d3b",
     },
+    # Lot A, T3 (2026-09-20) : les tuiles du tableau de bord (points 2 et 4 de
+    # docs/retours-utilisateur.md). `panel-green`/`panel-red` (sb-admin-2.css, supprime
+    # par D6g T16) n'avaient aucune correspondance Bootstrap 5 -- ni decidee, ni ecrite
+    # (spec Lot A, M2). Q5 : "Nouveaux patients" reste un aplat plein #428bca, comme
+    # avant le fork -- pas moins de couleur qu'avant, l'amont, pas une desaturation
+    # inventee.
+    ".lo-tuile": {
+        "color": "#fff",
+        "background-color": "var(--lo-tuile-fond)",
+        "border-color": "var(--lo-tuile-fond)",
+    },
+    ".lo-tuile > .card-header": {
+        "color": "inherit",
+        "background-color": "transparent",
+        "border-bottom-color": "var(--lo-tuile-fond)",
+    },
+    ".lo-tuile--nouveaux": {"--lo-tuile-fond": "#428bca"},
+    ".lo-tuile--consultations": {"--lo-tuile-fond": "#5cb85c"},
+    ".lo-tuile--retours": {"--lo-tuile-fond": "#d9534f"},
 }
 
 _COMMENTAIRE = re.compile(r"/\*.*?\*/", re.S)
@@ -313,6 +332,13 @@ _CONFORME = """
         --lo-rubrique-encre: #3c763d; }
       .lo-rubrique--avertissement { --lo-rubrique-trait: #faebcc; --lo-rubrique-fond: #fcf8e3;
         --lo-rubrique-encre: #8a6d3b; }
+      .lo-tuile { color: #fff; background-color: var(--lo-tuile-fond);
+        border-color: var(--lo-tuile-fond); }
+      .lo-tuile > .card-header { color: inherit; background-color: transparent;
+        border-bottom-color: var(--lo-tuile-fond); }
+      .lo-tuile--nouveaux { --lo-tuile-fond: #428bca; }
+      .lo-tuile--consultations { --lo-tuile-fond: #5cb85c; }
+      .lo-tuile--retours { --lo-tuile-fond: #d9534f; }
 """
 
 
@@ -501,6 +527,11 @@ RENOMMAGES_DU_SOCLE: dict[str, tuple[str, ...]] = {
     "lo-rubrique--avertissement": (
         "libreosteoweb/templates/pages/fragments/import-integration.html",
     ),
+    # Lot A, T3 (2026-09-20) : les trois tuiles du tableau de bord.
+    "lo-tuile": ("libreosteoweb/templates/pages/tableau-de-bord.html",),
+    "lo-tuile--nouveaux": ("libreosteoweb/templates/pages/tableau-de-bord.html",),
+    "lo-tuile--consultations": ("libreosteoweb/templates/pages/tableau-de-bord.html",),
+    "lo-tuile--retours": ("libreosteoweb/templates/pages/tableau-de-bord.html",),
 }
 
 _TAG_DJANGO = re.compile(r"\{[%{#].*?[%}#]\}", re.S)
