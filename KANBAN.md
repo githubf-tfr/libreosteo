@@ -352,6 +352,36 @@ Tenu à la main.
   `(officesettings_id, number)` reste bonne et sans effet à un seul cabinet ; c'est son motif —
   « le multi-cabinet est réel et actif » — qui était surévalué. À trancher hors D6d : réparer, ou
   retirer.
+- (2026-09-20) **Lot A, renversement de R-VIS-14 et de deux arbitrages D6g.** Spec :
+  `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md`, § M7 et
+  Q7. La teinte pleine carte (`panel-X` → `text-bg-X`) et le refus de reproduire les
+  couleurs SB Admin (vert/rouge des tuiles) avaient été **vus, écrits et acceptés** à
+  la clôture de D6g (`docs/recette.md`, R-VIS-14 ; `KANBAN.md:242`). L'usage réel les
+  a invalidés — ce n'était pas un défaut, c'était un choix, et il tombe parce que
+  l'utilisateur le refuse, pas parce qu'il était mal fait. `R-VIS-14` est réécrite,
+  ses deux captures de référence reprises. La disparition de `.panel-green`/
+  `.panel-red` et de `.panel { margin-bottom: 20px }`, elle, n'a **jamais** été
+  arbitrée (aucune trace) : ce sont des omissions de migration, pas des choix
+  renversés — même famille que `.huge` (D6g, cf. entrée ci-dessus).
+- (2026-09-20) **Trois écarts au plan, tranchés pendant l'exécution du Lot A et consignés avec
+  leur motif.** Arbitrages pris sur les faits de terrain.
+  - **`consultation.html:43` conservé, seul `consultation.html:102` retiré.** Le plan
+    présumait que `.card { margin-bottom: 20px }` compensait les deux attributs `style`
+    en ligne. Or la ligne 43 (`<div class="row">`) précède la première carte de sa colonne, et
+    `.card` crée l'espace **après** le bloc, pas avant. Le retrait y aurait effacé 15 px
+    sur la respiration entre blocs (point 7). Seule la ligne 102 répond à la prémisse.
+    Errata au passage : deux commentaires affirmaient que le fragment était inaccessible,
+    corrigés (`dossier-corps.html:108` l'inclut).
+  - **Le `mb-3` retiré des **deux** fichiers de rapport médical.** L'arbitrage Q4 ciblait
+    `dossier-comptes-rendus.html`, mais `dossier-comptes-rendus-edition.html` porte le même
+    `mb-3` sur le même sélecteur `#medicalreports-corps`. Les deux gabarits s'échangent par
+    `hx-swap="outerHTML"` (`dossier-corps.html:73`), sans correction les deux marges
+    divergaient (16 px en édition, 0 en lecture, au même endroit à chaque bascule).
+  - **`#liste-evenements p { margin: 0 }` resserré à `#liste-evenements li.officeevent p`.**
+    Le sélecteur nu atteignait aussi le `<p class="float-end">` d'en-tête de jour
+    (`evenements-page.html:10`), jamais visé par l'amont. La mesure M1 de la spec porte
+    sur l'entrée `<li>` d'évènement, et le `float-end` rendu en regroupement par défaut
+    (`tableau_de_bord.py:188`) était affecté à tort.
 
 ## À faire
 
