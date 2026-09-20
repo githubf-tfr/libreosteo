@@ -673,9 +673,28 @@ décrits à l'entrée de clôture, pas ici.
   figer une expression morte reviendrait à la prendre pour une décision. Vérifié le
   2026-09-19 : `chronologie.html:30` pose toujours `forloop.counter|divisibleby:2`.
 
+### Limitation assumée par D6g, à ne pas « réparer » sans la comprendre (2026-09-20)
+
+- ⚠️ **Sept sites Bootstrap 3 survivent, posés depuis Python**, et c'est **assumé** :
+  `api/views/pages/consultation.py:238,302` et `api/views/pages/dossier_patient.py:225,231,232,242,314`
+  posent `input-sm` dans des `widget.attrs`. Le jeton n'existe pas en Bootstrap 5.3.8
+  (`grep -c` sur la feuille servie : **0**) et n'est pas défini dans `libreosteo.css` : ces sept
+  champs rendent une **classe morte**. ⚠️ **Et `libreosteoweb/tests/test_page_dossier_patient.py:224`
+  l'EXIGE** — `class="form-control input-sm"` sur dix champs : la classe morte y est un
+  **attendu**, pas un oubli. Qui la retirerait sans regarder ferait rougir la suite sans
+  comprendre pourquoi.
+  **Pourquoi c'est ici** : le script de mesure du lot ne lit que des `.html`, donc ces sites lui
+  étaient invisibles, et la seule trace écrite était le plan — **qui se supprime à la clôture**.
+  Sans cette entrée, le dépôt affirmerait « Bootstrap 3 est mort, clause à zéro » alors que sept
+  sites survivent.
+
 ### Lot correctif ouvert par la clôture de D6g et de D10 (2026-09-19, à faire)
 
-- ⚠️ **Les libellés des tuiles du tableau de bord se coupent au milieu d'un mot**
+- ~~⚠️ **Les libellés des tuiles du tableau de bord se coupent au milieu d'un mot**~~ —
+  **fermé le 2026-09-20 par `d62cbd2`**, le style de `.huge` repris sous `.lo-compteur-tuile`
+  et tenu par `RENOMMAGES_DU_SOCLE`. Le mécanisme reste écrit ci-dessous, il vaut pour tout
+  jeton « sans équivalent » : **le style est à reprendre, pas la classe à renommer**.
+  ~~**Les libellés des tuiles du tableau de bord se coupent au milieu d'un mot**~~
   (`Consultati` / `ons` à 1 280 px, `Nouvea` / `ux patients` à 375). Visible sur
   `docs/recette/captures/d6g/tableau-de-bord-1280.png`, versé dans `R-VIS-12`. **Cause mesurée,
   et ce n'est pas celle qui a d'abord été écrite** : D6g T13 a retiré `class="huge"` des trois
@@ -1098,7 +1117,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   Bootstrap 5** et s'empilent sans que rien ne rougisse ; et une capture peut figer un état qui
   n'est pas celui qu'on croit.
 
-  **Quatre chiffres du dépôt corrigés par la mesure** : 145 sites d'adressage sur 440 étaient
+  **Quatre chiffres du dépôt corrigés par la mesure** : 145 sites d'adressage sur **460** étaient
   devenus **0** ; 580 occurrences de rupture étaient **593**, puis **592** une fois retirée du
   compte une entrée de table qui se mappait sur elle-même ; `signin.css` portait **deux**
   règles mortes et non une ; et le chiffre de couverture de la clause de sortie était périmé.
@@ -1106,10 +1125,30 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   32 → 33, 5 → 6, 9 → 8, 68 → 68+1. **Seuls les chiffres réellement recomptés se sont avérés
   exacts.**
 
-  **Ce que le lot laisse, et qui part ailleurs** : le défaut d'affichage des tuiles du tableau
-  de bord (cf. « À faire »), la dette de catalogue de traduction héritée de D6d, et
-  `css/plugins/timeline.css` non supprimée — le `diff` montre **45 lignes qu'elle seule
-  porte**, la réserve posée d'avance par le plan a joué.
+  ⚠️ **Deux clauses d'arrêt ont été mal constatées à la clôture, et la revue finale les a
+  redressées.** La **clause 6** exigeait les quatre correctifs d'affichage étroit **démontrés
+  rouges sélecteur par sélecteur** : elle a été publiée ✅ 4/4 alors que T4 avait écrit « non
+  satisfaite » sur le troisième, mesure à l'appui — sous Bootstrap 5, le lien reste atteignable
+  **sans** le correctif, donc la démonstration est devenue **impossible**, pas omise. **Verdict
+  réel : 3 sur 4, le quatrième non démontrable pour cause mesurée.** Et la **clause 5** — les
+  six rouages d'état d'Alpine, chacun démontré rouge — n'a **jamais reçu de verdict** : elle en
+  compte **4 sur 6**, le menu d'aide n'ayant aucun test propre et le premier rouage n'étant
+  démontré qu'indirectement. ⚠️ **Une clause qu'on déclare tenue à tort vaut moins que pas de
+  clause du tout** : c'est le seul endroit où ce lot s'est menti à lui-même.
+
+  **Deux défauts visibles trouvés par la revue finale, et fermés le 2026-09-20** : les libellés
+  des tuiles du tableau de bord se coupaient au milieu d'un mot — `class="huge"` retiré par T13
+  **sans reprise de style** —, et **le volet de consultation du dossier patient s'empilait au
+  lieu d'être en deux colonnes**, `col-md-7` et `col-md-5` étant frères **sans `.row` commun`.
+  ⚠️ Ce second défaut est le **cinquième piège du lot appliqué à rebours** : il a été découvert
+  **après** la tâche qui a migré cet écran, porté au patron pour les suivantes, et **jamais
+  rejoué en arrière**. Aucun test ne pouvait le voir, et la fiche `R-VIS-14` déclarait
+  justement ne pas couvrir cet onglet. Fermés par `d553e92` et `d62cbd2`.
+
+  **Ce que le lot laisse, et qui part ailleurs** : la dette de catalogue de traduction héritée
+  de D6d, `css/plugins/timeline.css` non supprimée — le `diff` montre **45 lignes qu'elle seule
+  porte**, la réserve posée d'avance par le plan a joué — et les sept sites Bootstrap 3
+  survivants en Python (cf. « À faire »).
 
 - **2026-09-19 — D10 clos : la reprise du parc de production est sûre** (huit tâches, plus une
   revue finale et son correctif). `make check` vert, **980 passed**, couverture **94,93 %**.
