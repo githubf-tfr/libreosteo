@@ -1312,7 +1312,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   annoncée par `R-CON-07`/`R-PAT-13` est juste : la saisie disparaît bien, sans message. La
   **cause** racontée était fausse : ce n'est pas « le corps recomposé par une action de
   statut », c'est une **course** entre la frappe et la réponse asynchrone du
-  `POST /examination/<id>/edit` que `quitterEdition()` (`partials/onglets.html:80-86`)
+  `POST /examination/<id>/edit` que `quitterEdition()` (`partials/onglets.html:88-90`)
   déclenche au **premier** clic d'onglet suivant tout chargement de document — y compris un
   clic sur l'onglet déjà actif. Le chemin le plus court mesuré n'a besoin **ni de séance
   ancienne, ni de facture, ni de navigation** : cliquer l'onglet déjà actif, puis retaper,
