@@ -139,6 +139,13 @@ EXIGENCES: dict[str, dict[str, str]] = {
     # docs/retours-utilisateur.md). Une rustine en ligne compensait localement l'absence
     # de cette regle (consultation.html:102) ; elle est retiree avec elle.
     ".card": {"margin-bottom": "20px"},
+    # Lot A, T4 (2026-09-20) : reprise de `.chat li .chat-body p { margin: 0 }`
+    # (sb-admin-2.css), vivante et non portee par D6g T13, qui n'a repris que `.chat` et
+    # `.chat li`. Sans elle, le `p { margin-bottom: 1rem }` de Bootstrap 5 ajoute 16px au
+    # commentaire de chaque entree du journal d'evenements : la ligne passe de 66px
+    # (plancher du badge de 50px) a 80px, soit +21% (point 1 de
+    # docs/retours-utilisateur.md).
+    "#liste-evenements p": {"margin": "0"},
 }
 
 _COMMENTAIRE = re.compile(r"/\*.*?\*/", re.S)
@@ -246,6 +253,7 @@ _CONFORME = """
           #wrapper #page-wrapper { margin-left: 250px; }
       }
       .card { margin-bottom: 20px; }
+      #liste-evenements p { margin: 0; }
 """
 
 
