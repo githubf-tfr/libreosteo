@@ -690,6 +690,26 @@ décrits à l'entrée de clôture, pas ici.
 
 ### Lot correctif ouvert par la clôture de D6g et de D10 (2026-09-19, à faire)
 
+- ⚠️ **Après une restauration, l'écran de recherche ne distingue pas « index vidé » de
+  « patient inexistant ».** KO de la passe du 2026-09-20, cf. « Terminé ». Le produit fait ce
+  qu'il doit — purger sans reconstruire —, **mais l'utilisateur ne peut pas le savoir** :
+  l'écran est identique à celui d'un terme absent, et l'explication vit sur l'écran d'avant,
+  non authentifié. **Un comportement correct que l'utilisateur prend pour une panne est un
+  défaut.** Aggravant : 3,4 s pour restaurer, **168,5 s** pour revenir à une recherche
+  probante. Remède le plus étroit : que l'état « index vide » soit **nommé là où il se
+  constate**, avec le chemin vers « Réindexer ».
+- ⚠️ **Au-delà d'environ 1 200 patients, l'écran d'import CSV ment.** Mesuré : un
+  `POST …/integrate` a rendu **200 en 238,8 s**, au-delà du plafond `--http-timeout 180` ; le
+  navigateur a été coupé, **aucun panneau « Importation réussie » n'est apparu**, et **les 100
+  patients étaient pourtant intégrés**. Un exploitant conclurait à l'échec et **rejouerait
+  l'import**. Le dépassement n'est pas systématique — deux autres lots sont repassés sous la
+  borne (109 s, 129 s) —, il dépend de la fusion d'index Whoosh. ⚠️ **Même famille que le KO
+  ci-dessus** : le produit réussit et l'écran dit le contraire.
+- **Chaque enregistrement de journal applicatif est émis deux fois**, même horodatage à la
+  milliseconde. Préexistant à D10, sans effet sur les attendus — qui exigent « une ligne » et
+  sont littéralement satisfaits —, mais trompeur pour qui compte les renumérotations au
+  journal.
+
 - ~~⚠️ **Les libellés des tuiles du tableau de bord se coupent au milieu d'un mot**~~ —
   **fermé le 2026-09-20 par `d62cbd2`**, le style de `.huge` repris sous `.lo-compteur-tuile`
   et tenu par `RENOMMAGES_DU_SOCLE`. Le mécanisme reste écrit ci-dessous, il vaut pour tout
@@ -1083,6 +1103,55 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-20 — La passe de recette de D10 est jouée sur conteneur, et elle rend un KO**
+  (`e91570b` pour les versements au cahier). Quatre fiches — `R-SAU-02`, `R-SAU-03`,
+  `R-SAU-04`, `R-RCH-02` —, images construites depuis `22a2031`, déploiement de référence.
+  **C'était la dernière clause d'arrêt manquante du lot.**
+
+  **Les deux attendus que seule une passe manuelle pouvait établir sont établis, et l'un des
+  deux échoue.**
+  - ✅ **La liste des renumérotations est lisible avant toute action**, et l'annonce s'est
+    vérifiée **facture par facture** : le rapport annonce `facture #2 : 10000 devient 1000000`,
+    et après restauration la base porte `id 2 → 1000000`, séquence du cabinet à `1000001`.
+    Une réserve mineure : le `VERDICT` dit « l'archive peut être chargée **telle quelle** »
+    alors qu'un numéro va changer — un lecteur pressé qui ne lit que le verdict peut manquer
+    le bloc.
+  - ⚠️ **KO — après une restauration réussie, la recherche est vide et rien ne l'explique.**
+    L'écran rend **mot pour mot** celui d'un terme absent de la base — « Recherche de "Picard"
+    / Aucun résultat trouvé. » — alors que les données sont là et visibles au tableau de bord.
+    Rien ne nomme « Réindexer », rien ne rappelle la restauration. La seule surface qui porte
+    l'explication est `partials/restore.html`, **l'écran d'avant, non authentifié** — pas à
+    l'endroit ni au moment où le symptôme apparaît. **Aggravant mesuré : la restauration prend
+    3,4 s, le retour à une recherche probante en prend 168,5.** Entrée ouverte ci-dessous.
+
+  **`R-SAU-04` a tranché la dernière branche de conception ouverte du lot, et par la mesure.**
+  Sur une archive de **45 016 objets** (35,5 Mio), la restauration prend **112,6 s** pour un pic
+  mémoire de **254,3 Mio** ; le coût **propre à D10** — la lecture du dump avant `loaddata` —
+  est de **1,98 s, soit 1,8 %**, et 84 Mio du pic. Le plafond `--http-timeout 180` est tenu à
+  63 %. **La clause de transparence reste en place, le repli ne se déclenche pas.** ⚠️ Et
+  l'exécutant va plus loin que la question posée, à raison : **replier ne sauverait rien**
+  même si la borne était heurtée — on récupérerait 2 s sur 112, le facteur limitant étant
+  `loaddata`. Le repli écrit d'avance n'était pas le bon remède au bon problème ; c'est le
+  plafond face à `loaddata` qui mériterait un lot.
+
+  **Une mesure jointe qui justifie après coup l'arbitrage du lot** : « Réindexer » sur 1 501
+  patients prend **168,5 s, soit 94 % de la borne**. Purger l'index **sans le reconstruire**
+  dans la requête de restauration était donc la seule branche correcte — une reconstruction
+  synchrone aurait fait sauter le plafond. La note de `R-RCH-02` qui l'annonçait est confirmée
+  par la mesure, pas par le raisonnement.
+
+  **Deux fiches étaient injouables telles qu'écrites, et corrigées** : `R-SAU-03` demandait
+  d'obtenir **par l'écran** une archive portant deux factures de même numéro — impossible,
+  puisque le service **répare** ce parc au démarrage et qu'il ne peut pas servir l'interface
+  sans démarrer ; et `R-SAU-04` demandait de « rejouer l'import » pour faire croître le parc,
+  alors qu'un réimport du même fichier rend « 0 lignes importées ».
+
+  ⚠️ **Un point de conception à savoir** : le chemin « reprise au chargement » **n'est pas
+  atteignable par une archive produite par une instance à jour** — la contrainte `0060`
+  empêche le doublon d'exister en base, et la restauration refuse une archive d'une autre
+  version. C'est un filet pour des archives **héritées ou fabriquées**, ce qui est exactement
+  le cas de la reprise de parc, mais pas pour le parc courant.
 
 - **2026-09-19 — D6g clos : le socle visuel passe à Bootstrap 5.3.8, et le thème SB Admin
   meurt** (seize tâches, `3f72c2d`..`9ddf16c`). Dernier lot du chantier D6. `make check` vert,
