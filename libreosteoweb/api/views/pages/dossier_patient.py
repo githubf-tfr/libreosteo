@@ -96,7 +96,9 @@ ALIAS_DE_NOM: dict[str, str] = {
 
 # Les quatre onglets permanents, dans l'ordre de `patient-detail.html`. Le cinquieme —
 # « Consultation en cours » — est une entree que la vue **ne construit pas** quand il n'y a
-# pas de consultation ouverte (A21) : le composant d'onglets n'a rien a savoir.
+# pas de consultation ouverte (A21) : le composant d'onglets n'a rien a savoir. Le sixieme —
+# le detail d'une consultation ancienne — suit la meme regle A21, et vient apres le
+# cinquieme parce que « Consultation en cours » doit rester le cinquieme onglet.
 ONGLETS: tuple[tuple[str, Any], ...] = (
     ("general", _("General infos")),
     ("history", _("History")),
@@ -105,6 +107,13 @@ ONGLETS: tuple[tuple[str, Any], ...] = (
 )
 
 ONGLET_CONSULTATION_EN_COURS = ("current-examination", _("Current Examination"))
+
+# Le sixieme, sous la meme regle A21 que le cinquieme : la vue **ne le construit pas** tant
+# qu'aucune seance ancienne n'est regardee. Il vient **apres** « Consultation en cours », et
+# ce n'est pas un detail de gout : trois fiches de recette et
+# `test_avec_une_consultation_en_cours_la_barre_en_porte_cinq` decrivent « Consultation en
+# cours » comme *le cinquieme onglet*. L'inserer avant les rendrait faux d'un coup.
+ONGLET_DETAIL = ("examination-detail", _("Examination detail"))
 
 # Les champs de texte riche de chaque panneau, dans l'ordre de l'ecran.
 CHAMPS_IDENTITE_RICHES: tuple[str, ...] = (
@@ -330,22 +339,28 @@ class FormulaireTitre(_FormulaireDuDossier):
         return donnees
 
 
-def onglets_du_dossier(en_cours: bool) -> list[dict[str, Any]]:
+def onglets_du_dossier(en_cours: bool, detail: bool = False) -> list[dict[str, Any]]:
     """La liste que `partials/onglets.html` attend.
 
     **L'entree « Consultation en cours » n'est pas construite** quand il n'y a pas de
     consultation ouverte : c'est le jumeau du `{% if %}` du document, et sans lui la barre
-    porterait un onglet vers un panneau absent (A21).
+    porterait un onglet vers un panneau absent (A21). Le meme jumelage vaut pour `detail` et
+    le sixieme onglet, le detail d'une consultation ancienne.
 
     **`id` vaut la clef, et il est pose sur l'entree de barre, pas sur le panneau** : c'est
     la ou `uib-tab` le posait, et le filet clique `#general`, `#history`,
     `#medicalreports`, `#examinations` **comme des onglets**, puis mesure la presence de
     `#current-examination`. Quatre panneaux portent donc `#panneau-<cle>`, pour que les
-    ancres du filet restent celles de la barre.
+    ancres du filet restent celles de la barre. `#examinations` et `#panneau-examinations`
+    restent les ancres de la chronologie ; le detail porte `#examination-detail` et
+    `#panneau-examination-detail`.
     """
     entrees = [{"cle": cle, "libelle": libelle, "id": cle} for cle, libelle in ONGLETS]
     if en_cours:
         cle, libelle = ONGLET_CONSULTATION_EN_COURS
+        entrees.append({"cle": cle, "libelle": libelle, "id": cle})
+    if detail:
+        cle, libelle = ONGLET_DETAIL
         entrees.append({"cle": cle, "libelle": libelle, "id": cle})
     return entrees
 

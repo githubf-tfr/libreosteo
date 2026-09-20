@@ -370,6 +370,44 @@ class TestOnglets(_SocleDuDossier):
         onglets = dossier_patient.onglets_du_dossier(en_cours=True)
         self.assertEqual(onglets[-1]["cle"], "current-examination")
 
+    def test_le_detail_est_le_dernier_onglet_de_la_barre(self) -> None:
+        """Q2 : appendu **apres** « Consultation en cours ».
+
+        Ce que ce test regarde : la position et la clef. Ce qu'il laisse passer : le
+        libelle rendu, que `test_contrat_traductions` garde de son cote.
+        """
+        onglets = dossier_patient.onglets_du_dossier(en_cours=True, detail=True)
+        self.assertEqual(
+            [onglet["cle"] for onglet in onglets],
+            [
+                "general",
+                "history",
+                "medicalreports",
+                "examinations",
+                "current-examination",
+                "examination-detail",
+            ],
+        )
+
+    def test_le_detail_existe_sans_consultation_en_cours(self) -> None:
+        """Cas 3 : une seance ancienne ouverte alors qu'aucune n'est en cours."""
+        onglets = dossier_patient.onglets_du_dossier(en_cours=False, detail=True)
+        self.assertEqual(
+            [onglet["cle"] for onglet in onglets],
+            [
+                "general",
+                "history",
+                "medicalreports",
+                "examinations",
+                "examination-detail",
+            ],
+        )
+
+    def test_sans_detail_la_barre_ne_porte_aucune_entree_de_detail(self) -> None:
+        """Le jumeau d'A21 : une entree vers un panneau absent serait un lien mort."""
+        onglets = dossier_patient.onglets_du_dossier(en_cours=True)
+        self.assertNotIn("examination-detail", [onglet["cle"] for onglet in onglets])
+
     def test_le_document_ne_rend_le_cinquieme_panneau_que_s_il_y_a_une_consultation(
         self,
     ) -> None:

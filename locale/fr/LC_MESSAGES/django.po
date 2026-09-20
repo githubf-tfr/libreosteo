@@ -1125,6 +1125,9 @@ msgstr "Cliquer pour étendre la note"
 msgid "Current Examination"
 msgstr "Consultation en cours"
 
+msgid "Examination detail"
+msgstr "Détail de la consultation"
+
 msgid ""
 "This function helps to rebuild index when for different reason, searching "
 "does not work.\n"
