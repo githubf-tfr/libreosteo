@@ -4591,7 +4591,23 @@ et `dossier-patient-375.png`.
 **Ne couvre pas** :
 
 - les onglets *Antécédents*, *Compte-rendus médicaux* et *Consultations* : la capture de
-  référence s'arrête sur *Infos générales* ;
+  référence s'arrête sur *Infos générales*.
+
+  **Défaut relevé et corrigé à la passe de clôture de D6g (2026-09-20), hors des deux
+  captures officielles** — ni les 32 captures ni aucun test n'atteignent l'onglet
+  *Consultations* sur une séance passée : `pages/fragments/consultation.html` posait
+  `<div class="col-md-7">` (le volet de lecture) et `<div class="col-md-5">` (patient,
+  antécédents) comme **frères directs sans `.row` commun** — en Bootstrap 3, `.col-md-*`
+  flottait et les deux colonnes se plaçaient côte à côte sans lui ; en Bootstrap 5.3.8 elles
+  ne portent plus que `flex`/`width`, sans effet hors d'un conteneur `display:flex`, et les
+  deux colonnes s'empilaient. **Correctif** : `class="row"` posé sur le conteneur du volet
+  (`<div id="{{ volet.prefixe }}-volet">`), déjà parent direct des deux colonnes — aucun
+  élément ajouté, même geste que `row` sur le `<form>` de R-VIS-13. Vérifié par une passe
+  complémentaire hors captures officielles (script jetable, supprimé après usage, même
+  convention que R-VIS-13) : rectangles mesurés sur une consultation réellement clôturée,
+  `col-md-7`/`col-md-5` côte à côte à 1 280 px (`top` identique, `right` de la première égal
+  au `left` de la seconde) et empilés à 375 px (le `top` de la seconde égale le `bottom` de
+  la première) ;
 - les trois boutons d'action d'une vignette de document en édition (*Valider*, *Annuler*,
   *Supprimer* — `document-edition.html`) et le bouton *Éditer* d'une vignette en lecture
   (`document-vignette.html`) : hors des deux captures de référence, l'onglet

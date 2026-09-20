@@ -24,6 +24,7 @@
 {# `#modale`, qui recoit du vide et se referme (patron de D6d, `comptabilite-echange.html`). #}
 {# Le fragment reste **fille directe** de la reponse, sans quoi htmx ne l'extrait pas. #}
 <div id="{{ volet.prefixe }}-volet"{% if volet.hors_bande %} hx-swap-oob="true"{% endif %}
+     class="row"
      data-testid="{% if volet.en_cours %}consultation-en-cours{% else %}consultation-anterieure{% endif %}">
   <div class="row">
     <div class="col-md-12">
