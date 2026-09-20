@@ -15,7 +15,7 @@
 <span id="cellule-{{ champ }}" data-testid="{% if champ == 'family_name' %}nom-de-famille{% else %}prenom{% endif %}">
   {% if edition %}
   {# `data-surface-de-saisie` : la cellule est une surface de saisie a part entiere, hors #}
-  {# des cinq panneaux, et la garde de sortie doit la voir comme les autres. #}
+  {# des six panneaux, et la garde de sortie doit la voir comme les autres. #}
   <form data-surface-de-saisie
         hx-post="{% url 'dossier-titre-cellule' patient.id champ %}"
         hx-target="#cellule-{{ champ }}" hx-swap="outerHTML" style="display: inline">

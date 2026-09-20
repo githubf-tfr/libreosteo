@@ -27,13 +27,17 @@
 {# clic entre les deux diffusait l'evenement dans le vide (defaut mesure a la recette). #}
 {# Seul le fragment pose `editionArrivee = true`, dans le meme geste que `edition`. #}
 {# #}
-{# **« Supprimer » n'est pas un bouton, c'en est jusqu'a trois, et chacun est borne a son #}
+{# **« Supprimer » n'est pas un bouton, c'en est jusqu'a deux, et chacun est borne a son #}
 {# onglet** (C2, vague finale). `loEditFormManager.action_available('delete')` retenait #}
 {# l'action du formulaire **visible** : le dossier sur « Infos generales », la seance sur #}
 {# « Consultations » et sur « Consultation en cours », **rien** sur « Historique » et #}
 {# « Comptes rendus ». Un bouton unique rendait le geste faux sur quatre onglets sur cinq. #}
 {# L'onglet actif est un etat client, donc la borne est un `x-show` ; l'attribut `style` #}
 {# pose par le serveur dit la meme chose que lui au premier rendu (regle 1). #}
+{# #}
+{# **Lot B retire le bouton de « Consultations »** : une seance selectionnee de statut 0 #}
+{# **est** la seance en cours, a qui le §2.4 retire son onglet de detail, donc le bouton de #}
+{# l'onglet de detail n'a plus d'etat atteignable. #}
 {# #}
 {# **Le bandeau vit hors de `#dossier-corps`, donc il se recompose hors-bande.** Ouvrir une #}
 {# consultation, la cloturer ou la supprimer change l'ensemble des suppressions possibles ; #}

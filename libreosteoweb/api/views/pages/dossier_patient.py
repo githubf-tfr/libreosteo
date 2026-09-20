@@ -596,6 +596,10 @@ def contexte_du_dossier(
         )
         if en_cours is not None
         else None,
+        # `selectionnee is not None` est redondant a l'execution : `detail` vrai
+        # l'implique deja. Il est present pour le retrecissement de type, sans quoi mypy
+        # ne relie pas `detail` a `selectionnee` dans cette expression et refuse l'appel
+        # a `_volet` (parametre non optionnel).
         "volet_selectionne": _volet(
             request, selectionnee, patient, ONGLET_DETAIL[0], False
         )
