@@ -343,6 +343,18 @@ pre {
     margin-top: 10%;
     margin-left: 40%;
 }
+
+/* Lot correctif D6g (2026-09-20) : `.huge` (SB Admin, sans equivalent Bootstrap 5,
+   annexe A) devient `lo-compteur-tuile`. T13 avait retire la classe des trois compteurs
+   du tableau de bord sans en reprendre le style (`font-size: 40px`,
+   sb-admin-2.css:298 avant retrait de T16) : le chiffre tombait a 16 px, le rythme
+   vertical s'effondrait et le libelle ne tenait plus sur une ligne a 1280 px, le
+   flottant du mini-graphe chevauchant alors la ligne du libelle au lieu de celle du
+   chiffre. */
+.lo-compteur-tuile
+{
+    font-size: 40px;
+}
 /* D6f, correctif D-6 : le navigateur rogne par defaut ce qui deborde du `viewBox` du
    mini-graphe (`svg { overflow: hidden }`). Les cercles de survol (`r="2"`) sont poses
    sur les bords du `viewBox="0 0 80 20"` : la moitie de leur zone de clic disparaissait,

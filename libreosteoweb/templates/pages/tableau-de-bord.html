@@ -63,7 +63,7 @@
                       </svg>
                       {% endfor %}
                     </span>
-                    <div data-testid="compteur-nouveaux-patients" x-text="nouveaux[actif]">{{ semaine.nb_new_patient }}</div>
+                    <div class="lo-compteur-tuile" data-testid="compteur-nouveaux-patients" x-text="nouveaux[actif]">{{ semaine.nb_new_patient }}</div>
                     <div>{% trans 'New patients' %}</div>
                   </div>
                 </div>
@@ -86,7 +86,7 @@
                       </svg>
                       {% endfor %}
                     </span>
-                    <div data-testid="compteur-consultations" x-text="consultations[actif]">{{ semaine.nb_examination }}</div>
+                    <div class="lo-compteur-tuile" data-testid="compteur-consultations" x-text="consultations[actif]">{{ semaine.nb_examination }}</div>
                     <div>{% trans 'Examinations' %}</div>
                   </div>
                 </div>
@@ -109,7 +109,7 @@
                       </svg>
                       {% endfor %}
                     </span>
-                    <div data-testid="compteur-retours-urgents" x-text="retours[actif]">{{ semaine.nb_urgent_return }}</div>
+                    <div class="lo-compteur-tuile" data-testid="compteur-retours-urgents" x-text="retours[actif]">{{ semaine.nb_urgent_return }}</div>
                     <div>{% trans 'Urgent return' %}</div>
                   </div>
                 </div>

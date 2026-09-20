@@ -380,6 +380,10 @@ RENOMMAGES_DU_SOCLE: dict[str, tuple[str, ...]] = {
     # equivalent Bootstrap 5 (annexe A), et le seul consommateur de la regle qui annule
     # le defaut de hauteur SB Admin (sb-admin-2.css:213-216).
     "lo-panneau-evenements": ("libreosteoweb/templates/pages/tableau-de-bord.html",),
+    # Lot correctif D6g (2026-09-20) : `huge`, le grand chiffre des trois compteurs du
+    # tableau de bord. Sans equivalent Bootstrap 5 (annexe A), retire par T13 sans que
+    # son style soit repris -- defaut trouve en revue finale (R-VIS-12).
+    "lo-compteur-tuile": ("libreosteoweb/templates/pages/tableau-de-bord.html",),
 }
 
 _TAG_DJANGO = re.compile(r"\{[%{#].*?[%}#]\}", re.S)

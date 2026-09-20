@@ -4020,9 +4020,13 @@ opposable ; un écart se corrige, il ne s'absorbe pas.
    fond ni bordure propres, la page s'allonge d'autant, et **Déconnexion** s'atteint en
    faisant défiler la page. Aucune entrée n'est masquée derrière un bord.
 
-**Ne couvre pas** : le contenu du tableau de bord (R-VIS-12), qui n'est **pas** migré à ce
-stade — ses tuiles colorées et son panneau d'évènements se rendent sans mise en forme entre
-D6g T4 et D6g T13, et c'est attendu. Ni la modale, la notification, les
+**Ne couvre pas** : le détail du contenu du tableau de bord — ses tuiles et son panneau
+d'évènements, visibles sur cette même capture puisque c'est la même page, mais dont le
+rendu se recette en détail sur sa propre fiche, R-VIS-12. **Précision à la clôture de D6g
+(2026-09-20)** : cette fiche a longtemps dit ce contenu « pas migré à ce stade » (vrai entre
+D6g T4 et D6g T13) ; il l'est depuis T13, et le lot correctif du même jour referme le seul
+défaut visuel qu'il portait encore (libellés des tuiles coupés, R-VIS-12). Ni la modale, la
+notification, les
 onglets et l'encart de visite guidée, qui appartiennent au même socle mais se recettent sur
 les écrans qui les émettent.
 
@@ -4441,7 +4445,10 @@ et `tableau-de-bord-375.png`.
    clair, même disposition icône-gauche / chiffre-et-libellé-à-droite, pour *Consultations*
    et *Retour*. **L'icône de chaque tuile ne recouvre à aucun moment le chiffre ni le
    libellé qui lui font face** — c'est le défaut corrigé par cette tâche (`col-xs-3` /
-   `col-xs-9`, morts depuis Bootstrap 4, recouvraient le dernier sommet du mini-graphe).
+   `col-xs-9`, morts depuis Bootstrap 4, recouvraient le dernier sommet du mini-graphe). Le
+   chiffre de chaque tuile est rendu à 40 px (`lo-compteur-tuile`, lot correctif D6g,
+   2026-09-20) et le libellé qui le suit — *Nouveaux patients*, *Consultations*, *Retour* —
+   tient entièrement sur **une seule ligne**, sans coupure au milieu d'un mot.
    Sous les tuiles, un panneau **Évènements** : en-tête gris avec une icône de bulles, le
    mot *Évènements*, et à droite un bouton à chevron ; le corps est une zone blanche —
    vide si aucun évènement n'a eu lieu ce jour, ou listant chaque entrée sans puce ni
@@ -4450,30 +4457,33 @@ et `tableau-de-bord-375.png`.
 2. Ramener la fenêtre à **375 px de large**.
    Attendu : les trois tuiles s'empilent en pleine largeur, **dans le même ordre**, et
    chacune garde sa disposition interne icône-à-gauche / chiffre-et-libellé-à-droite sans
-   chevauchement. Les trois pastilles de période restent sur une seule ligne. Le panneau
-   **Évènements** occupe toute la largeur sous les tuiles, toujours lisible, sans texte
-   coupé. Aucune barre de défilement horizontale.
+   chevauchement, son libellé tenant sur une seule ligne. Les trois pastilles de période
+   restent sur une seule ligne. Le panneau **Évènements** occupe toute la largeur sous les
+   tuiles, toujours lisible, sans texte coupé. Aucune barre de défilement horizontale.
 
-**⚠️ Défaut relevé à la passe de clôture de D6g (2026-09-20), non corrigé — destinataire :
-lot correctif à ouvrir.** Sur les deux captures de référence, **les libellés des tuiles sont
-coupés au milieu d'un mot**. À 1 280 px : *Nouveaux* / *patients* sur deux lignes (coupure
-propre, entre deux mots) mais *Consultati* / *ons* sur deux lignes, **au milieu du mot**. À
-375 px, les deux le sont : *Nouvea* / *ux patients* et *Consult* / *ations*. Avant la
-bascule, les trois libellés tenaient chacun sur une seule ligne aux deux largeurs (capture
-d'avant versée par D6g T1, `3f72c2d`).
+**⚠️ Défaut relevé à la passe de clôture de D6g (2026-09-20), corrigé par le lot correctif
+du même jour.** Sur les deux captures de référence d'alors, **les libellés des tuiles
+étaient coupés au milieu d'un mot** : à 1 280 px, *Consultati* / *ons* ; à 375 px, *Nouvea*
+/ *ux patients* et *Consult* / *ations*.
 
-Cause mesurée : T13 (`a70ab6b`) a retiré `class="huge"` des trois compteurs sans reprendre
-son style — `sb-admin-2.css:298` donnait `.huge { font-size: 40px }`, manquant à l'annexe A
-qui demande, pour un jeton « — », de reprendre le style plutôt que de le laisser tomber. Le
-chiffre est retombé à la taille de base — 16 px, elle-même montée depuis 14 px sous
-Bootstrap 3 —, le rythme vertical de la tuile s'est effondré, et le mini-graphe flottant
+Cause mesurée : T13 (`a70ab6b`) avait retiré `class="huge"` des trois compteurs sans
+reprendre son style — `sb-admin-2.css:298` donnait `.huge { font-size: 40px }`, manquant à
+l'annexe A qui demande, pour un jeton « — », de reprendre le style plutôt que de le laisser
+tomber. Le chiffre était retombé à la taille de base (16 px, mesuré) ; le rythme vertical de
+la tuile s'était effondré, et le mini-graphe flottant
 (`.dashboard-sparkline { float: left; margin-top: 10%; margin-left: 40% }`, `libreosteo.css`)
-chevauche désormais la ligne du **libellé** au lieu de celle du chiffre, qu'il dépassait sans
-la toucher quand ce dernier faisait 40 px. Ce n'est **pas** un défaut de la tuile elle-même :
-les trois tuiles restent côte à côte, l'icône ne recouvre rien, le chiffre reste lisible —
-tous les attendus de l'étape 1 tiennent. **Constater ce défaut n'est donc pas un motif de
-rejet de cette fiche** ; le corriger demande de reprendre le style de `.huge` sur les
-compteurs, qui n'appartient à aucune tâche de D6g.
+chevauchait la ligne du **libellé** au lieu de celle du chiffre, qu'il dépassait sans la
+toucher quand ce dernier faisait 40 px. Ce n'était **pas** un défaut de la tuile elle-même :
+les trois tuiles restaient côte à côte, l'icône ne recouvrait rien, le chiffre restait
+lisible — tous les attendus de l'étape 1 tenaient déjà, et ce constat n'était pas un motif de
+rejet de la fiche.
+
+**Correctif** : le style de `.huge` repris sous `.lo-compteur-tuile` (`libreosteo.css`,
+`font-size: 40px`), posée sur les trois compteurs (`RENOMMAGES_DU_SOCLE`,
+`tests/qualite/test_contrat_styles.py`) à la place de la classe SB Admin retirée. Mesuré
+après correctif (les trois compteurs, aux deux largeurs) : `font-size` 40 px, libellé sur
+une seule ligne, hauteur 24 px, sans chevauchement avec le mini-graphe. Les deux captures de
+référence sont reprises en conséquence.
 
 **Ne couvre pas** : l'atteignabilité de chaque sommet du mini-graphe au survol — prouvée par
 `test_chaque_sommet_du_mini_graphe_est_atteignable_au_survol` (`elementFromPoint`), pas par
