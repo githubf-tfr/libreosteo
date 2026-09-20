@@ -62,11 +62,13 @@ def test_chaque_ecran_est_joignable_au_clic(
     expect(page.get_by_test_id("titre-patient")).to_contain_text("Picard")
     attendre_alpine_initialise(page)
 
-    # 3. Quatre des cinq onglets du dossier. L'entree de barre porte `#<cle>` et son panneau
+    # 3. Quatre des six onglets du dossier. L'entree de barre porte `#<cle>` et son panneau
     #    `#panneau-<cle>` : c'est l'ancrage que le produit declare
     #    (`fragments/dossier-corps.html`, `partials/onglets.html`) et que le filet clique
     #    deja. Le cinquieme, « Consultation en cours », n'existe qu'une fois une
-    #    consultation ouverte : il est clique au point 4.
+    #    consultation ouverte : il est clique au point 4. Le sixieme, « Detail de la
+    #    consultation », n'existe qu'a la selection d'une seance ancienne — hors du
+    #    perimetre de ce test.
     for cle in ("history", "medicalreports", "examinations", "general"):
         page.click(f"#{cle}")
         expect(page.locator(f"#panneau-{cle}")).to_be_visible()

@@ -36,8 +36,15 @@
 {# pose par le serveur dit la meme chose que lui au premier rendu (regle 1). #}
 {# #}
 {# **Lot B retire le bouton de « Consultations »** : une seance selectionnee de statut 0 #}
-{# **est** la seance en cours, a qui le §2.4 retire son onglet de detail, donc le bouton de #}
-{# l'onglet de detail n'a plus d'etat atteignable. #}
+{# **est**, par l'interface, la seance en cours, a qui le §2.4 retire son onglet de #}
+{# detail, donc le bouton de l'onglet de detail n'a plus d'etat atteignable **par #}
+{# l'interface** (pas impossible en base, cf. `dossier_patient.py:634` et suivants). #}
+{# #}
+{# **« Editer » se borne aussi hors de « Consultations »** (vague de correction du lot B). #}
+{# L'onglet n'a plus rien d'editable depuis que le volet l'a quitte pour le sien : #}
+{# `dossier-editer-examinations` n'a plus aucun auditeur (grep sur le depot), et sans cette #}
+{# borne le clic posait `edition` sans que rien ne le desarme — bandeau vide jusqu'au #}
+{# changement d'onglet. La borne serveur suit la meme regle (1) que les boutons voisins. #}
 {# #}
 {# **Le bandeau vit hors de `#dossier-corps`, donc il se recompose hors-bande.** Ouvrir une #}
 {# consultation, la cloturer ou la supprimer change l'ensemble des suppressions possibles ; #}
@@ -52,7 +59,7 @@
 {# celui d'une boite flex `align-items: center`. #}
 <ul class="nav lo-barre-liens order-0" id="actions-dossier"{% if actions_hors_bande %} hx-swap-oob="outerHTML"{% endif %}>
   <li>
-    <button type="button" class="btn btn-secondary btn-sm" x-show="edition === null"{% if consultation_en_cours %} style="display: none"{% endif %}
+    <button type="button" class="btn btn-secondary btn-sm" x-show="edition === null && actif !== 'examinations'"{% if consultation_en_cours or onglet_actif == 'examinations' %} style="display: none"{% endif %}
             @click="edition = actif; editionArrivee = false; $dispatch('dossier-editer-' + actif)"><i class="fa fa-edit"></i> {% trans 'Edit' %}</button>
     <button type="button" class="btn btn-secondary btn-sm" x-show="edition !== null && editionArrivee" style="display: none"
             @click="$dispatch('dossier-fin-edition'); edition = null"><i class="fa fa-thumbs-o-up"></i> {% trans 'End of editing' %}</button>

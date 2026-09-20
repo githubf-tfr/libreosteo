@@ -14,6 +14,7 @@ from tests.functional.helpers import (
     enregistrer_formulaire,
     ouvrir_nouvelle_consultation,
     ouvrir_profil_therapeute,
+    revenir_a_la_chronologie,
     saisir_consultation,
 )
 
@@ -32,19 +33,6 @@ def definir_nom_du_therapeute(page: Page) -> None:
     page.fill("input[name='last_name']", "Tester")
     page.fill("input[name=first_name]", "Robot")
     enregistrer_formulaire(page, page.get_by_test_id("enregistrer-profil"))
-
-
-def revenir_a_la_chronologie(page: Page) -> None:
-    """Ferme le panneau de detail pour retrouver le bouton « Demarrer une consultation ».
-
-    Meme geste, pour la meme raison, que la fonction homonyme de test_facturation.py,
-    test_tableau_de_bord.py et test_patient.py : apres une cloture, `reloadExaminations`
-    (patient.js) affiche le detail de la consultation qui vient de se fermer a la place
-    de la chronologie.
-    """
-    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
-    if bouton_fermer.count() > 0:
-        bouton_fermer.click()
 
 
 def test_evenement_genere_a_la_creation_d_un_patient(

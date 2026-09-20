@@ -1,12 +1,12 @@
 {% load i18n %}
 {# Le volet de consultation, en **lecture** (D6e, T10). #}
 {# #}
-{# Ce fragment est rendu par `dossier-corps.html:108` via `volet_selectionne`. Il s'inclut par #}
+{# Ce fragment est rendu par `dossier-corps.html:142` via `volet_selectionne`. Il s'inclut par #}
 {# `{% include "pages/fragments/consultation.html" with volet=volet %}`, ou `volet` est le #}
 {# dictionnaire rendu par `pages.consultation.contexte_du_volet(...)`. Une variable et une #}
 {# seule, parce qu'un dossier peut rendre deux volets dans le meme document (l'onglet #}
-{# « Consultations » et le panneau « consultation en cours ») et que chacun doit porter son #}
-{# propre contexte. #}
+{# « Detail de la consultation » et le panneau « Consultation en cours ») et que chacun doit #}
+{# porter son propre contexte. #}
 {# #}
 {# **Les identifiants sont prefixes** (`volet.prefixe`) : le dossier porte `#general` et #}
 {# `#current-examination` dans le meme document, et T12 y rendra donc deux volets. Aucun #}

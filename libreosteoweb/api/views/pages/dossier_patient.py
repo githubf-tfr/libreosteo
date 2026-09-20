@@ -633,13 +633,17 @@ def contexte_du_dossier(
         # en cours est en statut 0 par construction (`_consultation_en_cours` le filtre) ;
         # la seance regardee sous « Consultations » ne l'est que si son statut le dit.
         #
-        # **Mesure faite (Lot B) : le bouton du detail est du code mort.** Le troisieme
-        # bouton n'etait rendu que si `selectionnee.status == IN_PROGRESS` ; le produit
-        # n'ouvrant qu'une seance a la fois (`nouvelle_consultation` rend 409), une seance
-        # selectionnee de statut 0 **est** la seance en cours, a qui le §2.4 retire son
-        # onglet de detail. On borne donc `url_suppression_selectionnee` a l'existence du
-        # detail, exactement comme `volet_selectionne` : sans cette borne, le bouton serait
-        # borne a un onglet que la vue ne construit jamais dans l'etat qui le rend.
+        # **Mesure faite (Lot B) : le bouton du detail est inatteignable par l'interface**
+        # (pas impossible en base : `_consultation_en_cours` fait un `.first()` sur un
+        # filtre, donc deux seances `IN_PROGRESS` restent representables — donnees
+        # heritees, ecriture par l'API REST). Le troisieme bouton n'etait rendu que si
+        # `selectionnee.status == IN_PROGRESS` ; le produit n'ouvrant qu'une seance a la
+        # fois **par cette vue** (`nouvelle_consultation` rend 409), une seance
+        # selectionnee de statut 0 **est**, par l'interface, la seance en cours, a qui le
+        # §2.4 retire son onglet de detail. On borne donc `url_suppression_selectionnee` a
+        # l'existence du detail, exactement comme `volet_selectionne` : sans cette borne,
+        # le bouton serait borne a un onglet que la vue ne construit jamais dans l'etat
+        # qui le rend.
         "url_suppression_selectionnee": reverse(
             "consultation-suppression", args=[selectionnee.pk]
         )

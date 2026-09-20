@@ -32,6 +32,7 @@ from tests.functional.helpers import (
     ouvrir_nouvelle_consultation,
     ouvrir_profil_therapeute,
     ouvrir_reglages_cabinet,
+    revenir_a_la_chronologie,
     saisir_consultation,
 )
 
@@ -302,24 +303,6 @@ def test_avoir_sur_facture_deja_emise(
     expect(page.locator("#main")).to_contain_text("Template with 55 EUR")
     expect(page.locator("#invoice-number")).to_contain_text(remplacante.number)
     expect(page.locator("#invoice-number")).to_contain_text(facture_initiale.number)
-
-
-def revenir_a_la_chronologie(page: Page) -> None:
-    """Ferme le volet de detail pour revenir a la chronologie seule.
-
-    **Le geste reste, son enjeu tombe** (D6e T12). Avant, `reloadExaminations` remplacait
-    la chronologie par le detail de la consultation fermee : `#new-examination-btn` restait
-    hors du DOM tant que ce volet etait ouvert, et il fallait le refermer pour redemarrer
-    une consultation. Le dossier migre rend les deux — le volet **au-dessus** de la
-    chronologie — donc le bouton est toujours la. Le « × » reste un vrai lien vers l'onglet
-    « Consultations », et le refermer reste le geste que `R-CON-01` decrit.
-
-    Ne clique que si le volet est bien ouvert : au tout premier appel d'un test, la
-    chronologie est seule et ce bouton n'existe pas encore dans le DOM.
-    """
-    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
-    if bouton_fermer.count() > 0:
-        bouton_fermer.click()
 
 
 def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:

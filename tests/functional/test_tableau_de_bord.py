@@ -11,20 +11,9 @@ from tests.functional.helpers import (
     creer_patient,
     ouvrir_nouvelle_consultation,
     rectangles_se_recouvrent,
+    revenir_a_la_chronologie,
     saisir_consultation,
 )
-
-
-def revenir_a_la_chronologie(page: Page) -> None:
-    """Ferme le panneau de detail pour retrouver le bouton « Demarrer une consultation ».
-
-    Meme geste, pour la meme raison, que la fonction homonyme de test_facturation.py :
-    apres une cloture, `reloadExaminations` (patient.js) affiche le detail de la
-    consultation qui vient de se fermer a la place de la chronologie.
-    """
-    bouton_fermer = page.locator('[data-testid="fermer-le-volet"]:visible')
-    if bouton_fermer.count() > 0:
-        bouton_fermer.click()
 
 
 def construire_etat_e2(page: Page) -> None:
