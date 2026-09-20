@@ -398,10 +398,14 @@ Tenu à la main.
 ## À faire
 
 > ⚠️ **P0 — la reprise du parc de production passe devant tout le reste** (décidé le
-> 2026-09-20 par l'utilisateur). Les deux lots du jour sont clos ; **tout ce qui suit attend**,
-> y compris le lot correctif et la recette visuelle de D6g, tant que la migration n'est pas
-> faite. Une exception, et une seule : **un défaut qui mettrait la reprise en danger** remonte
-> au P0 avec elle.
+> 2026-09-20 au matin par l'utilisateur, `fc09c95`), **à l'exception des lots A et B** : plus
+> tard le même jour, une fois les deux lots cadrés (§ « Premier retour d'usage »
+> ci-dessous), l'utilisateur a tranché qu'ils passent avant la migration, **lot A puis
+> lot B**. **Lot A est clos** (cf. « Terminé ») ; **lot B reste à faire.** Une fois lot B
+> clos, le P0 reprend sa place en tête et **tout ce qui suit attend**, y compris le lot
+> correctif et la recette visuelle de D6g, tant que la migration n'est pas faite. Une
+> exception, et une seule : **un défaut qui mettrait la reprise en danger** remonte au P0
+> avec elle.
 >
 > **Le chemin critique passe par l'utilisateur** : l'export neuf de la production, puis
 > `python3 outils/diagnostic_archive.py <archive>` **exécuté par lui, sur sa machine** — la
@@ -460,17 +464,19 @@ fin de session ; sa production tourne sur un autre serveur et n'a jamais été t
 - Les pièces jointes ne sont **pas** dans un dump JSON. Une reprise par archive JSON seule
   perd les documents téléversés.
 
-**Les deux lots, cadrés et planifiés le jour même, non exécutés :**
+**Les deux lots, cadrés le jour même : lot A exécuté et clos le même jour, lot B toujours en
+attente.**
 
-| Lot | Spec | Plan | Taille |
-|---|---|---|---|
-| A — restitution visuelle | `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md` | `docs/superpowers/plans/2026-09-20-lot-a-restitution-visuelle-plan.md` | 9 tâches |
-| B — navigation des consultations | `docs/superpowers/specs/2026-09-20-lot-b-navigation-consultations-design.md` | `docs/superpowers/plans/2026-09-20-lot-b-navigation-consultations-plan.md` | 7 tâches |
+| Lot | Spec | État |
+|---|---|---|
+| A — restitution visuelle | `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md` | **clos** (quatorze commits, `bb75142`..`a8e1ae2` ; cf. « Terminé »). Le plan d'exécution s'est fondu dans la spec et dans `docs/recette.md`, puis a été supprimé (`CLAUDE.md` : « un plan achevé se fond dans la doc pérenne, puis se supprime »). |
+| B — navigation des consultations | `docs/superpowers/specs/2026-09-20-lot-b-navigation-consultations-design.md` | à faire. Plan : `docs/superpowers/plans/2026-09-20-lot-b-navigation-consultations-plan.md`, 7 tâches. |
 
 Les deux touchent les mêmes fragments de la fiche patient : **exécution séquentielle, lot A
-d'abord**. Les sept défauts et la demande d'évolution sont en clair, en mots d'utilisateur,
-dans `docs/retours-utilisateur.md`. Les arbitrages figurent en fin de chaque spec, avec pour
-chacun qui l'a tranché — session ou utilisateur.
+d'abord** — c'est l'ordre suivi. Les sept défauts et la demande d'évolution étaient en clair,
+en mots d'utilisateur, dans `docs/retours-utilisateur.md` ; les points 1 à 7 en sont sortis à
+la clôture du lot A, portés depuis par la spec. Les arbitrages figurent en fin de chaque
+spec, avec pour chacun qui l'a tranché — session ou utilisateur.
 
 **Le résultat le plus utile du lot A**, parce qu'il change la nature du travail : les sept
 points se réduisent à **trois causes**, et deux sont des correspondances de migration
@@ -481,10 +487,10 @@ sur `.card` ; trois déclarations de `sb-admin-2.css` sont parties avec la feuil
 reprises. La densité perdue ne vient pas de la typographie mais d'une marge de paragraphe non
 neutralisée : **+21 %** de hauteur de ligne.
 
-⚠️ **Le lot A renverse la fiche de recette R-VIS-14**, qui décrivait la carte entièrement
+⚠️ **Le lot A a renversé la fiche de recette R-VIS-14**, qui décrivait la carte entièrement
 teintée comme l'attendu **voulu** de D6g. Ce n'était donc pas un défaut mais un choix,
 validé en recette, que l'usage réel a contredit. Renversement **confirmé explicitement par
-l'utilisateur**, pas décidé par une session. Deux captures de référence sont à refaire.
+l'utilisateur**, pas décidé par une session. Les deux captures de référence ont été reprises.
 
 ⚠️ **Le lot B assume un risque plutôt que de le corriger** : une recomposition de
 `#dossier-corps` re-rend les deux volets depuis la base et **détruit une saisie non envoyée,
@@ -495,16 +501,17 @@ l'avertissement `beforeunload` du navigateur. **Contrepartie obligatoire, inscri
 une fiche de recette qui reproduit la perte.** Ce cas n'est pas automatisable — Playwright ne
 peut pas observer cette boîte sans la neutraliser.
 
-**Priorité à trancher par l'utilisateur, non tranchée par la session.** Le bandeau P0 en tête
-de cette section dit que la reprise du parc passe devant tout et que le reste attend. Ces
-deux lots sortent pourtant d'un test de cette reprise, et l'utilisateur a demandé le même
-jour qu'ils soient implémentés. Les deux lectures se défendent : ce sont des défauts
-d'affichage, donc secondaires devant une migration ; mais ce sont aussi les écrans que le
-praticien regardera toute la journée une fois migré. **Personne n'a arbitré.** Une session
-qui reprend ce fichier doit poser la question avant de lancer quoi que ce soit.
+**Priorité arbitrée par l'utilisateur (2026-09-20).** Le bandeau P0 en tête de cette section a
+été posé au matin (`fc09c95`, 10h08), avant que ces deux lots n'existent — il ne visait que le
+lot correctif et la recette visuelle de D6g. Une fois les deux lots cadrés, la question
+restait ouverte : ce sont des défauts d'affichage, donc secondaires devant une migration ;
+mais ce sont aussi les écrans que le praticien regardera toute la journée une fois migré.
+**L'utilisateur a tranché le même jour : les deux lots passent d'abord, lot A puis lot B.**
+Le bandeau P0 ci-dessus est à jour de cet arbitrage.
 
-**État exact à la reprise** : commits `6743840` (retour d'usage + deux specs) et `f33f487`
-(deux plans). Aucun code applicatif touché, aucune tâche exécutée, aucune instance en vie.
+**État exact à la reprise** : lot A **clos** (quatorze commits, `bb75142`..`a8e1ae2`) ; lot B
+non commencé, spec et plan intacts, aucun code applicatif touché pour ce lot, aucune
+instance en vie.
 
 ### Reprise du parc de production sur le fork (décidé le 2026-09-18, à faire)
 
@@ -1248,6 +1255,53 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-20 — Lot A clos : la fiche patient et le tableau de bord retrouvent l'aspect
+  d'avant le fork** (plan à neuf tâches, quatorze commits, `bb75142`..`a8e1ae2`). Spec :
+  `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md`. `make check`
+  vert, **980 passed**, couverture **94,93 %** (plancher `fail_under = 94` inchangé), `mypy`
+  sur **183 fichiers** ; suite fonctionnelle **140 passed**, relancée sur l'arbre final.
+  **Aucun module `.py` créé.**
+
+  **Ce que le lot a fermé** : les sept points de `docs/retours-utilisateur.md`, ramenés à
+  trois causes — `panel panel-X` traduit en `card text-bg-X` teintait toute la carte en
+  plein au lieu du seul en-tête, en pâle pour trois teintes sur quatre (patron
+  `.lo-rubrique`, 27 sites dont `import-integration.html`, Q6) ; `.panel { margin-bottom:
+  20px }` (Bootstrap 3) sans contrepartie sur `.card` (marge de 20 px reprise, partout) ;
+  deux déclarations vivantes de `sb-admin-2.css` parties avec la feuille sans être reprises
+  — `.chat li .chat-body p { margin: 0 }` et `panel-green`/`panel-red` des tuiles du tableau
+  de bord (patron `.lo-tuile`). **Sept points sur sept fermés.** Recette visuelle jouée sur
+  instance réelle : dix captures de référence, dont **six neuves**
+  (`docs/recette/captures/lot-a/`, fiches `R-VIS-17` à `19` — Antécédents, Compte rendu
+  médical, Consultation) et quatre reprises en place (`docs/recette/captures/d6g/`,
+  `R-VIS-12` et `R-VIS-14`).
+
+  ⚠️ **Renversement assumé de R-VIS-14** : la teinte pleine carte avait été vue, écrite et
+  acceptée à la clôture de D6g ; l'usage réel l'a invalidée. Ce n'était pas un défaut mais un
+  choix, tombé sur demande explicite de l'utilisateur — journalisé dans « Décisions actées »
+  ci-dessus, pas corrigé en silence.
+
+  ⚠️ **Deux choses apprises par la recette, que rien avant elle ne savait :**
+  - **La mesure M1 de la spec était fausse.** Calculée sur les déclarations CSS (66 px par
+    entrée du journal d'évènements), jamais mesurée au navigateur, elle omettait le
+    `<small class="float-end">` du thérapeute, qu'un `<p>` pleine largeur reporte sur sa
+    propre ligne. La valeur réelle, mesurée en tâche de recette, est **75 px** — la règle de
+    T4 produit bien son delta de 16 px annoncé, seul le chiffre d'arrivée de la spec était
+    faux dès son écriture (cf. « Décisions actées », entrée du 2026-09-20 ; note de
+    correction portée à la spec, § M1).
+  - **Une correction de marge décidée en cours d'exécution s'est révélée fausse à la revue
+    de fin de lot.** L'arbitrage Q4 avait fait retirer `mb-3` de
+    `dossier-comptes-rendus.html` (et, découvert pendant l'exécution, de
+    `dossier-comptes-rendus-edition.html`), en présumant que `.card { margin-bottom: 20px }`
+    prendrait le relais. **`#medicalreports-corps` n'est pas une `.card`** : la règle
+    générale ne l'atteignait pas, et sa marge basse avait disparu sans rien pour la
+    remplacer. `mb-3` a été restitué sur les deux gabarits par la vague de correction finale
+    (`43b9c47`, huit points relevés à la revue de fin de lot), avec sept autres corrections
+    — asymétrie `padding-top` de `consultation-edition.html` face à `consultation.html`,
+    table de `outils/rupture_bs5.py` restée sur `text-bg-X` au lieu du patron
+    `lo-rubrique`/`lo-tuile`, huit commentaires (CSS et tests) renvoyant encore à des points
+    de `docs/retours-utilisateur.md` disparus du fichier, `docs/recette.md` mis en cohérence
+    avec l'état réel des captures.
 
 - **2026-09-20 — La passe de recette de D10 est jouée sur conteneur, et elle rend un KO**
   (`e91570b` pour les versements au cahier). Quatre fiches — `R-SAU-02`, `R-SAU-03`,

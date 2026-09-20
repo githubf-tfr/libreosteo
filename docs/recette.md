@@ -3987,14 +3987,17 @@ touché.
 ### Socle visuel
 
 Domaine ouvert par le lot D6g (2026-09-19), qui remplace Bootstrap 3 et le thème SB Admin 2
-par Bootstrap 5. Ses seize fiches ne recettent **qu'une chose** : la mise en page telle
-qu'elle s'affiche, à deux largeurs de fenêtre — 1 280 px et 375 px. Aucun test ne peut
+par Bootstrap 5, et complété par le lot A (2026-09-20, restitution visuelle) avec trois
+fiches supplémentaires. Ses dix-neuf fiches ne recettent **qu'une chose** : la mise en page
+telle qu'elle s'affiche, à deux largeurs de fenêtre — 1 280 px et 375 px. Aucun test ne peut
 tenir ce rôle, aucun n'assied un pixel ; c'est pourquoi chaque fiche porte
 « Couverture auto : non » sans que cela signale un manque.
 
-**Comment se lit une fiche de ce domaine.** Chacune nomme deux captures de référence sous
-`docs/recette/captures/d6g/`. Elles sont **l'état d'après**, réécrit par la tâche qui livre
-l'écran : le total reste de trente-deux fichiers, jamais davantage.
+**Comment se lit une fiche de ce domaine.** Chacune nomme deux captures de référence : sous
+`docs/recette/captures/d6g/` pour les seize fiches de D6g (`R-VIS-01` à `16`) — l'état
+d'après, réécrit par la tâche qui livre l'écran ; le total y reste de trente-deux fichiers,
+jamais davantage — et sous `docs/recette/captures/lot-a/` pour les trois fiches ouvertes par
+le lot A (`R-VIS-17` à `19`), dossier séparé plutôt qu'un dépassement du compte de `d6g/`.
 
 **Comment on ressort l'état d'avant.** Les captures prises sur l'arbre Bootstrap 3 sont
 versées par D6g T1 (2026-09-19) ; chaque tâche d'écran écrase ensuite les deux siennes.
