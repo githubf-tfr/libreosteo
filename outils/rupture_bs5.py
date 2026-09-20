@@ -243,7 +243,7 @@ def _balayage(
     redemarrage de la machine, donc l'affirmation n'aurait bientot plus de temoin. Ce qui
     se verifie, et qui l'a ete, est l'**equivalence de sortie** : les sept jetons ajoutes
     par D6g T1 retires de `RUPTURE`, ce balayage rend les quatre chiffres publies en F2
-    (1647 occurrences, 580 non survivantes, 99 jetons, 60 gabarits sur 83, 134 occurrences
+    (1647 occurrences, 579 non survivantes, 98 jetons, 60 gabarits sur 83, 134 occurrences
     sans equivalent sur 38 jetons) **et** la ventilation par jeton, egale entree par
     entree. C'est cette equivalence qui fait foi, pas une ressemblance de source.
     """

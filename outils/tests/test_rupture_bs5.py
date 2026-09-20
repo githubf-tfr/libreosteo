@@ -71,7 +71,7 @@ def test_les_sept_jetons_ajoutes_par_t1_sont_dans_la_table() -> None:
     Trois viennent du plan (`btn-block`, `well-md`, `well-sm`) et pesent **5** sites a eux
     trois ; les quatre autres viennent du releve par famille de T1 (`left`, `badge-info`,
     `fa-1`, `fa-wrench-o`) et en pesent **8**. Total : **13**, soit l'ecart entre les 580
-    occurrences du cadrage et les 593 qui font autorite pour les clauses d'arret 1 et 4.
+    occurrences du cadrage et les 592 qui font autorite pour les clauses d'arret 1 et 4.
 
     Cette garde tient la table, pas la mesure : c'est `test_la_mesure_du_depot_pese_les_
     occurrences_de_ces_sept_jetons` qui tient les comptes.
@@ -85,7 +85,7 @@ def test_la_mesure_du_depot_pese_les_occurrences_de_ces_sept_jetons() -> None:
     """Ce que les sept jetons pesent reellement dans les gabarits du depot.
 
     Sans ce test, la garde ci-dessus resterait verte sur une table juste et une mesure
-    fausse : c'est le **nombre** de sites qui fait 580 -> 593 au cadrage (clause d'arret
+    fausse : c'est le **nombre** de sites qui fait 580 -> 592 au cadrage (clause d'arret
     1). Le compte n'est fige qu'a cette date : il baisse ensuite, tache d'ecran par tache
     d'ecran, jusqu'a 0 a la clause d'arret 4 -- `AJOUTS_DE_T1` est donc mis a jour par
     chaque tache qui reprend l'un des sept jetons, dans le commit qui le reprend. **13**
