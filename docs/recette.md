@@ -4557,10 +4557,12 @@ et `tableau-de-bord-375.png`.
    Sous les tuiles, un panneau **Évènements** : en-tête gris avec une icône de bulles, le
    mot *Évènements*, et à droite un bouton à chevron ; le corps est une zone blanche —
    vide si aucun évènement n'a eu lieu ce jour, ou listant chaque entrée sans puce ni
-   retrait, séparée de la suivante par un filet pointillé fin. Chaque entrée occupe 66 px de
-   haut (Lot A, T4 : `#liste-evenements p { margin: 0 }` reprend une déclaration vivante de
-   `sb-admin-2.css` que D6g T13 n'avait pas portée). Aucune barre de défilement horizontale
-   sur toute la largeur de la fenêtre.
+   retrait, séparée de la suivante par un filet pointillé fin. Chaque entrée occupe **75 px**
+   de haut, et **85 px** séparent le haut d'une entrée du haut de la suivante, marge basse
+   comprise (Lot A, T4 : `#liste-evenements li.officeevent p { margin: 0 }` reprend une
+   déclaration vivante de `sb-admin-2.css` que D6g T13 n'avait pas portée ; sans elle,
+   l'entrée mesure 91 px, le `p { margin-bottom: 1rem }` de Bootstrap 5 ajoutant 16 px).
+   Aucune barre de défilement horizontale sur toute la largeur de la fenêtre.
 2. Ramener la fenêtre à **375 px de large**.
    Attendu : les trois tuiles s'empilent en pleine largeur, **dans le même ordre**, et
    chacune garde sa disposition interne icône-à-gauche / chiffre-et-libellé-à-droite sans

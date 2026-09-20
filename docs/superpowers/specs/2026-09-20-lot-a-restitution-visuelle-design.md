@@ -94,6 +94,12 @@ en main (`#liste-evenements li { margin-bottom: 10px; padding-bottom: 5px; borde
 | fork | 24 px | 24 px + marge **16 px** | 64 px | 50 px | **80 px** |
 | fork + `p { margin: 0 }` | 24 px | 24 px + 0 | 48 px | 50 px | **66 px** |
 
+> **Note de correction (recette, 2026-09-20).** Ce calcul omettait le
+> `<small class="float-end">` du thérapeute, qu'un `<p>` pleine largeur reporte sur sa
+> propre ligne : la hauteur réelle mesurée au navigateur est **75 px**, pas 66. Le delta
+> produit par `p { margin: 0 }` reste conforme à ce que M1 annonce : 16 px (75 px avec la
+> règle contre 91 px sans elle, mesuré). Cf. `KANBAN.md`, entrée du 2026-09-20.
+
 **+21 % par entrée aujourd'hui ; parité exacte avec une seule déclaration.** Le plancher de
 50 px du badge absorbe entièrement la croissance de l'interligne : tant que le contenu reste
 sous 50 px, la hauteur de ligne est celle du badge, la même qu'en 2026-08. **Le point 1 ne

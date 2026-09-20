@@ -382,6 +382,18 @@ Tenu à la main.
     (`evenements-page.html:10`), jamais visé par l'amont. La mesure M1 de la spec porte
     sur l'entrée `<li>` d'évènement, et le `float-end` rendu en regroupement par défaut
     (`tableau_de_bord.py:188`) était affecté à tort.
+- (2026-09-20) **La recette du Lot A invalide la mesure M1 de la spec, aucune ligne de CSS
+  ne change.** M1 calculait 66 px par entrée du journal en ne comptant que le plancher du
+  badge (50 px) ; le calcul omettait le `<small class="float-end">` du thérapeute, qu'un
+  `<p>` pleine largeur reporte sur sa propre ligne. Mesuré au navigateur (tâche 7) : **75 px**
+  avec `#liste-evenements li.officeevent p { margin: 0 }`, **91 px** sans elle — la règle de
+  T4 produit bien son delta annoncé de 16 px, seul le chiffre d'arrivée de la spec était
+  faux dès son écriture. Note ajoutée à côté de la valeur fautive dans la spec (§ M1) ;
+  `docs/recette.md` R-VIS-12 reprend 75 px. Par ailleurs, l'écart de 69 px relevé entre les
+  tuiles et le panneau **Évènements** lors de la même passe était une erreur de repère de
+  mesure (le point pris pour le haut de la carte était en réalité le bas de son
+  `card-header`) : l'écart réel est de **20 px**, conforme à l'attendu — 0 px avant le lot.
+  R-VIS-12 ne change pas sur ce point.
 
 ## À faire
 
