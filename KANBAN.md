@@ -355,6 +355,30 @@ Tenu à la main.
 
 ## À faire
 
+> ⚠️ **P0 — la reprise du parc de production passe devant tout le reste** (décidé le
+> 2026-09-20 par l'utilisateur). Les deux lots du jour sont clos ; **tout ce qui suit attend**,
+> y compris le lot correctif et la recette visuelle de D6g, tant que la migration n'est pas
+> faite. Une exception, et une seule : **un défaut qui mettrait la reprise en danger** remonte
+> au P0 avec elle.
+>
+> **Le chemin critique passe par l'utilisateur** : l'export neuf de la production, puis
+> `python3 outils/diagnostic_archive.py <archive>` **exécuté par lui, sur sa machine** — la
+> donnée de santé ne transite ni par la session ni par ses sous-agents. Rien d'autre ne
+> débloque l'étape 3.
+>
+> **Ce qui est prêt côté dépôt, vérifié le 2026-09-20** : l'image se construit et tourne
+> **dans cette sandbox** — `libreosteo/libreosteo-http:22a2031` et `libreosteo-pg` construites
+> par les deux `docker build` du chapitre 0 de `docs/recette.md`, déploiement
+> `Docker/deploy/pg/` monté, restauration jouée de bout en bout, 1 501 patients semés.
+> ⚠️ **`make build` n'est pas un montage de recette** : la cible fait `docker login` puis
+> `buildx … --push` vers Docker Hub.
+>
+> ⚠️ **Deux choses à savoir avant de lancer, toutes deux mesurées** : après la restauration,
+> **la recherche est vide et rien à l'écran ne l'explique** — il faut lancer « Réindexer », et
+> cela prend **168,5 s** sur 1 500 patients ; et **l'import CSV au-delà d'environ 1 200
+> patients est coupé à 180 s sans afficher de succès, alors que les patients sont bien
+> intégrés**. Les deux sont au lot correctif ci-dessous, aucun n'empêche la reprise.
+
 > **Propositions Claude (2026-08-30)** — issues d'une analyse automatisée du dépôt, non
 > validées par l'utilisateur. À trier avant toute mise en œuvre : ce ne sont pas des
 > décisions actées, et rien dans les rubriques datées du 2026-08-30 ci-dessous n'a été
