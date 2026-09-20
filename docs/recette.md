@@ -1047,6 +1047,12 @@ au-dessus, la reprise continue la numérotation existante sans y sauter (cf.
 doublon n'est pas touché du tout — aucune ligne `renumérotée` n'apparaît alors
 au journal.
 
+⚠️ **Constat relevé au passage, pas encore adressé : chaque enregistrement de journal
+applicatif est émis deux fois**, même horodatage à la milliseconde — préexistant à D10,
+sans effet sur les attendus de cette fiche (une ligne `Applying ...` ou `renumérotée` au
+bon format suffit, dupliquée ou non), mais trompeur pour qui compte les lignes ou les
+renumérotations au journal, ici ou à `R-SAU-04`.
+
 ### Authentification
 
 ### R-AUTH-01 — Création du premier utilisateur
@@ -3136,6 +3142,16 @@ deux dates.
    fichier patient ». Le traitement peut dépasser la minute (100 lignes, chacune
    réindexée).
 
+**Constat.** ⚠️ **Au-delà d'environ 1 200 patients, l'écran peut mentir sur l'échec.**
+Relevé au passage lors de la constitution des lots synthétiques de `R-SAU-04` : un
+`POST …/integrate` a rendu 200 en **238,8 s**, au-delà de la borne `--http-timeout 180`
+(`Docker/build/http-ready/Dockerfile:184`) — le navigateur a été coupé, **aucun panneau
+« Importation réussie » n'est apparu**, et pourtant les 100 patients du lot étaient bien
+intégrés en base. Un exploitant qui s'arrête au panneau absent conclurait à l'échec et
+rejouerait l'import — sur un lot déjà intégré. Le dépassement n'est pas systématique : deux
+autres lots de la même série sont repassés sous la borne (109 s et 129 s) ; il dépend de la
+fusion d'index Whoosh, pas du seul volume. Constat relevé au passage, pas encore adressé.
+
 ### R-IMP-02 — Import de consultations liées aux patients importés
 
 - **Domaine** : Import CSV
@@ -3321,9 +3337,12 @@ deux dates.
   ce que l'outil annonce et ce que la restauration fait. **Non couvert** : que le rapport
   soit lisible par son destinataire, et que l'enchaînement diagnostic → décision →
   restauration tienne de bout en bout.
-- **État requis** : E2, puis l'état laissé par `R-INST-08` (un parc portant deux factures de
-  même numéro dans le même cabinet). Cette fiche ne modifie **rien** : l'outil ouvre
-  l'archive en lecture seule, n'écrit aucun fichier, n'envoie rien.
+- **État requis** : E2, puis l'état **intermédiaire** de `R-INST-08` — ses étapes 1 et 2
+  seules (service arrêté sur le schéma `0059`, doublon `(cabinet, numéro)` inséré en base),
+  **jamais son étape 3** : dès que le service redémarre sur `0060`, la migration répare le
+  doublon (cf. `R-INST-08`, Constat), et aucune archive obtenue ensuite ne le porte plus.
+  Cette fiche ne modifie **rien** : l'outil ouvre l'archive en lecture seule, n'écrit aucun
+  fichier, n'envoie rien.
 
 ⚠️ **Cette fiche se joue sur une archive de recette, jamais sur une archive de production.**
 L'outil est conçu pour que l'exploitant le lance **lui-même, sur sa machine** : aucune
@@ -3331,14 +3350,30 @@ donnée de santé ne doit transiter par une session d'assistance.
 
 **Étapes**
 
-1. Depuis l'état laissé par `R-INST-08`, obtenir une archive de l'instance (menu
-   utilisateur → « Import/export », onglet « Archiver la base de données », lien « obtenir
-   l'archive »).
-   Attendu : un fichier `<horodatage ISO>-libreosteo.db` est téléchargé.
+1. ⚠️ **Étape injouable par l'écran, telle qu'initialement écrite.** `R-INST-08` répare le
+   doublon **à son propre démarrage** (migration `0060`) : le service ne peut servir
+   l'interface sans démarrer, donc sans migrer, et un parc à doublon n'est donc **jamais**
+   servi par l'écran « Import/export ». Contournement retenu, dans un conteneur jetable, sur
+   l'instance encore arrêtée sur `0059` avec le doublon inséré (état requis ci-dessus) :
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     run --rm --entrypoint sh libreosteo -c \
+     "python3 ./manage.py backup_db /tmp/archive.db --settings=Libreosteo.settings.container \
+      1>&2 && cat /tmp/archive.db" > "$SCRATCH/archive.db"
+   ```
+
+   C'est **exactement** la fonction que l'écran appelle : le lien « obtenir l'archive »
+   déclenche `services/sauvegarde.py:71` → `backup_db()`, la même fonction que la commande
+   `manage.py backup_db` ci-dessus — seul le déclencheur diffère (commande contre requête
+   HTTP), jamais le contenu produit. L'archive est donc identique à celle qu'aurait rendue
+   le lien « obtenir l'archive » si l'écran avait pu la servir.
+   Attendu : `$SCRATCH/archive.db` existe, non vide, et contient `dump.json`, `meta` et
+   `documents/` — un parc qui porte encore le doublon `(cabinet, numéro)`.
 2. Lancer l'outil sur ce fichier, avec l'interpréteur système et sans aucune installation :
 
    ```sh
-   python3 outils/diagnostic_archive.py <horodatage>-libreosteo.db; echo "code de sortie : $?"
+   python3 outils/diagnostic_archive.py "$SCRATCH/archive.db"; echo "code de sortie : $?"
    ```
 
    Attendu : un rapport sur la sortie standard, découpé en cinq sections — `0057`, `0058`,
@@ -3405,12 +3440,29 @@ et la clause de repli écrite d'avance à l'étape 4.
 
 **Étapes**
 
-1. Depuis l'état E2, semer un volume comparable à un parc réel : rejouer l'import de
-   `R-IMP-01` autant de fois qu'il faut pour dépasser **1 500 patients**, puis obtenir une
-   archive (`R-SAU-01`).
-   Attendu : un fichier `<horodatage ISO>-libreosteo.db` ; noter sa taille
-   (`stat -c%s FICHIER`) et le nombre d'objets du `dump.json`
-   (`python3 -c "import json,zipfile;print(len(json.load(zipfile.ZipFile('FICHIER').open('dump.json'))))"`).
+1. ⚠️ **Geste corrigé : rejouer l'import de `R-IMP-01` ne fait pas croître le parc.** Un
+   second import du même fichier `patients_1.csv` rend « 0 lignes importées » et, pour
+   chacune des 100 lignes, « Ce patient existe déjà » — `R-IMP-02` étape 3 le documente
+   déjà. Depuis l'état E2 (1 patient), semer un volume comparable à un parc réel avec des
+   lots CSV **synthétiques** dérivés de `tests/functional/resources/patients_1.csv`,
+   chacun rendu distinct par un nom de famille suffixé et un numéro décalé :
+
+   ```sh
+   for n in $(seq 1 15); do
+     awk -F';' -v OFS=';' -v n="$n" \
+       'NR==1 {print; next} {$1 = $1 + n*1000; $2 = $2 "-LOT" n; print}' \
+       tests/functional/resources/patients_1.csv > "$SCRATCH/patients_lot$n.csv"
+   done
+   ```
+
+   puis importer chacun des quinze lots (menu utilisateur → « Import/export », onglet
+   « Importer d'un système externe », geste de `R-IMP-01` étapes 2 à 4, répété par lot).
+   Quinze lots de 100 lignes portent le parc à **1 501 patients** (le patient de l'état E2,
+   plus 15 × 100). Obtenir ensuite une archive (`R-SAU-01`).
+   Attendu : un fichier `<horodatage ISO>-libreosteo.db` ; taille et nombre d'objets
+   (`stat -c%s FICHIER` ;
+   `python3 -c "import json,zipfile;print(len(json.load(zipfile.ZipFile('FICHIER').open('dump.json'))))"`)
+   **mesurés** : **1 532 objets**, **1,4 Mio** — parc de référence à 1 501 patients.
 2. Introduire un doublon de numéro dans l'instance (procédure de `R-INST-08` étape 2), puis
    obtenir une **seconde** archive : c'est celle qui exercera la reprise.
 3. Purger jusqu'à l'état E0, puis restaurer la seconde archive en relevant le temps et la
@@ -3429,19 +3481,47 @@ et la clause de repli écrite d'avance à l'étape 4.
    Attendu : la restauration aboutit (retour à `/accounts/login/`), et le journal porte une
    ligne `Archive : facture #<identifiant> renumérotée : <ancien> devient <nouveau>.` puis la
    ligne récapitulative `Reprise de l'archive avant chargement : 1 facture(s)
-   renumérotée(s) …`. **Relever le temps écoulé et la mémoire de pointe**, et les consigner
-   dans cette fiche comme `R-RCH-02` consigne son ordre de grandeur.
+   renumérotée(s) …`. **Mesures relevées**, sur le parc de référence à 1 501 patients :
+   restauration, du clic « Confirmer la restauration » au retour à la page de connexion,
+   **3,4 s** ; mémoire de pointe du conteneur (`memory.peak`) **95,9 Mio** (base au repos
+   80,3 Mio). L'étape 4 confronte ces mesures à la borne, et à un second parc bâti à
+   l'échelle d'un parc réel.
 4. **Confronter la mesure à la borne, et appliquer la clause de repli s'il le faut.** La
    borne est `--http-timeout 180` (`Docker/build/http-ready/Dockerfile:184`) ; la mémoire de
    pointe se juge contre celle dont dispose l'hôte de production.
-   - **Si le coût tient** : la fiche est verte, et la mesure devient l'ordre de grandeur de
-     référence.
-   - **Si le coût est prohibitif** — dépassement de la borne, ou mémoire de pointe qui met
-     l'hôte en danger — **la clause de transparence C1b se replie sur l'outil de diagnostic
-     seul** (`R-SAU-03`), que l'utilisateur exécute de toute façon avant la reprise et qui
-     porte déjà la liste `(identifiant, numéro actuel, numéro après reprise)`. La reprise au
-     chargement est alors reprise en lot, avec le chiffre qui l'a fait reculer. **Ce repli
-     est arbitré d'avance : il ne s'improvise pas le jour où la mesure tombe.**
+
+   **Mesures.** Hôte de déploiement (recette) : 3,2 Gio. Un second parc, de stress, a été
+   bâti au-delà du minimum demandé par l'étape 1 (1 500 patients dépassés ne suffit pas à
+   dire le pire cas) pour approcher l'ordre de grandeur d'un parc de production réel :
+
+   | Mesure | Archive de la fiche (1 501 patients, étapes 1 à 3) | Archive de stress (ordre de grandeur d'un parc réel) |
+   |---|---|---|
+   | Objets `dump.json` | 1 532 | 45 016 |
+   | Taille `dump.json` | 1,4 Mio | 35,5 Mio |
+   | Restauration, clic → page de connexion | 3,4 s | 112,6 s |
+   | Pic mémoire conteneur (`memory.peak`) | 95,9 Mio (base 80,3) | 254,3 Mio (base 76,0) |
+   | Coût propre à D10 (`reprendre_le_dump` isolée) | — (non isolé à cette échelle) | 1,98 s et +84,4 Mio RSS |
+
+   - **Le coût tient.** Au pire cas mesuré (archive de stress), la restauration prend
+     112,6 s sur une borne de 180 s, soit **63 %** — marge tenue, y compris très au-delà de
+     ce que l'étape 1 demandait. La fiche est verte, et 112,6 s / 254,3 Mio (base 76,0)
+     devient l'ordre de grandeur de référence pour un parc réel.
+   - **La clause de repli ne se déclenche pas** : **la clause de transparence C1b reste en
+     place, la reprise continue de s'opérer au chargement**, jamais en lot. Même dans
+     l'hypothèse où la borne serait un jour heurtée, replier sur l'outil de diagnostic seul
+     (`R-SAU-03`) ne serait pas le bon remède : la lecture que D10 ajoute coûte, isolée,
+     **1,98 s sur les 112,6 s** du pire cas mesuré — **1,8 %** du total —, et le facteur
+     limitant de la restauration est `loaddata`, pas la lecture ajoutée par D10. Replier
+     récupérerait ces 2 s sur 112, et laisserait tout le reste du coût en place : ce n'est
+     pas le repli qui protège la borne, c'est la marge déjà tenue (63 % au pire cas) qui le
+     fait. **Ce repli reste arbitré d'avance, pour le jour où le pire cas mesuré ici serait
+     dépassé** : il ne s'improvise pas.
+
+**Mesure jointe.** Sur ce même parc de référence à 1 501 patients, « Réindexer » prend
+**168,5 s**, soit **94 %** de la borne de 180 s — la note de `R-RCH-02` qui l'annonçait est
+donc confirmée par la mesure (cf. `R-RCH-02`, « Ordre de grandeur de l'étape 2 »), et la
+décision de D10 à `R-RCH-02` étape 4 — purger l'index sans le reconstruire dans la requête
+de restauration — est justifiée : une reconstruction synchrone aurait fait sauter la borne.
 
 **Constat.** La lecture préalable du dump est le prix de la reprise au chargement, et elle
 n'a jamais été gratuite — elle a seulement été jugée négligeable devant une requête qui monte
@@ -3520,10 +3600,25 @@ déjà les migrations et vide la base. Cette fiche est ce qui transforme ce juge
    d'une archive sur l'instance), puis, **sans passer par « Réindexer »**, saisir `Picard`
    dans le champ de recherche et valider.
    Attendu : titre « Recherche de "Picard" » affiché ; **aucun résultat**, texte « Aucun
-   résultat trouvé. ». Ce n'est pas un défaut : la restauration **purge** l'index et ne le
-   reconstruit pas — une reconstruction synchrone dans la requête de restauration
-   heurterait le plafond de 180 s mesuré ci-dessous. Jouer alors « Réindexer » (étapes 1
-   et 2), puis rechercher `Picard` de nouveau.
+   résultat trouvé. ». Le mécanisme n'est pas un défaut en lui-même : la restauration
+   **purge** l'index et ne le reconstruit pas — une reconstruction synchrone dans la
+   requête de restauration heurterait le plafond de 180 s (mesuré à 168,5 s sur un parc de
+   1 501 patients, 94 % de la borne — cf. « Ordre de grandeur de l'étape 2 » ci-dessous et
+   `R-SAU-04`).
+
+   ⚠️ **KO, ouvert, adressé au lot correctif.** L'écran ne donne **aucun moyen à
+   l'utilisateur de le savoir.** Le message rendu est **mot pour mot** celui d'un terme
+   absent de la base (« Recherche de "Picard" / Aucun résultat trouvé. », identique à
+   `R-RCH-01` étape 4), alors que les données sont là et visibles au tableau de bord. Rien,
+   sur cet écran de recherche, ne nomme « Réindexer » ni ne dit qu'une restauration vient
+   d'avoir lieu. La seule surface qui porte cette explication est `partials/restore.html` —
+   l'écran **d'avant**, non authentifié — pas à l'endroit ni au moment où le symptôme
+   apparaît. Aggravant mesuré : la restauration prend **3,4 s** (`R-SAU-04`), le retour à
+   une recherche probante en prend **168,5 s** — cinquante fois plus, et rien à l'écran ne
+   le dit à qui vient de restaurer. Le produit fait ce qu'il doit ; l'utilisateur ne peut
+   pas le savoir, et c'est un défaut.
+
+   Jouer alors « Réindexer » (étapes 1 et 2), puis rechercher `Picard` de nouveau.
    Attendu : le résultat `Picard Jean-Luc` est de retour.
 
 **Ordre de grandeur de l'étape 2.** Le bouton « réindexer » accorde au travail un délai
@@ -3532,6 +3627,14 @@ augmenté des 100 patients de `R-IMP-01`), du clic jusqu'à l'affichage de « Te
 **11 s** (deux mesures, 11,0 s et 11,1 s). La marge est donc large — mais la mesure est
 linéaire en nombre d'enregistrements : un parc de l'ordre de 1 500 patients approcherait
 la borne.
+
+**Mesure confirmée sur le parc de `R-SAU-04`.** Sur le parc à **1 501 patients** bâti pour
+`R-SAU-04`, « Réindexer » prend **168,5 s**, soit **94 %** de la borne de 180 s : la
+prédiction ci-dessus est confirmée par la mesure, à l'échelle même qu'elle annonçait. Cela
+justifie la décision prise à l'étape 4 : purger l'index sans le reconstruire dans la
+requête de restauration — une reconstruction synchrone dans cette même requête aurait
+ajouté ces 168,5 s au temps de réponse de la restauration et aurait fait sauter la borne
+de 180 s.
 
 ### R-TAB-01 — Compteurs du tableau de bord
 
