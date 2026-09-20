@@ -2,7 +2,7 @@
 {# **Un** panneau, choisi par la vue, la ou `import-file.html` en portait quatre, tous #}
 {# presents dans le DOM et masques par `ng-show` (C6). #}
 {% if avec_erreurs %}
-<div class="card text-bg-warning">
+<div class="card lo-rubrique lo-rubrique--avertissement">
   <div class="card-header" data-testid="import-avec-erreurs-titre">{% trans 'Importing succeed but some errors' %}</div>
   <div class="card-body" data-testid="import-avec-erreurs-detail">
     <p>{{ rapport.patient.imported }} {% trans 'lines imported from file patient' %}</p>
@@ -29,7 +29,7 @@
   </div>
 </div>
 {% else %}
-<div class="card text-bg-success">
+<div class="card lo-rubrique lo-rubrique--succes">
   <div class="card-header" data-testid="import-reussi-titre">{% trans 'Importing succeed' %}</div>
   <div class="card-body" data-testid="import-reussi-detail">
     <p>{{ rapport.patient.imported }} {% trans 'lines imported from file patient' %}</p>

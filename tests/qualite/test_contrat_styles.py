@@ -182,6 +182,14 @@ EXIGENCES: dict[str, dict[str, str]] = {
         "--lo-rubrique-fond": "#dff0d8",
         "--lo-rubrique-encre": "#3c763d",
     },
+    # Lot A, Q6 (2026-09-20) : cinquieme teinte, mesuree sur l'amont par la meme methode
+    # que M4 de la spec (git show 8e9e0e77d70:.../bootstrap.css, .panel-warning), pour
+    # etendre le patron a import-integration.html sans laisser un ecran a moitie migre.
+    ".lo-rubrique--avertissement": {
+        "--lo-rubrique-trait": "#faebcc",
+        "--lo-rubrique-fond": "#fcf8e3",
+        "--lo-rubrique-encre": "#8a6d3b",
+    },
 }
 
 _COMMENTAIRE = re.compile(r"/\*.*?\*/", re.S)
@@ -303,6 +311,8 @@ _CONFORME = """
         --lo-rubrique-encre: #a94442; }
       .lo-rubrique--succes { --lo-rubrique-trait: #d6e9c6; --lo-rubrique-fond: #dff0d8;
         --lo-rubrique-encre: #3c763d; }
+      .lo-rubrique--avertissement { --lo-rubrique-trait: #faebcc; --lo-rubrique-fond: #fcf8e3;
+        --lo-rubrique-encre: #8a6d3b; }
 """
 
 
@@ -459,6 +469,7 @@ RENOMMAGES_DU_SOCLE: dict[str, tuple[str, ...]] = {
         "libreosteoweb/templates/pages/fragments/dossier-antecedents-edition.html",
         "libreosteoweb/templates/pages/fragments/dossier-corps.html",
         "libreosteoweb/templates/pages/fragments/consultation-spheres.html",
+        "libreosteoweb/templates/pages/fragments/import-integration.html",
     ),
     "lo-rubrique--principale": (
         "libreosteoweb/templates/pages/fragments/consultation.html",
@@ -483,6 +494,12 @@ RENOMMAGES_DU_SOCLE: dict[str, tuple[str, ...]] = {
     "lo-rubrique--succes": (
         "libreosteoweb/templates/pages/fragments/consultation.html",
         "libreosteoweb/templates/pages/fragments/consultation-edition.html",
+        "libreosteoweb/templates/pages/fragments/import-integration.html",
+    ),
+    # Lot A, Q6 (2026-09-20) : import-integration.html rejoint le perimetre (meme cause
+    # C-I que les 26 sites de T1).
+    "lo-rubrique--avertissement": (
+        "libreosteoweb/templates/pages/fragments/import-integration.html",
     ),
 }
 

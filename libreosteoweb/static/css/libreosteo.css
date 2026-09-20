@@ -668,3 +668,8 @@ ul li.documenttile  {
     --lo-rubrique-fond: #dff0d8;
     --lo-rubrique-encre: #3c763d;
 }
+.lo-rubrique--avertissement {
+    --lo-rubrique-trait: #faebcc;
+    --lo-rubrique-fond: #fcf8e3;
+    --lo-rubrique-encre: #8a6d3b;
+}
