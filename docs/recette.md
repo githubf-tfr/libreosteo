@@ -4969,27 +4969,38 @@ hors du patron `.lo-rubrique`, non touchés par ce lot ; le formulaire d'éditio
 
 **Étapes**
 
-1. Ouvrir le dossier du patient E2, onglet **Consultations**, cliquer une consultation
-   clôturée pour afficher son détail. Fenêtre à **1 280 px de large**. Attendu, volet de
-   gauche : le panneau **Détail du motif de consultation / Contexte** (regroupant motif
-   et examen médical), puis **Diagnostic ostéopathique** et **Traitements**, en **titre
-   bleu plein** (`#428bca`, `.lo-rubrique--principale`) et corps blanc ; le
-   panneau **Conclusion** en **titre vert pâle** (`#dff0d8`, encre `#3c763d`,
-   `.lo-rubrique--succes`) et corps blanc. Volet de droite : **Note importante** en
-   **titre rouge pâle** (`#f2dede`, encre `#a94442`, `.lo-rubrique--alerte`) ; **Infos
-   patient** et les panneaux d'antécédents de la consultation en **titre bleu clair
-   pâle** (`#d9edf7`, encre `#31708f`, `.lo-rubrique--info`) ou **bleu plein**, selon la
-   rubrique — cf. la table de correspondance de la spec Lot A, M5. Dans chaque panneau,
-   le **corps reste blanc** et la **bordure de la carte porte la couleur du titre**.
-   Aucune barre de défilement horizontale.
-2. Ramener la fenêtre à **375 px de large**. Attendu : tous les panneaux s'empilent en
+1. Depuis l'état E2, sur le dossier du patient, onglet **Consultations** : E2 ne
+   renseigne aucune sphère, cette étape prépare donc une troisième séance qui en porte
+   une, ouverte, et clôturée — c'est elle que montre la capture de référence. Cliquer
+   **Démarrer une consultation**. Saisir `Motif R-VIS-19` dans le champ **Motif**, puis
+   `Examen normal R-VIS-19` dans le champ **Examen médical**. Dans la section
+   **Sphères** — visible et intégralement ouverte tant que la consultation est en
+   cours —, saisir `Note ORL R-VIS-19` dans le panneau **Sphère ORL** et n'en
+   renseigner aucune autre : c'est ce champ, seul rempli, qui restera seul ouvert une
+   fois la séance clôturée. Cliquer **Clôturer**, cocher **Facturée** (montant `55`
+   inchangé), cocher **Chèque**, puis **Valider**.
+2. Ouvrir le détail de cette consultation fraîchement clôturée, fenêtre à **1 280 px de
+   large**. Attendu, volet de gauche : le panneau **Détail du motif de consultation /
+   Contexte** (regroupant motif et examen médical), puis **Diagnostic ostéopathique** et
+   **Traitements**, en **titre bleu plein** (`#428bca`, `.lo-rubrique--principale`) et
+   corps blanc ; le panneau **Conclusion** en **titre vert pâle** (`#dff0d8`, encre
+   `#3c763d`, `.lo-rubrique--succes`) et corps blanc. Volet de droite : **Note
+   importante** en **titre rouge pâle** (`#f2dede`, encre `#a94442`,
+   `.lo-rubrique--alerte`) ; **Infos patient** et les panneaux d'antécédents de la
+   consultation en **titre bleu clair pâle** (`#d9edf7`, encre `#31708f`,
+   `.lo-rubrique--info`) ou **bleu plein**, selon la rubrique — cf. la table de
+   correspondance de la spec Lot A, M5. Dans chaque panneau, le **corps reste blanc** et
+   la **bordure de la carte porte la couleur du titre**. Aucune barre de défilement
+   horizontale.
+3. Ramener la fenêtre à **375 px de large**. Attendu : tous les panneaux s'empilent en
    pleine largeur, dans le même ordre, chacun gardant sa teinte de titre et son corps
    blanc. Aucune barre de défilement horizontale.
 
-**Ne couvre pas** : l'accordéon des sphères de consultation (`consultation-spheres.html`)
-quand `volet.section_spheres` est faux — capture prise sur une consultation qui en
-affiche au moins une, ouverte ; le formulaire d'édition (mêmes classes de couleur que la
-lecture).
+**Ne couvre pas** : la facturation elle-même (numéro de facture, montant, moyen de
+paiement — `R-FAC-*`), simple moyen ici d'obtenir une séance clôturée ; l'accordéon des
+sphères de consultation (`consultation-spheres.html`) quand `volet.section_spheres` est
+faux — capture prise sur une consultation qui en affiche au moins une, ouverte ; le
+formulaire d'édition (mêmes classes de couleur que la lecture).
 
 ## Chapitre 4 — Tests sans geste de recette
 
