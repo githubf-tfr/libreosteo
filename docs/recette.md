@@ -2734,8 +2734,11 @@ séances closes. **Une séance clôturée ne se supprime pas** — elle porte un
   native « modifications non enregistrées », que Playwright ne peut observer sans la
   neutraliser — ce qui déferait la preuve —, ni la course entre la frappe et la réponse
   asynchrone de l'enregistrement implicite au changement d'onglet, dont dépend le sort
-  d'une saisie non envoyée. Les étapes 2, 4 et 5 ci-dessous sont donc **manuelles par
-  nature**.
+  d'une saisie non envoyée. Les étapes 2, 3 et 5 ci-dessous sont donc **manuelles par
+  nature** : la 2 et la 5 pour la course (son issue n'est garantie dans aucun sens), la 3
+  pour la boîte native. L'étape 4, elle, est déterministe — aucune course, aucune boîte —
+  et c'est déjà l'essentiel de ce que couvre
+  `test_une_seance_ancienne_s_ouvre_pendant_une_seance_en_cours`.
 - **État requis** : E2. Fiche non destructive.
 
 **Ce que cette fiche garde.** Le produit peut désormais montrer une séance ancienne et une
@@ -2758,7 +2761,7 @@ dossier entier depuis la base.
    celui où l'on se trouve déjà, déclenche `quitterEdition()`
    (`partials/onglets.html:80-86`) — l'enregistrement implicite au changement d'onglet,
    dont deux tests de `test_patient.py` dépendent explicitement —, dès qu'une consultation
-   est ouverte (`edition` vaut déjà `'current-examination'`, `dossier-corps.html:127`).
+   est ouverte (`edition` vaut déjà `'current-examination'`, `dossier-corps.html:42`).
    Le `POST /examination/<id>/edit` que ce clic déclenche part avec la valeur d'**avant**
    la frappe ; sa réponse, une fois revenue, remplace le champ par le fragment de lecture
    — quoi qu'on ait tapé entre-temps. Aucune séance ancienne, aucune facture, aucune
