@@ -133,6 +133,12 @@ EXIGENCES: dict[str, dict[str, str]] = {
     # `#wrapper`, qui n'existe que dans 404.html : la forme non scopee deplacerait le
     # tableau de bord, qui partage la feuille (garde-fou dans test_pages_erreur.py).
     "(min-width:768px) | #wrapper #page-wrapper": {"margin-left": "250px"},
+    # Lot A, T2 (2026-09-20) : `.panel { margin-bottom: 20px }` de Bootstrap 3.2.0 n'a pas
+    # de contrepartie en Bootstrap 5 pour `.card` — les rubriques de la fiche patient, les
+    # trois tuiles et le panneau Evenements se touchent (points 3 et 7 de
+    # docs/retours-utilisateur.md). Une rustine en ligne compensait localement l'absence
+    # de cette regle (consultation.html:102) ; elle est retiree avec elle.
+    ".card": {"margin-bottom": "20px"},
 }
 
 _COMMENTAIRE = re.compile(r"/\*.*?\*/", re.S)
@@ -239,6 +245,7 @@ _CONFORME = """
           #page-wrapper { position: inherit; padding: 0 30px; }
           #wrapper #page-wrapper { margin-left: 250px; }
       }
+      .card { margin-bottom: 20px; }
 """
 
 

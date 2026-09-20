@@ -1,8 +1,7 @@
 {% load i18n %}
 {# Le volet de consultation, en **lecture** (D6e, T10). #}
 {# #}
-{# **Aucun ecran ne rend encore ce fragment** : `partials/examination.html` sert toujours, #}
-{# et c'est T12 qui branchera celui-ci. Il s'inclut par #}
+{# Ce fragment est rendu par `dossier-corps.html:108` via `volet_selectionne`. Il s'inclut par #}
 {# `{% include "pages/fragments/consultation.html" with volet=volet %}`, ou `volet` est le #}
 {# dictionnaire rendu par `pages.consultation.contexte_du_volet(...)`. Une variable et une #}
 {# seule, parce qu'un dossier peut rendre deux volets dans le meme document (l'onglet #}
@@ -99,7 +98,7 @@
     {% include "pages/fragments/consultation-spheres.html" with editable=False %}
     {% endif %}
 
-    <div class="row" style="padding-top:15px">
+    <div class="row">
       <div class="col-md-12">
         <div class="card text-bg-primary">
           <div class="card-header">{{ volet.champs.diagnosis.libelle }}</div>

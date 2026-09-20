@@ -4,7 +4,7 @@
 {# **La racine ne porte que ce champ**, jamais la liste des vignettes ni le bloc de #}
 {# televersement : c'est la cible de l'echange d'edition, et l'englober ferait detruire puis #}
 {# reconstruire la liste a chaque entree en edition. #}
-<div id="medicalreports-corps" class="mb-3">
+<div id="medicalreports-corps">
   <label>{{ comptes_rendus.champ.libelle }}</label>
   {% include "pages/fragments/texte-riche.html" with nom="medical_reports" valeur=comptes_rendus.champ.valeur libelle=comptes_rendus.champ.libelle editable=False %}
 </div>

@@ -17,8 +17,8 @@
 **Ce module est ecrit avant tout ecran qui le rend, et c'est delibere.** Migrer le dossier
 patient et son volet d'un seul coup porterait 785 lignes de gabarit et sept modales dans un
 commit illisible ; migrer le dossier **sans** son volet ferait disparaitre une fonction du
-produit pendant un commit, sur un ecran clinique. T12 branche les fragments ; jusque-la
-`partials/examination.html` sert toujours, et rien ici n'est rendu par un ecran.
+produit pendant un commit, sur un ecran clinique. T12 branche les fragments ; aujourd'hui,
+le volet est rendu par `dossier-corps.html` via `volet_selectionne` (D6f, T3).
 
 **Attention au nom** : `libreosteoweb/api/views/consultation.py` existe deja (le viewset
 DRF). Les deux coexistent parce qu'ils ne sont jamais importes par le meme chemin (A3).

@@ -606,3 +606,13 @@ ul li.documenttile  {
   line-height: 18px;
   vertical-align: baseline;
 }
+
+/* Lot A, T2 (2026-09-20) : contrepartie de `.panel { margin-bottom: 20px }`
+   (Bootstrap 3.2.0), sans equivalent en Bootstrap 5 pour `.card`. Couvre les rubriques
+   du dossier patient, les trois tuiles du tableau de bord et le panneau Evenements
+   (points 3 et 7 de docs/retours-utilisateur.md). Touche mecaniquement les vignettes de
+   document et la chronologie, elles aussi des `.card` : effet constate, pas vise
+   (spec Lot A, M6). */
+.card {
+    margin-bottom: 20px;
+}
