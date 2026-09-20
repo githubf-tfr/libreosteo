@@ -453,6 +453,50 @@ class TestOnglets(_SocleDuDossier):
                     "display: none", _attributs_de(html, 'id="panneau-%s"' % cle)
                 )
 
+    def test_ouvrir_une_seance_ancienne_active_le_detail(self) -> None:
+        """La decision utilisateur : un clic de chronologie mene au detail."""
+        with sans_receivers():
+            anterieure = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+            )
+        reponse = self.client.get(
+            reverse(
+                "dossier-patient-consultation",
+                args=[self.patient.pk, anterieure.pk],
+            )
+        )
+        self.assertEqual(reponse.context["onglet_actif"], "examination-detail")
+
+    def test_ouvrir_la_seance_en_cours_active_son_propre_onglet(self) -> None:
+        """Cas 5 : l'URL tapee a la main ne fabrique pas un detail en double."""
+        with sans_receivers():
+            en_cours = cree_consultation(self.patient, therapeut=self.praticien)
+        reponse = self.client.get(
+            reverse(
+                "dossier-patient-consultation",
+                args=[self.patient.pk, en_cours.pk],
+            )
+        )
+        self.assertEqual(reponse.context["onglet_actif"], "current-examination")
+
+    def test_le_corps_rafraichi_sans_rien_retombe_sur_la_chronologie(self) -> None:
+        """Le troisieme membre de la regle, et celui qui garde les URL inchangees."""
+        html = self.client.get(
+            reverse("dossier-corps", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertIn("actif = 'examinations'; edition = null", html)
+
+    def test_les_deux_urls_de_document_gardent_leur_onglet_impose(self) -> None:
+        """`/patient/<id>` et `/patient/<id>/examinations` ne suivent **pas** la regle."""
+        reponse = self.client.get(reverse("dossier-patient", args=[self.patient.pk]))
+        self.assertEqual(reponse.context["onglet_actif"], "general")
+        reponse = self.client.get(
+            reverse("dossier-patient-consultations", args=[self.patient.pk])
+        )
+        self.assertEqual(reponse.context["onglet_actif"], "examinations")
+
 
 class TestTitre(_SocleDuDossier):
     """Le titre, ses deux cellules et l'acquis de D8."""
@@ -651,7 +695,7 @@ class TestVueDeLIdentite(_SocleDuDossier):
         ).content.decode("utf-8")
         nu = 'id="medecin-traitant-%d"' % self.patient.pk
         self.assertNotIn(nu, html)
-        for prefixe in ("general-", "examinations-", "current-examination-"):
+        for prefixe in ("general-", "examination-detail-", "current-examination-"):
             with self.subTest(prefixe=prefixe):
                 self.assertEqual(
                     html.count(
@@ -911,11 +955,18 @@ class TestSuppressionRgpd(_SocleDuDossier):
         self.assertIn(reverse("dossier-suppression", args=[self.patient.pk]), html)
 
 
-# Les trois seuls onglets ou une action « Supprimer » existe (C2). « Historique » et
-# « Comptes rendus » n'en ont jamais porte : `loEditFormManager.action_available('delete')`
-# ne retenait que l'action du formulaire **visible**, et ces deux panneaux n'en declaraient
+# Les seuls onglets ou une action « Supprimer » existe (C2). « Historique » et « Comptes
+# rendus » n'en ont jamais porte : `loEditFormManager.action_available('delete')` ne
+# retenait que l'action du formulaire **visible**, et ces deux panneaux n'en declaraient
 # aucune.
-ONGLETS_AVEC_SUPPRESSION = {"general", "examinations", "current-examination"}
+#
+# **Lot B retire « Consultations » de cette liste sans rien lui substituer, et c'est
+# mesure.** Le bouton de la seance selectionnee n'etait rendu que sur un statut 0 ; le
+# produit n'ouvrant qu'une seance a la fois, une seance selectionnee de statut 0 **est** la
+# seance en cours, a qui le §2.4 retire son onglet de detail. Le borner a
+# `examination-detail` en ferait un bouton borne a un onglet jamais construit dans l'etat
+# qui le rend — du code mort, et un doublon du bouton voisin.
+ONGLETS_AVEC_SUPPRESSION = {"general", "current-examination"}
 
 
 def _condition_alpine(balise: str) -> str:
@@ -965,7 +1016,7 @@ class TestSuppressionDeConsultation(_SocleDuDossier):
         bouton = _attributs_de(self._document(), 'hx-get="%s"' % self.url_seance)
         self.assertEqual(_condition_alpine(bouton), "actif === 'current-examination'")
 
-    def test_chaque_bouton_de_suppression_est_borne_a_un_onglet(self) -> None:
+    def test_chaque_bouton_de_suppression_est_borne_a_un_onglet_construit(self) -> None:
         """**Ce que la revue a mesure** : le bouton par defaut supprimait le *patient* sur
         les quatre onglets, « Historique » et « Comptes rendus » compris, ou l'ecran d'avant
         n'en affichait aucun.
@@ -975,6 +1026,11 @@ class TestSuppressionDeConsultation(_SocleDuDossier):
         sur le document ouvert **sur la seance en cours**, seul etat ou les trois boutons
         coexistent — une premiere ecriture regardait `/patient/<id>`, ou le bouton de
         l'onglet « Consultations » n'est pas rendu, et la falsification l'a trouvee creuse.
+
+        **Lot B renforce la preuve au lieu de la deplacer.** Compter trois boutons ne veut
+        plus rien dire : ce qui compte, c'est qu'aucun bouton ne soit borne a un onglet que
+        la barre ne porte pas. Un tel bouton serait invisible pour toujours, et le defaut
+        passerait inapercu — c'est exactement ce que le §2.4 rendait possible.
         """
         html = self._document(
             "dossier-patient-consultation", self.patient.pk, self.seance.pk
@@ -982,7 +1038,7 @@ class TestSuppressionDeConsultation(_SocleDuDossier):
         boutons = _balises_avec(html, 'hx-get="%s"' % self.url_dossier) + _balises_avec(
             html, 'hx-get="%s"' % self.url_seance
         )
-        self.assertEqual(len(boutons), 3, boutons)
+        self.assertEqual(len(boutons), 2, boutons)
         onglets = set()
         for bouton in boutons:
             condition = _condition_alpine(bouton)
@@ -991,6 +1047,12 @@ class TestSuppressionDeConsultation(_SocleDuDossier):
             assert trouve is not None
             onglets.add(trouve.group(1))
         self.assertEqual(onglets, ONGLETS_AVEC_SUPPRESSION)
+        # L'invariant, et il vaut pour tout etat : chaque onglet borne est un onglet que la
+        # barre porte. Sans lui, un bouton borne a `examination-detail` serait vert
+        # ci-dessus et invisible a l'ecran.
+        for cle in onglets:
+            with self.subTest(onglet=cle):
+                self.assertIn('id="%s"' % cle, html)
 
     def test_le_bouton_de_l_onglet_ouvert_n_est_pas_masque_par_le_serveur(self) -> None:
         """Regle 1 du lot : l'attribut pose par le serveur et l'etat initial d'Alpine disent
@@ -1289,11 +1351,11 @@ class TestConsultations(_SocleDuDossier):
         self.assertNotIn(page_documents.url_de_seance(self.patient, en_cours), html)
         self.assertIn(page_documents.url_de_seance(self.patient, anterieure), html)
 
-    def test_le_volet_selectionne_est_rendu_sous_la_chronologie(self) -> None:
-        """Ecart assume : AngularJS remplacait la chronologie par le volet, ce qui privait
-        l'ecran de `#new-examination-btn` juste apres une cloture.
+    def test_le_detail_quitte_le_panneau_de_la_chronologie(self) -> None:
+        """Lot B : « Consultations » ne garde que la chronologie et son bouton.
 
-        Ce que ce test regarde : que les deux coexistent dans l'onglet « Consultations ».
+        Ce que ce test regarde : que le volet soit rendu dans **son** panneau et que celui
+        de la chronologie n'en porte plus. Ce qu'il laisse passer : ce qu'Alpine affiche.
         """
         with sans_receivers():
             consultation = cree_consultation(
@@ -1308,7 +1370,68 @@ class TestConsultations(_SocleDuDossier):
             )
         ).content.decode("utf-8")
         self.assertIn('id="new-examination-btn"', html)
-        self.assertIn('data-testid="consultation-anterieure"', html)
+        self.assertIn('id="panneau-examination-detail"', html)
+        self.assertIn('id="examination-detail-volet"', html)
+        debut = html.index('id="panneau-examinations"')
+        fin = html.index('id="panneau-examination-detail"')
+        self.assertNotIn('data-testid="consultation-anterieure"', html[debut:fin])
+
+    def test_sans_selection_aucun_onglet_de_detail_n_est_construit(self) -> None:
+        """Cas 2 : des seances anciennes, rien de clique, pas de sixieme onglet."""
+        with sans_receivers():
+            cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+            )
+        html = self.client.get(
+            reverse("dossier-patient-consultations", args=[self.patient.pk])
+        ).content.decode("utf-8")
+        self.assertNotIn('id="examination-detail"', html)
+        self.assertNotIn('id="panneau-examination-detail"', html)
+
+    def test_la_seance_en_cours_selectionnee_n_ouvre_aucun_detail(self) -> None:
+        """Cas 5, et c'est le §2.4 de la spec.
+
+        Le repli d'`url_corps` fait de `selectionnee` la seance en cours des qu'aucune
+        autre n'est choisie. Sans cette borne, le dossier rendrait la meme seance deux
+        fois — en lecture sous « Detail », en edition sous « Consultation en cours » —,
+        donc deux `#close-examination` et deux `#examinationDate` : le doublon exact que
+        `exclue_de_la_liste` a deja ferme cote chronologie.
+        """
+        with sans_receivers():
+            en_cours = cree_consultation(self.patient, therapeut=self.praticien)
+        html = self.client.get(
+            reverse(
+                "dossier-patient-consultation",
+                args=[self.patient.pk, en_cours.pk],
+            )
+        ).content.decode("utf-8")
+        self.assertNotIn('id="panneau-examination-detail"', html)
+        self.assertEqual(html.count('id="close-examination"'), 1)
+
+    def test_six_onglets_quand_une_ancienne_est_ouverte_pendant_une_seance(
+        self,
+    ) -> None:
+        """Cas 4 : la barre porte les six entrees, et les deux volets coexistent."""
+        with sans_receivers():
+            cree_consultation(self.patient, therapeut=self.praticien)
+            anterieure = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=models.ExaminationStatus.NOT_INVOICED,
+                date=timezone.now() - timedelta(days=10),
+            )
+        html = self.client.get(
+            reverse(
+                "dossier-patient-consultation",
+                args=[self.patient.pk, anterieure.pk],
+            )
+        ).content.decode("utf-8")
+        for cle in ("examinations", "current-examination", "examination-detail"):
+            with self.subTest(onglet=cle):
+                self.assertIn('id="%s"' % cle, html)
+                self.assertIn('id="panneau-%s"' % cle, html)
 
 
 class TestAnnulationDeFacture(_SocleDuDossier):
@@ -1814,7 +1937,14 @@ class TestCorpsRafraichi(_SocleDuDossier):
         « Fin d'edition » alors que le volet en cours reste affiche **en edition** juste en
         dessous, dans le meme document. `consultation_en_cours` est la seule clef que
         `contexte_du_dossier` pose partout ; c'est elle qui doit gouverner `edition` ici
-        comme au premier rendu (`dossier-patient.html:69`)."""
+        comme au premier rendu (`dossier-patient.html:69`).
+
+        **Lot B change l'onglet attendu, et c'est un progres.** Le corps reposait
+        `actif = 'examinations'` en dur : un rafraichissement quelconque — une facturation,
+        une regularisation — deplacait le praticien **hors** de sa seance ouverte, vers la
+        chronologie, alors que son volet reste rendu en edition juste a cote. La regle
+        serveur le laisse ou il est.
+        """
         with sans_receivers():
             cree_consultation(self.patient, therapeut=self.praticien)
         html = self.client.get(
@@ -1824,7 +1954,9 @@ class TestCorpsRafraichi(_SocleDuDossier):
         # bloc de bascule, pas une sous-chaine prise n'importe ou dans le document -- le
         # bouton « Fin d'edition » du bandeau porte lui aussi, sans rapport, un
         # `edition = null` litteral dans son `@click`.
-        self.assertIn("actif = 'examinations'; edition = 'current-examination'", html)
+        self.assertIn(
+            "actif = 'current-examination'; edition = 'current-examination'", html
+        )
 
     def test_le_corps_rouvre_le_volet_de_la_seance_demandee(self) -> None:
         """C'est ce qui fait qu'apres une cloture, le volet de la seance qu'on vient de
@@ -1840,7 +1972,7 @@ class TestCorpsRafraichi(_SocleDuDossier):
             reverse("dossier-corps", args=[self.patient.pk]),
             {"consultation": consultation.pk},
         ).content.decode("utf-8")
-        self.assertIn('id="examinations-volet"', html)
+        self.assertIn('id="examination-detail-volet"', html)
 
     def test_l_url_de_rafraichissement_porte_la_consultation_en_cours(self) -> None:
         """Sans ce parametre, la cloture rafraichirait un corps qui ne sait plus de quelle
@@ -1891,7 +2023,7 @@ class TestDeuxVoletsDansLeMemeDocument(_SocleDuDossier):
         portent **deux** prefixes. Ce qu'il laisserait passer : ce qu'htmx fait de la
         reponse dans un vrai DOM."""
         html = self._dossier_a_deux_volets()
-        for cle in ("examinations", "current-examination"):
+        for cle in ("examination-detail", "current-examination"):
             with self.subTest(panneau=cle):
                 panneau = _attributs_de(html, 'id="panneau-%s"' % cle)
                 self.assertIn("?prefixe=%s" % cle, panneau)
@@ -1900,7 +2032,7 @@ class TestDeuxVoletsDansLeMemeDocument(_SocleDuDossier):
 
     def test_les_deux_volets_portent_des_racines_distinctes(self) -> None:
         html = self._dossier_a_deux_volets()
-        self.assertEqual(html.count('id="examinations-volet"'), 1)
+        self.assertEqual(html.count('id="examination-detail-volet"'), 1)
         self.assertEqual(html.count('id="current-examination-volet"'), 1)
 
 

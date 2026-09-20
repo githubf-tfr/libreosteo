@@ -1,5 +1,5 @@
 {% load i18n %}
-{# Le corps rafraichissable du dossier : la barre d'onglets **et** les cinq panneaux. #}
+{# Le corps rafraichissable du dossier : la barre d'onglets **et** les six panneaux. #}
 {# #}
 {# **Pourquoi les onglets et les panneaux sont une seule autorite.** Une cloture, une #}
 {# facturation ou une regularisation change le **statut** d'une seance, donc quatre surfaces #}
@@ -45,7 +45,8 @@
   <div class="tab-content">
     {# **Les identifiants d'onglet du filet sont sur la barre, pas ici** : `uib-tab` posait #}
     {# `id` sur le `<li>`, et c'est ce `<li>` que quatre sites du filet cliquent. Les #}
-    {# panneaux portent donc `#panneau-<cle>`. #}
+    {# panneaux portent donc `#panneau-<cle>`. `#panneau-examinations` reste l'ancre du #}
+    {# filet et ne porte plus que la chronologie. #}
     {# **Pas de classe `tab-pane`** : son `display:none` vient d'une feuille de style, #}
     {# qu'Alpine ne sait que *retirer* et non reecrire (legs n° 1 de D6c, `dfb2473`). Les #}
     {# quatre panneaux non initiaux portent donc `style="display: none"` en ligne, pose par #}
@@ -96,16 +97,14 @@
     </div>
 
     <div id="panneau-examinations"
-         x-show="actif === 'examinations'"{% if onglet_actif != 'examinations' %} style="display: none"{% endif %}
-         {% if volet_selectionne %}hx-get="{{ volet_selectionne.url_edition }}?prefixe=examinations"
-         hx-trigger="dossier-editer-examinations from:body"
-         hx-target="#examinations-volet" hx-swap="outerHTML"{% endif %}>
+         x-show="actif === 'examinations'"{% if onglet_actif != 'examinations' %} style="display: none"{% endif %}>
       {# **Ecart assume : la chronologie ne disparait plus quand un volet est ouvert.** #}
       {# AngularJS la remplacait (`ng-if="previousExamination.data == null"`), ce qui privait #}
       {# l'ecran de `#new-examination-btn` juste apres une cloture — d'ou le geste #}
       {# « fermer le volet » que trois tests devaient jouer pour redemarrer une consultation. #}
       {# Les deux coexistent desormais ; le bouton de fermeture reste, et reste un vrai lien. #}
-      {% if volet_selectionne %}{% include "pages/fragments/consultation.html" with volet=volet_selectionne %}{% endif %}
+      {# Lot B : le volet a quitte ce panneau pour le sien ; ce que D6e protegeait — #}
+      {# `#new-examination-btn` toujours atteignable — est desormais structurel. #}
       {% include "pages/fragments/chronologie.html" with patient=chronologie.patient consultations=chronologie.consultations consultation_en_cours=chronologie.consultation_en_cours url_nouvelle_consultation=chronologie.url_nouvelle_consultation cible_nouvelle_consultation=chronologie.cible_nouvelle_consultation preserver=True %}
     </div>
 
@@ -125,6 +124,22 @@
          hx-trigger="dossier-editer-current-examination from:body"
          hx-target="#current-examination-volet" hx-swap="outerHTML">
       {% include "pages/fragments/consultation-edition.html" with volet=volet_en_cours %}
+    </div>
+    {% endif %}
+
+    {# **Le jumeau du `{% if %}` de la barre d'onglets, comme pour `#panneau-current- #}
+    {# examination` (A21) : sans lui, l'onglet pointerait vers un panneau absent. Ici, #}
+    {# c'est aussi le jumeau de la borne du §2.4 : pas d'entree d'onglet quand la selection #}
+    {# est la seance en cours, sans quoi le repli d'`url_corps` ferait apparaitre deux #}
+    {# `#close-examination` pour une seule seance — le doublon exact que #}
+    {# `exclue_de_la_liste` (`documents.py:206`) a deja ferme cote chronologie. #}
+    {% if volet_selectionne %}
+    <div id="panneau-examination-detail"
+         x-show="actif === 'examination-detail'"{% if onglet_actif != 'examination-detail' %} style="display: none"{% endif %}
+         hx-get="{{ volet_selectionne.url_edition }}?prefixe=examination-detail"
+         hx-trigger="dossier-editer-examination-detail from:body"
+         hx-target="#examination-detail-volet" hx-swap="outerHTML">
+      {% include "pages/fragments/consultation.html" with volet=volet_selectionne %}
     </div>
     {% endif %}
   </div>

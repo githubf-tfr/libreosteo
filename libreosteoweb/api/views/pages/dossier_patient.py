@@ -534,10 +534,28 @@ def _consultation_choisie(
     return get_object_or_404(models.Examination, pk=identifiant, patient=patient)
 
 
+def onglet_du_dossier(
+    selectionnee: models.Examination | None,
+    en_cours: models.Examination | None,
+) -> str:
+    """L'onglet qu'ouvre un rendu ou l'appelant n'impose rien (Lot B, §2.3).
+
+    Trois chemins la traversent et chacun donne ce qu'on attend : un clic de chronologie
+    mene au detail ; une cloture ramene sur la seance qu'on vient de fermer, parce qu'elle
+    voyage sur `url_corps` ; un rafraichissement pendant une seance ouverte laisse le
+    praticien dans sa seance, la ou le `"examinations"` en dur l'en sortait.
+    """
+    if selectionnee is not None and selectionnee != en_cours:
+        return ONGLET_DETAIL[0]
+    if en_cours is not None:
+        return ONGLET_CONSULTATION_EN_COURS[0]
+    return "examinations"
+
+
 def contexte_du_dossier(
     request: HttpRequest,
     patient: models.Patient,
-    onglet_actif: str = "general",
+    onglet_actif: str | None = None,
     consultation: models.Examination | None = None,
     bascule: bool = False,
 ) -> dict[str, Any]:
@@ -546,6 +564,9 @@ def contexte_du_dossier(
     `bascule` distingue un **rafraichissement** d'un premier rendu : le corps rafraichi
     repose l'onglet actif et coupe le mode edition, parce qu'une mutation de consultation
     change la barre d'onglets sous les pieds d'Alpine (regle 1, C8).
+
+    `onglet_actif=None` delegue le choix a `onglet_du_dossier` (§2.3) : c'est le cas des
+    appelants qui n'imposent rien, par opposition aux quatre routes qui figent leur onglet.
     """
     en_cours = _consultation_en_cours(patient)
     selectionnee = consultation
@@ -554,9 +575,19 @@ def contexte_du_dossier(
         url_corps += "?consultation=%d" % selectionnee.pk
     elif en_cours is not None:
         url_corps += "?consultation=%d" % en_cours.pk
+    # **§2.4 — pas de detail quand la selection *est* la seance en cours.** Le repli
+    # `elif en_cours` d'`url_corps` ci-dessus fait de `selectionnee` la seance ouverte des
+    # qu'aucune autre n'est choisie : c'est lui qui fait survivre le volet a une cloture, et
+    # il **reste**. Seul le rendu du detail est borne — sans quoi le dossier montrerait la
+    # meme seance deux fois, en lecture sous « Detail » et en edition sous « Consultation en
+    # cours », donc deux `#close-examination` pour une seule seance. C'est le doublon que
+    # `exclue_de_la_liste` (`documents.py:206`) a deja ferme cote chronologie.
+    detail = selectionnee is not None and selectionnee != en_cours
+    if onglet_actif is None:
+        onglet_actif = onglet_du_dossier(selectionnee, en_cours)
     return {
         "patient": patient,
-        "onglets": onglets_du_dossier(en_cours is not None),
+        "onglets": onglets_du_dossier(en_cours is not None, detail),
         "onglet_actif": onglet_actif,
         "bascule": bascule,
         "consultation_en_cours": en_cours,
@@ -566,9 +597,9 @@ def contexte_du_dossier(
         if en_cours is not None
         else None,
         "volet_selectionne": _volet(
-            request, selectionnee, patient, "examinations", False
+            request, selectionnee, patient, ONGLET_DETAIL[0], False
         )
-        if selectionnee is not None
+        if detail and selectionnee is not None
         else None,
         "titre": contexte_titre(patient),
         "identite": contexte_identite(patient, request),
@@ -597,10 +628,19 @@ def contexte_du_dossier(
         # **Les deux suppressions de seance**, chacune bornee a son onglet (C2). La seance
         # en cours est en statut 0 par construction (`_consultation_en_cours` le filtre) ;
         # la seance regardee sous « Consultations » ne l'est que si son statut le dit.
+        #
+        # **Mesure faite (Lot B) : le bouton du detail est du code mort.** Le troisieme
+        # bouton n'etait rendu que si `selectionnee.status == IN_PROGRESS` ; le produit
+        # n'ouvrant qu'une seance a la fois (`nouvelle_consultation` rend 409), une seance
+        # selectionnee de statut 0 **est** la seance en cours, a qui le §2.4 retire son
+        # onglet de detail. On borne donc `url_suppression_selectionnee` a l'existence du
+        # detail, exactement comme `volet_selectionne` : sans cette borne, le bouton serait
+        # borne a un onglet que la vue ne construit jamais dans l'etat qui le rend.
         "url_suppression_selectionnee": reverse(
             "consultation-suppression", args=[selectionnee.pk]
         )
-        if selectionnee is not None
+        if detail
+        and selectionnee is not None
         and selectionnee.status == models.ExaminationStatus.IN_PROGRESS
         else "",
         "url_suppression_en_cours": reverse(
@@ -636,7 +676,7 @@ def _corps_et_bandeau(
 def _document(
     request: HttpRequest,
     patient: models.Patient,
-    onglet_actif: str,
+    onglet_actif: str | None,
     consultation: models.Examination | None = None,
 ) -> HttpResponse:
     return render(
@@ -659,12 +699,16 @@ def page_dossier_consultations(request: HttpRequest, identifiant: str) -> HttpRe
 def page_dossier_consultation(
     request: HttpRequest, identifiant: str, consultation: str
 ) -> HttpResponse:
-    """`/patient/<id>/examination/<idc>` : le meme document, un volet ouvert."""
+    """`/patient/<id>/examination/<idc>` : le meme document, un volet ouvert.
+
+    L'onglet suit la regle (§2.3) et non plus « Consultations » en dur : ouvrir une seance
+    ancienne ouvre son detail, ouvrir la seance en cours ouvre son propre onglet.
+    """
     patient = _patient(identifiant)
     return _document(
         request,
         patient,
-        "examinations",
+        None,
         _consultation_choisie(patient, consultation),
     )
 
@@ -681,15 +725,16 @@ def corps_du_dossier(request: HttpRequest, identifiant: str) -> HttpResponse:
     L'identifiant de la consultation regardee voyage sur l'URL, posee **au rendu precedent**
     par `contexte_du_dossier` : c'est ce qui fait qu'apres une cloture, le volet de la
     consultation qu'on vient de fermer reste affiche, comme `reloadExaminations` le faisait.
+
+    L'onglet n'est plus `examinations` en dur mais suit la regle (§2.3) : un
+    rafraichissement ne deplace plus le praticien hors de sa seance ouverte.
     """
     patient = _patient(identifiant)
     consultation = _consultation_choisie(patient, request.GET.get("consultation"))
     return HttpResponse(
         _corps_et_bandeau(
             request,
-            contexte_du_dossier(
-                request, patient, "examinations", consultation, bascule=True
-            ),
+            contexte_du_dossier(request, patient, None, consultation, bascule=True),
         )
     )
 

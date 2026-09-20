@@ -57,7 +57,7 @@
             hx-get="{% url 'dossier-suppression' patient.id %}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-trash"></i> {% trans 'Delete' %}</button>
     {% endif %}
     {% if url_suppression_selectionnee %}
-    <button type="button" class="btn btn-danger btn-sm" x-show="actif === 'examinations'"{% if onglet_actif != 'examinations' %} style="display: none"{% endif %}
+    <button type="button" class="btn btn-danger btn-sm" x-show="actif === 'examination-detail'"{% if onglet_actif != 'examination-detail' %} style="display: none"{% endif %}
             hx-get="{{ url_suppression_selectionnee }}" hx-target="#modale" hx-swap="innerHTML"><i class="fa fa-trash"></i> {% trans 'Delete' %}</button>
     {% endif %}
     {% if url_suppression_en_cours %}
