@@ -397,17 +397,18 @@ Tenu à la main.
 
 ## À faire
 
-> ⚠️ **P0 — la reprise du parc de production passe devant tout le reste** (décidé le
-> 2026-09-20 par l'utilisateur, `fc09c95`, puis confirmé le même jour une fois les lots A et
-> B cadrés — § « Premier retour d'usage » ci-dessous). **Les deux lots du jour sont clos**
-> (cf. « Terminé ») ; **tout ce qui suit attend**, y compris le lot correctif et la recette
-> visuelle de D6g, tant que la migration n'est pas faite. Une exception, et une seule : **un
-> défaut qui mettrait la reprise en danger** remonte au P0 avec elle.
+> ✅ **P0 levé (2026-09-23) — la reprise du parc de production est faite.** Diagnostic
+> `outils/diagnostic_archive.py` exécuté par l'utilisateur sur son archive, **sans point
+> bloquant** (code de sortie 0, `0057`/`0058`/`0060` non déclenchés). Restauration jouée,
+> **passe de recette post-migration faite** par l'utilisateur (écrans installation et
+> facturation). Détail : « Terminé », 2026-09-23. **Le lot correctif et la recette visuelle
+> de D6g ne sont plus bloqués.**
 >
-> **Le chemin critique passe par l'utilisateur** : l'export neuf de la production, puis
-> `python3 outils/diagnostic_archive.py <archive>` **exécuté par lui, sur sa machine** — la
-> donnée de santé ne transite ni par la session ni par ses sous-agents. Rien d'autre ne
-> débloque l'étape 3.
+> ⚠️ **Un point du chemin critique n'a pas été vérifié, décision assumée de l'utilisateur** :
+> l'agrégat « consultations dont la raison de non-facturation reprend le motif clinique »
+> (D9, correctif `d1123e5`) n'a pas été calculé sur l'archive. L'utilisateur considère le
+> risque couvert sans ce chiffre — **pas une omission, un choix explicite** (2026-09-23) :
+> ne pas rouvrir sans qu'il le demande.
 >
 > **Ce qui est prêt côté dépôt, vérifié le 2026-09-20** : l'image se construit et tourne
 > **dans cette sandbox**, déploiement `Docker/deploy/pg/` monté, restauration jouée de bout
@@ -509,13 +510,18 @@ Le bandeau P0 ci-dessus est à jour de cet arbitrage.
 **État exact à la reprise** : lot A **clos** (quatorze commits, `bb75142`..`a8e1ae2`) ; lot B
 **clos** (six commits, `ad9770b`..`3567a9f`) ; aucune instance en vie.
 
-### Reprise du parc de production sur le fork (décidé le 2026-09-18, à faire)
+### Reprise du parc de production sur le fork (décidé le 2026-09-18, **faite le 2026-09-23**)
 
-L'utilisateur migrera sa production — version **antérieure au fork** — vers une instance
-bâtie sur le fork. L'exercice a **déjà été mené une fois** (cf. « Terminé », 2026-09-07 et
-2026-09-08) mais il est **à refaire intégralement** : l'instance de recette et l'archive de
-production qui l'alimentait ont été détruites en fin de session le 2026-09-08, et le parc a
-vécu depuis.
+✅ **Faite.** Export, diagnostic (sans point bloquant), restauration et passe de recette
+menés par l'utilisateur — détail « Terminé », 2026-09-23. Section conservée pour référence
+(risques de migration, invariants). **Point non vérifié, assumé par l'utilisateur** :
+l'agrégat D9 « raison de non-facturation = motif clinique » (cf. bandeau P0 ci-dessus).
+
+L'utilisateur a migré sa production — version **antérieure au fork** — vers une instance
+bâtie sur le fork. L'exercice avait **déjà été mené une fois** (cf. « Terminé », 2026-09-07 et
+2026-09-08) mais avait dû être refait intégralement : l'instance de recette et l'archive de
+production qui l'alimentait avaient été détruites en fin de session le 2026-09-08, et le parc
+avait vécu depuis.
 
 **Ce qui est acquis de la première passe, et reste vrai :**
 
@@ -1265,6 +1271,17 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-23 — Reprise du parc de production sur le fork, faite** (cf. « Reprise du
+  parc de production sur le fork » ci-dessus, décidée le 2026-09-18, P0 depuis le
+  2026-09-20). Export neuf de la production, diagnostic `outils/diagnostic_archive.py`
+  exécuté par l'utilisateur sur sa machine (code de sortie **0**, aucun point bloquant —
+  `0057`/`0058`/`0060` non déclenchés), restauration sur instance conteneur, **passe de
+  recette faite** par l'utilisateur sur les écrans installation et facturation.
+  ⚠️ **Point assumé, non vérifié** : l'agrégat « consultations dont la raison de
+  non-facturation reprend le motif clinique » (D9, `d1123e5`) n'a pas été calculé sur
+  l'archive réelle — l'utilisateur a choisi de ne pas le vérifier, décision explicite, pas
+  une omission. Ne pas rouvrir sans demande de l'utilisateur.
 
 - **2026-09-20 — Lot B clos : le détail d'une consultation ancienne devient un sixième
   onglet, l'onglet actif est décidé par le serveur** (plan à sept tâches, six commits,
