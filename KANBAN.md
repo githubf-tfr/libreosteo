@@ -416,6 +416,24 @@ Tenu à la main.
 > faux* : huit instructions restent non prouvées, sur du code de verrouillage dont la
 > défaillance serait une corruption concurrente.
 >
+> ⚠️ **Six défauts trouvés par les deux audits de la nuit, dont deux sur des routes
+> d'API.** Aucun n'était connu avant. Par ordre d'enjeu :
+>
+> - **`POST /api/file-import/<pk>/integrate/` rend 500 sur un dépôt refusé**, là où la vue
+>   de page rend 409 pour le même refus. Trouvé dans `file_integrator.py` — **365
+>   instructions dont 47 non couvertes, et jamais auditées** : c'est le plus gros trou du
+>   dépôt, plus gros qu'`installation.py`, et l'extrait de couverture qui avait servi au
+>   premier audit ne le listait pas.
+> - **`POST /install/` lève une `AttributeError`, soit 500 sur une route non
+>   authentifiée.** Fermé par une suppression : rien ne poste vers `/install/`, le gabarit
+>   n'a aucun `<form>`.
+> - **Deux `save()` doublés** — `TherapeutSettingsViewSet.perform_update` et le chemin des
+>   consultations enregistrent deux fois faute d'un `return`, donc doublent le `post_save`
+>   et l'indexation.
+> - **Les événements `clazz="OfficeSettings"` rendent `<a href="">`** au tableau de bord :
+>   un lien actif, sans libellé, qui ne mène nulle part.
+> - Le geste mort du middleware, arbitré ci-dessous.
+>
 > **Ruling — le geste mort de la branche `web-view` du middleware est corrigé.** `middleware.py:165`
 > pose `request.path = ""`, jumeau exact de celui que `bde1f53` a retiré pour `logout`, et qui
 > redirige vers un `?next=` vide. Ce journal le marquait « décision explicite, hors périmètre,
