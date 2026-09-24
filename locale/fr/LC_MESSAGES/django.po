@@ -1146,6 +1146,20 @@ msgstr "Recherche de"
 msgid "No results found"
 msgstr "Aucun résultat trouvé"
 
+msgid ""
+"The search index is empty: searching will find nothing until it has been "
+"rebuilt. This is what a database restore leaves behind."
+msgstr ""
+"L'index de recherche est vide : la recherche ne trouvera rien tant qu'il n'aura "
+"pas été reconstruit. C'est ce qu'une restauration de la base laisse derrière elle."
+
+msgid ""
+"Ask an administrator of this instance to run the « Rebuild index » entry of the "
+"user menu."
+msgstr ""
+"Demandez à un administrateur de cette instance de lancer l'entrée « Réindexer » "
+"du menu utilisateur."
+
 msgid "Previous"
 msgstr "Précédent"
 

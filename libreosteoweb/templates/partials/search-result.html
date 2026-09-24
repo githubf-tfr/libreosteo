@@ -11,7 +11,23 @@
                 <p class="extract"><span>{% highlight result.text with query max_length 80 %}</span></p>
                 </div>
             {% empty %}
+                {# Deux situations distinctes, deux surfaces (lot correctif, C2). Avant ce #}
+                {# lot, la branche `{% empty %}` etait unique : un index vide et un terme #}
+                {# absent rendaient la meme phrase, et l'exploitant qui venait de restaurer #}
+                {# croyait sa base perdue. Le lien n'est pose que pour qui peut le suivre : #}
+                {# `RebuildIndex` porte `StaffRequiredMixin`. #}
+                {% if index_vide %}
+                <div class="card card-body" data-testid="index-vide">
+                    <p>{% trans 'The search index is empty: searching will find nothing until it has been rebuilt. This is what a database restore leaves behind.' %}</p>
+                    {% if request.user.is_staff %}
+                    <p><a href="{% url 'reindexation' %}">{% trans 'Rebuild index' %}</a></p>
+                    {% else %}
+                    <p>{% trans 'Ask an administrator of this instance to run the « Rebuild index » entry of the user menu.' %}</p>
+                    {% endif %}
+                </div>
+                {% else %}
                 <p>{% trans 'No results found' %}.</p>
+                {% endif %}
             {% endfor %}
 
             {% if page.has_previous or page.has_next %}

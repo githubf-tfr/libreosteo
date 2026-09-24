@@ -27,6 +27,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.cache import never_cache
 from haystack.query import EmptySearchQuerySet, SearchQuerySet
+from haystack.utils import get_model_ct
 from rest_framework import pagination, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ParseError, PermissionDenied
@@ -57,6 +58,32 @@ logger = logging.getLogger(__name__)
 
 
 RESULTATS_DE_RECHERCHE_PAR_PAGE = 10
+
+
+def _index_vide_alors_que_la_base_porte_des_patients(requete: str, page) -> bool:
+    """Trois conditions, dans cet ordre, et l'ordre est le cout.
+
+    L'arbitrage mecanique A4 du cadrage : le compte de documents de l'index n'est fait que
+    sur le chemin « zero resultat ». Une recherche qui aboutit ne doit rien payer pour un
+    etat qui ne la concerne pas, et une recherche sans terme ne rend rien du tout.
+
+    Ecart mesure au brief : `SearchQuerySet().count()` sans requete construit "*" comme
+    requete de secours (`SearchQuery.build_query`, haystack/backends/__init__.py). Sous ce
+    depot (backend Whoosh + `WildcardPlugin`), un "*" seul se reecrit en prefixe vide
+    (`Prefix("")`), et `QueryParser.term_query` rend `None` pour un texte vide -- soit une
+    requete qui ne trouve jamais rien, meme un index plein. Mesure a l'execution
+    (`_backend.parser.parse("*")` rend `_NullQuery`) : `count()` sans filtre reel renvoie
+    toujours 0 sur cette pile, et ne peut donc pas distinguer les deux etats. Le contournement
+    tenu par la mesure : une requete de champ reelle (`django_ct:<model>`), qui ne passe pas
+    par le plugin joker et compte les documents Patient de l'index, sans toucher au contenu
+    indexe -- c'est la meme requete que `.models()` verifie deja en interne pour narrower le
+    resultat (`WhooshSearchBackend.search`), simplement rendue mesurable ici.
+    """
+    if not requete or page.object_list:
+        return False
+    if SearchQuerySet().raw_search(f"django_ct:{get_model_ct(models.Patient)}").count():
+        return False
+    return models.Patient.objects.exists()
 
 
 def recherche(request):
@@ -96,7 +123,14 @@ def recherche(request):
     return render(
         request,
         gabarit,
-        {"query": requete, "page": page, "paginator": paginateur},
+        {
+            "query": requete,
+            "page": page,
+            "paginator": paginateur,
+            "index_vide": _index_vide_alors_que_la_base_porte_des_patients(
+                requete, page
+            ),
+        },
     )
 
 

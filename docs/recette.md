@@ -3687,7 +3687,10 @@ déjà les migrations et vide la base. Cette fiche est ce qui transforme ce juge
 4. Revenir sur le champ de recherche, saisir un terme absent de la base, ex.
    `Zzznotfound`, valider.
    Attendu : titre « Recherche de "Zzznotfound" » affiché ; texte « Aucun résultat
-   trouvé. » ; aucun lien de résultat affiché.
+   trouvé. » ; aucun lien de résultat affiché. **La fiche échoue si l'encart « L'index de
+   recherche est vide » apparaît** : l'index est peuplé, le terme est simplement absent,
+   et confondre les deux états est le défaut que le lot correctif 2 a fermé sur
+   `R-RCH-02`.
 
 ### R-RCH-02 — Reconstruction de l'index
 
@@ -3699,7 +3702,9 @@ déjà les migrations et vide la base. Cette fiche est ce qui transforme ce juge
   200 ; ce test-ci vérifie en plus qu'une recherche redevient probante ensuite.
   L'étape 4 est couverte côté serveur par
   libreosteoweb/tests/test_service_sauvegarde.py::TestIndexApresRechargement —
-  l'index ne rend aucun patient absent de l'archive, et la purge ne reconstruit pas.
+  l'index ne rend aucun patient absent de l'archive, et la purge ne reconstruit pas —
+  et par
+  tests/functional/test_recherche.py::test_un_index_vide_est_nomme_sur_l_ecran_de_recherche.
   Non couvert : le parcours lui-même, du clic à l'écran)
 - **État requis** : E2
 
@@ -3723,24 +3728,13 @@ déjà les migrations et vide la base. Cette fiche est ce qui transforme ce juge
 4. Éprouver l'enchaînement que D10 a rendu nécessaire : rejouer `R-SAU-02` (restauration
    d'une archive sur l'instance), puis, **sans passer par « Réindexer »**, saisir `Picard`
    dans le champ de recherche et valider.
-   Attendu : titre « Recherche de "Picard" » affiché ; **aucun résultat**, texte « Aucun
-   résultat trouvé. ». Le mécanisme n'est pas un défaut en lui-même : la restauration
-   **purge** l'index et ne le reconstruit pas — une reconstruction synchrone dans la
-   requête de restauration heurterait le plafond de 180 s (mesuré à 168,5 s sur un parc de
-   1 501 patients, 94 % de la borne — cf. « Ordre de grandeur de l'étape 2 » ci-dessous et
-   `R-SAU-04`).
-
-   ⚠️ **KO, ouvert, adressé au lot correctif.** L'écran ne donne **aucun moyen à
-   l'utilisateur de le savoir.** Le message rendu est **mot pour mot** celui d'un terme
-   absent de la base (« Recherche de "Picard" / Aucun résultat trouvé. », identique à
-   `R-RCH-01` étape 4), alors que les données sont là et visibles au tableau de bord. Rien,
-   sur cet écran de recherche, ne nomme « Réindexer » ni ne dit qu'une restauration vient
-   d'avoir lieu. La seule surface qui porte cette explication est `partials/restore.html` —
-   l'écran **d'avant**, non authentifié — pas à l'endroit ni au moment où le symptôme
-   apparaît. Aggravant mesuré : la restauration prend **3,4 s** (`R-SAU-04`), le retour à
-   une recherche probante en prend **168,5 s** — cinquante fois plus, et rien à l'écran ne
-   le dit à qui vient de restaurer. Le produit fait ce qu'il doit ; l'utilisateur ne peut
-   pas le savoir, et c'est un défaut.
+   Attendu : titre « Recherche de "Picard" » affiché ; **aucun résultat**, et — à la
+   place de « Aucun résultat trouvé. » — l'encart « L'index de recherche est vide : la
+   recherche ne trouvera rien tant qu'il n'aura pas été reconstruit. C'est ce qu'une
+   restauration de la base laisse derrière elle. », suivi du lien « Réindexer ». **La
+   fiche échoue si l'écran rend « Aucun résultat trouvé. »** : c'est mot pour mot l'écran
+   d'un terme absent (`R-RCH-01` étape 4), et c'est le KO que ce lot ferme. Cliquer le
+   lien « Réindexer » mène à la page de réindexation.
 
    Jouer alors « Réindexer » (étapes 1 et 2), puis rechercher `Picard` de nouveau.
    Attendu : le résultat `Picard Jean-Luc` est de retour.

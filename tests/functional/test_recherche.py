@@ -1,10 +1,13 @@
 """Reconstruction de l'index de recherche depuis le menu utilisateur (R-RCH-02)."""
 
 import re
+from datetime import date
 
+from django.core.management import call_command
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
+from libreosteoweb.models import Patient
 from libreosteoweb.tests.fixtures import cree_patient, sans_receivers
 from tests.functional.helpers import (
     connexion,
@@ -49,6 +52,41 @@ def semer_patients(nombre: int, nom: str = "Picard") -> None:
     for numero in range(nombre):
         with sans_receivers():
             cree_patient(family_name=nom, first_name=f"Prenom{numero}")
+
+
+def test_un_index_vide_est_nomme_sur_l_ecran_de_recherche(
+    page: Page, live_server: LiveServer
+) -> None:
+    """R-RCH-02 étape 4 : l'écran d'après restauration cesse de mentir.
+
+    **Ce que ce test regarde** : la phrase réellement affichée, en français, et le lien
+    vers « Réindexer » sur la page où le symptôme apparaît.
+
+    **Pourquoi il ne suffit pas d'asserter la présence de la phrase.** Un test qui se
+    contenterait d'une sous-chaîne commune aux deux états serait vert sur l'écran cassé :
+    c'est exactement ce qui est arrivé au lot 1, où `to_contain_text("Note")` est resté
+    vert onze jours sur un paragraphe affiché en anglais. L'assertion porte donc **aussi**
+    sur l'absence de « Aucun résultat trouvé ».
+
+    L'index est vidé par `clear_index`, c'est-à-dire par le geste exact de
+    `purge_index_apres_rechargement` (`api/receivers.py:121-153`) : le patient reste en
+    base, l'index ne le porte plus.
+    """
+    with sans_receivers():
+        Patient.objects.create(
+            family_name="Picard", first_name="Jean-Luc", birth_date=date(1935, 7, 13)
+        )
+    call_command("clear_index", interactive=False)
+
+    connexion(page, live_server)
+    page.fill("div.custom-search-form input", "Picard")
+    page.click("div.custom-search-form button")
+
+    etat = page.get_by_test_id("index-vide")
+    expect(etat).to_be_visible()
+    expect(etat).to_contain_text("L'index de recherche est vide")
+    expect(page.get_by_text("Aucun résultat trouvé")).to_have_count(0)
+    expect(etat.get_by_role("link", name="Réindexer")).to_be_visible()
 
 
 def test_un_terme_absent_n_affiche_aucun_resultat(
