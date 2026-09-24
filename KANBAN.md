@@ -663,13 +663,25 @@ sur les quatre entrées.
   si `DATABASES["default"]["ENGINE"]` ne commence pas par `django.db.backends.postgresql`.
   Aucun SQLite ne peut porter les données en conteneur.
 
-  **Le chiffrement au repos reste un enjeu réel, déplacé sur PostgreSQL.**
-  `Docker/deploy/pg/docker-compose.yml` monte `${LIBREOSTEO_DB_STORAGE}` (données) et
-  `${LIBREOSTEO_BAK_STORAGE}` (sauvegardes) — deux volumes hôte, en clair sur le disque si
-  l'hôte lui-même ne chiffre pas. Ni `README.rst` ni `docs/` ne mentionnent ce point : la
-  responsabilité (chiffrement de volume, LUKS ou équivalent, à la charge de l'hôte) n'est
-  documentée nulle part. À qualifier avec l'utilisateur : documenter la responsabilité
-  hôte dans le guide de déploiement, ou trancher que c'est hors périmètre du dépôt.
+  **Le chiffrement au repos est documenté depuis le 2026-09-24 — mais il n'est pas en
+  place sur la production.**
+
+  ⚠️ **Fait, établi avec l'utilisateur le 2026-09-24 : le disque de la machine de
+  production n'est pas chiffré.** Les données de santé et les sauvegardes complètes y sont
+  **en clair**. Ce n'est pas un défaut du dépôt — c'est une précondition d'hébergement non
+  tenue, et **la migration d'un disque en service appartient à l'utilisateur**, pas à une
+  session. Elle n'est pas planifiée ; ne pas la relancer de soi-même.
+
+  **Ce que le dépôt devait faire est fait** : `README.rst` porte désormais la section
+  « Encryption at rest is the host's responsibility », qui dit trois choses mesurées —
+  PostgreSQL communautaire **n'a pas** de chiffrement transparent, donc les fichiers sous
+  `${LIBREOSTEO_DB_STORAGE}` et `${LIBREOSTEO_BAK_STORAGE}` sont lisibles par qui lit le
+  disque ; **les sauvegardes comptent autant que la base**, et un volume de sauvegarde en
+  clair annule un volume de données chiffré ; et **`pgcrypto` est le mauvais outil ici** —
+  une colonne chiffrée ne s'indexe plus, ne se trie plus, ne se cherche plus, ce qui
+  casserait la recherche patient et l'index Whoosh pour une protection moindre que celle du
+  volume. ⚠️ **Ne pas « améliorer » cette entrée en proposant `pgcrypto`** : le motif du
+  refus est écrit, il est mesuré, et il ne se rediscute pas sans élément neuf.
 
 ### Reproduction de la CI en local (vérifié le 2026-08-30, sandbox)
 
@@ -1235,15 +1247,18 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 - **`collectstatic` copie des fichiers jamais servis** — documentations et exemples que
   les paquets `@components/…` embarquent et que `collectstatic` recopie en bloc, sans
   qu'aucun gabarit ni JS n'y fasse référence. **Chiffre refait le 2026-09-19** (`make
-  static` puis mesure) : `static/components/` porte **103 fichiers** pour **2** paquets
-  déclarés (`alpinejs`, `htmx`) ; `base.html:102-103` n'en référence que deux —
-  `htmx/dist/htmx.min.js` et `alpinejs/dist/cdn.min.js`. ⚠️ **« 2 paquets » est déjà
-  périmé le même jour** : `package.json` déclare désormais un troisième paquet,
-  `@components/bootstrap` (`bootstrap@5.3.8`, D6g T2, `b3da281`), et `create_admin_
-  account.html`/`login.html` référencent `components/bootstrap/dist/css/bootstrap.min.
-  css`. **Non remesuré** : D6g est en cours et `make static` n'a pas été relancé ici
-  (aucun lancement concurrent) — le compte de 103/101 fichiers est donc à refaire une
-  fois D6g clos. **101 fichiers, 1,7 Mo, jamais
+  static` puis mesure) : `static/components/` portait **103 fichiers** pour **2** paquets
+  déclarés (`alpinejs`, `htmx`).
+
+  ⚠️ **Recompté le 2026-09-24, après la clôture de D6g, par `rm -rf static && make
+  static` : 322 fichiers, dont 3 servis.** Le détail par paquet : `bootstrap` **219**,
+  `alpinejs` **68**, `htmx` **35**. Les gabarits n'en référencent que **trois** —
+  `components/bootstrap/dist/css/bootstrap.min.css`,
+  `components/alpinejs/dist/cdn.min.js`, `components/htmx/dist/htmx.min.js`. **319
+  fichiers sont copiés pour rien**, soit 99 % du répertoire : le gaspillage a **triplé**
+  avec le passage à Bootstrap 5, qui embarque ses sources SCSS, ses cartes de sources et
+  ses variantes non minifiées. Le chiffre ci-dessous de 101 fichiers est celui d'avant ;
+  il est conservé pour la comparaison. **101 fichiers, 1,7 Mo, jamais
   servis** sur les 1,9 Mo du répertoire (documentation, sources non minifiées,
   extensions htmx, métadonnées d'éditeur). Le chiffre de 1202 (T4, 2026-09-06) est bien
   caduc — il datait d'avant le retrait des sept dépendances mortes puis d'AngularJS et

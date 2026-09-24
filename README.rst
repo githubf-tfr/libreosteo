@@ -153,6 +153,31 @@ Point your browser on : http://localhost:8085/ it will guide you towards creatin
 - POSTGRES_USER and POSTGRES_PASSWORD defines the credential required for your PostgreSQL database
 - LIBREOSTEO_SECRET_KEY is the Django secret key ; the container refuses to start without one
 - LIBREOSTEO_ALLOWED_HOSTS is the comma-separated list of hosts Django accepts requests for
+
+Encryption at rest is the host's responsibility
+------------------------------------------------
+
+**LibreOsteo stores health data, and neither LibreOsteo nor PostgreSQL encrypts it on
+disk.** Community PostgreSQL has no transparent data encryption: the files under
+``LIBREOSTEO_DB_STORAGE`` and ``LIBREOSTEO_BAK_STORAGE`` are readable by anyone who can
+read the host filesystem, or who takes the disk away.
+
+**Encrypt the host volume before putting real patient data on it.** Full-disk encryption
+(LUKS on Linux, or the equivalent your platform provides) is transparent to both
+PostgreSQL and LibreOsteo: nothing in this repository needs to change, and no query is
+affected.
+
+Two mistakes are worth naming:
+
+- **Forgetting the backups.** ``LIBREOSTEO_BAK_STORAGE`` holds complete database dumps in
+  plain text. A backup volume left unencrypted defeats an encrypted database volume.
+- **Reaching for ``pgcrypto`` instead.** Column-level encryption is the wrong tool here:
+  an encrypted column can no longer be indexed, sorted or searched, which breaks patient
+  search and the Whoosh index. It also requires rewriting the application. Volume
+  encryption gives more protection for none of that cost.
+
+Encrypting a disk that is already in service is a migration, not a setting: back up,
+encrypt, restore. Plan it as such.
 - LIBREOSTEO_IMAGE_TAG selects which build of the two images above the compose file runs ; the container refuses to start without it
 
 The sqlite and standalone (CherryPy) modes described further below still exist in the
