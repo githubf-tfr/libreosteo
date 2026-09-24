@@ -854,10 +854,10 @@ sortir le balisage des zones traduites, `install.html` compris ; durcir
 
 **Découpé en deux lots** (arbitrage Q7) :
 
-| Lot | Contenu | Plan |
-|---|---|---|
-| 1 | Journal dupliqué, `block_disconnect_all_signal`, catalogue de traduction — aucune décision produit en dépendance | `docs/superpowers/plans/2026-09-24-lot-correctif-1-plan.md` (3 tâches) |
-| 2 | Course d'onglet, index vide, import CSV, renumérotation | à écrire après le lot 1 |
+| Lot | Contenu | Plan | État |
+|---|---|---|---|
+| 1 | Journal dupliqué, `block_disconnect_all_signal`, catalogue de traduction — aucune décision produit en dépendance | plan fondu dans la doc pérenne, puis supprimé | **clos le 2026-09-24** (cinq commits, `7dfa637`..`217bb97` ; cf. « Terminé ») |
+| 2 | Course d'onglet, index vide, import CSV, renumérotation | à écrire | à faire |
 
 ⚠️ **Deux tensions nommées, pas résolues par l'arbitrage** (spec § 11.4) : `gettext` est
 **absent de la sandbox** et le test de contrat du catalogue fait rougir `make check` sans lui
@@ -895,10 +895,14 @@ spec posait comme inconditionnellement à éviter — limite assumée, portée a
   l'import**. Le dépassement n'est pas systématique — deux autres lots sont repassés sous la
   borne (109 s, 129 s) —, il dépend de la fusion d'index Whoosh. ⚠️ **Même famille que le KO
   ci-dessus** : le produit réussit et l'écran dit le contraire.
-- **Chaque enregistrement de journal applicatif est émis deux fois**, même horodatage à la
-  milliseconde. Préexistant à D10, sans effet sur les attendus — qui exigent « une ligne » et
-  sont littéralement satisfaits —, mais trompeur pour qui compte les renumérotations au
-  journal.
+- ~~**Chaque enregistrement de journal applicatif est émis deux fois**~~ — **clos le
+  2026-09-24 par `7dfa637`** (lot correctif 1, T1). Deux entrées de `LOGGING` — `libreosteoweb`
+  et `libreosteoweb.api` — portaient **le même** handler `console` et **le même** niveau, sans
+  que ni l'une ni l'autre ne coupe `propagate` (absent vaut `True`) : un
+  `logging.getLogger(__name__)` sous `libreosteoweb.api.*` traversait deux ancêtres configurés.
+  L'entrée fille est retirée, un commentaire dit pourquoi et interdit de la réintroduire.
+  ⚠️ **`winserver.py:180` garde le même motif** — hors cible de déploiement (conteneur +
+  PostgreSQL), donc délibérément non touché.
 
 - ~~⚠️ **Les libellés des tuiles du tableau de bord se coupent au milieu d'un mot**~~ —
   **fermé le 2026-09-20 par `d62cbd2`**, le style de `.huge` repris sous `.lo-compteur-tuile`
@@ -922,13 +926,24 @@ spec posait comme inconditionnellement à éviter — limite assumée, portée a
   ⚠️ **Un arbitrage avait été rendu le 2026-09-19 pour ouvrir cette tâche dans D10 ; il a été
   abandonné en silence par la tâche suivante, qui l'a requalifié « hors périmètre » sans le
   re-soumettre.** Il est ici, explicitement.
-- **Le catalogue de traduction est désaccordé avec un gabarit depuis D6d T8** (`bcbde5d`) : le
-  `msgid` ne porte pas le `data-testid` que le gabarit a gagné, donc `gettext` ne fait plus
-  correspondre et **le paragraphe de l'onglet *Importer* s'affiche en anglais**. Antériorité
-  vérifiée par deux chaînes indépendantes. Hors périmètre de D6g, qui ne touche pas au
-  catalogue.
-- **`block_disconnect_all_signal.__exit__` reconnecte aveuglément** — voir « Constats versés le
-  2026-09-19 » ci-dessous. L'appelant fautif est corrigé, l'aide ne l'est pas.
+- ~~**Le catalogue de traduction est désaccordé avec un gabarit depuis D6d T8**~~ (`bcbde5d`) —
+  **clos le 2026-09-24 par `af0b7e0`** (lot correctif 1, T3). Le désaccord cumulait **trois**
+  écarts, pas un : indentation 12 ↔ 16, le `data-testid` gagné par le gabarit, et
+  `well` → `card p-3`. **La cause est traitée, pas le symptôme** : le balisage sort des zones
+  traduites — `import-export.html` et `install.html` —, si bien qu'un futur changement de
+  classe CSS ou d'attribut ne peut plus rompre la correspondance. C'est l'arbitrage Q5 de
+  l'utilisateur. ⚠️ **Le cliquet du catalogue ne dit pas tout** : `test_contrat_traductions`
+  garantit qu'une réponse *existe*, `test_contrat_catalogue_compile` que le `.mo` dise ce que
+  le `.po` promet — **aucun des deux ne voit une traduction fausse**. Seule la recette le peut.
+- ~~**`block_disconnect_all_signal.__exit__` reconnecte aveuglément**~~ — **clos le 2026-09-24
+  par `1c8189e`** (lot correctif 1, T2). `__exit__` ne reconnecte plus que ce que `__enter__` a
+  réellement retiré, filtré sur la valeur de retour de `Signal.disconnect`. Le contrat est tenu
+  par `libreosteoweb/tests/test_receivers.py`, dont deux cas qu'aucun test du dépôt n'exerçait :
+  deux blocs **imbriqués** sur le même signal (l'interne ne rend rien, l'externe rend le
+  récepteur) et une exception levée dans le corps du `with`. ⚠️ **`temp_disconnect_signal`
+  (`receivers.py:74-91`) garde la reconnexion aveugle**, cinq lignes plus bas : ses deux sites
+  d'appel (`import_fichiers.py:81,95`) sont **séquentiels, pas imbriqués**, donc cela ne mord
+  pas aujourd'hui.
 - ~~**Le test d'équivalence de l'outil de diagnostic reste aveugle au-dessus du plancher de
   renumérotation**~~ — **clos**, vérifié le 2026-09-23 : `99ed014` a ajouté au jeu de
   `test_l_outil_de_diagnostic_annonce_exactement_ce_que_la_reprise_fera`
@@ -1297,6 +1312,55 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-24 — Lot correctif 1 clos : le journal n'écrit plus qu'une ligne, l'aide de
+  déconnexion ne rend que ce qu'elle a pris, le catalogue répond de nouveau** (trois tâches,
+  cinq commits, `7dfa637`..`217bb97`). Spec :
+  `docs/superpowers/specs/2026-09-23-lot-correctif-design.md`. `make check` vert,
+  **1 001 passed**, couverture **94,95 %** (plancher `fail_under = 94` inchangé) ; suite
+  fonctionnelle **142 passed**. Deux modules `.py` créés, tous deux des fichiers de test,
+  chacun entré au périmètre `mypy` dans son propre commit.
+
+  1. **T1, le journal** (`7dfa637`) — deux entrées de `LOGGING` portaient le même handler sans
+     couper `propagate` : tout `logging.getLogger(__name__)` sous `libreosteoweb.api.*`
+     traversait deux ancêtres configurés et écrivait deux fois, même `asctime`. L'entrée fille
+     part. Le test porte **deux** témoins, dont un **hors** du sous-arbre corrigé
+     (`libreosteoweb.middleware`, qui journalise les refus d'accès) : retirer la mauvaise
+     entrée aurait rendu ce logger muet sans que rien ne le dise.
+
+  2. **T2, l'aide de déconnexion** (`1c8189e`) — `__exit__` ne reconnecte plus que ce que
+     `__enter__` a réellement retiré. La classe est consommée par plus de trente fichiers de
+     test ; le durcissement **ferme** le risque au lieu de l'ouvrir, puisqu'il ne change le
+     comportement que là où `disconnect` rendait `False`, cas où l'ancien code reconnectait un
+     récepteur qu'il n'avait jamais pris.
+
+  3. **T3, le catalogue** (`af0b7e0`, `99a49bb`) — le balisage sort des zones traduites, sur
+     les deux gabarits. ⚠️ **Trois écarts entre les prédictions du plan et la mesure**, tous
+     relevés, aucun prédit : Django **ne ré-échappe pas** un `{% trans 'littéral' %}` (le
+     littéral est `mark_safe` dès `Variable.__init__`, `gettext` propage le `SafeData`,
+     `conditional_escape` le respecte) ; les deux tests d'installation passaient **déjà** avant
+     la modification du gabarit, ce sont des tests de caractérisation ; et le décompte de
+     `blocktrans` prédit comptait des balises là où `grep -c` compte des lignes.
+
+  ⚠️ **La revue finale a trouvé ce qu'aucune revue de tâche ne pouvait voir**, et c'est le
+  résultat le plus utile du lot : **la seule garde automatique sur l'élément cassé était
+  vague**. `tests/functional/test_import_csv.py` asseyait `to_contain_text("Note")` — chaîne
+  présente dans « Note : It have no relation… » **comme** dans « Note : Celui-ci n'a aucun
+  lien… ». **Cette assertion est restée verte pendant les onze jours d'anglais**, sur l'élément
+  même que le défaut avait cassé. Elle assied désormais une portion de phrase française.
+  Trois autres constats de la même famille — un « pourquoi » co-localisé devenu faux dans
+  `sauvegarde.py`, une fiche de recette déclarant ouvert un défaut fermé et **relâchant son
+  attendu**, une ligne « Couverture auto » périmée — sont corrigés par `217bb97`.
+
+  **Un arbitrage rendu par la session, pas par l'utilisateur** : la coupe du catalogue laissait
+  « principal » orphelin de son `msgid`, que rien ne tenait — un éditeur de catalogue
+  « réparant » l'orphelin aurait cassé la phrase de l'écran de premier démarrage, tous cliquets
+  verts. La phrase est **recoupée** (`main website` → « site web principal ») plutôt que
+  seulement surveillée, ce qui solde du même coup un `msgid "website"` de sept caractères qu'un
+  futur `{% trans 'website' %}` aurait capté dans n'importe quel contexte. Motif : l'arbitrage
+  Q5 de l'utilisateur porte sur « sortir le balisage », pas sur des points de coupe précis.
+
+  **Suivi amont** : rien de repris d'amont dans ce lot.
+
 - **2026-09-23 — Reprise du parc de production sur le fork, faite** (cf. « Reprise du
   parc de production sur le fork » ci-dessus, décidée le 2026-09-18, P0 depuis le
   2026-09-20). Export neuf de la production, diagnostic `outils/diagnostic_archive.py`
@@ -1561,7 +1625,8 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   branché sur les **deux** signaux, et **toute fiche enregistrée après une restauration
   ressortait de l'index aussitôt entrée, jusqu'au redémarrage du processus**. Une seule
   restauration suffisait. Trouvée par une suite fonctionnelle à sept rouges, fermée par
-  `77eb331`. ⚠️ **L'appelant est corrigé, pas l'aide** : le piège reste tendu, cf. « À faire ».
+  `77eb331`. ⚠️ **L'appelant a été corrigé le jour même, l'aide seulement le 2026-09-24**
+  (`1c8189e`, lot correctif 1 T2) : le piège est désormais fermé des deux côtés.
 
   ⚠️ **La revue finale a refusé la clôture, et elle avait raison sur quatre points.** Le plus
   grave : **l'outil de diagnostic rognait les espaces là où la contrainte `0057` ne les rogne
