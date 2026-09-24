@@ -598,14 +598,14 @@ msgstr "Merci d'avoir choisi LibreOsteo comme votre logiciel pour gérer vos pat
 msgid "You successfully installed the software on your machine. Now you have to decide if you want to restore a previous backup of your patient file (performed from LibreOsteo) or use a new installation and register your first user on the softwarewhich will be the administrator of the software"
 msgstr "Vous avez correctement installé le logiciel sur votre machine. Maintenant vous devez décider si vous voulez restaurer une précédente sauvegarde de votre fichier patient (réalisé depuis LibreOsteo) ou bien utiliser cette nouvelle installation et enregistrer votre premier utilisateur sur le logiciel qui en sera l'administrateur."
 
-msgid "Join the user community from the main"
+msgid "Join the user community from the"
 msgstr "Rejoignez la communauté des utilisateurs depuis le"
 
-msgid "website"
-msgstr "site web"
+msgid "main website"
+msgstr "site web principal"
 
 msgid "in order to share your experience with this software."
-msgstr "principal afin de partager votre expérience de ce logiciel."
+msgstr "afin de partager votre expérience de ce logiciel."
 
 msgid "Restore database"
 msgstr "Restaurer la base de données"

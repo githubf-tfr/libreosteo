@@ -433,12 +433,14 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
 
 - **Domaine** : Installation
 - **Couverture auto** : oui — tests/functional/test_installation.py::test_premiere_installation
-  (couvre le titre de la page d'installation et la création de l'administrateur ; le
-  texte d'accueil n'est pas vérifié automatiquement) ; sur le même titre de page et le
-  bouton « Restaurer la base de données », que `test_premiere_installation` ne touche
-  jamais, ::test_le_formulaire_de_restauration_s_affiche,
+  (couvre le titre de la page d'installation et la création de l'administrateur) ; sur le
+  même titre de page et le bouton « Restaurer la base de données », que
+  `test_premiere_installation` ne touche jamais, ::test_le_formulaire_de_restauration_s_affiche,
   ::test_une_archive_illisible_est_refusee, ::test_une_archive_d_une_autre_version_est_refusee
-  et ::test_la_restauration_reussie_recharge_la_base (les quatre tests de T10)
+  et ::test_la_restauration_reussie_recharge_la_base (les quatre tests de T10) ;
+  libreosteoweb/tests/test_page_installation.py::test_le_texte_d_accueil_est_en_francais
+  couvre désormais le texte d'accueil lui-même — égalité stricte à la phrase attendue,
+  et absence de l'anglais source
 - **État requis** : E0
 
 **Étapes**
@@ -1048,12 +1050,6 @@ au-dessus, la reprise continue la numérotation existante sans y sauter (cf.
 `README.rst`, « Duplicate invoice numbers on upgrade ») ; et un parc sans
 doublon n'est pas touché du tout — aucune ligne `renumérotée` n'apparaît alors
 au journal.
-
-⚠️ **Constat relevé au passage, pas encore adressé : chaque enregistrement de journal
-applicatif est émis deux fois**, même horodatage à la milliseconde — préexistant à D10,
-sans effet sur les attendus de cette fiche (une ligne `Applying ...` ou `renumérotée` au
-bon format suffit, dupliquée ou non), mais trompeur pour qui compte les lignes ou les
-renumérotations au journal, ici ou à `R-SAU-04`.
 
 ### Authentification
 

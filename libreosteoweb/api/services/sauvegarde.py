@@ -148,13 +148,15 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
         processeur = cast(
             HaystackConfig, configuration_applications.get_app_config("haystack")
         ).signal_processor
-        # Une liste par signal. `block_disconnect_all_signal.__exit__` connecte ce qu'on
-        # lui a donne, sans verifier que `__enter__` l'avait bien deconnecte : donner la
-        # meme liste aux deux blocs reconnectait chaque receveur aux **deux** signaux en
-        # sortie, et pas seulement au sien. `post_save` declenchait alors `handle_delete`
-        # juste apres `handle_save` -- toute fiche enregistree apres une restauration
-        # ressortait de l'index aussitot entree, pour toute la duree du processus, pas
-        # seulement pendant la restauration.
+        # Une liste par signal : la forme claire, pas la parade a un defaut qui n'existe
+        # plus. `block_disconnect_all_signal.__exit__` reconnectait autrefois la liste
+        # recue sans verifier que `__enter__` l'avait bien deconnectee : donner la meme
+        # liste aux deux blocs reconnectait alors chaque receveur aux **deux** signaux en
+        # sortie, et pas seulement au sien. `post_save` declenchait `handle_delete` juste
+        # apres `handle_save` -- toute fiche enregistree apres une restauration ressortait
+        # de l'index aussitot entree, pour toute la duree du processus. Corrige cote aide
+        # par `1c8189e` (`receivers.py`), qui ne reconnecte plus que ce qu'il a reellement
+        # deconnecte.
         receveurs_a_l_enregistrement = [(processeur.handle_save, None)]
         receveurs_a_la_suppression = [(processeur.handle_delete, None)]
 

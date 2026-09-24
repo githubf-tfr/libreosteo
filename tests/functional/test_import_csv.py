@@ -60,7 +60,13 @@ def ouvrir_import(page: Page) -> None:
     # qu'avant ; sa cause a change de nom, et c'est pourquoi ce commentaire est reecrit
     # dans le commit qui migre l'ecran (A19).
     expect(page.get_by_test_id("note-import")).to_be_visible()
-    expect(page.get_by_test_id("note-import")).to_contain_text("Note")
+    # « Note » seul passait aussi bien sur le rendu anglais (« Note : It have no
+    # relation... ») que francais : cette garde est restee verte pendant les onze jours ou
+    # le msgid non traduit affichait la phrase en anglais (lot correctif 1, T3). Un extrait
+    # propre au francais, absent du texte source, est la seule garde qui aurait rompu.
+    expect(page.get_by_test_id("note-import")).to_contain_text(
+        "Celui-ci n'a aucun lien"
+    )
 
 
 def test_import_des_patients(page: Page, live_server: LiveServer) -> None:

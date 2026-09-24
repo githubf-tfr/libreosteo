@@ -44,12 +44,22 @@ class TestEcranInstallation(TestCase):
         self.assertNotIn("Thank you to chose LibreOsteo", corps)
 
     def test_le_lien_vers_le_site_reste_un_lien_et_parle_francais(self):
-        """La phrase au lien est la seule du lot que la regle oblige a fragmenter."""
+        """La phrase au lien est la seule du lot que la regle oblige a fragmenter.
+
+        Recoupee (lot correctif 1, revue finale) pour que « principal » reste accole a
+        « site web » dans le meme `msgid` -- il modifiait « website » a l'oreille du
+        `msgid` d'origine, pas la phrase suivante, et un `.po` qui l'y laissait orphelin
+        aurait pu se faire « reparer » en silence par un editeur de catalogue futur.
+        L'assertion ci-dessous tient la phrase complete, tags compris, pour que ce
+        recoupage ne se defasse pas de la meme maniere.
+        """
         reponse = self.client.get(reverse("install"))
 
         corps = reponse.content.decode("utf-8")
         self.assertIn(
-            '<a href="https://www.libreosteo.org/" target="_blank">site web</a>', corps
+            "Rejoignez la communauté des utilisateurs depuis le "
+            '<a href="https://www.libreosteo.org/" target="_blank">site web principal</a> '
+            "afin de partager votre expérience de ce logiciel.",
+            corps,
         )
-        self.assertIn("Rejoignez la communauté des utilisateurs depuis le", corps)
         self.assertNotIn("Join the user community", corps)
