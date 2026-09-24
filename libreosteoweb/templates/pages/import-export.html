@@ -72,7 +72,8 @@
                 {# `{% trans %}`. En texte pur, ces libelles retombent sous ce cliquet. #}
                 {# **Ne pas remettre de HTML dans l'un d'eux** (lot correctif 1, Q5-b). #}
                 {# La quatrieme phrase cite « "Number" » : son `{% trans %}` est donc #}
-                {# quote en simple, et le rendu sort les guillemets en `&quot;`. #}
+                {# quote en simple, et le rendu sort les guillemets droits : un litteral #}
+                {# de gabarit est `mark_safe` des le parsing, non echappe au rendu. #}
                 <p>{% trans 'For importing patient or examination in the database, you have to download these both above templates. Fill them with your favorite Spreasheet editor and save them as csv files.' %}</p>
                 <p>{% trans 'Do not change the format, because Libresoteo read only csv files.' %}</p>
                 <br/>
