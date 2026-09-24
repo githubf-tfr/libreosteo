@@ -305,7 +305,7 @@ class LoadDump(View):
                 # rediriger quand meme. Le script est supprime par ce lot (D6c, A9).
                 return self._refus(request, _("No archive file was sent."), status=400)
             logger.info("Load a dump from a sent file.")
-            services_sauvegarde.restaurer(
+            plan = services_sauvegarde.restaurer(
                 ContentFile(request.FILES["file"].read()), libreosteoweb.__version__
             )
         except services_sauvegarde.VersionIncompatible as erreur:
@@ -334,12 +334,15 @@ class LoadDump(View):
                 _("The database failed while loading this archive. Restore a backup."),
                 status=500,
             )
-        # htmx ne suit pas une 302 lui-meme : c'est `XMLHttpRequest` qui la suivrait, et le
-        # document cible atterrirait dans le volet. HX-Redirect provoque un vrai
-        # `window.location`, ce que faisait `$window.location.assign("/")` (restore.js:47).
-        reponse = HttpResponse(status=204)
-        reponse["HX-Redirect"] = "/"
-        return reponse
+        # Le succes rend un ecran, et non plus 204 + `HX-Redirect: /` (lot correctif 2,
+        # arbitrage Q4-a). La redirection silencieuse etait la seule sortie possible tant
+        # que `restaurer()` jetait son plan : il n'y avait rien a montrer. Le bouton
+        # « Continuer » du fragment porte la navigation que l'en-tete faisait.
+        return render(
+            request,
+            "partials/restauration-compte-rendu.html",
+            {"renumerotations": plan.renumerotations},
+        )
 
     @staticmethod
     def _refus(request, message, status):

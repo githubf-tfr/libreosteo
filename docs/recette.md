@@ -994,7 +994,10 @@ que la CI appelle, jamais dans le seul fichier de workflow.
    cabinet 1 -> 1000001.` ; et `WSGI app 0 (mountpoint='') ready`.
    **La fiche échoue si le journal ne nomme pas l'identifiant, l'ancien et le
    nouveau numéro** : sans ces trois valeurs, l'exploitant n'a aucun moyen de
-   savoir quelle facture a changé.
+   savoir quelle facture a changé. Cette reprise-ci est faite **par la migration
+   au démarrage**, pas par l'écran de restauration : le journal en reste donc la
+   seule trace. Une reprise faite depuis l'écran de restauration, elle, rend
+   désormais ces trois mêmes valeurs à l'écran (cf. `R-SAU-02` étape 5).
 4. Vérifier que la renumérotation est bien celle qui était annoncée :
 
    ```sh
@@ -3386,14 +3389,17 @@ fusion d'index Whoosh, pas du seul volume. Constat relevé au passage, pas encor
   tests/functional/test_installation.py::test_le_formulaire_de_restauration_s_affiche,
   ::test_une_archive_illisible_est_refusee,
   ::test_une_archive_d_une_autre_version_est_refusee,
-  ::test_la_restauration_reussie_recharge_la_base
+  ::test_la_restauration_reussie_recharge_la_base,
+  ::test_le_compte_rendu_de_restauration_liste_les_factures_renumerotees
   (le formulaire de restauration s'affiche sans alerte au repos ; une archive
   illisible et une archive d'une autre version sont refusées, chacune avec une
   alerte nommant le motif, sans laisser l'instance inutilisable ; une restauration
   réussie recharge bien les données — un patient créé avant l'archivage puis
-  supprimé revient, un patient créé après l'archivage disparaît. Non couvert :
-  la fidélité des documents joints restaurés, et le parcours de purge jusqu'à
-  l'état E0 qui précède la restauration dans cette fiche)
+  supprimé revient, un patient créé après l'archivage disparaît — et affiche le
+  compte rendu avant de naviguer ; une archive à doublon fait apparaître à l'écran
+  les trois valeurs (identifiant, ancien numéro, nouveau numéro) de chaque facture
+  renumérotée. Non couvert : la fidélité des documents joints restaurés, et le
+  parcours de purge jusqu'à l'état E0 qui précède la restauration dans cette fiche)
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
   instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,
@@ -3434,10 +3440,15 @@ fusion d'index Whoosh, pas du seul volume. Constat relevé au passage, pas encor
    l'échec n'a pas laissé l'instance dans un état inutilisable.
 5. Cliquer de nouveau « Restaurer la base de données », choisir le fichier téléchargé
    à l'étape 1, cliquer « Confirmer la restauration ».
-   Attendu : retour à la page de connexion (`/accounts/login/?next=/`, titre de page
-   « Identifiez-vous sur LibreOsteo »). Cette réussite prouve que l'échec de l'étape 4
-   n'a rien laissé derrière lui : avant D3, il laissait la base vidée par le `sqlflush`
-   et une transaction ouverte.
+   Attendu : le panneau est remplacé par le compte rendu « Restauration terminée », qui
+   dit soit « Aucune facture n'a été renumérotée. », soit la liste des factures changées,
+   une ligne par facture, de la forme `Facture #<identifiant> : 10000 devient
+   1000000.` ; puis un bouton « Continuer ». Cliquer « Continuer » mène à la page de
+   connexion (`/accounts/login/?next=/`, titre « Identifiez-vous sur LibreOsteo »).
+   **La fiche échoue si la page quitte le formulaire sans avoir affiché ce compte
+   rendu** : c'est la redirection silencieuse que le lot correctif 2 a fermée. Cette
+   réussite prouve aussi que l'échec de l'étape 4 n'a rien laissé derrière lui : avant
+   D3, il laissait la base vidée par le `sqlflush` et une transaction ouverte.
 6. S'identifier avec `test` / `test`, **jouer « Réindexer » (menu utilisateur) avant toute
    recherche** — la restauration a vidé l'index, cf. étape 3 —, puis saisir `Picard` dans
    le champ de recherche, valider.
@@ -3527,11 +3538,13 @@ donnée de santé ne doit transiter par une session d'assistance.
 4. Lire le `VERDICT` et le code de sortie.
    Attendu : `VERDICT : aucun obstacle, l'archive peut etre chargee telle quelle.` et
    `code de sortie : 0` — un doublon de numéro ne bloque plus, il est repris au chargement.
-5. Restaurer cette archive (procédure de `R-SAU-02`, étapes 2 à 5), puis se connecter et
-   ouvrir le menu « Comptabilité ».
-   Attendu : les deux factures sont là, l'une portant `10000` et l'autre `1000000` —
-   **exactement les numéros annoncés à l'étape 3, facture par facture**. La fiche échoue si
-   un seul numéro diffère de ce qui avait été annoncé.
+5. Restaurer cette archive (procédure de `R-SAU-02`, étapes 2 à 5).
+   Attendu : la restauration produit exactement la renumérotation annoncée à l'étape 3, et
+   **le compte rendu affiché à l'écran porte les mêmes triplets** que le bloc
+   `⚠️ CE QUI VA CHANGER…` de l'outil. La comparaison se fait entre deux écrans ; lire
+   le journal n'est plus nécessaire. Se connecter, puis ouvrir le menu « Comptabilité » :
+   les deux factures sont là, l'une portant `10000` et l'autre `1000000`. La fiche échoue
+   si un seul numéro diffère de ce qui avait été annoncé, sur l'un ou l'autre écran.
 6. Éprouver l'autre versant : reprendre l'archive de l'état E2 (sans doublon) et relancer
    l'outil dessus.
    Attendu : `Numeros qui changeront            : 0`, aucun bloc `CE QUI VA CHANGER`, et

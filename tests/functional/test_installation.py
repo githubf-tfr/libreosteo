@@ -1,6 +1,7 @@
 """Cas repris de tests/core/001_register_user.robot."""
 
 import io
+import json
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -10,6 +11,7 @@ from django.contrib.auth import get_user_model
 from playwright.sync_api import Page, expect
 from pytest_django.live_server_helper import LiveServer
 
+import libreosteoweb
 from libreosteoweb.api.services import sauvegarde
 from libreosteoweb.models import Patient
 from libreosteoweb.tests.fixtures import sans_receivers
@@ -148,6 +150,81 @@ def test_la_restauration_reussie_recharge_la_base(
         motif_url=r"/internal/restore$",
     )
 
+    # Le succes rend desormais un compte rendu (lot correctif 2, Q4-a) au lieu de
+    # rediriger : c'est « Continuer » qui navigue, et c'est le point de la correction --
+    # l'exploitant a le temps de lire les numeros changes avant de quitter l'ecran.
+    expect(page.get_by_test_id("restauration-compte-rendu")).to_be_visible()
+    page.get_by_test_id("restauration-continuer").click()
+
     expect(page).to_have_title("Installer LibreOsteo")
     assert Patient.objects.filter(family_name="Picard").count() == 1
     assert Patient.objects.filter(family_name="Riker").count() == 0
+
+
+DUMP_A_DOUBLONS = json.dumps(
+    [
+        {
+            "model": "libreosteoweb.officesettings",
+            "pk": 1,
+            "fields": {"invoice_start_sequence": "10001"},
+        },
+        {
+            "model": "libreosteoweb.invoice",
+            "pk": 1,
+            "fields": {
+                "officesettings_id": 1,
+                "number": "10000",
+                "amount": "55.00",
+                "currency": "EUR",
+                "date": "2026-01-01T09:00:00Z",
+            },
+        },
+        {
+            "model": "libreosteoweb.invoice",
+            "pk": 2,
+            "fields": {
+                "officesettings_id": 1,
+                "number": "10000",
+                "amount": "55.00",
+                "currency": "EUR",
+                "date": "2026-01-01T09:00:00Z",
+            },
+        },
+    ]
+)
+
+
+@pytest.mark.sans_socle
+def test_le_compte_rendu_de_restauration_liste_les_factures_renumerotees(
+    page: Page, live_server: LiveServer, tmp_path: Path
+) -> None:
+    """R-SAU-02 : la clause de transparence de D10, tenue à l'écran.
+
+    **Ce que ce test regarde** : les trois valeurs -- identifiant, ancien numéro, nouveau
+    numéro -- réellement affichées après une restauration d'archive à doublons. Pas le
+    journal : personne ne le regarde pendant qu'il restaure.
+
+    **Pourquoi l'assertion porte sur les trois valeurs** : un attendu du genre « un
+    panneau récapitulatif s'affiche » serait vert sur un écran qui n'afficherait que le
+    compte -- c'est-à-dire sur l'option (c) que l'arbitrage Q4 a explicitement écartée,
+    « ne dit jamais quels numéros ont changé ».
+
+    `sans_socle` : l'écran de restauration est gardé par `maintenance_available`, qui
+    n'ouvre que si **aucun utilisateur n'existe en base**. C'est un écran de premier
+    démarrage, et le socle par défaut en fermerait l'accès.
+    """
+    ouvrir_le_formulaire_de_restauration(page, live_server)
+    televerser_l_archive(
+        page,
+        archive(
+            tmp_path,
+            archive_fabriquee(libreosteoweb.__version__, dump=DUMP_A_DOUBLONS),
+        ),
+    )
+
+    compte_rendu = page.get_by_test_id("restauration-compte-rendu")
+    expect(compte_rendu).to_be_visible()
+    expect(compte_rendu).to_contain_text("10000")
+    expect(compte_rendu).to_contain_text("1000000")
+    expect(compte_rendu).to_contain_text("2")
+    expect(page.get_by_test_id("restauration-continuer")).to_be_visible()

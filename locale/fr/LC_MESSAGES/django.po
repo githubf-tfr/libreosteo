@@ -2456,3 +2456,26 @@ msgstr "Suiv »"
 
 msgid "Finish"
 msgstr "Terminer"
+
+msgid "Restore completed"
+msgstr "Restauration terminée"
+
+msgid ""
+"Some invoices were renumbered so that each (office, number) pair stays "
+"unique. These are accounting documents, which may already have been handed "
+"to patients: note the new numbers now, this screen is not shown again."
+msgstr ""
+"Des factures ont été renumérotées pour que chaque couple (cabinet, numéro) "
+"reste unique. Ce sont des pièces comptables, qui ont pu être remises à des "
+"patients : notez les nouveaux numéros maintenant, cet écran ne sera plus "
+"affiché."
+
+#, python-format
+msgid "Invoice #%(identifiant)s: %(ancien)s becomes %(nouveau)s."
+msgstr "Facture #%(identifiant)s : %(ancien)s devient %(nouveau)s."
+
+msgid "No invoice was renumbered."
+msgstr "Aucune facture n'a été renumérotée."
+
+msgid "Continue"
+msgstr "Continuer"

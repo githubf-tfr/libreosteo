@@ -1,0 +1,32 @@
+{% load i18n %}
+{# Le compte rendu d'une restauration reussie (lot correctif 2, arbitrage Q4-a). #}
+{# #}
+{# **Avant ce lot, une restauration reussie ne rendait aucun ecran** : #}
+{# `LoadDump.post` repondait 204 + `HX-Redirect: /`, et la seule trace de la #}
+{# renumerotation etait deux lignes de `warning` (`reprise_archive.py:148-165`) -- dans #}
+{# un journal que personne ne regarde pendant qu'il restaure. Or ces numeros sont des #}
+{# pieces fiscales, et elles ont pu etre remises a des patients. #}
+{# #}
+{# **La liste est complete, et c'est l'arbitrage** : identifiant, ancien numero, nouveau #}
+{# numero. Le seul compte ne dirait pas **quelle** facture a change, or c'est la seule #}
+{# chose que l'exploitant n'a aucun autre moyen d'apprendre s'il n'a pas lance l'outil #}
+{# de diagnostic en amont. #}
+{# #}
+{# Ce fragment atterrit dans `#erreur-restauration` (`partials/restore.html`), la meme #}
+{# cible que le refus : c'est le seul conteneur que le formulaire vise. Il ne porte pas #}
+{# `role="alert"` -- ce role reste celui du refus, et #}
+{# `test_le_formulaire_de_restauration_s_affiche` compte les alertes a zero. #}
+<div class="card card-body" data-testid="restauration-compte-rendu">
+  <h3>{% trans 'Restore completed' %}</h3>
+  {% if renumerotations %}
+  <p>{% trans 'Some invoices were renumbered so that each (office, number) pair stays unique. These are accounting documents, which may already have been handed to patients: note the new numbers now, this screen is not shown again.' %}</p>
+  <ul data-testid="restauration-renumerotations">
+    {% for identifiant, ancien, nouveau in renumerotations %}
+    <li>{% blocktrans %}Invoice #{{ identifiant }}: {{ ancien }} becomes {{ nouveau }}.{% endblocktrans %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>{% trans 'No invoice was renumbered.' %}</p>
+  {% endif %}
+  <p><a class="btn btn-primary" href="/" data-testid="restauration-continuer">{% trans 'Continue' %}</a></p>
+</div>
