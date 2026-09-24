@@ -224,7 +224,9 @@ def test_le_compte_rendu_de_restauration_liste_les_factures_renumerotees(
 
     compte_rendu = page.get_by_test_id("restauration-compte-rendu")
     expect(compte_rendu).to_be_visible()
-    expect(compte_rendu).to_contain_text("10000")
-    expect(compte_rendu).to_contain_text("1000000")
-    expect(compte_rendu).to_contain_text("2")
+    # La ligne entiere : "10000" est une sous-chaine de "1000000", et deux
+    # `to_contain_text` separes (plus une garde lache sur "2") seraient tous deux verts
+    # sur un ecran qui n'afficherait que le nouveau numero -- constat Important n°1 de
+    # la revue. Voir la meme correction, cote unitaire, dans test_exploitation.py.
+    expect(compte_rendu).to_contain_text("Facture #2 : 10000 devient 1000000.")
     expect(page.get_by_test_id("restauration-continuer")).to_be_visible()

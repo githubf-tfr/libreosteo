@@ -3662,19 +3662,27 @@ et la clause de repli écrite d'avance à l'étape 4.
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
      stats --no-stream libreosteo
    # puis lancer la restauration depuis l'ecran, chronometrer du clic
-   # « Confirmer la restauration » jusqu'au retour a la page de connexion
+   # « Confirmer la restauration » jusqu'a l'apparition du compte rendu
+   # « Restauration terminee » (lot correctif 2, Q4-a) -- ce compte rendu n'est
+   # plus suivi d'une navigation automatique, cf. R-SAU-02 etape 5 ; le clic sur
+   # « Continuer » qui suit est un temps de reaction de l'operateur, hors mesure.
    docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
      logs --since "$MARQUE" libreosteo | grep -i 'renumérot'
    ```
 
-   Attendu : la restauration aboutit (retour à `/accounts/login/`), et le journal porte une
-   ligne `Archive : facture #<identifiant> renumérotée : <ancien> devient <nouveau>.` puis la
-   ligne récapitulative `Reprise de l'archive avant chargement : 1 facture(s)
-   renumérotée(s) …`. **Mesures relevées**, sur le parc de référence à 1 501 patients :
-   restauration, du clic « Confirmer la restauration » au retour à la page de connexion,
-   **3,4 s** ; mémoire de pointe du conteneur (`memory.peak`) **95,9 Mio** (base au repos
-   80,3 Mio). L'étape 4 confronte ces mesures à la borne, et à un second parc bâti à
-   l'échelle d'un parc réel.
+   Attendu : la restauration aboutit (le compte rendu « Restauration terminée »
+   s'affiche, cf. `R-SAU-02` étape 5), et le journal porte une ligne `Archive : facture
+   #<identifiant> renumérotée : <ancien> devient <nouveau>.` puis la ligne récapitulative
+   `Reprise de l'archive avant chargement : 1 facture(s) renumérotée(s) …`. **Mesures
+   relevées**, sur le parc de référence à 1 501 patients : restauration, du clic
+   « Confirmer la restauration » à l'apparition du compte rendu, **3,4 s** ; mémoire de
+   pointe du conteneur (`memory.peak`) **95,9 Mio** (base au repos 80,3 Mio). Ces deux
+   mesures restent valables sous ce nouveau repère : avant le lot correctif 2, le compte
+   rendu n'existait pas et le chrono s'arrêtait au retour à la page de connexion, une
+   requête `GET` supplémentaire déclenchée par `HX-Redirect` dans la même foulée que la
+   réponse chronométrée — le nouveau repère ne fait qu'arrêter le chrono un peu plus tôt
+   sur ce même trajet, jamais plus tard. L'étape 4 confronte ces mesures à la borne, et à
+   un second parc bâti à l'échelle d'un parc réel.
 4. **Confronter la mesure à la borne, et appliquer la clause de repli s'il le faut.** La
    borne est `--http-timeout 180` (`Docker/build/http-ready/Dockerfile:184`) ; la mémoire de
    pointe se juge contre celle dont dispose l'hôte de production.
@@ -3687,7 +3695,7 @@ et la clause de repli écrite d'avance à l'étape 4.
    |---|---|---|
    | Objets `dump.json` | 1 532 | 45 016 |
    | Taille `dump.json` | 1,4 Mio | 35,5 Mio |
-   | Restauration, clic → page de connexion | 3,4 s | 112,6 s |
+   | Restauration, clic → compte rendu affiché | 3,4 s | 112,6 s |
    | Pic mémoire conteneur (`memory.peak`) | 95,9 Mio (base 80,3) | 254,3 Mio (base 76,0) |
    | Coût propre à D10 (`reprendre_le_dump` isolée) | — (non isolé à cette échelle) | 1,98 s et +84,4 Mio RSS |
 
