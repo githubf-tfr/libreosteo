@@ -107,6 +107,37 @@ class TestAnalyser(BaseImport):
         self.assertIn('data-testid="analyse-patients-ko"', corps)
         self.assertIn("disabled>", corps)
 
+    def test_le_panneau_d_analyse_avertit_avant_d_integrer(self):
+        """Ce que l'exploitant doit lire **avant** de cliquer « Importer ».
+
+        Le défaut fermé (lot correctif, C3, arbitrage Q3-a) : au-delà d'environ 1 200
+        patients, le `POST …/integrate` dépasse `--http-timeout 180`, le navigateur est
+        coupé, **aucun panneau « Importation réussie » n'apparaît -- et les patients sont
+        intégrés**. Mesuré : 200 en 238,8 s. Un exploitant qui s'arrête à l'écran
+        rejouerait l'import sur un lot déjà en base ; c'est arrivé.
+
+        ⚠️ **Ce que ce correctif ne fait pas** : il ne supprime pas la coupure, et le
+        rapport d'import continue de voyager dans la réponse HTTP. Le § 2.2 du cadrage
+        posait l'inverse ; l'arbitrage Q3-(a) le reporte, et c'est écrit au journal.
+
+        L'assertion porte sur les **deux** phrases qui décident du geste : que l'écran peut
+        rester muet, et qu'il ne faut pas rejouer. Un attendu du genre « un avertissement
+        s'affiche » serait vert sur un texte qui dirait l'un sans l'autre.
+        """
+        reponse = self.client.post(
+            reverse("import-analyse"),
+            data={
+                "patientFile": csv_televerse(
+                    "patients.csv", ENTETE_PATIENT, [ligne_patient(1)]
+                )
+            },
+        )
+
+        corps = reponse.content.decode("utf-8")
+        self.assertIn('data-testid="import-avertissement-duree"', corps)
+        self.assertIn("ne relancez pas l'import", corps)
+        self.assertIn("aucun écran ne revient", corps)
+
 
 class TestIntegrer(BaseImport):
     def test_l_integration_d_un_couple_non_valide_est_refusee_en_409(self):

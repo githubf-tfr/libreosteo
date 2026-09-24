@@ -111,6 +111,21 @@
     </div>
     {% endif %}
 
+    {# **L'avertissement est inconditionnel, et ce n'est pas un defaut de finesse** (lot #}
+    {# correctif 2, arbitrage Q3-a). La vue ne connait pas le nombre de lignes du fichier #}
+    {# -- `_resume` ne remonte que type/valide/vide -- et le seuil serait faux de toute #}
+    {# facon : le depassement mesure (200 en 238,8 s) depend de la fusion d'index Whoosh, #}
+    {# pas du volume ; deux lots de la meme serie sont repasses sous la borne (109 s, #}
+    {# 129 s). Un avertissement donne par un mauvais seuil tairait le risque en dessous. #}
+    {# #}
+    {# ⚠️ **Ce panneau ne ferme pas le defaut, il le rend lisible.** Le rapport d'import #}
+    {# voyage toujours dans la reponse HTTP et meurt avec elle : le fermer demanderait de #}
+    {# le persister (ecarte, migration) ou de sortir l'import de la requete (ecarte, #}
+    {# changement d'architecture). Limite assumee, portee au KANBAN. #}
+    <div class="card card-body" data-testid="import-avertissement-duree">
+      <p>{% trans 'A large file can take longer than the three minutes the server waits, and the screen then stays silent even though the import has succeeded. It has been measured at around 1 200 patients.' %}</p>
+      <p>{% trans 'If no screen comes back, do not run the import again: it would import the same people a second time. Check the patient list first, then import only what is missing.' %}</p>
+    </div>
     <p>
       {# Le bouton est rendu `disabled` par le serveur quand l'analyse a echoue : c'est la #}
       {# meme decision que `ng-disabled` prenait dans le navigateur, prise la ou #}

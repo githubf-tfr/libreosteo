@@ -3263,7 +3263,12 @@ deux dates.
    Attendu : panneau « Résultats d'analyse » ; « Fichier patient ✔ » (coche verte) ;
    un tableau affiche un extrait de 5 lignes du fichier, avec des en-têtes de
    colonne dont « Nom de famille », « Prénom » et « Date de naissance
-   (JJ/MM/AAAA) » ; bouton « Importer » actif (vert).
+   (JJ/MM/AAAA) » ; bouton « Importer » actif (vert) ; et, au-dessus du bouton
+   « Importer », l'encart d'avertissement « Un gros fichier peut demander plus que les
+   trois minutes d'attente du serveur… » suivi de « Si aucun écran ne revient, ne
+   relancez pas l'import… ». **La fiche échoue si l'une des deux phrases manque** : la
+   première seule laisserait croire à un ralentissement, la seconde seule ne dirait pas
+   pourquoi.
 4. Cliquer « Importer ».
    Attendu : panneau « Importation réussie » ; texte « 100 lignes importées du
    fichier patient ». Le traitement peut dépasser la minute (100 lignes, chacune
@@ -3277,7 +3282,12 @@ Relevé au passage lors de la constitution des lots synthétiques de `R-SAU-04` 
 intégrés en base. Un exploitant qui s'arrête au panneau absent conclurait à l'échec et
 rejouerait l'import — sur un lot déjà intégré. Le dépassement n'est pas systématique : deux
 autres lots de la même série sont repassés sous la borne (109 s et 129 s) ; il dépend de la
-fusion d'index Whoosh, pas du seul volume. Constat relevé au passage, pas encore adressé.
+fusion d'index Whoosh, pas du seul volume. **Adressé par le lot correctif 2 (arbitrage
+Q3-a), et seulement à moitié :** le panneau d'analyse porte désormais, **avant** le bouton
+« Importer », l'avertissement que l'écran peut rester muet et la consigne de **ne pas
+rejouer**. ⚠️ **La coupure elle-même n'est pas supprimée** et le rapport d'import continue de
+voyager dans la réponse HTTP : le fermer demanderait de le persister ou de sortir l'import de
+la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par `R-IMP-04`.
 
 ### R-IMP-02 — Import de consultations liées aux patients importés
 
@@ -3351,6 +3361,48 @@ fusion d'index Whoosh, pas du seul volume. Constat relevé au passage, pas encor
 3. Tenter de cliquer « Importer ».
    Attendu : le bouton désactivé n'accepte pas le clic ; aucune requête d'import
    n'est envoyée et aucun patient n'est créé en base.
+
+### R-IMP-04 — Import dépassant la borne de trois minutes
+
+- **Domaine** : Import CSV
+- **Couverture auto** : non — le cas demande un fichier de plus de 1 200 patients et une
+  mesure de plus de 180 s ; la suite fonctionnelle ne peut jouer ni l'un ni l'autre. Seul
+  l'avertissement qui précède l'import est couvert, par
+  libreosteoweb/tests/test_page_import.py::test_le_panneau_d_analyse_avertit_avant_d_integrer.
+- **État requis** : E1
+
+**Prérequis** : un fichier CSV de patients d'au moins 1 500 lignes, au gabarit
+« Gabarit du fichier patient ». ⚠️ Le dépassement n'est pas systématique : il dépend de la
+fusion d'index Whoosh, pas du seul volume. Deux lots de 1 500 patients peuvent passer, un
+troisième non.
+
+**Étapes**
+
+1. Ouvrir « Import/export », onglet « Importer d'un système externe », choisir le fichier
+   de patients, cliquer « Analyser ».
+   Attendu : le panneau « Résultat de l'analyse » s'affiche, et **au-dessus du bouton
+   « Importer »** l'encart d'avertissement de durée, avec ses deux phrases : l'écran peut
+   rester muet, et il ne faut pas rejouer.
+2. Cliquer « Importer », et **noter l'heure**.
+   Attendu : le témoin « Chargement en cours » s'affiche, le bouton devient inactif.
+3. Attendre le retour, ou son absence, au-delà de trois minutes.
+   Attendu, **et les deux issues sont des OK** : soit le panneau « Importation réussie »
+   s'affiche avec le nombre de lignes intégrées ; soit **aucun panneau ne revient** — le
+   navigateur a été coupé par la borne `--http-timeout 180`
+   (`Docker/build/http-ready/Dockerfile:184`). ⚠️ **La seconde issue n'est pas un échec de
+   l'import** : mesuré à `R-IMP-01`, un `POST …/integrate` a rendu 200 en 238,8 s et les
+   patients étaient intégrés.
+4. Dans le second cas seulement : **ne pas relancer l'import**. Ouvrir le tableau de bord
+   et la recherche, et vérifier la présence des patients du fichier.
+   Attendu : les patients sont en base. **La fiche échoue si l'exploitant, en suivant le
+   seul écran, conclut à l'échec** : c'est ce que l'avertissement de l'étape 1 existe pour
+   empêcher.
+
+**Constat** : ⚠️ **Ce lot rend le défaut lisible, il ne le ferme pas.** Le rapport d'import
+ne survit pas à la requête : si la réponse ne revient pas, rien dans le produit ne sait
+plus qu'un import a eu lieu. Le fermer demande soit de persister le rapport, soit de sortir
+l'import de la requête — écartés de ce lot (cadrage § 11.3), et l'un des deux reste au
+journal.
 
 ### Sauvegarde/restauration
 
