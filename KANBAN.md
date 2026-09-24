@@ -842,7 +842,29 @@ décrits à l'entrée de clôture, pas ici.
   Sans cette entrée, le dépôt affirmerait « Bootstrap 3 est mort, clause à zéro » alors que sept
   sites survivent.
 
-### Lot correctif ouvert par la clôture de D6g et de D10 (2026-09-19, à faire)
+### Lot correctif ouvert par la clôture de D6g et de D10 (2026-09-19, **cadré et arbitré le 2026-09-24**)
+
+**Cadré** : `docs/superpowers/specs/2026-09-23-lot-correctif-design.md`. Les sept questions
+ouvertes du cadrage ont été **tranchées par l'utilisateur le 2026-09-24** (spec § 11, chaque
+décision lui est attribuée) : bloquer la saisie pendant l'envoi (course d'onglet) ; nommer
+l'état « index vide » sur l'écran de recherche seul ; avertir avant l'import CSV sans
+supprimer la coupure ; rendre un compte rendu de renumérotation au lieu de la redirection ;
+sortir le balisage des zones traduites, `install.html` compris ; durcir
+`block_disconnect_all_signal.__exit__` avec son test de contrat.
+
+**Découpé en deux lots** (arbitrage Q7) :
+
+| Lot | Contenu | Plan |
+|---|---|---|
+| 1 | Journal dupliqué, `block_disconnect_all_signal`, catalogue de traduction — aucune décision produit en dépendance | `docs/superpowers/plans/2026-09-24-lot-correctif-1-plan.md` (3 tâches) |
+| 2 | Course d'onglet, index vide, import CSV, renumérotation | à écrire après le lot 1 |
+
+⚠️ **Deux tensions nommées, pas résolues par l'arbitrage** (spec § 11.4) : `gettext` est
+**absent de la sandbox** et le test de contrat du catalogue fait rougir `make check` sans lui
+— T3 du lot 1 ne se commite pas tant qu'il n'est pas installé, et **écrire un compilateur de
+remplacement est interdit** (le dépôt a déjà payé dix traductions perdues à ce jeu) ; et
+l'arbitrage Q3 laisse le rapport d'import voyager dans la réponse HTTP, ce que le § 2.2 de la
+spec posait comme inconditionnellement à éviter — limite assumée, portée au lot 2.
 
 - ⚠️ **Une saisie non envoyée dans le dossier patient peut disparaître silencieusement sur
   un geste ordinaire, mesuré au lot B.** `partials/onglets.html:88-90` pose
@@ -907,11 +929,14 @@ décrits à l'entrée de clôture, pas ici.
   catalogue.
 - **`block_disconnect_all_signal.__exit__` reconnecte aveuglément** — voir « Constats versés le
   2026-09-19 » ci-dessous. L'appelant fautif est corrigé, l'aide ne l'est pas.
-- **Le test d'équivalence de l'outil de diagnostic reste aveugle au-dessus du plancher de
-  renumérotation** : son jeu n'a **aucun cabinet dont le maximum dépasse `PLANCHER`**, or c'est
-  l'état d'un parc **déjà repris une fois**. Une paire de doublons dans un cabinet à huit
-  chiffres ferme le trou. ⚠️ Corrigé depuis par `99ed014` — **à vérifier à la prochaine passe**,
-  l'entrée reste pour mémoire du mécanisme.
+- ~~**Le test d'équivalence de l'outil de diagnostic reste aveugle au-dessus du plancher de
+  renumérotation**~~ — **clos**, vérifié le 2026-09-23 : `99ed014` a ajouté au jeu de
+  `test_l_outil_de_diagnostic_annonce_exactement_ce_que_la_reprise_fera`
+  (`libreosteoweb/tests/test_reprise_archive.py`) un cabinet à `10000001` — au-dessus de
+  `PLANCHER_RENUMEROTATION = 999999` — **avec** une paire de doublons `#18`/`#19`, et
+  l'assertion porte sur la valeur produite. Test rejoué vert. L'entrée reste pour mémoire du
+  mécanisme : le jeu n'avait **aucun cabinet dont le maximum dépasse `PLANCHER`**, or c'est
+  l'état d'un parc **déjà repris une fois**.
 - **L'écart `Lower()` PostgreSQL contre `.lower()` Python subsiste** dans l'outil de diagnostic,
   désormais écrit dans sa docstring : sur un caractère exotique, l'outil compterait **distincts**
   deux dossiers que la contrainte refuse — le mauvais sens. Le lever exigerait de faire tourner
