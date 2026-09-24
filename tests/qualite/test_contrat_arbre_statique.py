@@ -100,3 +100,71 @@ def test_aucun_residu_sous_static_components() -> None:
         "(residu de collectstatic, qui n'enleve jamais ce qu'il a copie) : "
         + ", ".join(sorted(fautifs))
     )
+
+
+# Les trois fichiers que `libreosteoweb/templates/` référence réellement, mesurés par
+# `grep -rho "components/[A-Za-z0-9._/@-]*" libreosteoweb/templates/ | sort -u`. Ce sont
+# les seuls que `collectstatic` doit copier sous `static/components/`.
+SERVIS = {
+    "alpinejs/dist/cdn.min.js",
+    "bootstrap/dist/css/bootstrap.min.css",
+    "htmx/dist/htmx.min.js",
+}
+
+
+def fichiers_servis(static_components: Path) -> set[str]:
+    """Les fichiers effectivement copies sous `static/components/`, chemin relatif."""
+    if not static_components.is_dir():
+        return set()
+    return {
+        str(chemin.relative_to(static_components))
+        for chemin in static_components.rglob("*")
+        if chemin.is_file()
+    }
+
+
+def test_le_detecteur_signale_un_fichier_de_trop(tmp_path: Path) -> None:
+    """Le detecteur rend l'arbre entier, pas seulement une difference deja calculee :
+    un fichier de trop et un fichier attendu doivent tous deux apparaitre dans le
+    resultat pour que le test reel puisse juger l'egalite des deux ensembles."""
+    composants = tmp_path / "components"
+    (composants / "htmx" / "dist").mkdir(parents=True)
+    (composants / "htmx" / "dist" / "htmx.min.js").write_text("", encoding="utf-8")
+    (composants / "htmx" / "editors").mkdir(parents=True)
+    (composants / "htmx" / "editors" / "ace.js").write_text("", encoding="utf-8")
+
+    assert fichiers_servis(composants) == {
+        "htmx/dist/htmx.min.js",
+        "htmx/editors/ace.js",
+    }
+
+
+def test_static_components_ne_porte_que_les_trois_fichiers_servis() -> None:
+    """Ce que ce cliquet garde : le **contenu** des paquets, que le cliquet de residu
+    ci-dessus ne voit pas -- son propre docstring le dit.
+
+    Il est volontairement une **egalite**, pas une inclusion : une montee de version qui
+    ajoute un fichier le fait rougir, et c'est l'effet recherche. Le chiffre de 322
+    fichiers a vecu parce que rien ne le mesurait ; un cliquet qui tolererait un fichier
+    de plus le laisserait revenir un par un.
+
+    Ce qu'il ne voit pas, et c'est dit : l'arbre de l'image Docker, construit a neuf a
+    chaque fois (`.dockerignore` exclut `static/` du contexte). Il couvre l'arbre local.
+    """
+    if not STATIC_COMPONENTS.parent.is_dir():
+        pytest.skip("arbre statique non construit (`make static` non joue)")
+
+    servis = fichiers_servis(STATIC_COMPONENTS)
+
+    # Preuve de presence, indissociable de la preuve d'absence : un arbre entierement
+    # vide satisferait la seule verification d'absence, et l'image ne se construirait
+    # plus -- `compress` tourne apres `collectstatic` et echouerait sur le fichier
+    # manquant.
+    assert SERVIS <= servis, (
+        "un fichier servi par un gabarit n'a pas ete copie : la construction de l'image "
+        "echouerait a l'etape `compress` : " + ", ".join(sorted(SERVIS - servis))
+    )
+    assert servis <= SERVIS, (
+        "static/components/ porte un fichier qu'aucun gabarit ne reference : "
+        + ", ".join(sorted(servis - SERVIS))
+    )

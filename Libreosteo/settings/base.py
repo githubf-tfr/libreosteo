@@ -110,7 +110,10 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-    "django.contrib.staticfiles",
+    # `collectstatic` lit ses motifs d'exclusion sur la configuration de cette
+    # application : la sous-classe les porte, et les deux appels du depot (Makefile,
+    # Dockerfile) en heritent sans changer d'une ligne. Cf. le docstring de la classe.
+    "libreosteoweb.apps.ArbreStatiqueConfig",
     "libreosteoweb",
     "django_filters",
     "rest_framework",
