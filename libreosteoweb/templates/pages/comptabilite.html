@@ -41,8 +41,11 @@
         <label for="therapeut">{% trans 'By' %}</label>
         <select class="form-control" id="therapeut" name="therapeut">
           <option value="">{% trans 'All' %}</option>
+          {# Meme defaut que `partials/praticien-nom.html` (repli sur `get_username`, #}
+          {# jamais vide), mais sans le reutiliser : une `<option>` de `<select>` ne #}
+          {# peut pas contenir de balise, et le partiel rend un `<span>`. #}
           {% for utilisateur in utilisateurs %}
-          <option value="{{ utilisateur.id }}"{% if utilisateur.id == therapeut_id %} selected{% endif %}>{{ utilisateur.last_name }} {{ utilisateur.first_name }}</option>
+          <option value="{{ utilisateur.id }}"{% if utilisateur.id == therapeut_id %} selected{% endif %}>{% if utilisateur.last_name or utilisateur.first_name %}{{ utilisateur.last_name }} {{ utilisateur.first_name }}{% else %}{{ utilisateur.get_username }}{% endif %}</option>
           {% endfor %}
         </select>
       </div>

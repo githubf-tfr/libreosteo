@@ -276,6 +276,24 @@ class TestPageComptabilite(TestCase):
             with self.subTest(libelle=libelle):
                 self.assertIn(libelle, corps)
 
+    def test_le_filtre_par_praticien_replie_sur_l_identifiant_sans_nom(self):
+        """Cinquieme surface du meme defaut (T1bis) : un praticien sans `first_name` ni
+        `last_name` rendait une `<option>` vide dans le filtre — indistinguable des
+        autres. Une seule ligne d'`option` collerait "" au nom `get_username`
+        (`" test2"`) en tant que sous-chaine de tout nom qui commencerait par un espace ;
+        on isole donc le contenu exact de l'`option` avant de comparer."""
+        sans_nom = cree_praticien(username="test2")
+        # Deux praticiens : condition (`utilisateurs|length > 1`) qui fait apparaitre le
+        # filtre.
+
+        corps = self.client.get(reverse("comptabilite")).content.decode("utf-8")
+
+        balise = re.search(
+            r'<option value="%d"[^>]*>([^<]*)</option>' % sans_nom.pk, corps
+        )
+        self.assertIsNotNone(balise)
+        self.assertEqual(sans_nom.username, balise.group(1).strip())
+
 
 class TestCoherenceDeLaPeriodeApresEchange(TestCase):
     """Le defaut de recette R-FAC-02 etape 4 : apres un changement de periode, l'echange
