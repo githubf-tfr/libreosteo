@@ -177,6 +177,13 @@ Two things are worth knowing before you choose:
   being indexed, sorted or searched, which breaks patient search and the Whoosh index, and
   it requires rewriting the application. Volume encryption protects more, for none of that
   cost.
+- **In-database TDE exists as an extension, but it is partial on community PostgreSQL.**
+  ``pg_tde`` (Percona, production-ready since 2025, WAL encryption included) encrypts at
+  the storage layer, so unlike ``pgcrypto`` it needs no application change. On *community*
+  PostgreSQL, however, it is limited to the ``tde_heap_basic`` access method: **indexes are
+  not encrypted**, and patient names live in those indexes. Full coverage requires two
+  patches to PostgreSQL itself, shipped only in Percona's distribution — a different base
+  image than the one this repository builds. Volume encryption avoids that trade entirely.
 
 Encrypting a disk that is already in service is a migration, not a setting: back up,
 encrypt, restore. Plan it as such.

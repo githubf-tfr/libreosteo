@@ -684,7 +684,18 @@ sur les quatre entrées.
   « Encryption at rest is the host's responsibility », qui dit trois choses mesurées —
   PostgreSQL communautaire **n'a pas** de chiffrement transparent, donc les fichiers sous
   `${LIBREOSTEO_DB_STORAGE}` et `${LIBREOSTEO_BAK_STORAGE}` sont lisibles par qui lit le
-  disque ; **les sauvegardes comptent autant que la base**, et un volume de sauvegarde en
+  disque ⚠️ (**vérifié sur sources en ligne le 2026-09-24**, l'affirmation ayant d'abord été
+  faite de mémoire : le cœur de PostgreSQL n'a de TDE ni en 17 ni en 18, c'est un refus de
+  longue date de la communauté. ⚠️ **Mais la carte des options avait été donnée fausse** :
+  il existe des extensions TDE **open source et matures** qui chiffrent au niveau du
+  stockage, pas de la colonne — `pg_tde` de Percona, production depuis juin 2025,
+  chiffrement du WAL depuis septembre 2025, sans changement applicatif. **Le piège est dans
+  notre cas d'usage** : sur PostgreSQL **communautaire**, `pg_tde` se limite à
+  `tde_heap_basic`, donc **les index ne sont pas chiffrés** — or ils portent les noms et
+  prénoms des patients. La couverture complète exige deux correctifs sur PostgreSQL
+  lui-même, livrés seulement dans la distribution Percona, soit une autre image de base.
+  Le chiffrement de volume évite ce compromis, d'où la recommandation inchangée) ;
+  **les sauvegardes comptent autant que la base**, et un volume de sauvegarde en
   clair annule un volume de données chiffré ; et **`pgcrypto` est le mauvais outil ici** —
   une colonne chiffrée ne s'indexe plus, ne se trie plus, ne se cherche plus, ce qui
   casserait la recherche patient et l'index Whoosh pour une protection moindre que celle du
