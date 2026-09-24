@@ -15,6 +15,7 @@
 """Le service de sauvegarde-restauration, appele sans passer par HTTP."""
 
 import io
+import json
 import zipfile
 from datetime import date
 
@@ -182,6 +183,71 @@ class TestIndexApresRechargement(TransactionTestCase):
             0,
             "Le recepteur de post_reload_db reconstruit l'index au lieu de le purger.",
         )
+
+
+class TestPlanRendu(TransactionTestCase):
+    """`restaurer()` rend ce que la reprise a change, au lieu de le jeter.
+
+    Le defaut ferme (lot correctif, C5) : l'information existait, **structuree**, et
+    `sauvegarde.py:127` appelait `reprendre_le_dump` pour son seul effet de bord sur le
+    dump. `LoadDump.post` n'avait donc rien a afficher -- et une renumerotation de
+    documents fiscaux, qui ont pu etre remis a des patients, passait en silence.
+
+    Ce test ne regarde **aucun ecran** : il regarde la valeur de retour du service, seule
+    chose que cette tache change.
+    """
+
+    serialized_rollback = True
+
+    def test_une_archive_a_doublons_rend_les_renumerotations(self):
+        dump = json.dumps(
+            [
+                {
+                    "model": "libreosteoweb.officesettings",
+                    "pk": 1,
+                    "fields": {"invoice_start_sequence": "10001"},
+                },
+                {
+                    "model": "libreosteoweb.invoice",
+                    "pk": 1,
+                    "fields": {
+                        "officesettings_id": 1,
+                        "number": "10000",
+                        "amount": "55.00",
+                        "currency": "EUR",
+                        "date": "2026-01-01T09:00:00Z",
+                    },
+                },
+                {
+                    "model": "libreosteoweb.invoice",
+                    "pk": 2,
+                    "fields": {
+                        "officesettings_id": 1,
+                        "number": "10000",
+                        "amount": "55.00",
+                        "currency": "EUR",
+                        "date": "2026-01-01T09:00:00Z",
+                    },
+                },
+            ]
+        )
+
+        plan = sauvegarde.restaurer(
+            archive_de_restauration(libreosteoweb.__version__, contenu_dump=dump),
+            libreosteoweb.__version__,
+        )
+
+        assert plan.renumerotations == [(2, "10000", "1000000")]
+
+    def test_une_archive_saine_rend_un_plan_vide(self):
+        """Le cas courant. Un plan vide **est** une reponse : « aucune facture
+        renumerotee » est ce que la tache 3 doit afficher, pas une absence de reponse."""
+        plan = sauvegarde.restaurer(
+            archive_de_restauration(libreosteoweb.__version__),
+            libreosteoweb.__version__,
+        )
+
+        assert plan.renumerotations == []
 
 
 class TestIndexationTempsReelApresRechargement(TransactionTestCase):

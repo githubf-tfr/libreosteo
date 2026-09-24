@@ -39,6 +39,7 @@ from haystack.apps import HaystackConfig
 from libreosteoweb import models
 from libreosteoweb.management.commands.backup_db import backup_db
 
+from ..invoicing.reprise import PlanReprise
 from ..receivers import (
     block_disconnect_all_signal,
     receiver_examination,
@@ -71,7 +72,7 @@ def construire_archive() -> bytes:
     return backup_db().getvalue()
 
 
-def restaurer(contenu: ContentFile, version_courante: str) -> None:
+def restaurer(contenu: ContentFile, version_courante: str) -> PlanReprise:
     # tmpdir et previous ne sont affectés que dans le bloc ci-dessous ; les initialiser
     # à None permet au "finally" de savoir s'il y a quelque chose à nettoyer, même
     # quand une exception survient avant leur affectation réelle.
@@ -124,7 +125,7 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
         # transaction : c'est une lecture-ecriture de fichier temporaire, elle n'a rien a
         # faire dans la transaction de base, et un echec y est un `OSError` deja rattrape
         # par le bloc englobant.
-        reprise_archive.reprendre_le_dump(fixture)
+        plan = reprise_archive.reprendre_le_dump(fixture)
         receivers_senders = [
             (receiver_examination, models.Examination),
             (receiver_newpatient, models.Patient),
@@ -212,6 +213,10 @@ def restaurer(contenu: ContentFile, version_courante: str) -> None:
         logger.info("end of reloading.")
         # Send signals for post_reload treatment
         post_reload_db.send(sender=restaurer)
+        # Le plan remonte jusqu'a l'appelant : `LoadDump.post` en fait un compte rendu
+        # (lot correctif 2, arbitrage Q4-a). Il etait calcule puis jete ici -- et une
+        # renumerotation de pieces fiscales passait en silence.
+        return plan
     except (
         zipfile.BadZipFile,
         KeyError,
