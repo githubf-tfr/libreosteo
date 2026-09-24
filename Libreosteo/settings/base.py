@@ -323,11 +323,20 @@ LOGGING = {
             "level": "WARNING",
             "propagate": False,
         },
+        # Une seule entree pour tout `libreosteoweb.*`, et c'est voulu. Il y en avait
+        # deux -- celle-ci et `libreosteoweb.api` -- portant **le meme** handler `console`
+        # et **le meme** niveau, sans que ni l'une ni l'autre ne coupe `propagate` (absent
+        # vaut True). Un `logging.getLogger(__name__)` sous `libreosteoweb.api.*`
+        # traversait donc deux ancetres configures et ecrivait deux fois sur le meme flux,
+        # avec le meme `asctime` : rien ne distinguait les deux lignes. Le sous-arbre
+        # couvre tous les modules de la restauration (`api/views/administration.py`,
+        # `api/services/sauvegarde.py`, `api/services/reprise_archive.py`,
+        # `api/invoicing/reprise.py`), c'est-a-dire exactement les lignes qu'on compte a la
+        # main pour savoir combien de factures ont ete renumerotees. **Ne pas reintroduire
+        # une entree fille** : elle n'apporterait rien tant qu'elle porte le meme handler,
+        # et une entree redondante est precisement ce qui a produit le defaut.
+        # `libreosteoweb/tests/test_reglages.py::TestJournalApplicatif` le tient.
         "libreosteoweb": {
-            "handlers": ["console"],
-            "level": "INFO",
-        },
-        "libreosteoweb.api": {
             "handlers": ["console"],
             "level": "INFO",
         },

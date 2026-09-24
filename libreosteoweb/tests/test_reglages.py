@@ -131,3 +131,71 @@ class TestHotesAutorises(SimpleTestCase):
     def test_le_mode_debug_est_desactive_par_defaut(self) -> None:
         reload(base)
         self.assertFalse(base.DEBUG)
+
+
+class TestJournalApplicatif(SimpleTestCase):
+    """Un enregistrement emis, une ligne ecrite.
+
+    Le defaut ferme (lot correctif, C4) : `LOGGING` portait deux entrees,
+    `libreosteoweb` et `libreosteoweb.api`, avec **le meme** handler `console` et
+    **aucune** coupure de `propagate`. Tout `logging.getLogger(__name__)` sous
+    `libreosteoweb.api.*` traversait donc deux ancetres configures et ecrivait deux fois
+    sur le meme flux, avec le meme `asctime` -- l'horodatage est calcule a la creation de
+    l'enregistrement, pas a l'emission, donc rien a l'ecran ne distinguait les deux lignes
+    d'un double envoi. Tous les modules de la restauration sont dans ce sous-arbre :
+    compter a la main combien de factures ont ete renumerotees y donnait le double.
+
+    **Ce que ces tests regardent : un nombre de lignes.** Ni `propagate`, ni la liste des
+    handlers, ni le dictionnaire de reglages -- un test qui lirait le reglage serait vert
+    sur une configuration juste et muette, et rouge sur une refonte qui produirait le bon
+    comportement autrement.
+
+    **Isoles dans un sous-processus**, pour la raison deja ecrite plus haut dans ce
+    fichier : `logging.config.dictConfig` reconfigure le journal du processus entier et
+    contaminerait la suite. Et `assertLogs` ne convient pas ici : il pose son propre
+    handler **en coupant `propagate`**, c'est-a-dire qu'il masque exactement le mecanisme
+    mesure.
+    """
+
+    SCRIPT = (
+        "import logging\n"
+        "import logging.config\n"
+        "from Libreosteo.settings.base import LOGGING\n"
+        "logging.config.dictConfig(LOGGING)\n"
+        "logging.getLogger('libreosteoweb.api.services.sauvegarde').info('TEMOIN-API')\n"
+        "logging.getLogger('libreosteoweb.middleware').info('TEMOIN-HORS-API')\n"
+    )
+
+    def journal(self) -> str:
+        resultat = subprocess.run(
+            [sys.executable, "-c", self.SCRIPT],
+            cwd=str(Path(base.__file__).resolve().parents[2]),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, resultat.returncode, resultat.stderr)
+        return resultat.stderr
+
+    def test_un_enregistrement_de_l_api_n_ecrit_qu_une_ligne(self) -> None:
+        self.assertEqual(
+            1,
+            self.journal().count("TEMOIN-API"),
+            "Un enregistrement emis sous `libreosteoweb.api.*` est ecrit plus d'une fois "
+            "dans le journal : deux entrees de LOGGING portent le meme handler sans "
+            "couper `propagate`.",
+        )
+
+    def test_un_enregistrement_hors_de_l_api_ecrit_toujours_sa_ligne(self) -> None:
+        """La contrepartie : couper la duplication ne doit rendre personne muet.
+
+        `libreosteoweb.middleware` porte les refus d'acces. Une correction qui aurait
+        retire la mauvaise entree, ou qui aurait coupe `propagate` au mauvais endroit, le
+        ferait disparaitre du journal sans qu'aucune erreur ne le signale.
+        """
+        self.assertEqual(
+            1,
+            self.journal().count("TEMOIN-HORS-API"),
+            "Un enregistrement emis hors du sous-arbre `libreosteoweb.api.*` n'ecrit plus "
+            "exactement une ligne.",
+        )
