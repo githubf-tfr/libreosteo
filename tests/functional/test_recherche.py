@@ -69,7 +69,7 @@ def test_un_index_vide_est_nomme_sur_l_ecran_de_recherche(
     sur l'absence de « Aucun résultat trouvé ».
 
     L'index est vidé par `clear_index`, c'est-à-dire par le geste exact de
-    `purge_index_apres_rechargement` (`api/receivers.py:121-153`) : le patient reste en
+    `purge_index_apres_rechargement` (`api/receivers.py:145-176`) : le patient reste en
     base, l'index ne le porte plus.
     """
     with sans_receivers():

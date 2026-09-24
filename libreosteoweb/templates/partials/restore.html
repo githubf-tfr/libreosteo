@@ -1,6 +1,18 @@
 {% load i18n %}
 {% load static %}
-            <div>
+            {# **`id="panneau-restauration"` est la cible du succes, et il n'est pas #}
+            {# decoratif** (revue finale, constat Critical). Le compte rendu atterrissait #}
+            {# dans `#erreur-restauration`, un conteneur situe **au-dessus** du `<form>` : #}
+            {# le formulaire restait donc affiche sous lui, fichier selectionne, bouton #}
+            {# actif. Or l'archive vient de restaurer des utilisateurs, donc #}
+            {# `@maintenance_available` (`api/permissions.py:104-128`) rend desormais #}
+            {# **403 a corps vide**, et `base.html:19` echange les `4xx` : un second clic #}
+            {# effacait le compte rendu **sans un mot**, alors qu'il porte des numeros de #}
+            {# facture -- des pieces fiscales qui ont pu etre remises a des patients. #}
+            {# `LoadDump.post` retarge donc le succes sur ce panneau entier, en #}
+            {# `outerHTML` : le formulaire quitte le document avec lui, et il n'existe #}
+            {# plus de second envoi possible. #}
+            <div id="panneau-restauration">
                  <h2 class="form-registration-heading">{% trans "Restore database" %}</h2>
                  <div class="card card-body">
                      <p>{% trans 'You can restore a previous archive of the database. This archive should be performed from the software with the Import/Export/Archive function.' %}</p>
@@ -9,7 +21,8 @@
                  {# (D10, C3, A5) : une reconstruction synchrone dans cette requete #}
                  {# heurterait le plafond de 180 s mesure a R-RCH-02. Le dire ici, #}
                  {# avant l'action, reste utile : le compte rendu de succes (lot #}
-                 {# correctif 2, Q4-a) remplace ce panneau sans quitter la page, et #}
+                 {# correctif 2, Q4-a) remplace ce panneau — formulaire compris — sans #}
+                 {# quitter la page, et #}
                  {# l'ecran de recherche nomme l'index vide une fois connecte (T1). Le #}
                  {# message nomme l'entree de menu, pas une URL : cet ecran se joue #}
                  {# depuis /install/, sans authentification, et un lien vers la page de #}

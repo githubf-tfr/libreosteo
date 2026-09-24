@@ -837,23 +837,40 @@ def test_la_saisie_redevient_possible_si_la_reponse_n_arrive_jamais(
     page.click("#current-examination")
     expect(motif).to_be_disabled()
 
+    # **Le plancher, et il vaut la moitié de la preuve** (revue finale, constat Minor 4).
+    # `to_be_enabled(timeout=20000)` seul accepterait un délai ramené à une seconde -- une
+    # régression qui rouvrirait le défaut **sur toutes les réponses normales**, sans faire
+    # rougir quoi que ce soit. Trois secondes, c'est « nettement après une réponse
+    # ordinaire » (quelques dizaines de millisecondes, mesure de R-CON-07 étape 5) et
+    # nettement avant les 10 000 ms tranchés : la valeur exacte n'est pas assise ici, et ne
+    # vaudrait pas les secondes de suite qu'elle coûterait.
+    page.wait_for_timeout(3000)
+    expect(motif).to_be_disabled()
+
     expect(motif).to_be_enabled(timeout=20000)
 
 
 def test_entrer_en_edition_ne_verrouille_pas_la_saisie(
     page: Page, live_server: LiveServer
 ) -> None:
-    """Review Focus n° 5 : les lectures ne verrouillent rien.
+    """Review Focus n° 5 : le `GET` d'entrée en édition ne verrouille rien.
 
     **Ce que ce test regarde** : le champ Motif après le `GET` qui ouvre l'édition d'une
-    séance.
+    séance. Il doit être saisissable.
 
-    **Pourquoi c'est le piège le plus coûteux de cette tâche.** Le dossier émet des `GET`
-    pendant la saisie -- entrer en édition, et surtout la recherche de code postal, qui
-    part **à chaque frappe**. Un verrou posé sans filtrer le verbe gèlerait le champ
-    pendant que le praticien tape, c'est-à-dire l'inverse exact du but. La garde
-    `siEcritureReussie` du même document exclut déjà les `GET` pour la même raison, et le
-    verrou reprend ce filtre.
+    **Ce qu'il ne regarde pas, et c'est dit** (revue finale, constat Important n° 1) : il
+    ne retient **aucune requête en vol**, donc il ne peut pas distinguer un verrou absent
+    d'un verrou déjà relâché. Et il ne touche pas la surface où vit le seul `GET` par
+    frappe du dossier -- la recherche de code postal, à l'intérieur de `#general-corps`.
+    C'est là que la garde `verb === 'get'` se paie, et c'est
+    `tests/functional/test_code_postal.py::test_la_recherche_de_code_postal_ne_verrouille_pas_la_saisie`
+    qui la prouve, en retenant la réponse. Une première rédaction de cette docstring
+    revendiquait ici la recherche de code postal : elle disait faux.
+
+    **Pourquoi le filtre existe malgré tout.** Le dossier émet des `GET` pendant la saisie ;
+    un verrou posé sans filtrer le verbe gèlerait le champ pendant que le praticien tape,
+    c'est-à-dire l'inverse exact du but. La garde `siEcritureReussie` du même document
+    exclut déjà les `GET` pour la même raison, et le verrou reprend ce filtre.
     """
     connexion(page, live_server)
     creer_patient(page)

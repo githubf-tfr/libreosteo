@@ -97,7 +97,7 @@ class TestIndexVide(TestCase):
     `test_la_pagination_est_de_dix_resultats`, qui retrouve par recherche des patients créés
     sous ce même contexte). L'état « index vidé, patients en base » s'obtient donc comme le
     fait le test fonctionnel de l'étape 10 : `clear_index`, le geste exact de
-    `purge_index_apres_rechargement` (`api/receivers.py:121-153`).
+    `purge_index_apres_rechargement` (`api/receivers.py:145-176`).
     """
 
     def setUp(self):
@@ -154,7 +154,7 @@ class TestIndexVide(TestCase):
 class TestIndexVidePourUnNonStaff(TestCase):
     """Le chemin vers « Réindexer » n'est offert qu'à qui peut le suivre.
 
-    `RebuildIndex` porte `StaffRequiredMixin` (`api/views/administration.py:236`) et son
+    `RebuildIndex` porte `StaffRequiredMixin` (`api/views/administration.py:270`) et son
     entrée de menu est gardée `{% if request.user.is_staff %}`. Un lien posé sans garde
     enverrait un praticien non-staff sur un refus, au moment précis où il croit sa base
     perdue -- soit remplacer une mauvaise conclusion par une mauvaise porte.

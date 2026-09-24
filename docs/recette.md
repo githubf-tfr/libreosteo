@@ -2746,12 +2746,19 @@ séances closes. **Une séance clôturée ne se supprime pas** — elle porte un
   ::test_la_saisie_est_bloquee_pendant_que_l_enregistrement_est_en_vol,
   ::test_le_texte_riche_refuse_aussi_la_frappe_pendant_l_envoi,
   ::test_la_saisie_redevient_possible_si_la_reponse_n_arrive_jamais,
-  ::test_entrer_en_edition_ne_verrouille_pas_la_saisie et
-  ::test_deux_surfaces_verrouillees_ne_partagent_pas_leur_minuterie (ces cinq derniers : le
-  verrou de saisie qui ferme la course de l'étape 2, sur le champ Motif ordinaire et sur le
-  texte riche, son délai de sécurité, l'absence d'effet sur une simple lecture — même geste
-  qu'à l'étape 2, onglet déjà actif compris —, et l'indépendance du délai de sécurité d'une
-  surface à l'autre quand deux écritures concurrentes sont en vol). **Ne vérifient pas** :
+  ::test_entrer_en_edition_ne_verrouille_pas_la_saisie,
+  ::test_deux_surfaces_verrouillees_ne_partagent_pas_leur_minuterie et
+  tests/functional/test_code_postal.py::test_la_recherche_de_code_postal_ne_verrouille_pas_la_saisie
+  (ces six derniers : le verrou de saisie qui ferme la course de l'étape 2, sur le champ
+  Motif ordinaire et sur le texte riche ; son délai de sécurité, tenu **par les deux
+  bouts** — le champ redevient modifiable si la réponse n'arrive jamais, et il est encore
+  verrouillé trois secondes après, de sorte qu'un délai ramené à une seconde, qui
+  rouvrirait le défaut sur toutes les réponses normales, ferait rougir ; l'indépendance de
+  ce délai d'une surface à l'autre quand deux écritures concurrentes sont en vol ; et
+  l'absence d'effet du verrou sur une **lecture** — l'ouverture d'un fragment d'édition,
+  et surtout la recherche de code postal **retenue en vol**, seule requête du dossier qui
+  parte à chaque frappe depuis une surface de saisie : sans cette garde, la fiche patient
+  se gèlerait à chaque chiffre tapé). **Ne vérifient pas** :
   la boîte native
   « modifications non enregistrées » (étape 3), que Playwright ne peut observer sans la
   neutraliser — ce qui déferait la preuve —, ni le script précis de l'étape 5 (séance
@@ -2778,10 +2785,19 @@ dossier entier depuis la base.
 2. **Le chemin le plus court vers la course, et il est désormais fermé.** Cliquer
    l'onglet **déjà actif** « Consultation en cours » sur lui-même, puis essayer aussitôt de
    retaper `Encore perdu` dans le champ Motif, à la place de `Motif de la seance ouverte`.
-   Attendu : le champ Motif **refuse la frappe** tant que l'enregistrement est en vol, et
-   le témoin « Enregistrement en cours » s'affiche. Le champ disparaît peu après, remplacé
-   par l'affichage en lecture, et le motif vaut `Motif de la seance ouverte`. **Rien n'a
-   été perdu : la frappe n'a pas eu lieu.** ⚠️ **Renversement d'attendu du lot correctif 2**
+   Attendu : le champ disparaît, remplacé par l'affichage en lecture, et le motif vaut
+   `Motif de la seance ouverte`. **Rien n'a été perdu : la frappe n'a pas eu lieu.**
+   ⚠️ **Ce qui est vraiment observable à la main, et ce qui ne l'est pas.** Le refus de
+   frappe lui-même — champ inerte, témoin « Enregistrement en cours » — dure la durée de
+   l'enregistrement, soit *quelques dizaines de millisecondes* (même mesure qu'à
+   l'étape 5) : à vitesse humaine, un verrou présent et un verrou absent donnent le même
+   écran, et le noter « OK » ne prouverait rien. **Le KO de cette étape est la présence de
+   `Encore perdu` dans le motif affiché** — c'est-à-dire une frappe qui aurait été acceptée
+   puis écrasée. Le verrou lui-même est prouvé par la machine, qui seule peut ouvrir la
+   fenêtre :
+   `tests/functional/test_consultation.py::test_la_saisie_est_bloquee_pendant_que_l_enregistrement_est_en_vol`
+   retient la réponse deux secondes et constate le champ inerte. Si le témoin passe sous les yeux, tant mieux ; son absence n'est pas un KO.
+   ⚠️ **Renversement d'attendu du lot correctif 2**
    (arbitrage Q1-c) : jusqu'au 2026-09-24, cette étape était un OK qui **constatait la
    perte** — la frappe était acceptée puis écrasée sans un mot. L'enregistrement implicite
    au changement d'onglet, lui, n'a pas changé : deux tests de `test_patient.py` en
@@ -3457,7 +3473,8 @@ journal.
   ::test_une_archive_illisible_est_refusee,
   ::test_une_archive_d_une_autre_version_est_refusee,
   ::test_la_restauration_reussie_recharge_la_base,
-  ::test_le_compte_rendu_de_restauration_liste_les_factures_renumerotees
+  ::test_le_compte_rendu_de_restauration_liste_les_factures_renumerotees,
+  ::test_le_compte_rendu_de_restauration_ne_laisse_pas_le_formulaire_arme
   (le formulaire de restauration s'affiche sans alerte au repos ; une archive
   illisible et une archive d'une autre version sont refusées, chacune avec une
   alerte nommant le motif, sans laisser l'instance inutilisable ; une restauration
@@ -3465,7 +3482,9 @@ journal.
   supprimé revient, un patient créé après l'archivage disparaît — et affiche le
   compte rendu avant de naviguer ; une archive à doublon fait apparaître à l'écran
   les trois valeurs (identifiant, ancien numéro, nouveau numéro) de chaque facture
-  renumérotée. Non couvert : la fidélité des documents joints restaurés, et le
+  renumérotée ; et le compte rendu **remplace le panneau entier**, formulaire compris, si
+  bien qu'aucun second envoi ne peut l'effacer. Non couvert : la fidélité des documents
+  joints restaurés, et le
   parcours de purge jusqu'à l'état E0 qui précède la restauration dans cette fiche)
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
@@ -3510,7 +3529,12 @@ journal.
    Attendu : le panneau est remplacé par le compte rendu « Restauration terminée », qui
    dit soit « Aucune facture n'a été renumérotée. », soit la liste des factures changées,
    une ligne par facture, de la forme `Facture #<identifiant> : 10000 devient
-   1000000.` ; puis un bouton « Continuer ». Cliquer « Continuer » mène à la page de
+   1000000.` ; puis un bouton « Continuer ». **Le champ de fichier et le bouton
+   « Confirmer la restauration » ont disparu** : le compte rendu remplace le panneau
+   entier, et il n'y a plus de second envoi possible — la fiche échoue s'ils sont encore
+   là, car recliquer effacerait le compte rendu par la réponse vide du refus
+   `403` (l'instance porte de nouveau des utilisateurs, l'écran de maintenance est refermé).
+   Cliquer « Continuer » mène à la page de
    connexion (`/accounts/login/?next=/`, titre « Identifiez-vous sur LibreOsteo »).
    **La fiche échoue si la page quitte le formulaire sans avoir affiché ce compte
    rendu** : c'est la redirection silencieuse que le lot correctif 2 a fermée. Cette

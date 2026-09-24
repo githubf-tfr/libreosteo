@@ -12,8 +12,12 @@
 {# chose que l'exploitant n'a aucun autre moyen d'apprendre s'il n'a pas lance l'outil #}
 {# de diagnostic en amont. #}
 {# #}
-{# Ce fragment atterrit dans `#erreur-restauration` (`partials/restore.html`), la meme #}
-{# cible que le refus : c'est le seul conteneur que le formulaire vise. Il ne porte pas #}
+{# **Ce fragment remplace le panneau entier**, formulaire compris : `LoadDump.post` pose #}
+{# `HX-Retarget: #panneau-restauration` + `HX-Reswap: outerHTML` (revue finale, constat #}
+{# Critical). Rendu dans `#erreur-restauration` -- la cible ecrite sur le formulaire, et #}
+{# celle du refus --, il laissait sous lui un formulaire arme : un second clic partait sur #}
+{# une base qui porte de nouveau des utilisateurs, recevait le **403 a corps vide** de #}
+{# `@maintenance_available`, et ce corps vide effacait le compte rendu. Il ne porte pas #}
 {# `role="alert"` -- ce role reste celui du refus, et #}
 {# `test_le_formulaire_de_restauration_s_affiche` compte les alertes a zero. #}
 <div class="card card-body" data-testid="restauration-compte-rendu">

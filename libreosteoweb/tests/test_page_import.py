@@ -123,6 +123,15 @@ class TestAnalyser(BaseImport):
         L'assertion porte sur les **deux** phrases qui décident du geste : que l'écran peut
         rester muet, et qu'il ne faut pas rejouer. Un attendu du genre « un avertissement
         s'affiche » serait vert sur un texte qui dirait l'un sans l'autre.
+
+        ⚠️ **Et elle porte bien sur les deux, désormais** (revue finale, constat Minor 2) :
+        les deux `assertIn` d'origine visaient toutes deux le **second** paragraphe. Or
+        `R-IMP-01` étape 3 exige que la fiche échoue si **l'une des deux** phrases manque,
+        et cet unitaire est le seul filet automatique -- le premier paragraphe, celui qui
+        dit le seuil (« trois minutes », « 1 200 patients »), pouvait disparaître sans que
+        rien ne rougisse. Les deux assertions qui suivent le tiennent en français, ce qui
+        ferme du même coup le filet manquant sur ces `msgid` : un `.mo` qui les perdrait
+        ferait apparaître l'anglais, qu'elles ne satisferaient pas.
         """
         reponse = self.client.post(
             reverse("import-analyse"),
@@ -135,6 +144,10 @@ class TestAnalyser(BaseImport):
 
         corps = reponse.content.decode("utf-8")
         self.assertIn('data-testid="import-avertissement-duree"', corps)
+        # Premier paragraphe : le seuil et la cause.
+        self.assertIn("trois minutes d'attente du serveur", corps)
+        self.assertIn("1 200 patients", corps)
+        # Second paragraphe : le geste à ne pas faire.
         self.assertIn("ne relancez pas l'import", corps)
         self.assertIn("aucun écran ne revient", corps)
 

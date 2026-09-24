@@ -97,6 +97,24 @@
 {# jamais `ontimeout`, et sans cette minuterie un champ resterait inerte jusqu'au #}
 {# rechargement de la page, remplacant une perte de saisie par un blocage. #}
 {# #}
+{# **Ce que 10 000 ms valent sur les huit surfaces, et ou ils ne suffisent pas** (revue #}
+{# finale, constat Important 3). La valeur est tranchee **pour la consultation**, ou une #}
+{# reponse ordinaire se compte en dizaines de millisecondes : 10 s y sont trois ordres de #}
+{# grandeur au-dessus du normal. Le verrou couvre pourtant aussi #}
+{# `fragments/document-televersement.html` — un `hx-post` multipart — ou **depasser 10 s #}
+{# est ordinaire** : un scan de plusieurs Mo sur une liaison lente. Sur cette surface-la, #}
+{# la minuterie relache donc le verrou **pendant que la requete vole**, et la fenetre que #}
+{# ce lot ferme s'y rouvre. Limite nommee et assumee : une valeur par surface serait un #}
+{# second reglage a tenir, et un televersement echoue laisserait le bloc inerte une minute #}
+{# entiere. Ce qui se perd alors est ce qu'on retape pendant l'envoi, jamais le fichier. #}
+{# #}
+{# **Le temoin d'attente n'est pose que sur une surface sur huit**, et c'est un compromis #}
+{# non ferme : seul `fragments/consultation-edition.html` porte un `hx-indicator` #}
+{# (« Enregistrement en cours »). Sur les sept autres — televersement, vignettes, volets de #}
+{# commentaires, titre, identite, antecedents, comptes rendus — la surface devient inerte #}
+{# sans qu'aucun texte ne dise pourquoi. C'est la surface ou la course a ete **mesuree** qui #}
+{# a ete servie ; les autres restent a servir. #}
+{# #}
 {# **La surface verrouillee peut se detacher** : la reponse remplace `#…-volet` en #}
 {# `outerHTML`, donc la surface sort du document avant que la minuterie n'expire. Ecrire #}
 {# des attributs sur un noeud detache est sans effet et sans erreur ; seul compte que la #}
@@ -115,18 +133,6 @@
        edition: {% if consultation_en_cours %}'current-examination'{% else %}null{% endif %},
        editionArrivee: {% if consultation_en_cours %}true{% else %}false{% endif %},
        modifie: false,
-       verrouEnCours: false,
-       surfaceVerrouillee: null,
-       // **Interne, hors du contrat de la tache** (revue, constat Important 3) : une
-       // surface par ecriture en vol, jamais un handle de minuterie unique. Les volets de
-       // commentaires et le bloc de televersement sont des surfaces **permanentes** qui
-       // coexistent dans le meme onglet (cf. commentaire plus haut) : deux ecritures
-       // concurrentes y sont possibles, et une seule minuterie partagee orphelinait celle
-       // de la premiere des qu'une seconde ecriture verrouillait — a son expiration, elle
-       // annulait alors la minuterie de la seconde, la laissant verrouillee **sans aucun
-       // filet** si sa reponse n'arrivait jamais. La minuterie vit desormais sur la
-       // surface elle-meme (`surface._minuterieDuVerrou`), jamais sur le document.
-       surfacesEnAttente: [],
        quitterEdition() {
          if (this.edition === null) { return; }
          this.$dispatch('dossier-fin-edition');
@@ -155,6 +161,15 @@
          const surface = this.estUneEcritureDeSurface(evenement);
          if (surface === null) { return; }
          this.basculerLeVerrou(surface, true);
+         // **La minuterie precedente est annulee avant d'en armer une neuve** (revue
+         // finale, constat Important 2). Sans cette ligne, deux ecritures parties de la
+         // **meme** surface laissaient orpheline la minuterie de la premiere : celle-ci
+         // expirait et **deverrouillait** alors que la seconde volait encore. Le
+         // `clearTimeout` de `basculerLeVerrou`, lui, ne joue qu'au deverrouillage. La
+         // minuterie vit sur la surface (`surface._minuterieDuVerrou`) et jamais sur le
+         // document : le cas **inter**-surfaces, ferme par `8763306`, est celui d'une
+         // seconde surface dont le verrouillage ecrasait le handle partage.
+         clearTimeout(surface._minuterieDuVerrou);
          surface._minuterieDuVerrou = setTimeout(
            () => this.basculerLeVerrou(surface, false), 10000);
        },
@@ -168,19 +183,15 @@
            clearTimeout(surface._minuterieDuVerrou);
            surface._minuterieDuVerrou = null;
          }
-         // **Une surface a la fois peut se verrouiller deux fois** (elle est deja dans
-         // `surfacesEnAttente`) si sa premiere ecriture est encore en vol quand une
-         // seconde en part depuis la meme surface : `includes` l'empeche d'y entrer deux
-         // fois, et un seul retrait suffit a l'en sortir une fois la derniere revenue.
-         if (verrouille) {
-           if (!this.surfacesEnAttente.includes(surface)) {
-             this.surfacesEnAttente.push(surface);
-           }
-         } else {
-           this.surfacesEnAttente = this.surfacesEnAttente.filter((s) => s !== surface);
-         }
-         this.verrouEnCours = this.surfacesEnAttente.length > 0;
-         this.surfaceVerrouillee = this.surfacesEnAttente[0] || null;
+         // **Aucune ecriture en vol n'est comptee, et la premiere reponse revenue
+         // deverrouille** (revue finale, constat Important 2). Si une seconde ecriture
+         // part de la **meme** surface avant le retour de la premiere, le retour de la
+         // premiere leve le verrou pendant que la seconde vole encore. La revue n'a trouve
+         // **aucun geste d'interface** qui y mene : le verrou desactive le bouton qui
+         // declencherait la seconde, et `quitterEdition()` sort tot sur `edition === null`.
+         // Limite nommee et non fermee — un compteur serait un second etat a tenir, et a
+         // remettre a zero sur chaque surface detachee par un echange `outerHTML`, pour un
+         // cas qu'aucun geste n'atteint.
          surface.querySelectorAll('[contenteditable]').forEach((zone) => {
            zone.setAttribute('contenteditable', verrouille ? 'false' : 'true');
          });
@@ -199,8 +210,7 @@
      @input="siSaisieDeFormulaire($event)" @change="siSaisieDeFormulaire($event)"
      @htmx:before-request="verrouillerLaSaisie($event)"
      @htmx:after-request="siEcritureReussie($event); deverrouillerLaSaisie($event)"
-     :data-modifications-non-enregistrees="modifie ? '1' : null"
-     :data-saisie-verrouillee="verrouEnCours ? '1' : null">
+     :data-modifications-non-enregistrees="modifie ? '1' : null">
   {% if request.user.is_authenticated %}{% include "partials/menu.html" with gabarit_actions="pages/fragments/actions-dossier.html" %}{% endif %}
   <div id="page-wrapper">
     {% include "pages/fragments/dossier-consentement.html" %}

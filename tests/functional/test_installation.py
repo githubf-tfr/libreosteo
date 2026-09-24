@@ -230,3 +230,54 @@ def test_le_compte_rendu_de_restauration_liste_les_factures_renumerotees(
     # la revue. Voir la meme correction, cote unitaire, dans test_exploitation.py.
     expect(compte_rendu).to_contain_text("Facture #2 : 10000 devient 1000000.")
     expect(page.get_by_test_id("restauration-continuer")).to_be_visible()
+
+
+@pytest.mark.sans_socle
+def test_le_compte_rendu_de_restauration_ne_laisse_pas_le_formulaire_arme(
+    page: Page, live_server: LiveServer, tmp_path: Path
+) -> None:
+    """Constat Critical de la revue finale : le compte rendu ne s'efface pas en un clic.
+
+    **Ce que ce test regarde** : ce qui reste à l'écran une fois le compte rendu affiché.
+    Le formulaire de restauration -- champ de fichier et bouton « Confirmer la
+    restauration » -- ne doit plus être là.
+
+    **Le défaut, et pourquoi il est grave.** Le compte rendu atterrissait dans
+    `#erreur-restauration`, un conteneur placé **au-dessus** du `<form>` : celui-ci
+    survivait sous lui, fichier toujours sélectionné, bouton toujours cliquable. Or
+    l'archive vient de restaurer des utilisateurs, donc `@maintenance_available` répond
+    désormais **403 à corps vide**, et `base.html:19` échange les `4xx` : le corps vide
+    remplaçait le compte rendu. Un geste ordinaire -- recliquer le bouton encore sous la
+    main -- effaçait donc **sans un mot** l'écran qui dit « notez les nouveaux numéros
+    maintenant, cet écran ne sera plus affiché ». Ces numéros sont des documents fiscaux
+    qui ont pu être remis à des patients. Le défaut n'existait pas avant le lot correctif
+    2 : le `204 + HX-Redirect` quittait la page, et le second clic était impossible.
+
+    **Pourquoi l'absence du formulaire est la preuve, et non un second envoi joué.** Il n'y
+    a plus de contrôle à actionner : l'échange retarge le panneau entier en `outerHTML`, le
+    formulaire quitte le document avec lui. Un test qui cliquerait une seconde fois
+    devrait d'abord trouver quoi cliquer -- c'est précisément ce que ces trois
+    `to_have_count(0)` interdisent. Le contrat serveur qui le produit (les deux en-têtes)
+    est tenu par `libreosteoweb/tests/test_exploitation.py::TestLoadDumpFragments::
+    test_le_succes_retarge_le_panneau_entier_et_non_la_seule_zone_d_erreur`.
+    """
+    ouvrir_le_formulaire_de_restauration(page, live_server)
+    televerser_l_archive(
+        page,
+        archive(
+            tmp_path,
+            archive_fabriquee(libreosteoweb.__version__, dump=DUMP_A_DOUBLONS),
+        ),
+    )
+
+    compte_rendu = page.get_by_test_id("restauration-compte-rendu")
+    expect(compte_rendu).to_be_visible()
+
+    expect(
+        page.get_by_role("button", name="Confirmer la restauration", exact=True)
+    ).to_have_count(0)
+    expect(page.locator("#archive-file")).to_have_count(0)
+    expect(page.locator("#panneau-restauration")).to_have_count(0)
+    # Et le compte rendu est toujours la, avec ses numeros : c'est lui qu'un second envoi
+    # aurait efface.
+    expect(compte_rendu).to_contain_text("Facture #2 : 10000 devient 1000000.")

@@ -338,11 +338,29 @@ class LoadDump(View):
         # arbitrage Q4-a). La redirection silencieuse etait la seule sortie possible tant
         # que `restaurer()` jetait son plan : il n'y avait rien a montrer. Le bouton
         # « Continuer » du fragment porte la navigation que l'en-tete faisait.
-        return render(
+        #
+        # **Le succes retarge le panneau entier, et c'est ce qui empeche le second envoi**
+        # (revue finale, constat Critical). Rendu dans la seule cible du formulaire
+        # (`#erreur-restauration`), le compte rendu laissait sous lui un formulaire arme :
+        # fichier selectionne, bouton actif. Or ce POST vient de recreer des utilisateurs,
+        # donc `@maintenance_available` refuse desormais en **403 a corps vide**, et
+        # `base.html:19` echange les `4xx` -- un second clic remplacait par du vide un
+        # ecran qui dit « notez les nouveaux numeros maintenant, cet ecran ne sera plus
+        # affiche ». Ces numeros sont des pieces fiscales. Retarger sur
+        # `#panneau-restauration` en `outerHTML` sort le formulaire du document avec le
+        # panneau : il n'y a plus de geste qui puisse effacer le compte rendu.
+        #
+        # **Cote reponse et non cote gabarit** : le formulaire ne peut pas choisir sa
+        # cible selon le statut, et le refus, lui, doit rester dans le conteneur neutre
+        # (`partials/erreur-restauration.html`, `role="alert"` porte par la reponse).
+        reponse = render(
             request,
             "partials/restauration-compte-rendu.html",
             {"renumerotations": plan.renumerotations},
         )
+        reponse["HX-Retarget"] = "#panneau-restauration"
+        reponse["HX-Reswap"] = "outerHTML"
+        return reponse
 
     @staticmethod
     def _refus(request, message, status):

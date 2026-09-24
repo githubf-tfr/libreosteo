@@ -36,7 +36,7 @@ from contextlib import contextmanager
 from typing import Iterator
 
 import pytest
-from playwright.sync_api import Page, Request, expect
+from playwright.sync_api import Page, Request, Route, expect
 from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import Patient, TherapeutSettings
@@ -174,6 +174,67 @@ def test_une_suggestion_pose_le_code_postal_et_la_ville(
     patient.refresh_from_db()
     assert patient.address_zipcode == "70190"
     assert patient.address_city == "Rioz"
+
+
+def test_la_recherche_de_code_postal_ne_verrouille_pas_la_saisie(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Constat Important n° 1 de la revue finale : la garde `verb === 'get'` du verrou de
+    saisie, enfin prouvée là où elle sert.
+
+    **Ce que ce test regarde** : le champ Ville pendant qu'une recherche de code postal est
+    **retenue en vol**. Il doit rester modifiable.
+
+    **Pourquoi ici et pas dans `test_consultation.py`.** Le verrou de saisie du dossier
+    (`pages/dossier-patient.html`) se pose sur `htmx:before-request` et ne s'abstient que
+    parce que `estUneEcritureDeSurface` écarte les `GET`. Le seul `GET` du dossier qui
+    parte **à chaque frappe** est celui-ci : `pages/fragments/dossier-code-postal.html`
+    porte `hx-get` + `hx-trigger="input changed"`, **à l'intérieur** de `#general-corps`,
+    qui est marqué `data-surface-de-saisie`. C'est donc la seule surface où l'absence de
+    garde se paie, et aucun test ne l'exerçait :
+    `test_entrer_en_edition_ne_verrouille_pas_la_saisie` (`test_consultation.py`) ne retient
+    aucune requête et ne touche pas ce champ. Mesure de la revue :
+    retirer `config.verb === 'get'` gelait la fiche patient à chaque frappe de code postal
+    — l'inverse exact du but — **sans faire rougir un seul test**.
+
+    **Pourquoi la requête est retenue, et pourquoi l'assertion ne réessaie pas.** Sans
+    rétention, le verrou fautif tomberait au retour de la réponse, en quelques
+    millisecondes : toute assertion qui sonde finirait par voir le champ actif et serait
+    verte sur un produit gelé. La réponse est donc suspendue 2 s, et la preuve est en deux
+    temps : un `is_enabled()` **à un seul coup** juste après la frappe, puis une saisie
+    réelle dans le champ avec un délai d'actionnabilité (1 s) **plus court que la
+    rétention** — un champ verrouillé la ferait échouer avant d'être relâché.
+
+    Le bloc `expect_response` sert aussi de drainage : sortir du test pendant que le
+    gestionnaire de route dort casse le test suivant (mesure reportée de
+    `test_consultation.py`).
+    """
+    _ouvrir_le_dossier_en_edition(page, live_server)
+
+    def retenir_la_recherche(route: Route) -> None:
+        page.wait_for_timeout(2000)
+        route.continue_()
+
+    page.route("**/zipcode-suggestions*", retenir_la_recherche)
+
+    ville = page.locator("input[name=city]")
+    try:
+        with page.expect_response(re.compile(r"/zipcode-suggestions")):
+            page.fill("input[name=zipcode]", "70190")
+
+            assert ville.is_enabled(), (
+                "une recherche de code postal est une lecture : elle ne doit pas "
+                "verrouiller la surface de saisie qui l'emet"
+            )
+            ville.fill("Rioz tape pendant la recherche", timeout=1000)
+            expect(ville).to_have_value("Rioz tape pendant la recherche")
+    finally:
+        # Le bloc `expect_response` draine le cas vert ; ce `finally` draine le cas rouge.
+        # Mesuré pendant la revue finale : un échec **à l'intérieur** du bloc sort du test
+        # alors que le gestionnaire de route dort encore, et c'est alors le **test
+        # suivant** qui casse (`Browser.new_context` échoue à son tour). Un rouge ici ne
+        # doit pas s'en fabriquer un second ailleurs.
+        page.unroute_all(behavior="ignoreErrors")
 
 
 def test_le_reglage_desactive_supprime_les_suggestions(
