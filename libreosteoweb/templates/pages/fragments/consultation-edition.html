@@ -55,8 +55,7 @@
               {# **Sous le champ**, comme D6d l'a fait pour la sequence de facturation : #}
               {# c'est une erreur **du champ** `date`, jamais une erreur globale. #}
               {{ volet.formulaire.date.errors }}
-              {% trans 'by' %} <span class="text-uppercase">{{ volet.consultation.therapeut.last_name }}</span>
-              {{ volet.consultation.therapeut.first_name }}</h4>
+              {% trans 'by' %} {% include "partials/praticien-nom.html" with utilisateur=volet.consultation.therapeut only %}</h4>
           </div>
         </div>
       </div>

@@ -45,8 +45,7 @@
         {# les deux ne coexistent jamais, la lecture et l'edition s'excluant. Le format #}
         {# `j F Y` est celui que `helpers.libelle_date_longue` attend a l'octet. #}
         <h4>{% trans 'Session of ' %} <span id="examinationDate">{{ volet.consultation.date|date:"j F Y" }}</span>
-          {% trans 'by' %} <span class="text-uppercase">{{ volet.consultation.therapeut.last_name }}</span>
-          {{ volet.consultation.therapeut.first_name }}</h4>
+          {% trans 'by' %} {% include "partials/praticien-nom.html" with utilisateur=volet.consultation.therapeut only %}</h4>
         {% if volet.autre_cabinet %}
         <p class="text-muted text-end">{% trans 'Performed at ' %} {{ volet.consultation.office.office_name }}</p>
         {% endif %}

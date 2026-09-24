@@ -51,6 +51,7 @@ from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.formats import date_format
 
+from libreosteoweb import models
 from libreosteoweb.api.views.pages.consultation import (
     CHAMPS_DU_PATIENT,
     CHAMPS_TEXTE_RICHE,
@@ -64,6 +65,7 @@ from libreosteoweb.api.views.pages.consultation import (
     spheres_a_afficher,
     valider_date_de_consultation,
 )
+from libreosteoweb.api.views.pages.documents import contexte_chronologie
 from libreosteoweb.models import (
     Examination,
     ExaminationStatus,
@@ -1648,3 +1650,113 @@ class TestAncresDuGabaritDOrigine(SimpleTestCase):
 
     def test_le_detecteur_ne_mord_pas_sur_une_balise_saine(self) -> None:
         self.assertEqual([], _balises_desequilibrees('<form class="col-md-7">'))
+
+
+class TestNomDuPraticien(_VoletRendu):
+    """Ce que ces preuves regardent : le texte rendu à la place du nom du praticien,
+    sur les quatre surfaces qui le portent, et sur les trois états du compte.
+
+    Ce qu'elles ne regardent pas, et que seule la passe manuelle voit : le
+    chevauchement de 11 px de `.comment-ident`, qui est un pixel et non un texte
+    (`docs/recette.md`, R-CON-01 étape neuve).
+    """
+
+    def _rendus_des_quatre_surfaces(self) -> dict[str, str]:
+        """Les quatre surfaces, rendues depuis leur propre voie de contexte.
+
+        Chacune est rendue par la fabrique qui la sert en production, jamais par un
+        contexte fabriqué à la main : un partiel inclus avec la mauvaise variable
+        resterait vert sur un contexte de test complaisant.
+        """
+        models.ExaminationComment.objects.create(
+            examination=self.consultation,
+            comment="Revient dans un mois",
+            user=self.praticien,
+        )
+        with translation.override("fr"):
+            chronologie = render_to_string(
+                "pages/fragments/chronologie.html",
+                contexte_chronologie(self.patient),
+            )
+        return {
+            "chronologie": chronologie,
+            "consultation": self.rendu("pages/fragments/consultation.html"),
+            "edition": self.rendu("pages/fragments/consultation-edition.html"),
+        }
+
+    def test_un_praticien_nomme_rend_nom_puis_prenom(self) -> None:
+        """L'ordre « NOM prénom » est celui des quatre gabarits d'aujourd'hui, et il
+        n'est pas celui de `get_full_name()`, qui rend « prénom nom ». Sans cette
+        preuve, un repli écrit sur `get_full_name` inverserait les deux colonnes sur
+        tous les écrans sans qu'aucun test ne bouge.
+
+        À quoi ce test est rouge : à l'inversion des deux colonnes, et à la perte du
+        `text-uppercase` qui distingue le nom du prénom à l'écran.
+        """
+        self.praticien.last_name = "Crusher"
+        self.praticien.first_name = "Beverly"
+        self.praticien.save(update_fields=["last_name", "first_name"])
+
+        for surface, html in self._rendus_des_quatre_surfaces().items():
+            with self.subTest(surface=surface):
+                self.assertIn(
+                    '<span class="text-uppercase">Crusher</span> Beverly', html
+                )
+
+    def test_un_praticien_sans_nom_rend_son_identifiant_de_connexion(self) -> None:
+        """La cause du défaut : rien ne garantit qu'un compte porte un nom, et les
+        quatre gabarits rendaient alors « par » suivi d'un blanc.
+
+        À quoi ce test est rouge : au rendu d'aujourd'hui, où les deux champs vides ne
+        produisent **rien** — donc où « test » est absent des quatre surfaces. La chaîne
+        assise est l'identifiant de connexion lui-même, qui n'apparaît nulle part
+        ailleurs dans ces fragments : aucune autre valeur ne peut la satisfaire.
+        """
+        self.assertEqual("", self.praticien.last_name)
+        self.assertEqual("", self.praticien.first_name)
+
+        for surface, html in self._rendus_des_quatre_surfaces().items():
+            with self.subTest(surface=surface):
+                self.assertIn('<span class="text-uppercase">test</span>', html)
+
+    def test_une_seule_colonne_renseignee_suffit_a_faire_un_nom(self) -> None:
+        """Review Focus 2 : le repli ne s'enclenche que si les **deux** colonnes sont
+        vides. Un `and` écrit à la place d'un `or` rendrait l'identifiant de connexion
+        à un praticien qui porte un nom de famille — et le test précédent resterait
+        vert, puisqu'il ne regarde que le cas des deux colonnes vides.
+
+        À quoi ce test est rouge : à ce `and`, sur les deux dissymétries.
+        """
+        for nom, prenom, attendu in (
+            ("Crusher", "", '<span class="text-uppercase">Crusher</span>'),
+            ("", "Beverly", "Beverly"),
+        ):
+            with self.subTest(nom=nom, prenom=prenom):
+                self.praticien.last_name = nom
+                self.praticien.first_name = prenom
+                self.praticien.save(update_fields=["last_name", "first_name"])
+
+                html = self.rendu("pages/fragments/consultation.html")
+
+                self.assertIn(attendu, html)
+                self.assertNotIn('<span class="text-uppercase">test</span>', html)
+
+    def test_une_seance_sans_praticien_ne_rend_aucun_nom(self) -> None:
+        """Review Focus 1, et **c'est une décision, pas un trou** : `therapeut` est
+        `null=True` (`models.py:209-215`). Le partiel ne doit rien inventer pour ce cas
+        — surtout pas l'identifiant d'un autre utilisateur —, et il ne doit pas lever.
+
+        Le comportement d'aujourd'hui (« par » suivi d'un blanc) est conservé et figé
+        ici : le changer serait inventer une règle de produit que personne n'a demandée.
+        Le constat est remis au contrôleur par T9.
+
+        À quoi ce test est rouge : à un partiel qui rendrait l'identifiant de connexion
+        du praticien courant sur une séance qui n'en a pas.
+        """
+        self.consultation.therapeut = None
+        self.consultation.save(update_fields=["therapeut"])
+
+        html = self.rendu("pages/fragments/consultation.html")
+
+        self.assertNotIn("text-uppercase", html)
+        self.assertNotIn("test", _texte(html).split("Motif")[0])

@@ -1,0 +1,14 @@
+{# Le nom d'un praticien, rendu au même endroit pour les quatre surfaces qui l'affichent. #}
+{# Appel : {% include "partials/praticien-nom.html" with utilisateur=<expr> only %} -- le #}
+{# `only` n'est pas décoratif : sans lui le partiel hérite de tout le contexte parent, et #}
+{# une variable `utilisateur` posée ailleurs le rendrait faux en silence.                 #}
+{#                                                                                        #}
+{# Le repli est `get_username`, jamais `get_full_name` : le premier est garanti non vide  #}
+{# (Django refuse un identifiant vide), le second rend « prénom nom » quand ces quatre    #}
+{# surfaces rendent « NOM prénom ».                                                       #}
+{#                                                                                        #}
+{# `utilisateur` nul rend **rien** : `Examination.therapeut` et `ExaminationComment.user`  #}
+{# sont `null=True`, et inventer un repli pour ce cas serait inventer une règle de        #}
+{# produit. Comportement d'aujourd'hui, conservé et figé par                              #}
+{# `test_une_seance_sans_praticien_ne_rend_aucun_nom`.                                    #}
+{% if utilisateur %}{% if utilisateur.last_name or utilisateur.first_name %}<span class="text-uppercase">{{ utilisateur.last_name }}</span> {{ utilisateur.first_name }}{% else %}<span class="text-uppercase">{{ utilisateur.get_username }}</span>{% endif %}{% endif %}

@@ -2501,6 +2501,15 @@ fermée.
 4. Recharger complètement la page, revenir sur l'onglet « Consultations ».
    Attendu : trois séances sont désormais listées (les deux de l'état E2, plus
    celle-ci) — preuve d'une persistance réelle.
+5. ⚠️ **Un praticien sans nom.** Menu utilisateur → « Profil », vider le nom **et** le
+   prénom, enregistrer. Revenir sur la fiche Picard, onglet « Consultations », commenter
+   une séance, puis ouvrir cette séance.
+   Attendu : la chronologie affiche « … par TEST » (l'identifiant de connexion, en
+   capitales) et **jamais** « par » suivi d'un blanc ; le détail de la séance et son
+   formulaire d'édition affichent la même chose ; la ligne d'auteur du commentaire porte
+   « TEST » et **ne chevauche pas** le texte du commentaire qui la suit.
+   **C'est le seul moyen de voir le chevauchement de 11 px** : un test de rendu lit un
+   texte, pas un pixel. Reposer ensuite le nom et le prénom du praticien (état E1).
 
 ### R-CON-02 — Éditer une consultation existante
 

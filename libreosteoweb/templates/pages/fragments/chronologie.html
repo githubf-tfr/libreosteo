@@ -43,7 +43,7 @@
             <p class="text-muted text-end">{{ entree.seance.office.office_name }}</p>
             {% endif %}
             <p>
-              <small class="text-muted"><i class="fa fa-clock-o"></i> {{ entree.seance.date|timesince }} {% trans 'by' %} <span class="text-uppercase">{{ entree.seance.therapeut.last_name }}</span> {{ entree.seance.therapeut.first_name }}</small>
+              <small class="text-muted"><i class="fa fa-clock-o"></i> {{ entree.seance.date|timesince }} {% trans 'by' %} {% include "partials/praticien-nom.html" with utilisateur=entree.seance.therapeut only %}</small>
             </p>
           </div>
           <div class="timeline-body" data-testid="corps-seance">
