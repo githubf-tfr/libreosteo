@@ -602,33 +602,40 @@ avait vécu depuis.
   effacement de champ, pas une conversion : ⚠️ **elle ne se décide pas sans l'utilisateur**,
   une raison légitimement identique au motif étant possible.
 
-### Passe de comparaison avec l'ancienne version (décidé le 2026-09-13, différé)
+### ~~Passe de comparaison avec l'ancienne version~~ — **abandonnée le 2026-09-24**
 
-Décision de l'utilisateur : une passe **avant/après** est nécessaire — l'écran migré a
-divergé de l'écran AngularJS sur des points que ni la spec ni la recette ne nomment
-(typographie, placeholders, formulations). Elle est **différée**, à conduire après la fin
-de la passe de recette courante.
+**Décision de l'utilisateur, à ne pas rouvrir sans lui.** La passe avant/après contre une
+instance de référence bâtie sur `f5b3351` avait été décidée le 2026-09-13, puis différée.
+Elle est **abandonnée** : le retour d'usage tient lieu de détection. **Ce qui est moche
+remonte par l'utilisateur, quand il le voit** — c'est ainsi que sont nés le lot A, le lot B
+et les deux lots correctifs, et cela a mieux marché qu'une comparaison systématique.
 
-- **Conduite** : les deux instances sont pilotées au navigateur, côte à côte, par l'agent.
-- **Instance de référence** : une instance **dédiée** bâtie sur la version antérieure au lot
-  (`f5b3351`). ⚠️ **Jamais l'instance de production.**
-- **Périmètre** : non arrêté. À choisir au lancement de la passe.
-- **Entrées connues à y verser** : **la famille « praticien sans nom »**, trois symptômes
-  d'une même cause, tous antérieurs au lot et tous visibles dès que le compte connecté n'a
-  ni nom ni prénom :
-  - la formulation « 55 minutes par … » de la chronologie, préposition orpheline —
-    `timesince` y remplace `angular-timeago`, supprimé par D5 ;
-  - « Séance du 13 septembre 2026 par » en titre du volet de consultation, même orphelin ;
-  - **le premier commentaire d'une séance chevauche le champ de saisie de 11 px.**
-    `libreosteo.css:174-179` (ligne rectifiée le 2026-09-19, la règle a glissé dans le
-    fichier) pose `margin-bottom: -11px` sur `.comment-ident` pour recoller la ligne de
-    nom au commentaire ; mesuré à l'écran, cette ligne rend `" "` — une hauteur de
-    **0 px** — et la marge négative tire le commentaire sous le formulaire. La règle est
-    d'amont, toujours en place, aucun commit ne l'a touchée depuis.
+⚠️ **Ne pas proposer de relancer cette passe.** Ce n'est pas un trou de méthode, c'est un
+choix de coût : comparer vingt écrans côte à côte est un chantier, et la divergence qui gêne
+vraiment se signale toute seule.
 
-  ⚠️ **Les placeholders d'adresse en sont sortis.** Versés ici le 2026-09-13 comme décision
-  d'affordance, ils ont été **rétablis** le 2026-09-18 (`98439de`, cf. « Terminé ») sur les
-  quatre entrées ; la passe n'a plus à les trancher.
+**Les trois défauts qu'elle portait ne disparaissent pas avec elle** — ils sont versés aux
+défauts constatés, ci-dessous, § « Famille praticien sans nom ».
+
+### Famille « praticien sans nom » (constatée le 2026-09-13, non corrigée)
+
+Trois symptômes d'**une seule cause**, tous **antérieurs** au lot de migration, tous visibles
+dès que le compte connecté n'a ni nom ni prénom. Versés ici le 2026-09-24, à l'abandon de la
+passe de comparaison qui devait les traiter.
+
+- La formulation « 55 minutes par … » de la chronologie, **préposition orpheline** —
+  `timesince` y remplace `angular-timeago`, supprimé par D5.
+- « Séance du 13 septembre 2026 par » en titre du volet de consultation, même orphelin.
+- **Le premier commentaire d'une séance chevauche le champ de saisie de 11 px.**
+  `libreosteo.css:174-179` (ligne rectifiée le 2026-09-19, la règle a glissé dans le
+  fichier) pose `margin-bottom: -11px` sur `.comment-ident` pour recoller la ligne de nom au
+  commentaire ; mesuré à l'écran, cette ligne rend `" "` — une hauteur de **0 px** — et la
+  marge négative tire le commentaire sous le formulaire. **La règle est d'amont**, toujours
+  en place, aucun commit ne l'a touchée depuis.
+
+⚠️ **Les placeholders d'adresse ne sont plus de cette famille.** Versés le 2026-09-13 comme
+décision d'affordance, ils ont été **rétablis** le 2026-09-18 (`98439de`, cf. « Terminé »)
+sur les quatre entrées.
 
 ### Sécurité
 
