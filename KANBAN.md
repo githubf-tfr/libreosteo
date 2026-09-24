@@ -663,14 +663,22 @@ sur les quatre entrées.
   si `DATABASES["default"]["ENGINE"]` ne commence pas par `django.db.backends.postgresql`.
   Aucun SQLite ne peut porter les données en conteneur.
 
-  **Le chiffrement au repos est documenté depuis le 2026-09-24 — mais il n'est pas en
-  place sur la production.**
+  **Le chiffrement au repos est documenté depuis le 2026-09-24. L'état de la production
+  est connu, et il est assumé.**
 
-  ⚠️ **Fait, établi avec l'utilisateur le 2026-09-24 : le disque de la machine de
-  production n'est pas chiffré.** Les données de santé et les sauvegardes complètes y sont
-  **en clair**. Ce n'est pas un défaut du dépôt — c'est une précondition d'hébergement non
-  tenue, et **la migration d'un disque en service appartient à l'utilisateur**, pas à une
-  session. Elle n'est pas planifiée ; ne pas la relancer de soi-même.
+  **État réel, établi avec l'utilisateur le 2026-09-24** : le disque de l'hôte de
+  production **n'est pas chiffré** — les fichiers PostgreSQL et les dumps locaux de
+  `${LIBREOSTEO_BAK_STORAGE}` y sont donc en clair. ⚠️ **En revanche la sauvegarde
+  distante est chiffrée** : la copie qui sort de chez lui, celle qui voyage et qui se perd,
+  est protégée.
+
+  ⚠️ **Ce n'est pas une non-conformité, et il ne faut pas l'écrire comme telle.** La
+  certification HDS vise l'**hébergeur tiers** à qui l'on confie des données de santé ; un
+  praticien qui héberge les données de ses propres patients n'entre pas dans ce cadre. Le
+  RGPD impose des mesures « appropriées » (art. 32) sans prescrire le chiffrement.
+  **L'utilisateur a tranché le 2026-09-24** : le chiffrement du disque hôte est
+  **préférable mais non dû**, et il envisage une partition chiffrée sans s'y engager.
+  **Ne pas relancer ce sujet, ne pas le requalifier en risque réglementaire.**
 
   **Ce que le dépôt devait faire est fait** : `README.rst` porte désormais la section
   « Encryption at rest is the host's responsibility », qui dit trois choses mesurées —

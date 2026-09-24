@@ -160,24 +160,30 @@ Encryption at rest is the host's responsibility
 **LibreOsteo stores health data, and neither LibreOsteo nor PostgreSQL encrypts it on
 disk.** Community PostgreSQL has no transparent data encryption: the files under
 ``LIBREOSTEO_DB_STORAGE`` and ``LIBREOSTEO_BAK_STORAGE`` are readable by anyone who can
-read the host filesystem, or who takes the disk away.
+read the host filesystem, or who takes the disk away. Whether that matters is yours to
+judge — it depends on who else can reach the machine, and on where its backups travel.
 
-**Encrypt the host volume before putting real patient data on it.** Full-disk encryption
-(LUKS on Linux, or the equivalent your platform provides) is transparent to both
-PostgreSQL and LibreOsteo: nothing in this repository needs to change, and no query is
+If you want encryption at rest, **encrypt the host volume**. Full-disk or
+full-partition encryption (LUKS on Linux, or your platform's equivalent) is transparent
+to both PostgreSQL and LibreOsteo: nothing in this repository changes, and no query is
 affected.
 
-Two mistakes are worth naming:
+Two things are worth knowing before you choose:
 
-- **Forgetting the backups.** ``LIBREOSTEO_BAK_STORAGE`` holds complete database dumps in
-  plain text. A backup volume left unencrypted defeats an encrypted database volume.
-- **Reaching for ``pgcrypto`` instead.** Column-level encryption is the wrong tool here:
-  an encrypted column can no longer be indexed, sorted or searched, which breaks patient
-  search and the Whoosh index. It also requires rewriting the application. Volume
-  encryption gives more protection for none of that cost.
+- **Backups travel further than the database.** ``LIBREOSTEO_BAK_STORAGE`` holds complete
+  dumps in plain text. A copy sent off the machine is the one most likely to end up
+  somewhere you did not intend, so encrypt it even if you leave the host disk alone.
+- **``pgcrypto`` is the wrong tool here.** Column-level encryption stops a column from
+  being indexed, sorted or searched, which breaks patient search and the Whoosh index, and
+  it requires rewriting the application. Volume encryption protects more, for none of that
+  cost.
 
 Encrypting a disk that is already in service is a migration, not a setting: back up,
 encrypt, restore. Plan it as such.
+
+Note that self-hosting your own patients' records is not third-party hosting: the French
+HDS certification addresses hosts entrusted with someone else's health data. Your own
+obligations still apply, but they are not the same ones.
 - LIBREOSTEO_IMAGE_TAG selects which build of the two images above the compose file runs ; the container refuses to start without it
 
 The sqlite and standalone (CherryPy) modes described further below still exist in the
