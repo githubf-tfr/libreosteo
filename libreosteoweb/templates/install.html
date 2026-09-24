@@ -23,12 +23,22 @@
             <div class="col-md-9">
                 {# D6g T8 : jumbotron disparait sans equivalent (annexe A), aucune regle ne le porte. #}
                 <div>
-                    {% blocktrans %}
+                    {# Meme regle que `pages/import-export.html` : **aucun balisage dans #}
+                    {# un libelle traduit**. Ce bloc n'etait pas casse -- son `msgid` #}
+                    {# correspondait encore -- mais il portait le meme montage que celui #}
+                    {# qui l'etait, et une seule classe CSS ajoutee ici aurait fait #}
+                    {# repasser tout l'ecran de premier demarrage en anglais. Traite par #}
+                    {# coherence, sur decision du 2026-09-24 (lot correctif 1, Q5-b). #}
+                    {# « LibreOsteo » est un nom de produit : il sort du catalogue. #}
+                    {# La derniere phrase porte un lien, donc elle se coupe en trois #}
+                    {# `{% trans %}` autour du `<a>` : c'est le seul endroit du lot ou la #}
+                    {# regle coute une phrase fragmentee, et c'est assume -- le produit #}
+                    {# est monolingue francais, l'ordre des mots ne changera pas. #}
+                    {# `R-INST-01` etape 1 lit la premiere phrase, a l'identique. #}
                     <h1>LibreOsteo</h1>
-                    <p>Thank you to chose LibreOsteo as your software to manage your patients.</p>
-                    <p>You successfully installed the software on your machine. Now you have to decide if you want to restore a previous backup of your patient file (performed from LibreOsteo) or use a new installation and register your first user on the softwarewhich will be the administrator of the software</p>
-                    <p>Join the user community from the main <a href="https://www.libreosteo.org/" target="_blank">website</a> in order to share your experience with this software.</p>
-                    {% endblocktrans %}
+                    <p>{% trans 'Thank you to chose LibreOsteo as your software to manage your patients.' %}</p>
+                    <p>{% trans 'You successfully installed the software on your machine. Now you have to decide if you want to restore a previous backup of your patient file (performed from LibreOsteo) or use a new installation and register your first user on the softwarewhich will be the administrator of the software' %}</p>
+                    <p>{% trans 'Join the user community from the main' %} <a href="https://www.libreosteo.org/" target="_blank">{% trans 'website' %}</a> {% trans 'in order to share your experience with this software.' %}</p>
                     <div class="mx-auto center">
                         <button id="restore" class="btn btn-secondary" type="button"
                                 hx-get="{% url 'partials-restore' %}"

@@ -187,6 +187,7 @@ files = [
     "libreosteoweb/tests/test_page_documents.py",
     "libreosteoweb/tests/test_page_dossier_patient.py",
     "libreosteoweb/tests/test_page_import.py",
+    "libreosteoweb/tests/test_page_installation.py",
     "libreosteoweb/tests/test_page_medecins.py",
     "libreosteoweb/tests/test_page_nouveau_patient.py",
     "libreosteoweb/tests/test_page_profil.py",

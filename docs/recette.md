@@ -3248,7 +3248,14 @@ deux dates.
    Attendu : titre de page « Gestion de l'import/export » ; onglet « Archiver la
    base de données » actif par défaut.
 2. Cliquer l'onglet « Importer d'un système externe ».
-   Attendu : panneau expliquant la marche à suivre ; deux liens de gabarit
+   Attendu : le panneau d'explication est **en français**, et il commence par
+   « Pour importer des patients ou des consultations dans la base, vous devez
+   télécharger ces deux fichiers gabarits ci-dessous. » ; l'encart *Note* en bas du
+   panneau dit « Note : Celui-ci n'a aucun lien avec le numéro que vous pourriez voir
+   dans le système après intégration de patients. ». ⚠️ **L'attendu est la phrase
+   française littérale, pas « un panneau expliquant la marche à suivre »** : c'est cette
+   formulation vague qui a laissé passer onze jours d'affichage en anglais (lot
+   correctif 1, C6). Deux liens de gabarit
    (« Gabarit du fichier patient », « Gabarit du fichier consultation ») ; un champ
    « Fichier patient », un champ « Fichier de consultation » et un bouton
    « Analyser ».
@@ -4591,12 +4598,15 @@ fichiers, 2 par écran) : à 1 280 comme à 375 px, l'encart *Note* de l'onglet 
 padded comme les autres encarts de l'écran ; les deux encarts de gabarits téléchargeables
 (*Importer*, *Exporter*) affichent leurs cartes avec bandeau d'en-tête et icônes visibles ;
 aucun défilement horizontal constaté à aucune des deux largeurs sur ces deux onglets non
-plus. **Défaut pré-existant, non corrigé ici** : le paragraphe descriptif de l'onglet
-*Importer* (dont la note ci-dessus) s'affiche en anglais et non en français, y compris
-avant cette tâche — le catalogue de traduction (`locale/fr/LC_MESSAGES/django.po`) ne
-porte plus le texte source exact du gabarit depuis l'ajout de `data-testid="note-import"`
-(D6d T8, `bcbde5d`), et ce lot ne touche pas au catalogue (`CLAUDE.md` du lot, Global
-Constraints).
+plus. **Défaut fermé depuis** (lot correctif 1, T3, 2026-09-24) : le paragraphe descriptif de
+l'onglet *Importer* s'affichait en anglais depuis D6d T8 (`bcbde5d`) — son `msgid` était
+un `{% blocktrans %}` qui incluait le HTML du corps, donc l'indentation, la classe CSS et
+le `data-testid`. Le balisage est sorti de la zone traduite : chaque phrase est un
+`{% trans %}` sur du texte pur, désormais balayé par
+`tests/qualite/test_contrat_traductions.py`. L'attendu français est vérifié par
+`R-IMP-01` étape 2 et par `libreosteoweb/tests/test_page_import_export.py::TestPanneauImport`.
+Les **captures de référence ne sont pas à refaire** : elles ne montrent que l'onglet
+*Archiver*, que ce lot ne touche pas.
 
 ### R-VIS-11 — Socle visuel : profil utilisateur
 
