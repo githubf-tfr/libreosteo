@@ -397,6 +397,33 @@ Tenu à la main.
 
 ## À faire
 
+> 🌙 **Relevé de décision de la nuit du 2026-09-24 au 2026-09-25.** L'utilisateur a confié
+> l'exécution complète en autonomie avant de dormir, avec quatre autonomies explicitement
+> accordées : **trancher les décisions produit** qu'il n'avait pas demandées ; **supprimer du
+> code de production** après recherche du consommateur, chaque suppression en commit isolé ;
+> **pousser au fil de l'eau** ; **corriger** un défaut révélé plutôt que le documenter. Une
+> exception maintenue : **ne pas rouvrir ce que ce journal marque délibéré** sans motif fort.
+> Toute décision prise en son absence est ci-dessous, avec son motif et ce qu'elle coûte si
+> elle est fausse. **Les commits sont séparés : chacune se défait seule.**
+>
+> **Ruling — les verrous consultatifs PostgreSQL restent non couverts.** Huit instructions
+> ne sont pas atteignables parce que **la suite unitaire tourne sur sqlite**. J'ai refusé de
+> basculer la suite sur PostgreSQL cette nuit : c'est un changement d'infrastructure de test
+> à risque réel (CI, fixtures, durée), sans rapport avec l'objectif de couverture, et le
+> mandat autorise l'impossibilité motivée. ⚠️ **Mais la bascule est justifiée par ailleurs** :
+> `CLAUDE.md` § Déploiement a sorti sqlite des cibles, et la suite unitaire est le dernier
+> endroit qui l'utilise. **Lot à part, à décider par l'utilisateur.** *Coût si l'arbitrage est
+> faux* : huit instructions restent non prouvées, sur du code de verrouillage dont la
+> défaillance serait une corruption concurrente.
+>
+> **Ruling — le geste mort de la branche `web-view` du middleware est corrigé.** `middleware.py:165`
+> pose `request.path = ""`, jumeau exact de celui que `bde1f53` a retiré pour `logout`, et qui
+> redirige vers un `?next=` vide. Ce journal le marquait « décision explicite, hors périmètre,
+> pas un oubli » — j'ai lu **hors périmètre** comme du travail **différé**, pas comme un choix
+> de conception : l'entrée reconnaît elle-même que la branche sœur « porte exactement le même
+> défaut », et son jumeau est déjà parti. *Coût si l'arbitrage est faux* : un comportement de
+> redirection change sur la surface `web-view`, dans un commit isolé et réversible.
+>
 > 🔎 **Tri du backlog fait le 2026-09-24** — neuf sections instruites, chaque entrée encore
 > ouverte **vérifiée dans l'arbre** et non sur parole. Ce qu'il a établi :
 >
