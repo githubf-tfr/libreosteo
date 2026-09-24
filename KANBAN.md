@@ -680,11 +680,43 @@ vraiment se signale toute seule.
 **Les trois défauts qu'elle portait ne disparaissent pas avec elle** — ils sont versés aux
 défauts constatés, ci-dessous, § « Famille praticien sans nom ».
 
-### Famille « praticien sans nom » (constatée le 2026-09-13, non corrigée)
+### ~~Famille « praticien sans nom »~~ — **close sur preuve le 2026-09-24**
 
-Trois symptômes d'**une seule cause**, tous **antérieurs** au lot de migration, tous visibles
-dès que le compte connecté n'a ni nom ni prénom. Versés ici le 2026-09-24, à l'abandon de la
-passe de comparaison qui devait les traiter.
+✅ **Six surfaces, toutes corrigées** : `chronologie.html`, `consultation.html`,
+`consultation-edition.html`, `chronologie-commentaires.html` (`7ed7634`, via le partiel neuf
+`partials/praticien-nom.html`) ; `comptabilite.html:48` (`416f243`) ;
+`tableau_de_bord.py:104-105` (`466f518`). Repli sur `get_username()`, même règle partout.
+
+⚠️ **Ce que cette famille a appris, et qui vaut pour la prochaine.** L'inventaire de la spec
+en donnait **trois**. La tâche en a traité **quatre**. Sa revue en a trouvé une **cinquième**,
+la revue de celle-là une **sixième** — chaque inventaire ayant cherché trop étroitement : la
+spec dans les gabarits qu'elle connaissait, la tâche dans quatre fichiers nommés, la suivante
+dans `libreosteoweb/templates/` seulement, alors que la sixième était **en Python**.
+**Une famille de défauts ne se clôt pas en corrigeant les sites qu'on connaît, mais en
+cherchant le motif là où on ne l'attend pas.**
+
+**La clôture est prouvée, pas déclarée** : recherche par motif littéral sur tout
+`libreosteoweb/`, gabarits **et** Python — `first_name`/`last_name` accolés, `get_full_name`,
+`%`-formats, f-strings, `.format()`, concaténations, filtre `|add:`, `"".join` —, refaite
+**deux fois par deux agents différents** avec des angles distincts. Aucun septième site.
+
+**Deux sites écartés, motifs reconfirmés** : `cabinet-utilisateurs-corps.html:10-11` affiche
+`username` en clair sur la même ligne, aucune confusion possible ; `invoice-result.html:31`
+est un **instantané stocké en base** (`Invoice.therapeut_name`, alimenté par
+`invoicing/generator.py:92-93`) — c'est le constat neuf ci-dessous, qui attend l'utilisateur.
+
+⚠️ **`Patient` et `Children` sont hors périmètre, mais pas pour la raison qu'on croit** :
+`Patient.first_name` porte `blank=True` (`models.py:62`), il **peut** être vide. Ce qui les
+protège est que **`family_name` (`models.py:60`) est obligatoire** — un patient n'est jamais
+entièrement sans nom, contrairement à un `User`.
+
+**Dette assumée** : trois implémentations indépendantes de la même règle de repli, chacune
+commentée en renvoi croisé vers les autres. Factoriser aurait cassé les cinq surfaces closes
+— la contrainte `<option>`/`<span>` l'interdit. Un quatrième site pourrait diverger.
+
+**Texte d'origine, conservé pour mémoire du diagnostic :** trois symptômes d'**une seule
+cause**, tous **antérieurs** au lot de migration, tous visibles dès que le compte connecté n'a
+ni nom ni prénom.
 
 - La formulation « 55 minutes par … » de la chronologie, **préposition orpheline** —
   `timesince` y remplace `angular-timeago`, supprimé par D5.
