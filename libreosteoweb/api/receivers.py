@@ -28,24 +28,47 @@ logger = logging.getLogger(__name__)
 
 
 class block_disconnect_all_signal:
-    """Temporarily disconnect all managed models from a signal"""
+    """Deconnecte temporairement des recepteurs d'un signal, et ne rend que ceux-la.
+
+    **Le piege ferme.** `__exit__` reconnectait la liste recue, sans verifier que
+    `__enter__` avait bien retire chaque couple. Deux blocs imbriques sur deux signaux
+    differents avec la **meme** liste sortaient donc en branchant chaque recepteur sur les
+    deux signaux : `post_save` declenchait `handle_delete` juste apres `handle_save`, et
+    toute fiche enregistree apres une restauration ressortait de l'index aussitot entree,
+    pour toute la duree du processus (`77eb331`). L'appelant avait ete corrige en donnant
+    une liste par signal (`api/services/sauvegarde.py:151-159`) ; l'aide, partagee par le
+    code applicatif et par plus de trente fichiers de tests via `fixtures.sans_receivers`,
+    ne l'etait pas.
+
+    `Signal.disconnect` rend un booleen -- `True` si un recepteur a reellement ete retire
+    (`django/dispatch/dispatcher.py:119-152`). On memorise les couples pour lesquels il
+    valait `True`, et on ne reconnecte que ceux-la. Consequence voulue : imbriquer deux
+    blocs identiques sur le **meme** signal est sur, le bloc interne ne retire rien et ne
+    rend rien, le bloc externe rend. `libreosteoweb/tests/test_receivers.py` tient ce
+    contrat.
+    """
 
     def __init__(self, signal, receivers_senders, dispatch_uid=None):
         self.signal = signal
         self.receivers_senders = receivers_senders
         self.dispatch_uid = dispatch_uid
+        self._retires = []
 
     def __enter__(self):
-        for lreceiver, sender in self.receivers_senders:
-            self.signal.disconnect(
+        self._retires = [
+            (lreceiver, sender)
+            for lreceiver, sender in self.receivers_senders
+            if self.signal.disconnect(
                 receiver=lreceiver, sender=sender, dispatch_uid=self.dispatch_uid
             )
+        ]
 
     def __exit__(self, type, value, traceback):
-        for lreceiver, sender in self.receivers_senders:
+        for lreceiver, sender in self._retires:
             self.signal.connect(
                 receiver=lreceiver, sender=sender, dispatch_uid=self.dispatch_uid
             )
+        self._retires = []
 
 
 class temp_disconnect_signal:

@@ -193,6 +193,7 @@ files = [
     "libreosteoweb/tests/test_page_reindexation.py",
     "libreosteoweb/tests/test_page_tableau_de_bord.py",
     "libreosteoweb/tests/test_profil_therapeute.py",
+    "libreosteoweb/tests/test_receivers.py",
     "libreosteoweb/tests/test_recherche.py",
     "libreosteoweb/tests/test_reglages.py",
     "libreosteoweb/tests/test_reprise_archive.py",
