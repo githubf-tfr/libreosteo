@@ -397,6 +397,24 @@ Tenu à la main.
 
 ## À faire
 
+> 🔎 **Tri du backlog fait le 2026-09-24** — neuf sections instruites, chaque entrée encore
+> ouverte **vérifiée dans l'arbre** et non sur parole. Ce qu'il a établi :
+>
+> - **Les listes de défauts étaient bien tenues.** Tout ce qui était barré l'était à juste
+>   titre ; **aucun défaut n'avait été fermé en silence**. Les entrées encore ouvertes des
+>   passes du 2026-09-12 et du 2026-09-13 (D6d, D6e) sont **toutes encore vraies**.
+> - ⚠️ **Une entrée mentait, et dans le sens coûteux** : « Aucune montée de version
+>   frontend » donnait Bootstrap 3 et SB Admin 2 pour gelés, alors que D6g les a montés et
+>   purgés le 2026-09-19. Elle faisait lire comme un chantier de fond ce qui n'est plus
+>   qu'une dette de nettoyage sur **Font Awesome 4.5.0**, seul reliquat réel.
+> - **Trois références de ligne étaient périmées** (`administration.py:139→173`,
+>   `receivers.py:70,91→95,116`, `serializers/facturation.py:62→64`), sans que les verdicts
+>   changent. ⚠️ Rappel de méthode, payé deux fois par ce dépôt : **un numéro de ligne faux
+>   ne prouve pas qu'un défaut est fermé**, et un symbole introuvable non plus.
+> - **Une tâche est devenue due** sans que personne l'ait vu : le recomptage de
+>   `collectstatic` était conditionné à la clôture de D6g, qui a eu lieu le 2026-09-20. Il
+>   demande `rm -rf static && make static`, non exécuté par le tri.
+>
 > ✅ **P0 levé (2026-09-23) — la reprise du parc de production est faite.** Diagnostic
 > `outils/diagnostic_archive.py` exécuté par l'utilisateur sur son archive, **sans point
 > bloquant** (code de sortie 0, `0057`/`0058`/`0060` non déclenchés). Restauration jouée,
@@ -1047,13 +1065,18 @@ soldées ou tenues** :
 
 ### Dette technique (constat, pas action)
 
-- **Bootstrap 3 vendorisé, en fin de support et sans correctifs de sécurité.**
-  `libreosteoweb/static/css/bootstrap.css` et `bootstrap.min.css`, 3.2.0 d'après leur
-  en-tête ; le thème SB Admin 2 et les feuilles de `css/plugins/` en dépendent. C'est le
-  **seul reliquat** de cette entrée : **AngularJS 1.5 et jQuery 1.12 sont sortis de
-  l'arbre** avec D6f T10 (`6db03a8`) — ni `package.json` ni aucun gabarit ne les nomme
-  plus, et `libreosteoweb/static/js/` ne porte plus qu'un fichier du dépôt. Le reliquat
-  est un socle **visuel**, pas un framework applicatif : le remplacer est une décision de
+- ~~**Bootstrap 3 vendorisé, en fin de support et sans correctifs de sécurité.**~~ —
+  **clos**, vérifié le 2026-09-24. D6g a basculé le socle sur **Bootstrap 5.3.8**, tiré par
+  npm (`08822ae`), puis **purgé les huit feuilles mortes** (`b683215`) : plus aucun
+  `css/bootstrap*` ni `sb-admin-2*` sous `libreosteoweb/static/`, et tous les gabarits
+  chargent `components/bootstrap/dist/css/bootstrap.min.css`. Lot clos par `bd829f7`.
+  **AngularJS 1.5 et jQuery 1.12 étaient déjà sortis** avec D6f T10 (`6db03a8`).
+  ⚠️ **Ce qui reste réellement gelé est bien plus étroit** : **Font Awesome 4.5.0**,
+  vendorisé depuis le fork (`d4f9b17`) et jamais monté, plus deux fichiers orphelins sans
+  consommateur (police Glyphicons de Bootstrap 3, copie de `timeline.css` de SB Admin 2) —
+  dette de **nettoyage**, pas gel de version. Le texte ci-dessous est conservé pour mémoire
+  du raisonnement qui valait jusqu'au 2026-09-19 : le reliquat
+  était un socle **visuel**, pas un framework applicatif, et le remplacer était une décision de
   base visuelle (D6g), à ne pas engager sans décision explicite.
 - ~~Dépendances frontend référencées par branche ou tag Git chez des tiers (`#*` pour une
   dizaine d'entre elles) et `yarn.lock` ignoré par `.gitignore` : le build n'est pas
@@ -1098,10 +1121,10 @@ soldées ou tenues** :
 - (S4, tâche 7) **Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
   sous forme de création manuelle.** Aucune fonction ne permet de créer à la main un
   événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
-  (`libreosteoweb/api/views/administration.py:139`, référence rectifiée le 2026-09-19 —
+  (`libreosteoweb/api/views/administration.py:173`, référence rectifiée le 2026-09-24 —
   `api/views.py` a depuis été scindé en paquet `api/views/`) est un `ReadOnlyModelViewSet`, et les seules
   écritures d'`OfficeEvent` viennent de récepteurs de signal
-  (`libreosteoweb/api/receivers.py:70,91`, à la création d'un patient ou d'une
+  (`libreosteoweb/api/receivers.py:95,116`, à la création d'un patient ou d'une
   consultation ; `libreosteoweb/api/events/settings.py`, pour les événements liés aux
   réglages). Ce que le produit offre réellement sous ce nom est un journal
   d'événements alimenté automatiquement et affiché sur le tableau de bord — c'est ce
@@ -1181,11 +1204,15 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   garde, redondant avec le défaut de GitHub Actions (vérifié en local : deux essais
   `bash -eo pipefail` avec somme fausse puis correcte, même code de sortie qu'avant, `1`
   puis `0`) mais désormais lisible sans connaître cette convention.
-- **Aucune montée de version frontend.** A6 a gelé l'arbre du 2026-08-30, **CVE connues
-  comprises** : c'est assumé et c'est l'objet de D6. Le gel des refs Angular perdra
-  d'ailleurs sa valeur avec AngularJS ; les familles vendorisées — Bootstrap 3.2.0 et le
-  thème SB Admin 2 en tête — sont le socle visuel et non le framework, et sont le
-  sous-ensemble de D5 dont la valeur ne s'évapore pas. Elles sont inventoriées dans le
+- **Aucune montée de version frontend** — ⚠️ **entrée devenue largement fausse, rectifiée le
+  2026-09-24.** A6 a gelé l'arbre du 2026-08-30, CVE connues comprises, et c'était l'objet de
+  D6. **Le sous-ensemble que cette entrée donnait pour non montable — Bootstrap 3.2.0 et le
+  thème SB Admin 2 — a justement été monté et purgé par D6g** (`08822ae`, `b683215`, lot clos
+  `bd829f7`) ; AngularJS et jQuery n'ont pas été « non montés » mais **retirés** par D6f
+  (`6db03a8`). **Ce qui reste gelé est Font Awesome 4.5.0, et lui seul** : périmètre de dette
+  résiduelle mineure, non un chantier de fond, contrairement à ce que cette entrée laissait
+  croire. Le reste du paragraphe garde sa valeur d'inventaire. Les familles vendorisées sont
+  inventoriées dans le
   `README.rst`, section « Vendored third-party assets », qui en annonce **six** depuis
   `f9804d7` (2026-09-19) — et non huit ni neuf comme cette entrée l'a successivement
   écrit — après retrait d'`animatescroll` et correction des cinq lignes que D6f T10 avait
@@ -1267,7 +1294,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   et `static/js/app/invoice.js` qu'invoquait l'entrée n'existent plus, purgés par D6f T10
   (`6db03a8`, 2026-09-14) ; la Comptabilité migrée porte désormais ce filtre côté serveur —,
   l'export CSV/XLSX (`InvoiceSerializer.Meta`, `fields = "__all__"`,
-  `libreosteoweb/api/serializers/facturation.py:62`, renderer CSV,
+  `libreosteoweb/api/serializers/facturation.py:64`, renderer CSV,
   `libreosteoweb/api/renderers.py:70-107`), le tri par défaut (`Invoice.Meta.ordering`,
   `libreosteoweb/models.py:413` — vaut désormais `["-date", "-id"]`, un second critère
   ajouté depuis), et le gabarit de la facture (nom de fichier et mention « À {lieu}, le
