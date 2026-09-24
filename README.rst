@@ -702,8 +702,8 @@ Throughout, ``$TAG`` stands for ``$(git rev-parse --short HEAD)``.
    The ``output.<hash>`` file names are already content fingerprints: django-compressor
    builds them as ``CACHE/<kind>/output.<hexdigest(content,12)>.<ext>``. The whole-``static``
    digest doubles them because not everything sits inside a ``{% compress %}`` block: the
-   vendored ``font-awesome/`` fonts, the Bootstrap 3 glyphicon fonts, the images, and the
-   ``@components/`` trees that ``htmx`` and ``alpinejs`` are served from are all outside one.
+   vendored ``font-awesome/`` fonts, the images, and the ``@components/`` trees that ``htmx``
+   and ``alpinejs`` are served from are all outside one.
 
 4. **Compare.** Both fingerprints, and both ``output.<hash>`` names, must be identical
    between the two dates. Any difference is a defect: this project does not intentionally
@@ -761,13 +761,9 @@ SB Admin 2, metisMenu and the DataTables theme therefore leave this table: nothi
 is left on disk. Bootstrap is now an ordinary ``package.json`` dependency,
 ``@components/bootstrap``, pinned to an exact version.
 
-**Two of the three that remain have no consumer**, and that is said rather than left to be
+**One of the two that remain has no consumer**, and that is said rather than left to be
 discovered:
 
-- **Bootstrap 3 Glyphicons.** The font files were referenced by path from
-  ``css/bootstrap.css``, which no longer exists. Nothing references them now. They are kept
-  because deleting a font family is a distinct decision from deleting the sheet that used
-  it, and nobody has taken it.
 - **The SB Admin 2 timeline sheet, in its unreferenced copy.** There are two,
   ``css/plugins/timeline.css`` (3 910 bytes) and ``css/plugins/timeline/timeline.css``
   (3 032 bytes), and they are **not** the same file: ``diff`` reports 45 lines present only
@@ -778,7 +774,13 @@ discovered:
   someone decides what its extra rules are worth; deleting it on the strength of its name
   alone is exactly the mistake this fork has paid for twice.
 
-Font Awesome, the third, is loaded by ``base.html`` on every page.
+Font Awesome, the other, is loaded by ``base.html`` on every page.
+
+The Bootstrap 3 Glyphicon fonts were removed on 2026-09-24. Nothing referenced them:
+``css/bootstrap.css``, the only sheet that did, went with the Bootstrap 5 migration, and
+``outils/rupture_bs5.py`` maps every one of the six glyphicon tokens to ``None`` — Font
+Awesome took their place. The decision this file left open has been taken, and a single
+``git revert`` brings the files back.
 
 Two families lost their JavaScript half entirely, with no CSS counterpart to keep them
 present : ``jquery.sparkline`` and the AngularJS ``timeAgo`` directive both lived only
@@ -791,8 +793,6 @@ with them. The count is the number of families actually present, not a historica
 Family                               Location                                        Version as shipped
 ===================================  ==============================================  =====================
 Font Awesome                         ``font-awesome/``                               4.5.0 (file header)
-Bootstrap 3 Glyphicons               ``fonts/glyphicons-halflings-regular.*``        ships with Bootstrap 3;
-                                                                                     no version of its own
 SB Admin 2 timeline sheet            ``css/plugins/timeline.css``                    not stated in the file
 ===================================  ==============================================  =====================
 
