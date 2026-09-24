@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from django.utils import timezone
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, Route, expect
 from pytest_django.live_server_helper import LiveServer
 
 from libreosteoweb.models import Examination, ExaminationStatus, Invoice, Patient
@@ -714,3 +714,152 @@ def test_la_pastille_de_type_tient_dans_son_en_tete(
 
     assert boites["basPastille"] <= boites["basEntete"], boites
     assert boites["hautPastille"] >= boites["hautEntete"], boites
+
+
+def test_la_saisie_est_bloquee_pendant_que_l_enregistrement_est_en_vol(
+    page: Page, live_server: LiveServer
+) -> None:
+    """R-CON-07 étape 2 : le chemin le plus court vers la perte, et sa fermeture.
+
+    **Ce que ce test regarde** : le champ Motif pendant que le `POST` déclenché par le clic
+    d'onglet n'a pas répondu. Il doit refuser la frappe -- pas l'accepter puis la perdre.
+
+    **Pourquoi il joue l'onglet DÉJÀ ACTIF.** C'est le chemin le plus court mesuré au
+    cadrage : ni séance ancienne, ni facture, ni navigation. Et c'est l'angle mort du
+    dépôt -- les vingt-deux clics d'onglet de `test_patient.py` visent tous un onglet
+    différent de l'actif, si bien qu'une garde « ne rien faire si l'onglet est déjà actif »
+    (option Q1-b, écartée) n'aurait fait rougir aucun test tout en laissant l'étape 5
+    ouverte.
+
+    **Ce à quoi il est rouge avant le correctif** : la frappe est acceptée pendant le vol,
+    puis écrasée par le fragment de lecture reconstruit depuis la base -- le champ finit à
+    `Motif de consultation` et la frappe a disparu **sans un mot**. Après le correctif, la
+    frappe n'a pas lieu : le champ est inerte.
+
+    La réponse est retenue par `page.route` : c'est le seul moyen d'observer la fenêtre de
+    course, qui à vitesse humaine se referme en quelques dizaines de millisecondes.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+
+    def retenir_l_enregistrement(route: Route) -> None:
+        if route.request.method == "POST":
+            page.wait_for_timeout(2000)
+        route.continue_()
+
+    page.route("**/examination/*/edit", retenir_l_enregistrement)
+
+    motif = page.locator("input[placeholder*='Motif']")
+    page.click("#current-examination")
+
+    expect(motif).to_be_disabled()
+    # Draine le `POST` retenu avant la fin du test : l'assertion ci-dessus passe bien avant
+    # les 2000 ms de `retenir_l_enregistrement`, et fermer la page pendant que ce
+    # gestionnaire de route dort encore casse le *test suivant* -- `Browser.new_context`
+    # echoue a son tour, mesure au premier lancement de ce fichier. Le formulaire d'edition
+    # disparait avec le succes de l'echange : c'est aussi la preuve que le verrou ne casse
+    # pas l'echange qu'il protege.
+    expect(motif).to_have_count(0)
+
+
+def test_le_texte_riche_refuse_aussi_la_frappe_pendant_l_envoi(
+    page: Page, live_server: LiveServer
+) -> None:
+    """La moitié du volet que `disabled` n'atteint pas.
+
+    **Ce que ce test regarde** : l'attribut `contenteditable` du champ d'examen médical
+    pendant le vol du `POST`.
+
+    **Pourquoi il est séparé du précédent.** Un champ de texte riche **n'est pas un
+    contrôle de formulaire** : `pages/fragments/texte-riche.html` rend un
+    `<div contenteditable>` doublé d'une entrée cachée, et `disabled` n'a aucun effet sur
+    lui. Un correctif qui s'en tiendrait à `hx-disabled-elt` serait vert sur le test
+    précédent et laisserait quatorze champs de saisie clinique grands ouverts. C'est
+    exactement la forme de défaut que le lot 1 a payée : une garde qui couvre la moitié
+    visible du problème.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+
+    def retenir_l_enregistrement(route: Route) -> None:
+        if route.request.method == "POST":
+            page.wait_for_timeout(2000)
+        route.continue_()
+
+    page.route("**/examination/*/edit", retenir_l_enregistrement)
+
+    examen = page.locator('[data-testid="consultation-en-cours"]').get_by_test_id(
+        "examen-medical"
+    )
+    page.click("#current-examination")
+
+    expect(examen).to_have_attribute("contenteditable", "false")
+    # Meme drainage que dans le test precedent (meme cause mesuree) : laisser le gestionnaire
+    # de route en vol a la fermeture de la page casse le test suivant.
+    expect(examen).not_to_have_attribute("contenteditable", "false")
+
+
+def test_la_saisie_redevient_possible_si_la_reponse_n_arrive_jamais(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Le délai de sécurité, et c'est la moitié de l'arbitrage.
+
+    **Ce que ce test regarde** : le champ Motif après que la requête a été suspendue sans
+    jamais aboutir. Il doit redevenir modifiable tout seul.
+
+    **Pourquoi un délai à nous, et pas celui d'htmx.** htmx relâche ses propres
+    désactivations sur `load`, `error`, `abort` et `timeout` -- mais le `POST` d'édition ne
+    porte aucun `hx-request` timeout, et une connexion suspendue ne déclenche donc jamais
+    `ontimeout`. Sans ce délai, un champ resterait inerte jusqu'au rechargement de la page,
+    c'est-à-dire qu'on aurait remplacé une perte de saisie par un blocage -- ce que
+    l'utilisateur a nommément demandé d'éviter en arbitrant Q1.
+
+    L'attente est portée par le `timeout` de l'assertion Playwright, qui sonde : le test ne
+    coûte que ce que le déverrouillage met à venir.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+
+    def suspendre_l_enregistrement(route: Route) -> None:
+        if route.request.method != "POST":
+            route.continue_()
+
+    page.route("**/examination/*/edit", suspendre_l_enregistrement)
+
+    motif = page.locator("input[placeholder*='Motif']")
+    page.click("#current-examination")
+    expect(motif).to_be_disabled()
+
+    expect(motif).to_be_enabled(timeout=20000)
+
+
+def test_entrer_en_edition_ne_verrouille_pas_la_saisie(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Review Focus n° 5 : les lectures ne verrouillent rien.
+
+    **Ce que ce test regarde** : le champ Motif après le `GET` qui ouvre l'édition d'une
+    séance.
+
+    **Pourquoi c'est le piège le plus coûteux de cette tâche.** Le dossier émet des `GET`
+    pendant la saisie -- entrer en édition, et surtout la recherche de code postal, qui
+    part **à chaque frappe**. Un verrou posé sans filtrer le verbe gèlerait le champ
+    pendant que le praticien tape, c'est-à-dire l'inverse exact du but. La garde
+    `siEcritureReussie` du même document exclut déjà les `GET` pour la même raison, et le
+    verrou reprend ce filtre.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    ouvrir_nouvelle_consultation(page)
+    saisir_consultation(page)
+
+    motif = page.locator("input[placeholder*='Motif']")
+    expect(motif).to_be_enabled()
+    page.fill("input[placeholder*='Motif']", "Motif retape sans verrou")
+    expect(motif).to_have_value("Motif retape sans verrou")

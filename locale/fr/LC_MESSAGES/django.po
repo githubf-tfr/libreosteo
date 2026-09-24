@@ -2497,3 +2497,6 @@ msgstr "Aucune facture n'a été renumérotée."
 
 msgid "Continue"
 msgstr "Continuer"
+
+msgid "Saving in progress"
+msgstr "Enregistrement en cours"

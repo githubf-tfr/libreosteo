@@ -2270,3 +2270,22 @@ class TestFeuillesDeStyleDuDossier(_SocleDuDossier):
             "le dossier rend des classes que le depot habille mais qu'aucune feuille "
             "liee ne definit : %s" % ", ".join(orphelines),
         )
+
+
+class TestVerrouDeSaisie(_SocleDuDossier):
+    """Le contrat serveur du verrou : les deux écoutes htmx sont posées sur la racine."""
+
+    def test_le_document_branche_le_verrou_de_saisie(self) -> None:
+        """Le contrat serveur du document : les deux écoutes htmx sont posées.
+
+        **Ce que cette preuve ne regarde pas, et qui est dit** : ce qu'Alpine et htmx font
+        du document rendu. Le verrou lui-même est prouvé au navigateur, par les trois
+        tests de `tests/functional/test_consultation.py`. Celle-ci tient la seule chose
+        qu'un rendu serveur peut tenir -- que les écoutes ne disparaissent pas d'un
+        remaniement du `x-data`.
+        """
+        reponse = self.client.get(reverse("dossier-patient", args=[self.patient.id]))
+
+        html = reponse.content.decode("utf-8")
+        self.assertIn("verrouillerLaSaisie($event)", html)
+        self.assertIn("deverrouillerLaSaisie($event)", html)

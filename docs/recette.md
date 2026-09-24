@@ -2257,10 +2257,13 @@ est déplacé d'onglet au moment même où son texte disparaît.
    en cours ».
    Attendu, **et ce script-ci ne perd rien** : le dossier est recomposé depuis la base, et
    **le motif est toujours celui tapé au début de cette étape**.
-   **Pour voir la perte réellement assumée par Q6**, un **second** retype est nécessaire,
-   fait *après* être revenu sur l'onglet de la séance en cours : c'est `R-CON-07`, étape 5,
-   qui le fait et en explique le mécanisme mesuré — et son étape 2, plus courte encore,
-   montre que ni séance ancienne, ni facture, ni navigation ne sont en réalité nécessaires.
+   **Il n'y a plus de perte à voir.** `R-CON-07` étapes 2 et 5 décrivaient jusqu'au
+   2026-09-24 une frappe acceptée puis écrasée ; le lot correctif 2 (arbitrage Q1-c) rend
+   le champ inerte tant que son enregistrement est en vol, et les deux étapes sont
+   devenues des attendus de non-perte. ⚠️ **Ce que cette étape-ci garde reste inchangé** :
+   la boîte « modifications non enregistrées » est un `beforeunload` natif, que
+   Playwright ne peut pas observer sans la neutraliser. Sa preuve déterministe reste
+   `R-PAT-13` étape 2, jouée à la main.
 
 **Constat** : la règle que ce lot inscrit est une règle de conception, pas un correctif de
 circonstance — *un échange ne réécrit que les éléments dont il est l'autorité ; les autres
@@ -2270,8 +2273,11 @@ saisie est **conservée mais invisible** jusqu'au retour sur son onglet, et c'es
 l'avertissement de sortie — non la visibilité — qui ferme le silence. La préservation de D9
 couvre les trois surfaces permanentes du corps, jamais les deux volets de consultation ;
 l'étape 6 le rappelle sans la mettre en scène — la mesure a montré que ce script précis ne
-perd rien —, et c'est `R-CON-07` (étape 2, sa reproduction la plus courte, puis étape 5,
-avec séance ancienne et facture) qui la met en scène.
+perd rien —, et c'était `R-CON-07` (étape 2, sa reproduction la plus courte, puis étape 5,
+avec séance ancienne et facture) qui la mettait en scène. ⚠️ **Depuis le lot correctif 2**
+(arbitrage Q1-c, 2026-09-24), ces deux étapes ne perdent plus rien non plus : le champ est
+inerte tant que son enregistrement est en vol, et la limite assumée qu'elles montraient est
+fermée.
 
 ### Documents patient
 
@@ -2734,9 +2740,15 @@ séances closes. **Une séance clôturée ne se supprime pas** — elle porte un
 - **Domaine** : Consultation
 - **Couverture auto** : partielle —
   tests/functional/test_consultation.py::test_une_seance_ancienne_s_ouvre_pendant_une_seance_en_cours
-  (six onglets, le détail actif, le retour sur la séance ouverte) et
+  (six onglets, le détail actif, le retour sur la séance ouverte),
   tests/functional/test_consultation.py::test_ouvrir_une_seance_ancienne_bascule_sur_son_onglet
-  (la bascule, et l'absence de volet sous la chronologie). **Ne vérifient pas** : la boîte
+  (la bascule, et l'absence de volet sous la chronologie),
+  ::test_la_saisie_est_bloquee_pendant_que_l_enregistrement_est_en_vol,
+  ::test_le_texte_riche_refuse_aussi_la_frappe_pendant_l_envoi,
+  ::test_la_saisie_redevient_possible_si_la_reponse_n_arrive_jamais et
+  ::test_entrer_en_edition_ne_verrouille_pas_la_saisie (ces quatre derniers : le verrou de
+  saisie de l'étape 2, sur le champ Motif ordinaire et sur le texte riche, son délai de
+  sécurité, et l'absence d'effet sur une simple lecture). **Ne vérifient pas** : la boîte
   native « modifications non enregistrées », que Playwright ne peut observer sans la
   neutraliser — ce qui déferait la preuve —, ni la course entre la frappe et la réponse
   asynchrone de l'enregistrement implicite au changement d'onglet, dont dépend le sort
@@ -2757,22 +2769,17 @@ dossier entier depuis la base.
 1. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations », bouton « Démarrer une
    consultation ». Saisir le motif `Motif de la seance ouverte`.
    Attendu : l'onglet « Consultation en cours » est actif, en saisie.
-2. **Le chemin le plus court vers la limite assumée, avant même de toucher une séance
-   ancienne.** Cliquer l'onglet **déjà actif** « Consultation en cours » sur lui-même,
-   puis retaper aussitôt `Encore perdu` dans le champ Motif, à la place de `Motif de la
-   seance ouverte`.
-   Attendu, **et c'est un OK** : le champ Motif disparaît peu après (remplacé par
-   l'affichage en lecture) et **le motif revient à** `Motif de la seance ouverte` — la
-   frappe de cette étape n'atteint jamais la base. **Mesuré** : cliquer un onglet, même
-   celui où l'on se trouve déjà, déclenche `quitterEdition()`
-   (`partials/onglets.html:88-90`) — l'enregistrement implicite au changement d'onglet,
-   dont deux tests de `test_patient.py` dépendent explicitement —, dès qu'une consultation
-   est ouverte (`edition` vaut déjà `'current-examination'`, `dossier-corps.html:42`).
-   Le `POST /examination/<id>/edit` que ce clic déclenche part avec la valeur d'**avant**
-   la frappe ; sa réponse, une fois revenue, remplace le champ par le fragment de lecture
-   — quoi qu'on ait tapé entre-temps. Aucune séance ancienne, aucune facture, aucune
-   navigation n'est nécessaire : c'est la démonstration la plus courte que retient
-   l'arbitrage Q6.
+2. **Le chemin le plus court vers la course, et il est désormais fermé.** Cliquer
+   l'onglet **déjà actif** « Consultation en cours » sur lui-même, puis essayer aussitôt de
+   retaper `Encore perdu` dans le champ Motif, à la place de `Motif de la seance ouverte`.
+   Attendu : le champ Motif **refuse la frappe** tant que l'enregistrement est en vol, et
+   le témoin « Enregistrement en cours » s'affiche. Le champ disparaît peu après, remplacé
+   par l'affichage en lecture, et le motif vaut `Motif de la seance ouverte`. **Rien n'a
+   été perdu : la frappe n'a pas eu lieu.** ⚠️ **Renversement d'attendu du lot correctif 2**
+   (arbitrage Q1-c) : jusqu'au 2026-09-24, cette étape était un OK qui **constatait la
+   perte** — la frappe était acceptée puis écrasée sans un mot. L'enregistrement implicite
+   au changement d'onglet, lui, n'a pas changé : deux tests de `test_patient.py` en
+   dépendent, et il a bien écrit en base.
 3. Cliquer l'onglet « Consultations », puis, dans la chronologie, la séance facturée
    `10000`.
    Attendu : **selon que la réponse de l'enregistrement implicite déclenché par le clic
@@ -2786,25 +2793,17 @@ dossier entier depuis la base.
 4. Cliquer « Consultation en cours ».
    Attendu : la séance ouverte est là, **son motif est** `Motif de la seance ouverte` — il
    a été enregistré au passage sur le serveur avant la navigation.
-5. **L'étape qui reproduit la limite assumée, avec une séance ancienne et une facture.**
-   Retaper dans le motif de la séance ouverte `Texte qui va disparaitre`, **sans quitter
-   l'édition**. Cliquer « Détail de la consultation », puis annuler la facture de la
-   séance ancienne et confirmer. Revenir sur « Consultation en cours ».
-   Attendu, **et c'est un OK** : le motif est revenu à `Motif de la seance ouverte` ; le
-   texte non enregistré a disparu **sans message**.
-   **La cause mesurée n'est pas celle qu'une première rédaction de cette fiche
-   désignait.** Ce n'est ni l'annulation de facture, ni le clic sur « Détail de la
-   consultation » qui perd le texte — mesuré : ce clic **ne déclenche aucune requête
-   réseau**. La perte est scellée dès **l'étape 4** : y revenir sur « Consultation en
-   cours » y déclenche déjà `quitterEdition()`, exactement comme à l'étape 2, et sa
-   réponse — encore en vol au moment du retype — remplace le champ de saisie par le
-   fragment de lecture dès qu'elle revient. Cette étape tape dans un champ en sursis et
-   perd cette course ; le clic sur « Détail de la consultation » et l'annulation de
-   facture ne font que **constater**, un peu plus tard, une perte déjà actée.
-   Le signaler comme un KO serait rouvrir l'enregistrement implicite au changement
-   d'onglet dont `test_patient.py` dépend — et, secondairement, l'unique autorité qui
-   recompose le corps du dossier d'un seul bloc (D6e/C8), qui interdirait de préserver ce
-   champ sans casser l'affichage du nouveau statut.
+5. **L'étape qui reproduisait la limite assumée, avec une séance ancienne et une
+   facture.** Retaper dans le motif de la séance ouverte `Texte qui va disparaitre`,
+   **sans quitter l'édition**. Cliquer « Détail de la consultation », puis annuler la
+   facture de la séance ancienne et confirmer. Revenir sur « Consultation en cours ».
+   Attendu : le motif vaut `Texte qui va disparaitre` — **il a été enregistré par le
+   changement d'onglet, et non perdu**. ⚠️ **Renversement d'attendu du lot correctif 2.**
+   Jusqu'au 2026-09-24, cette étape était un OK qui constatait la perte : le retype de
+   l'étape 4 tapait dans un champ en sursis et perdait la course. Le champ est désormais
+   inerte pendant le vol, si bien qu'il n'y a plus de course à perdre — ni à l'étape 2
+   (onglet déjà actif) ni ici (autre onglet). C'est ce que l'option (b), garde sur le seul
+   onglet actif, n'aurait pas fermé.
 6. Cliquer le « × » du volet de détail (info-bulle « Fermer ce volet »).
    Attendu : l'onglet « Consultations » redevient actif, l'onglet « Détail de la
    consultation » **disparaît** de la barre, la chronologie et « Démarrer une

@@ -36,8 +36,14 @@
         hx-post="{{ volet.url_edition }}"
         hx-target="#{{ volet.prefixe }}-volet"
         hx-swap="outerHTML"
+        hx-indicator="#{{ volet.prefixe }}-envoi-en-cours"
         hx-trigger="submit, dossier-fin-edition from:body">
     {% csrf_token %}
+    {# **L'attente devient visible** (lot correctif 2, arbitrage Q1-c). Le verrou de #}
+    {# saisie du document rend le volet inerte pendant l'envoi ; sans temoin, le #}
+    {# praticien verrait un champ qui ne repond plus, sans savoir pourquoi. #}
+    <p class="bg-success htmx-indicator" id="{{ volet.prefixe }}-envoi-en-cours"
+       data-testid="consultation-envoi-en-cours"><i class="fa fa-cog fa-spin fa-lg fa-fw"></i> {% trans 'Saving in progress' %}</p>
     {# Le prefixe voyage avec la charge : la reponse de refus doit re-rendre **ce** volet. #}
     <input type="hidden" name="prefixe" value="{{ volet.prefixe }}">
     <div class="col-md-7">
