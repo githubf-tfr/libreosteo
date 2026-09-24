@@ -5,7 +5,7 @@
             {# dans `#erreur-restauration`, un conteneur situe **au-dessus** du `<form>` : #}
             {# le formulaire restait donc affiche sous lui, fichier selectionne, bouton #}
             {# actif. Or l'archive vient de restaurer des utilisateurs, donc #}
-            {# `@maintenance_available` (`api/permissions.py:104-128`) rend desormais #}
+            {# `@maintenance_available` (`api/permissions.py:105-128`) rend desormais #}
             {# **403 a corps vide**, et `base.html:19` echange les `4xx` : un second clic #}
             {# effacait le compte rendu **sans un mot**, alors qu'il porte des numeros de #}
             {# facture -- des pieces fiscales qui ont pu etre remises a des patients. #}

@@ -2787,16 +2787,20 @@ dossier entier depuis la base.
    retaper `Encore perdu` dans le champ Motif, à la place de `Motif de la seance ouverte`.
    Attendu : le champ disparaît, remplacé par l'affichage en lecture, et le motif vaut
    `Motif de la seance ouverte`. **Rien n'a été perdu : la frappe n'a pas eu lieu.**
-   ⚠️ **Ce qui est vraiment observable à la main, et ce qui ne l'est pas.** Le refus de
-   frappe lui-même — champ inerte, témoin « Enregistrement en cours » — dure la durée de
+   ⚠️ **Cette étape ne prouve rien à la main, et il faut le savoir en la jouant.** Le refus
+   de frappe — champ inerte, témoin « Enregistrement en cours » — dure la durée de
    l'enregistrement, soit *quelques dizaines de millisecondes* (même mesure qu'à
    l'étape 5) : à vitesse humaine, un verrou présent et un verrou absent donnent le même
-   écran, et le noter « OK » ne prouverait rien. **Le KO de cette étape est la présence de
-   `Encore perdu` dans le motif affiché** — c'est-à-dire une frappe qui aurait été acceptée
-   puis écrasée. Le verrou lui-même est prouvé par la machine, qui seule peut ouvrir la
-   fenêtre :
+   écran. ⚠️ **Et l'écran final ne les distingue pas non plus** : le défaut d'avant le lot
+   correctif 2 acceptait la frappe *puis l'écrasait* par le fragment de lecture, si bien que
+   `Encore perdu` est absent du motif **dans les deux cas**. Un KO tiré de cette étape serait
+   donc un faux KO, et son OK ne vaut rien — **ne rien conclure d'elle dans un sens comme
+   dans l'autre.** Elle reste au cahier parce qu'elle décrit le geste que le praticien fait
+   réellement, et parce qu'un écran qui partirait en erreur ou resterait bloqué, lui, se
+   verrait.
+   **Le verrou n'est prouvé que par la machine**, seule à pouvoir ouvrir la fenêtre :
    `tests/functional/test_consultation.py::test_la_saisie_est_bloquee_pendant_que_l_enregistrement_est_en_vol`
-   retient la réponse deux secondes et constate le champ inerte. Si le témoin passe sous les yeux, tant mieux ; son absence n'est pas un KO.
+   retient la réponse deux secondes et constate le champ inerte.
    ⚠️ **Renversement d'attendu du lot correctif 2**
    (arbitrage Q1-c) : jusqu'au 2026-09-24, cette étape était un OK qui **constatait la
    perte** — la frappe était acceptée puis écrasée sans un mot. L'enregistrement implicite
