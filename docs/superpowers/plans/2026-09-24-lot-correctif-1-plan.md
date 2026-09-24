@@ -647,57 +647,56 @@ Attendu : 1 passed.
 Ajouter à `TestBlocDeDeconnexion`, dans `libreosteoweb/tests/test_receivers.py` :
 
 ```python
-    def test_le_cas_nominal_rend_bien_le_recepteur(self) -> None:
-        """La contrepartie du durcissement, sans laquelle « ne rien reconnecter » passerait.
+def test_le_cas_nominal_rend_bien_le_recepteur(self) -> None:
+    """La contrepartie du durcissement, sans laquelle « ne rien reconnecter » passerait.
 
-        Un bloc, un signal, un recepteur qui lui appartient : il est muet dedans, il
-        repond dehors.
-        """
-        with block_disconnect_all_signal(
-            signal=self.signal_a, receivers_senders=[(self.recepteur_a, None)]
-        ):
-            self.signal_a.send(sender=None)
-            self.assertEqual(
-                [], self.appels, "Le recepteur repond encore a l'interieur du bloc."
-            )
-
+    Un bloc, un signal, un recepteur qui lui appartient : il est muet dedans, il
+    repond dehors.
+    """
+    with block_disconnect_all_signal(
+        signal=self.signal_a, receivers_senders=[(self.recepteur_a, None)]
+    ):
         self.signal_a.send(sender=None)
-
         self.assertEqual(
-            ["a"], self.appels, "Le recepteur n'a pas ete rendu a la sortie du bloc."
+            [], self.appels, "Le recepteur repond encore a l'interieur du bloc."
         )
 
-    def test_deux_blocs_imbriques_sur_le_meme_signal_rendent_le_recepteur(self) -> None:
-        """`sans_receivers()` vit dans plus de trente fichiers : l'imbrication arrive.
+    self.signal_a.send(sender=None)
 
-        Le bloc interne ne retire rien -- c'est deja fait -- donc il ne rend rien ; c'est
-        le bloc **externe** qui rend. Si les deux se croisaient mal, le recepteur
-        resterait debranche pour tout le reste du processus.
-        """
-        couples = [(self.recepteur_a, None)]
+    self.assertEqual(
+        ["a"], self.appels, "Le recepteur n'a pas ete rendu a la sortie du bloc."
+    )
+
+
+def test_deux_blocs_imbriques_sur_le_meme_signal_rendent_le_recepteur(self) -> None:
+    """`sans_receivers()` vit dans plus de trente fichiers : l'imbrication arrive.
+
+    Le bloc interne ne retire rien -- c'est deja fait -- donc il ne rend rien ; c'est
+    le bloc **externe** qui rend. Si les deux se croisaient mal, le recepteur
+    resterait debranche pour tout le reste du processus.
+    """
+    couples = [(self.recepteur_a, None)]
+    with block_disconnect_all_signal(signal=self.signal_a, receivers_senders=couples):
         with block_disconnect_all_signal(
             signal=self.signal_a, receivers_senders=couples
         ):
-            with block_disconnect_all_signal(
-                signal=self.signal_a, receivers_senders=couples
-            ):
-                pass
-            self.signal_a.send(sender=None)
-            self.assertEqual(
-                [],
-                self.appels,
-                "Le bloc interne a rendu un recepteur qu'il n'avait pas retire : la "
-                "sortie du bloc imbrique rebranche le recepteur avant l'heure.",
-            )
-
+            pass
         self.signal_a.send(sender=None)
-
         self.assertEqual(
-            ["a"],
+            [],
             self.appels,
-            "Apres deux blocs imbriques sur le meme signal, le recepteur n'a jamais ete "
-            "rendu : il est debranche pour tout le reste du processus.",
+            "Le bloc interne a rendu un recepteur qu'il n'avait pas retire : la "
+            "sortie du bloc imbrique rebranche le recepteur avant l'heure.",
         )
+
+    self.signal_a.send(sender=None)
+
+    self.assertEqual(
+        ["a"],
+        self.appels,
+        "Apres deux blocs imbriques sur le meme signal, le recepteur n'a jamais ete "
+        "rendu : il est debranche pour tout le reste du processus.",
+    )
 ```
 
 - [ ] **Step 6: Lancer les trois tests**
@@ -913,7 +912,9 @@ class TestPanneauImport(TestCase):
         reponse = self.client.get(reverse("import-export"))
 
         corps = reponse.content.decode("utf-8")
-        self.assertIn("Pour importer des patients ou des consultations dans la base", corps)
+        self.assertIn(
+            "Pour importer des patients ou des consultations dans la base", corps
+        )
         self.assertNotIn("For importing patient or examination in the database", corps)
 
     def test_la_note_de_l_onglet_import_est_en_francais(self):

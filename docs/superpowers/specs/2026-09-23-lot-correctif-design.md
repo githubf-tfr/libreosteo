@@ -345,11 +345,16 @@ peut pas produire un `.mo` à jour** — et un `.po` corrigé sans `.mo` recompi
 ```python
 def __enter__(self):
     for lreceiver, sender in self.receivers_senders:
-        self.signal.disconnect(receiver=lreceiver, sender=sender, dispatch_uid=self.dispatch_uid)
+        self.signal.disconnect(
+            receiver=lreceiver, sender=sender, dispatch_uid=self.dispatch_uid
+        )
+
 
 def __exit__(self, type, value, traceback):
     for lreceiver, sender in self.receivers_senders:
-        self.signal.connect(receiver=lreceiver, sender=sender, dispatch_uid=self.dispatch_uid)
+        self.signal.connect(
+            receiver=lreceiver, sender=sender, dispatch_uid=self.dispatch_uid
+        )
 ```
 
 Le défaut fermé par `77eb331` est exactement celui-là, vu depuis l'appelant : `restaurer()`
