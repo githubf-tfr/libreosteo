@@ -10,6 +10,7 @@ from pytest_django.live_server_helper import LiveServer
 from libreosteoweb.models import Examination, ExaminationStatus, Invoice, Patient
 from libreosteoweb.tests.fixtures import sans_receivers
 from tests.functional.helpers import (
+    attendre_alpine_initialise,
     attendre_reponse,
     bouton_fin_d_edition,
     cloturer_consultation,
@@ -863,3 +864,88 @@ def test_entrer_en_edition_ne_verrouille_pas_la_saisie(
     expect(motif).to_be_enabled()
     page.fill("input[placeholder*='Motif']", "Motif retape sans verrou")
     expect(motif).to_have_value("Motif retape sans verrou")
+
+
+def test_deux_surfaces_verrouillees_ne_partagent_pas_leur_minuterie(
+    page: Page, live_server: LiveServer
+) -> None:
+    """Constat Important 3 de la revue T5 : une minuterie par surface, jamais pour le document.
+
+    **Ce que ce test regarde** : deux surfaces de saisie **distinctes** -- les volets de
+    commentaires de deux séances -- verrouillées en même temps, l'une dont la réponse
+    réelle revient vite, l'autre suspendue et qui ne répond **jamais**.
+
+    **Le défaut mesuré, hérité du brief de la tâche.** `verrouillerLaSaisie` stockait la
+    minuterie de sécurité dans **une seule** variable du document (`this.minuterieDuVerrou`).
+    Verrouiller une seconde surface pendant que la première est encore en vol écrasait cette
+    variable et **orphelinait** la minuterie de la première. Dès que la première surface se
+    déverrouillait -- ici, la réponse rapide de A --, `basculerLeVerrou` effaçait la variable
+    partagée, qui pointait alors vers la minuterie de la **seconde** surface (B) : celle-ci
+    perdait son filet. Si la réponse de B n'arrive jamais, elle restait verrouillée **pour
+    toujours** -- exactement le blocage que le délai de sécurité existe pour empêcher.
+
+    **Pourquoi deux volets de commentaires.** Ce sont deux surfaces permanentes documentées
+    comme coexistant dans le même document (`dossier-patient.html`, commentaire sur la garde
+    de sortie) : deux écritures concurrentes y sont possibles. **L'ordre des deux clics est
+    la barrière de l'arrangement** : A verrouille en premier, B en second -- c'est cet ordre
+    précis qui, avec une seule minuterie partagée, orpheline celle de A au profit de celle de
+    B, avant que la réponse rapide de A n'efface -- à tort -- celle de B.
+    """
+    connexion(page, live_server)
+    creer_patient(page)
+    patient = Patient.objects.get(family_name="Picard")
+    with sans_receivers():
+        seance_a = Examination.objects.create(
+            patient=patient,
+            date=timezone.now(),
+            status=ExaminationStatus.NOT_INVOICED,
+            type=1,
+        )
+        seance_b = Examination.objects.create(
+            patient=patient,
+            date=timezone.now(),
+            status=ExaminationStatus.NOT_INVOICED,
+            type=1,
+        )
+    page.reload()
+    attendre_alpine_initialise(page)
+    page.click("#examinations")
+
+    volet_a = page.locator(f"#chronologie-commentaires-{seance_a.id}")
+    volet_b = page.locator(f"#chronologie-commentaires-{seance_b.id}")
+    volet_a.get_by_test_id("compteur-commentaires").click()
+    volet_b.get_by_test_id("compteur-commentaires").click()
+
+    champ_a = page.locator(f"#btn-input-{seance_a.id}")
+    champ_b = page.locator(f"#btn-input-{seance_b.id}")
+    champ_a.fill("Commentaire A")
+    champ_b.fill("Commentaire B")
+
+    def repondre_vite(route: Route) -> None:
+        if route.request.method == "POST":
+            page.wait_for_timeout(300)
+        route.continue_()
+
+    def ne_jamais_repondre(route: Route) -> None:
+        # Aucun `route.continue_()` sur le `POST` : la reponse de B n'arrive jamais, et
+        # seule sa propre minuterie de securite peut encore la deverrouiller.
+        if route.request.method != "POST":
+            route.continue_()
+
+    page.route(f"**/examination/{seance_a.id}/comments", repondre_vite)
+    page.route(f"**/examination/{seance_b.id}/comments", ne_jamais_repondre)
+
+    # A verrouille en premier, B en second : cf. docstring pour la raison de cet ordre.
+    page.click(f"#btn-chat-{seance_a.id}")
+    page.click(f"#btn-chat-{seance_b.id}")
+
+    expect(champ_a).to_be_disabled()
+    expect(champ_b).to_be_disabled()
+
+    # La reponse (reelle) de A revient vite : elle ne doit deverrouiller que A.
+    expect(champ_a).to_be_enabled(timeout=5000)
+    expect(champ_b).to_be_disabled()
+
+    # B n'aura jamais de reponse reseau : seule sa propre minuterie de securite, non
+    # annulee par le deverrouillage de A, peut encore la liberer.
+    expect(champ_b).to_be_enabled(timeout=15000)

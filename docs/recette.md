@@ -2745,18 +2745,24 @@ séances closes. **Une séance clôturée ne se supprime pas** — elle porte un
   (la bascule, et l'absence de volet sous la chronologie),
   ::test_la_saisie_est_bloquee_pendant_que_l_enregistrement_est_en_vol,
   ::test_le_texte_riche_refuse_aussi_la_frappe_pendant_l_envoi,
-  ::test_la_saisie_redevient_possible_si_la_reponse_n_arrive_jamais et
-  ::test_entrer_en_edition_ne_verrouille_pas_la_saisie (ces quatre derniers : le verrou de
-  saisie de l'étape 2, sur le champ Motif ordinaire et sur le texte riche, son délai de
-  sécurité, et l'absence d'effet sur une simple lecture). **Ne vérifient pas** : la boîte
-  native « modifications non enregistrées », que Playwright ne peut observer sans la
-  neutraliser — ce qui déferait la preuve —, ni la course entre la frappe et la réponse
-  asynchrone de l'enregistrement implicite au changement d'onglet, dont dépend le sort
-  d'une saisie non envoyée. Les étapes 2, 3 et 5 ci-dessous sont donc **manuelles par
-  nature** : la 2 et la 5 pour la course (son issue n'est garantie dans aucun sens), la 3
-  pour la boîte native. L'étape 4, elle, est déterministe — aucune course, aucune boîte —
-  et c'est déjà l'essentiel de ce que couvre
-  `test_une_seance_ancienne_s_ouvre_pendant_une_seance_en_cours`.
+  ::test_la_saisie_redevient_possible_si_la_reponse_n_arrive_jamais,
+  ::test_entrer_en_edition_ne_verrouille_pas_la_saisie et
+  ::test_deux_surfaces_verrouillees_ne_partagent_pas_leur_minuterie (ces cinq derniers : le
+  verrou de saisie qui ferme la course de l'étape 2, sur le champ Motif ordinaire et sur le
+  texte riche, son délai de sécurité, l'absence d'effet sur une simple lecture — même geste
+  qu'à l'étape 2, onglet déjà actif compris —, et l'indépendance du délai de sécurité d'une
+  surface à l'autre quand deux écritures concurrentes sont en vol). **Ne vérifient pas** :
+  la boîte native
+  « modifications non enregistrées » (étape 3), que Playwright ne peut observer sans la
+  neutraliser — ce qui déferait la preuve —, ni le script précis de l'étape 5 (séance
+  ancienne, facture annulée avant le retour). L'étape 3 reste donc **manuelle par
+  nature**, pour la boîte native. L'étape 5 aussi, pour son arrangement — mais son issue
+  n'est plus une course depuis le lot correctif 2 : le verrou qui la ferme est le même que
+  celui qu'exercent les quatre tests ci-dessus, sur le même champ Motif. Les étapes 2 et
+  4, elles, sont déterministes — aucune course, aucune boîte — et l'étape 2 est désormais
+  directement couverte par
+  `::test_la_saisie_est_bloquee_pendant_que_l_enregistrement_est_en_vol` ; l'étape 4 reste
+  ce que couvre `test_une_seance_ancienne_s_ouvre_pendant_une_seance_en_cours`.
 - **État requis** : E2. Fiche non destructive.
 
 **Ce que cette fiche garde.** Le produit peut désormais montrer une séance ancienne et une
@@ -2794,16 +2800,26 @@ dossier entier depuis la base.
    Attendu : la séance ouverte est là, **son motif est** `Motif de la seance ouverte` — il
    a été enregistré au passage sur le serveur avant la navigation.
 5. **L'étape qui reproduisait la limite assumée, avec une séance ancienne et une
-   facture.** Retaper dans le motif de la séance ouverte `Texte qui va disparaitre`,
-   **sans quitter l'édition**. Cliquer « Détail de la consultation », puis annuler la
-   facture de la séance ancienne et confirmer. Revenir sur « Consultation en cours ».
-   Attendu : le motif vaut `Texte qui va disparaitre` — **il a été enregistré par le
-   changement d'onglet, et non perdu**. ⚠️ **Renversement d'attendu du lot correctif 2.**
-   Jusqu'au 2026-09-24, cette étape était un OK qui constatait la perte : le retype de
-   l'étape 4 tapait dans un champ en sursis et perdait la course. Le champ est désormais
-   inerte pendant le vol, si bien qu'il n'y a plus de course à perdre — ni à l'étape 2
-   (onglet déjà actif) ni ici (autre onglet). C'est ce que l'option (b), garde sur le seul
-   onglet actif, n'aurait pas fermé.
+   facture — fermée par le même mécanisme qu'à l'étape 2.** Essayer de retaper dans le
+   motif de la séance ouverte `Texte qui va disparaitre`, **sans quitter l'édition**.
+   Cliquer « Détail de la consultation », puis annuler la facture de la séance ancienne
+   et confirmer. Revenir sur « Consultation en cours ».
+   Attendu : le motif vaut toujours `Motif de la seance ouverte` — **la frappe n'a jamais
+   eu lieu**. ⚠️ **Renversement d'attendu du lot correctif 2**, et **mécanisme mesuré
+   différent de celui qu'une première rédaction de ce renversement désignait** : le clic
+   de l'étape 4 sur « Consultation en cours » ne se contente pas de retrouver un motif
+   déjà enregistré, il **soumet lui-même une seconde fois** — la navigation de l'étape 3
+   a rechargé tout le document, et `dossier-corps.html:126` rend toujours le volet de la
+   séance ouverte en édition ; cliquer l'onglet y déclenche donc `quitterEdition()` une
+   seconde fois, exactement comme à l'étape 2. Le verrou se pose **au clic**, avant tout
+   retype possible : il n'existe plus de fenêtre où taper, que ce soit parce que le champ
+   est verrouillé le temps de l'envoi, ou déjà remplacé par l'affichage en lecture une
+   fois l'envoi revenu — les deux se jouent en quelques dizaines de millisecondes, avant
+   que l'étape 5 ne commence. Jusqu'au 2026-09-24, cette même fenêtre existait et perdait
+   la frappe qui y tombait ; elle est fermée par le verrou de l'étape 2, pas par un
+   mécanisme propre à cette étape. C'est ce que l'option (b), garde sur le seul onglet
+   actif, n'aurait pas fermé : elle n'aurait rien changé au clic de l'étape 4, qui ne vise
+   jamais un onglet différent du sien.
 6. Cliquer le « × » du volet de détail (info-bulle « Fermer ce volet »).
    Attendu : l'onglet « Consultations » redevient actif, l'onglet « Détail de la
    consultation » **disparaît** de la barre, la chronologie et « Démarrer une

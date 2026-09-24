@@ -117,7 +117,16 @@
        modifie: false,
        verrouEnCours: false,
        surfaceVerrouillee: null,
-       minuterieDuVerrou: null,
+       // **Interne, hors du contrat de la tache** (revue, constat Important 3) : une
+       // surface par ecriture en vol, jamais un handle de minuterie unique. Les volets de
+       // commentaires et le bloc de televersement sont des surfaces **permanentes** qui
+       // coexistent dans le meme onglet (cf. commentaire plus haut) : deux ecritures
+       // concurrentes y sont possibles, et une seule minuterie partagee orphelinait celle
+       // de la premiere des qu'une seconde ecriture verrouillait — a son expiration, elle
+       // annulait alors la minuterie de la seconde, la laissant verrouillee **sans aucun
+       // filet** si sa reponse n'arrivait jamais. La minuterie vit desormais sur la
+       // surface elle-meme (`surface._minuterieDuVerrou`), jamais sur le document.
+       surfacesEnAttente: [],
        quitterEdition() {
          if (this.edition === null) { return; }
          this.$dispatch('dossier-fin-edition');
@@ -146,7 +155,7 @@
          const surface = this.estUneEcritureDeSurface(evenement);
          if (surface === null) { return; }
          this.basculerLeVerrou(surface, true);
-         this.minuterieDuVerrou = setTimeout(
+         surface._minuterieDuVerrou = setTimeout(
            () => this.basculerLeVerrou(surface, false), 10000);
        },
        deverrouillerLaSaisie(evenement) {
@@ -155,12 +164,23 @@
          this.basculerLeVerrou(surface, false);
        },
        basculerLeVerrou(surface, verrouille) {
-         if (!verrouille && this.minuterieDuVerrou !== null) {
-           clearTimeout(this.minuterieDuVerrou);
-           this.minuterieDuVerrou = null;
+         if (!verrouille && surface._minuterieDuVerrou) {
+           clearTimeout(surface._minuterieDuVerrou);
+           surface._minuterieDuVerrou = null;
          }
-         this.verrouEnCours = verrouille;
-         this.surfaceVerrouillee = verrouille ? surface : null;
+         // **Une surface a la fois peut se verrouiller deux fois** (elle est deja dans
+         // `surfacesEnAttente`) si sa premiere ecriture est encore en vol quand une
+         // seconde en part depuis la meme surface : `includes` l'empeche d'y entrer deux
+         // fois, et un seul retrait suffit a l'en sortir une fois la derniere revenue.
+         if (verrouille) {
+           if (!this.surfacesEnAttente.includes(surface)) {
+             this.surfacesEnAttente.push(surface);
+           }
+         } else {
+           this.surfacesEnAttente = this.surfacesEnAttente.filter((s) => s !== surface);
+         }
+         this.verrouEnCours = this.surfacesEnAttente.length > 0;
+         this.surfaceVerrouillee = this.surfacesEnAttente[0] || null;
          surface.querySelectorAll('[contenteditable]').forEach((zone) => {
            zone.setAttribute('contenteditable', verrouille ? 'false' : 'true');
          });
