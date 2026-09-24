@@ -857,44 +857,64 @@ sortir le balisage des zones traduites, `install.html` compris ; durcir
 | Lot | Contenu | Plan | État |
 |---|---|---|---|
 | 1 | Journal dupliqué, `block_disconnect_all_signal`, catalogue de traduction — aucune décision produit en dépendance | plan fondu dans la doc pérenne, puis supprimé | **clos le 2026-09-24** (cinq commits, `7dfa637`..`217bb97` ; cf. « Terminé ») |
-| 2 | Course d'onglet, index vide, import CSV, renumérotation | à écrire | à faire |
+| 2 | Course d'onglet, index vide, import CSV, renumérotation | plan fondu dans la doc pérenne, puis supprimé | **clos le 2026-09-24** (neuf commits, `4389c90`..`6e59213` ; cf. « Terminé ») |
 
-⚠️ **Deux tensions nommées, pas résolues par l'arbitrage** (spec § 11.4) : `gettext` est
-**absent de la sandbox** et le test de contrat du catalogue fait rougir `make check` sans lui
-— T3 du lot 1 ne se commite pas tant qu'il n'est pas installé, et **écrire un compilateur de
-remplacement est interdit** (le dépôt a déjà payé dix traductions perdues à ce jeu) ; et
-l'arbitrage Q3 laisse le rapport d'import voyager dans la réponse HTTP, ce que le § 2.2 de la
-spec posait comme inconditionnellement à éviter — limite assumée, portée au lot 2.
+⚠️ **Deux tensions nommées, pas résolues par l'arbitrage** (spec § 11.4), **toutes deux
+soldées ou tenues** :
 
-- ⚠️ **Une saisie non envoyée dans le dossier patient peut disparaître silencieusement sur
-  un geste ordinaire, mesuré au lot B.** `partials/onglets.html:88-90` pose
-  `@click.prevent="quitterEdition(); actif = '<cle>'"` sur **chaque** entrée de la barre
-  d'onglets, **sans aucune garde sur l'onglet déjà actif** ; `quitterEdition()`
-  (`pages/dossier-patient.html:78-82`) soumet le formulaire de consultation en cours puis
-  remet `edition = null`, sans attendre la réponse. Cliquer l'onglet où l'on se trouve
-  déjà, puis retaper dans le champ Motif avant que la réponse asynchrone du
-  `POST /examination/<id>/edit` ne revienne, suffit à perdre la frappe sans aucun message
-  — sonde Playwright, aucune séance ancienne, ni facture, ni navigation nécessaires. **Le
-  défaut est antérieur au lot B**, qui ne fait que le rendre plus atteignable (sixième
-  onglet, invite à naviguer pendant une séance ouverte) ; ce n'est pas un effet du lot.
-  Recetté sans être corrigé : `docs/recette.md`, `R-CON-07` étape 2, et `R-PAT-13`.
-  **Lot à cadrer** : la fenêtre de course est étroite mais réelle, et son issue n'est
-  garantie dans aucun sens.
-- ⚠️ **Après une restauration, l'écran de recherche ne distingue pas « index vidé » de
-  « patient inexistant ».** KO de la passe du 2026-09-20, cf. « Terminé ». Le produit fait ce
-  qu'il doit — purger sans reconstruire —, **mais l'utilisateur ne peut pas le savoir** :
-  l'écran est identique à celui d'un terme absent, et l'explication vit sur l'écran d'avant,
-  non authentifié. **Un comportement correct que l'utilisateur prend pour une panne est un
-  défaut.** Aggravant : 3,4 s pour restaurer, **168,5 s** pour revenir à une recherche
-  probante. Remède le plus étroit : que l'état « index vide » soit **nommé là où il se
-  constate**, avec le chemin vers « Réindexer ».
-- ⚠️ **Au-delà d'environ 1 200 patients, l'écran d'import CSV ment.** Mesuré : un
+- `gettext` est **absent de la sandbox** et le test de contrat du catalogue fait rougir
+  `make check` sans lui — **posé le 2026-09-24** (`gettext 0.23.2`), et **il se repose à
+  chaque sandbox neuve** : `sudo apt-get install -y gettext`, la commande de
+  `.tools/libreosteo-devenv.sh:29-32`. **Écrire un compilateur de remplacement reste
+  interdit** — le dépôt a déjà payé dix traductions perdues à ce jeu (`b026fbc`).
+- ⚠️ **L'arbitrage Q3 laisse le rapport d'import voyager dans la réponse HTTP**, ce que le
+  § 2.2 de la spec posait comme inconditionnellement à éviter. **Limite assumée par
+  l'utilisateur, tenue et non fermée** : le lot 2 l'a portée par écrit en quatre endroits —
+  commentaire de `pages/fragments/import-analyse.html`, Constat de `R-IMP-01`, fiche
+  `R-IMP-04`, docstring de `test_le_panneau_d_analyse_avertit_avant_d_integrer`. **Seule
+  l'option écartée — sortir l'import de la requête — la fermerait**, et c'est un cadrage à
+  soi seul. ⚠️ Jusqu'au 2026-09-24 cette entrée disait « portée au lot 2 » en désignant le
+  lot qui la porte : le renvoi bouclait, il est levé ici.
+
+- ~~⚠️ **Une saisie non envoyée dans le dossier patient peut disparaître silencieusement sur
+  un geste ordinaire**~~ — **clos le 2026-09-24 par `692666b`/`8763306`** (lot correctif 2,
+  T5). `quitterEdition()` soumettait le formulaire **sans attendre la réponse** : retaper
+  avant son retour perdait la frappe, sans message. **La saisie est désormais bloquée pendant
+  l'envoi**, avec un délai de sécurité de **10 000 ms** tranché par l'utilisateur.
+  ⚠️ **Deux mesures ont décidé du mécanisme, et elles valent pour tout correctif voisin** :
+  `hx-disabled-elt` **ne mord pas** sur les `<div contenteditable>` des champs de texte riche
+  — un correctif htmx seul aurait laissé **quatorze champs cliniques grands ouverts** —, et
+  `hx-disabled-elt="find X"` ne désactive **qu'un** élément. Le verrou passe donc par Alpine,
+  sur `htmx:beforeRequest`, déclenché **après** la collecte des valeurs : il ne peut pas vider
+  le `POST`. ⚠️ **La garde `verb === 'get'` est load-bearing** : sans elle, la fiche patient
+  se gèlerait à chaque frappe de code postal (`dossier-code-postal.html`, `hx-get` sur
+  `input changed`, à l'intérieur d'une surface de saisie). Elle est tenue par
+  `tests/functional/test_code_postal.py`, qui retient la requête en vol.
+  ⚠️ **Limite nommée, non fermée** : les 10 000 ms couvrent aussi le téléversement de
+  documents, où dépasser dix secondes est ordinaire — la fenêtre s'y rouvre. Et le témoin
+  « Enregistrement en cours » n'est posé que sur une des huit surfaces : ailleurs les champs
+  deviennent inertes **sans signe visible**.
+- ~~⚠️ **Après une restauration, l'écran de recherche ne distingue pas « index vidé » de
+  « patient inexistant ».**~~ — **clos le 2026-09-24 par `4389c90`** (lot correctif 2, T1).
+  L'état est **nommé là où il se constate**, sur l'écran de recherche, avec le lien
+  « Réindexer » gardé par `is_staff`. Le bandeau global est **écarté** par l'arbitrage Q2 de
+  l'utilisateur : son coût est un comptage d'index à chaque page. ⚠️ **Le remède ne crie pas
+  au loup** — un terme absent sur un index peuplé rend l'état ordinaire, et c'est tenu par un
+  test discriminant. ⚠️ **Deux affirmations du cadrage ont été démenties par la mesure** :
+  `sans_receivers()` **ne bloque pas** l'indexation Whoosh temps réel (les tests qui simulent
+  l'index vidé passent par `clear_index`, ce que fait le récepteur réel), et
+  `SearchQuerySet().count()` sans filtre rend toujours `0` sur cette pile — le
+  `WildcardPlugin` réécrit `"*"` en `Prefix("")`.
+- ~~⚠️ **Au-delà d'environ 1 200 patients, l'écran d'import CSV ment.**~~ — **traité, et
+  seulement à moitié, le 2026-09-24 par `89441c4`** (lot correctif 2, T4). Mesuré : un
   `POST …/integrate` a rendu **200 en 238,8 s**, au-delà du plafond `--http-timeout 180` ; le
   navigateur a été coupé, **aucun panneau « Importation réussie » n'est apparu**, et **les 100
-  patients étaient pourtant intégrés**. Un exploitant conclurait à l'échec et **rejouerait
-  l'import**. Le dépassement n'est pas systématique — deux autres lots sont repassés sous la
-  borne (109 s, 129 s) —, il dépend de la fusion d'index Whoosh. ⚠️ **Même famille que le KO
-  ci-dessus** : le produit réussit et l'écran dit le contraire.
+  patients étaient pourtant intégrés**. **L'arbitrage Q3 de l'utilisateur est d'avertir avant,
+  et de dire de ne pas rejouer** — c'est le rejeu qui double les dossiers. ⚠️ **La coupure
+  elle-même n'est pas supprimée** : le dépassement reste possible, l'écran peut toujours
+  rester muet, et le rapport continue de voyager dans la réponse HTTP (cf. la tension Q3
+  ci-dessus). Le cas réel **n'est pas automatisable** — il demande un lot de plus de 1 200
+  patients et une mesure de plus de 180 s —, il reste la fiche de recette humaine `R-IMP-04`.
 - ~~**Chaque enregistrement de journal applicatif est émis deux fois**~~ — **clos le
   2026-09-24 par `7dfa637`** (lot correctif 1, T1). Deux entrées de `LOGGING` — `libreosteoweb`
   et `libreosteoweb.api` — portaient **le même** handler `console` et **le même** niveau, sans
@@ -918,14 +938,21 @@ spec posait comme inconditionnellement à éviter — limite assumée, portée a
   l'annexe A** — « pour un jeton sans équivalent, le style est à reprendre » — pas un effet de
   bord du socle : `.card-header` est **plus large** de 4 px que `.panel-heading`, l'hypothèse
   inverse a été mesurée fausse.
-- ⚠️ **L'écran de restauration ne rend pas compte de la renumérotation des factures.** La
-  reprise journalise chaque changement en `warning`, mais **n'affiche rien**. La clause de
-  transparence est donc tenue par l'outil de diagnostic seul — que l'utilisateur exécute en
-  amont. **Qui restaure sans l'avoir lancé subit une renumérotation silencieuse de documents
-  fiscaux qui ont pu être remis à des patients**, sur le chemin le plus probable : l'interface.
-  ⚠️ **Un arbitrage avait été rendu le 2026-09-19 pour ouvrir cette tâche dans D10 ; il a été
-  abandonné en silence par la tâche suivante, qui l'a requalifié « hors périmètre » sans le
-  re-soumettre.** Il est ici, explicitement.
+- ~~⚠️ **L'écran de restauration ne rend pas compte de la renumérotation des factures.**~~ —
+  **clos le 2026-09-24 par `1205843` et `72d5553`/`05a3416`** (lot correctif 2, T2 et T3).
+  `restaurer()` **jetait** le `PlanReprise` qu'il calcule (`sauvegarde.py:127`) ; il le rend,
+  et la restauration affiche un **compte rendu** des numéros changés au lieu de rediriger.
+  ⚠️ **Il n'existait aucun écran après une restauration réussie** : `LoadDump.post` rendait
+  `204` + `HX-Redirect: /`. C'est ce renversement — arbitrage Q4 de l'utilisateur — qui a
+  retourné **huit preuves** du dépôt, dont quatre assertions `204` et un test dont l'objet
+  disparaissait.
+  ⚠️ **Le lot s'est infligé un défaut sur cet écran même, et l'a fermé** : le compte rendu
+  atterrissait **au-dessus d'un formulaire resté armé**, et un second « Confirmer la
+  restauration » rendait un `403` à corps vide que la configuration htmx du dépôt
+  (`base.html:19`, `{"code":"^[45].*","swap":true}`) fait **échanger** — l'écran qui dit
+  « notez les nouveaux numéros maintenant » se vidait sans un mot. Le succès retarge
+  désormais `#panneau-restauration` en `outerHTML` : le formulaire quitte le document.
+  **Trouvé par la revue finale, pas par les revues de tâche** — aucune ne pouvait le voir.
 - ~~**Le catalogue de traduction est désaccordé avec un gabarit depuis D6d T8**~~ (`bcbde5d`) —
   **clos le 2026-09-24 par `af0b7e0`** (lot correctif 1, T3). Le désaccord cumulait **trois**
   écarts, pas un : indentation 12 ↔ 16, le `data-testid` gagné par le gabarit, et
@@ -1311,6 +1338,52 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-24 — Lot correctif 2 clos : quatre écrans cessent de se taire** (cinq tâches,
+  neuf commits, `4389c90`..`6e59213`). Spec :
+  `docs/superpowers/specs/2026-09-23-lot-correctif-design.md`, § 11 pour les arbitrages.
+  `make check` vert, **1 013 passed**, couverture **94,96 %** (plancher `fail_under = 94`
+  inchangé) ; suite fonctionnelle **151 passed**. **Aucun module `.py` créé.**
+
+  Les quatre défauts étaient de la même famille — *le produit réussit et l'écran dit le
+  contraire, ou se tait* :
+
+  1. **L'index vide après restauration** (T1, `4389c90`) — l'écran de recherche était
+     indiscernable de « aucun patient de ce nom ». L'état est nommé là où il se constate.
+  2. **Le plan de reprise jeté** (T2, `1205843`) — `restaurer()` calculait la liste des
+     factures renumérotées et la jetait. Service seul, découpé exprès de l'écran.
+  3. **La renumérotation muette** (T3, `72d5553`, `05a3416`) — un compte rendu remplace le
+     `204 + HX-Redirect`. ⚠️ Ces numéros sont des **documents fiscaux qui ont pu être remis
+     à des patients** ; l'écran est la dernière occasion de les voir.
+  4. **L'import CSV qui ment** (T4, `89441c4`) — un avertissement dit de **ne pas rejouer**,
+     puisque c'est le rejeu qui double les dossiers.
+  5. **La saisie perdue sans message** (T5, `692666b`, `8763306`) — la frappe est bloquée
+     pendant l'envoi, délai de sécurité de 10 000 ms.
+
+  ⚠️ **Le lot a payé deux fois la même leçon que le lot 1, sous des formes neuves, et c'est
+  ce qu'il faut en retenir.** Une garde qui a l'air de prouver et ne prouve pas :
+  - T3 asseyait `assertIn("10000")` **et** `assertIn("1000000")` — or `"10000"` est une
+    **sous-chaîne** de `"1000000"` : les deux passaient sur un gabarit n'imprimant que le
+    nouveau numéro. Le triplet n'avait de preuve que sur un tiers. Corrigé en asseyant la
+    **ligne entière**, qui ferme du même coup le trou de traduction (le cliquet du catalogue
+    **ne balaye pas les `{% blocktrans %}`**).
+  - T5 portait une garde `verb === 'get'` qu'**aucun test ne tenait** : la retirer aurait
+    gelé la fiche patient à chaque frappe de code postal, sans qu'un seul test rougisse.
+  **Les deux ont été prouvés par mutation** — on retire la garde, on vérifie que le test
+  rougit. C'est la seule preuve qui vaille pour ce genre de correctif.
+
+  ⚠️ **La revue finale a trouvé un Critical que le lot s'était infligé**, et qu'aucune revue
+  de tâche ne pouvait voir : le compte rendu de T3 atterrissait au-dessus d'un formulaire
+  resté armé, et un second envoi rendait un `403` à corps vide que htmx **échange**
+  (`base.html:19`) — l'écran s'effaçait. Le défaut n'existait pas avant T3 : le `204`
+  quittait la page. Fermé par un retarget en `outerHTML` du panneau entier.
+
+  **Trois limites nommées, non fermées** : les 10 000 ms couvrent aussi le téléversement de
+  documents, où dépasser dix secondes est ordinaire ; le témoin d'attente n'est posé que sur
+  une des huit surfaces verrouillées ; et `R-CON-07` étape 2 **ne prouve rien à la main** —
+  le produit sain et le produit cassé rendent le même écran final, l'étape le dit désormais.
+
+  **Suivi amont** : rien de repris d'amont dans ce lot.
 
 - **2026-09-24 — Lot correctif 1 clos : le journal n'écrit plus qu'une ligne, l'aide de
   déconnexion ne rend que ce qu'elle a pris, le catalogue répond de nouveau** (trois tâches,
