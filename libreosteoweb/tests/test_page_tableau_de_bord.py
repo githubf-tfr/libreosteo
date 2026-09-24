@@ -299,6 +299,25 @@ class TestEntreeDuJournal(SocleDuJournal):
                     nom_du_patient(evenement),
                 )
 
+    def test_un_praticien_sans_nom_garde_un_nom_dans_le_journal(self):
+        """Sixieme surface du defaut « praticien sans nom » (T1ter, revue de 416f243) :
+        `entrees_du_journal` composait `"%s %s" % (first_name, last_name)` sans repli, et
+        le fragment le rendait nu -- un simple espace pour un praticien sans `first_name`
+        ni `last_name`. Meme regle que les cinq autres surfaces
+        (`partials/praticien-nom.html`) : repli sur `get_username`, jamais confondable
+        avec un nom reel."""
+        with sans_receivers():
+            sans_nom = cree_praticien(username="sansnom")
+        self._evenement(user=sans_nom)
+
+        corps = self.client.get(URL).content.decode()
+
+        balise = re.search(
+            r'fa-hand-o-right"></i>\s*(.*?)\s*</small>', corps, re.DOTALL
+        )
+        self.assertIsNotNone(balise)
+        self.assertEqual(sans_nom.get_username(), balise.group(1).strip())
+
 
 # `disabled` pose **nu** par le serveur, et non le `:disabled` qu'Alpine reprend ensuite :
 # le lookbehind ecarte le deux-points, sans quoi toute assertion sur l'etat initial du

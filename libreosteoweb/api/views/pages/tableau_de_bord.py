@@ -76,6 +76,20 @@ def nom_du_patient(evenement: models.OfficeEvent) -> str:
     return ""
 
 
+def nom_du_praticien(utilisateur: Any) -> str:
+    """Le nom d'un praticien, rendu comme `partials/praticien-nom.html` (repli sur
+    `get_username`, jamais vide, jamais `get_full_name` qui inverserait l'ordre en
+    « prenom nom »).
+
+    Seul site Python a composer ce nom (`OfficeEvent.user` n'est jamais nul, a la
+    difference du praticien d'une consultation) : le repli est rejoue ici plutot que
+    factorise avec le gabarit, qui n'a rien a appeler depuis du Python.
+    """
+    if utilisateur.last_name or utilisateur.first_name:
+        return "%s %s" % (utilisateur.last_name, utilisateur.first_name)
+    return utilisateur.get_username()
+
+
 def _url(evenement: models.OfficeEvent) -> str:
     """La cible du clic, connue du serveur (A8).
 
@@ -101,8 +115,7 @@ def entrees_du_journal(
             "nom_du_patient": nom_du_patient(evenement),
             "commentaire": _(evenement.comment),
             "date": evenement.date,
-            "therapeute": "%s %s"
-            % (evenement.user.first_name, evenement.user.last_name),
+            "therapeute": nom_du_praticien(evenement.user),
         }
         for evenement in evenements
     ]
