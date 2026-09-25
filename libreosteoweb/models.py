@@ -47,9 +47,6 @@ class RegularDoctor(models.Model):
     phone = models.CharField(_("Phone"), max_length=100, blank=True, null=True)
     city = models.CharField(_("City"), max_length=200, blank=True)
 
-    def __unicode__(self):
-        return "%s %s" % (self.family_name, self.first_name)
-
 
 class Patient(models.Model):
     """
@@ -109,13 +106,6 @@ class Patient(models.Model):
     # Not mapped field, only for traceability purpose
     current_user_operation = None
 
-    def __unicode__(self):
-        return "%s %s by %s" % (
-            self.family_name,
-            self.first_name,
-            self.current_user_operation,
-        )
-
     def clean(self):
         if self.creation_date is None:
             self.creation_date = date.today()
@@ -165,9 +155,6 @@ class Children(models.Model):
     parent = models.ForeignKey(
         Patient, verbose_name=_("Parent"), on_delete=models.CASCADE
     )
-
-    def __unicode__(self):
-        return "%s %s" % (self.family_name, self.first_name)
 
 
 class Examination(models.Model):
@@ -237,9 +224,6 @@ class Examination(models.Model):
     TYPE_CONTINUING_EXAMINATION_I18N = _("Continuing examination")
     TYPE_RETURN_I18N = _("Return")
     TYPE_EMERGENCY_I18N = _("Emergency")
-
-    def __unicode__(self):
-        return "%s %s" % (self.patient, self.date)
 
     def get_invoice_number(self):
         invoice = self._get_last_invoice()
