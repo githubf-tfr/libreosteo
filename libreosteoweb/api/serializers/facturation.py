@@ -17,8 +17,6 @@ from rest_framework import serializers
 
 from libreosteoweb.models import Invoice, OfficeSettings, PaimentMean
 
-from .communs import WithPkMixin
-
 
 class PaimentModeSerializer(serializers.Serializer):
     paiment_mode_text = serializers.SerializerMethodField()
@@ -45,9 +43,7 @@ class PaimentSerializer(PaimentModeSerializer):
     paiment_mode = serializers.CharField(required=True)
 
 
-class InvoiceSerializer(
-    WithPkMixin, serializers.ModelSerializer, PaimentModeSerializer
-):
+class InvoiceSerializer(serializers.ModelSerializer, PaimentModeSerializer):
     paiments_list = PaimentSerializer(
         many=True, read_only=True, allow_null=True, required=False
     )

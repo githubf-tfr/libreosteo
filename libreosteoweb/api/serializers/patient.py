@@ -22,7 +22,7 @@ from ..demonstration import get_demonstration_file
 from ..filter import get_firstname_filters, get_name_filters
 from ..texte_riche import SansRognageMixin
 from ..validators import UniqueTogetherIgnoreCaseValidator
-from .communs import WithPkMixin, check_birth_date
+from .communs import check_birth_date
 
 
 class PatientSerializer(SansRognageMixin):
@@ -88,13 +88,13 @@ class PatientHomonymeSerializer(serializers.ModelSerializer):
         fields = ("family_name", "first_name", "birth_date")
 
 
-class DocumentSerializer(WithPkMixin, SansRognageMixin):
+class DocumentSerializer(SansRognageMixin):
     class Meta:
         model = Document
         fields = "__all__"
 
 
-class PatientDocumentSerializer(WithPkMixin, serializers.ModelSerializer):
+class PatientDocumentSerializer(serializers.ModelSerializer):
     document = DocumentSerializer()
     patient = serializers.PrimaryKeyRelatedField(
         many=False, queryset=Patient.objects.all()

@@ -31,7 +31,6 @@ from ..file_integrator import Extractor
 from ..filter import get_name_filters
 from ..services import facturation as services_facturation
 from ..utils import NetworkHelper
-from .communs import WithPkMixin
 
 
 class UserInfoSerializer(serializers.ModelSerializer):
@@ -52,7 +51,7 @@ class OfficeDetailSerializer(serializers.ModelSerializer):
         fields = ["office_name"]
 
 
-class OfficeEventSerializer(WithPkMixin, serializers.ModelSerializer):
+class OfficeEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = OfficeEvent
         fields = "__all__"
@@ -81,13 +80,13 @@ class OfficeEventSerializer(WithPkMixin, serializers.ModelSerializer):
         return _(obj.comment)
 
 
-class TherapeutSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
+class TherapeutSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = TherapeutSettings
         fields = "__all__"
 
 
-class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
+class OfficeSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = OfficeSettings
         fields = "__all__"
@@ -151,7 +150,7 @@ class OfficeSettingsSerializer(WithPkMixin, serializers.ModelSerializer):
         return False
 
 
-class FileImportSerializer(WithPkMixin, serializers.ModelSerializer):
+class FileImportSerializer(serializers.ModelSerializer):
     _status = None
 
     class Meta:

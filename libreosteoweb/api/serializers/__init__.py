@@ -26,7 +26,7 @@ from .administration import (
     TherapeutSettingsSerializer,
     UserInfoSerializer,
 )
-from .communs import WithPkMixin, check_birth_date
+from .communs import check_birth_date
 from .consultation import (
     ExaminationCommentSerializer,
     ExaminationExtractSerializer,
@@ -71,6 +71,5 @@ __all__ = [
     "PatientSerializer",
     "TherapeutSettingsSerializer",
     "UserInfoSerializer",
-    "WithPkMixin",
     "check_birth_date",
 ]

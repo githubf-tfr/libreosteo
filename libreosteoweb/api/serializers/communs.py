@@ -18,11 +18,6 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 
-class WithPkMixin(object):
-    def get_pk_field(self, model_field):
-        return self.get_field(model_field)
-
-
 def check_birth_date(value):
     if value > date.today():
         raise serializers.ValidationError({"birth_date": _("Birth date is invalid")})

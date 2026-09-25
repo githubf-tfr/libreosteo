@@ -22,12 +22,11 @@ from libreosteoweb.models import Examination, ExaminationComment, Patient
 
 from ..texte_riche import SansRognageMixin
 from .administration import OfficeDetailSerializer, UserInfoSerializer
-from .communs import WithPkMixin
 from .facturation import InvoiceSerializer
 from .patient import PatientExportSerializer
 
 
-class ExaminationExtractSerializer(WithPkMixin, serializers.ModelSerializer):
+class ExaminationExtractSerializer(serializers.ModelSerializer):
     therapeut = UserInfoSerializer()
     comments = serializers.SerializerMethodField("get_nb_comments")
     office_detail = OfficeDetailSerializer(source="office")
@@ -100,7 +99,7 @@ class ExaminationSerializer(SansRognageMixin):
             )
 
 
-class ExaminationCommentSerializer(WithPkMixin, serializers.ModelSerializer):
+class ExaminationCommentSerializer(serializers.ModelSerializer):
     user_info = UserInfoSerializer(source="user", required=False, read_only=True)
 
     class Meta:
