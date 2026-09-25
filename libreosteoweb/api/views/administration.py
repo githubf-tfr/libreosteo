@@ -30,7 +30,7 @@ from haystack.query import EmptySearchQuerySet, SearchQuerySet
 from haystack.utils import get_model_ct
 from rest_framework import pagination, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ParseError, PermissionDenied
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -198,27 +198,23 @@ class OfficeSettingsView(viewsets.ModelViewSet):
         # controler ici (D6d, T9) — la forme et le defaut sont deja tranches par
         # `OfficeSettingsSerializer.validate`, qui a produit `validated_data`. Une seule
         # regle, `services_facturation.valider_sequence_de_depart`, porte desormais la
-        # comparaison (C4).
-        try:
-            asked_value = serializer.validated_data["invoice_start_sequence"]
-            if asked_value is not None and asked_value.isnumeric():
-                try:
-                    services_facturation.valider_sequence_de_depart(
-                        asked_value, serializer.instance.id
-                    )
-                except services_facturation.SequenceInvalide as erreur:
-                    raise PermissionDenied(detail=str(erreur)) from erreur
-                settings_event_tracer(
-                    serializer.instance, self.request.user, asked_value
+        # comparaison (C4). La cle est toujours presente : `validate` l'ecrit sur les
+        # deux branches de son premier `try`.
+        asked_value = serializer.validated_data["invoice_start_sequence"]
+        if asked_value is not None and asked_value.isnumeric():
+            try:
+                services_facturation.valider_sequence_de_depart(
+                    asked_value, serializer.instance.id
                 )
-                serializer.save()
-            else:
-                serializer.validated_data["invoice_start_sequence"] = (
-                    serializer.instance.invoice_start_sequence
-                )
-                serializer.save()
-        except KeyError as e:
-            raise ParseError(detail=e)
+            except services_facturation.SequenceInvalide as erreur:
+                raise PermissionDenied(detail=str(erreur)) from erreur
+            settings_event_tracer(serializer.instance, self.request.user, asked_value)
+            serializer.save()
+        else:
+            serializer.validated_data["invoice_start_sequence"] = (
+                serializer.instance.invoice_start_sequence
+            )
+            serializer.save()
 
 
 class TherapeutSettingsViewSet(viewsets.ModelViewSet):
