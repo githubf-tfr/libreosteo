@@ -395,6 +395,76 @@ Tenu à la main.
   `card-header`) : l'écart réel est de **20 px**, conforme à l'attendu — 0 px avant le lot.
   R-VIS-12 ne change pas sur ce point.
 
+## ⏸️ Reprise du lot « couverture 100 % » — interrompu le 2026-09-25
+
+**Une session neuve reprend ici.** Le lot est en cours, l'arbre est propre et poussé.
+
+**Plan** : `docs/superpowers/plans/2026-09-24-couverture-100-plan.md` (48 tâches).
+**Spec** : `docs/superpowers/specs/2026-09-24-couverture-100-design.md`.
+**Ledger détaillé** : `.superpowers/sdd/2026-09-24-couverture-100-plan/progress.md` — **non
+versionné, mais présent sur le disque**. Il porte le détail de chaque tâche faite, les écarts
+mesurés contre les briefs, et les règles de conduite apprises. **Le lire avant de reprendre.**
+
+### Fait, et poussé
+
+| Tâche | Commit | Résultat |
+|---|---|---|
+| S1 — `InstallView.post` | `54c6061` | ferme **DF5**, une 500 sur route non authentifiée |
+| C1 — `installation.py` | `6f49cdd` | **51 % → 100 %**, la surface publique a sa preuve |
+| S6 — `Singleton` | `36f0f46` | métaclasse Python 2 |
+| S9 — quatre `raise Http404()` | `1b9d63a` | redondantes avec `IsAuthenticated`, contre-exemple vérifié |
+| S10 — `request.tenant` | `bc4ad5c` | `django-tenants` absent des dépendances |
+| S3 — quatre `__unicode__` | `a5e224a` | résidus Python 2 |
+| S4 — `Invoice.clean` | `7ff3be7` | sans appelant |
+| S5 — `Document.set_request` | `292c27b` | sans appelant, attribut jamais lu |
+
+**Couverture : 95,73 %** au dernier relevé. `fail_under` **reste à 94** — il se relève en **Z2
+seulement**, à la fin du lot, à la partie entière de la couverture constatée (valeur attendue :
+**99**). Ne pas le relever avant.
+
+### Rien n'est en vol
+
+Le dernier agent a rendu avant l'arrêt. **Arbre propre, tout est poussé.** La reprise n'a
+aucun travail à récupérer, seulement à enchaîner.
+
+### Ce qui reste, dans l'ordre du plan
+
+`S7,S8 → S15,S16,S17 → S11 → S12,S13,S14 → S2 → D1-D4 → C2…C14 → F1…F9 → Z1,Z2,Z3`
+
+⚠️ **Deux dépendances d'ordre que la spec ne dit pas** : **S2 avant Z1** (Z1 pose
+`exclude_lines` sur `__main__` ; passer avant cacherait les vingt lignes de logique de
+`rupture_bs5` au lieu de les supprimer). **S1 avant C1** est déjà honorée.
+
+**Le plus gros trou restant est `file_integrator.py`** — 365 instructions dont 47 non
+couvertes, bloc F. Il porte **DF6** : `POST /api/file-import/<pk>/integrate/` rend **500** sur
+un dépôt refusé, là où la vue de page rend 409.
+
+### ⚠️ Quatre règles de conduite, apprises au prix fort — les tenir
+
+1. **La suite fonctionnelle complète revient au contrôleur, jamais à un implémenteur.** Elle
+   dure 480-900 s, au-delà du plafond maximal de 600 s du paramètre `timeout` de l'outil :
+   elle bascule en arrière-plan et bloque l'agent. **Sept agents s'y sont fait prendre.**
+   La passer après toute tâche touchant un gabarit, un réglage ou un fichier statique.
+2. **Une revue qui ne mesure que ce que la tâche mesure est aveugle aux mêmes endroits.**
+   Leçon de `f0cb705` : motifs justes, cliquet juste, `make check` vert, revue ayant simulé
+   `fnmatch` — et 151 tests fonctionnels à terre pendant sept commits.
+3. **Commiter avec des chemins explicites** (`git commit -m "..." -- <chemins>`) tant qu'un
+   agent travaille : un `git commit` sans chemins emporte son index. Payé une fois.
+4. **Avant toute suppression : chercher le consommateur, jamais le seul nom.** Et distinguer
+   « personne ne l'appelle » de « personne ne l'utilise » — Django appelle `clean()` par
+   `full_clean()`, un attribut posé peut être lu par `getattr` ailleurs.
+
+⚠️ **Les briefs de ce chantier se sont trompés neuf fois.** Dire aux agents de mesurer et de
+suivre la mesure, pas le brief.
+
+### Deux dettes ouvertes, à solder en Z3
+
+- **La spec et le plan décrivent faux** `^install/$` : elle **n'est pas** dans
+  `NO_REROUTE_PATTERN_URL`, elle n'est publique que par la branche « aucun utilisateur en
+  base » du middleware.
+- **Le critère du middleware (aucun utilisateur) n'est pas celui de la vue (aucun `is_staff`)**
+  — sans danger, le middleware étant le plus strict, mais non testé et arbitré nulle part.
+
 ## À faire
 
 > 🌙 **Relevé de décision de la nuit du 2026-09-24 au 2026-09-25.** L'utilisateur a confié
