@@ -16,7 +16,7 @@ import logging
 import re
 import socket
 from decimal import Decimal
-from typing import Any, Iterable
+from typing import Iterable
 
 import netifaces
 
@@ -30,15 +30,6 @@ def enum(enumName, *listValueNames):
     dictAttrib["dictReverse"] = dictReverse
     mainType = type(enumName, (), dictAttrib)
     return mainType
-
-
-class Singleton(type):
-    _instances: dict[Any, Any] = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
 
 
 # Résidu Python 2 : `unicode` était le type texte natif de cet interpréteur.

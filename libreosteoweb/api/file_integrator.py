@@ -23,7 +23,7 @@ from django.utils.translation import gettext_lazy as _
 
 from libreosteoweb.models import ExaminationStatus, ExaminationType, Patient
 
-from .utils import Singleton, _unicode, enum
+from .utils import _unicode, enum
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +277,6 @@ class FileContentKey(object):
 
 
 class FileContentProxy(object):
-    __metaclass__ = Singleton
     file_content: dict[FileContentKey, FileContentAdapter] = {}
 
     def get_content(self, ourfile, line_filter=None):
