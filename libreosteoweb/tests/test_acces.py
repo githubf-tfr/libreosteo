@@ -38,7 +38,7 @@ from libreosteoweb.api.permissions import (
     maintenance_available,
 )
 from libreosteoweb.middleware import OfficeSettingsMiddleware
-from libreosteoweb.models import LoggedInUser, OfficeSettings
+from libreosteoweb.models import LoggedInUser, OfficeSettings, TherapeutSettings
 from libreosteoweb.tests.fixtures import (
     cree_praticien,
     cree_reglages_praticien,
@@ -174,6 +174,69 @@ class TestIsStaffOrTargetUser(TestCase):
         self.assertTrue(
             permission.has_permission(
                 self.requete_de(self.simple), VueFactice("get_by_user")
+            )
+        )
+
+
+class TestIsStaffOrTargetUserObjet(TestCase):
+    """Qui a le droit de lire et d'ecrire la ressource d'un autre praticien
+    (`has_object_permission`, distinct de `has_permission` couvert par
+    `TestIsStaffOrTargetUser` ci-dessus -- meme nom de classe interdit : la seconde
+    definition effacerait silencieusement la premiere dans l'espace du module)."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.proprietaire = cree_praticien(username="proprietaire", is_staff=False)
+            self.tiers = cree_praticien(username="tiers", is_staff=False)
+            self.administrateur = cree_praticien(username="chef")
+        self.permission = IsStaffOrTargetUser()
+        self.fabrique = APIRequestFactory()
+
+    def _requete(self, utilisateur):
+        requete = self.fabrique.get("/")
+        requete.user = utilisateur
+        return requete
+
+    def test_une_ressource_est_accessible_a_son_proprietaire(self):
+        # Rouge si : un praticien perd l'acces a ses propres reglages.
+        reglages = TherapeutSettings.objects.create(user=self.proprietaire)
+
+        self.assertTrue(
+            self.permission.has_object_permission(
+                self._requete(self.proprietaire), None, reglages
+            )
+        )
+
+    def test_une_ressource_n_est_pas_accessible_a_un_tiers(self):
+        # Rouge si : un praticien accede aux reglages d'un autre -- c'est la garde qui
+        # separe deux praticiens du meme cabinet.
+        reglages = TherapeutSettings.objects.create(user=self.proprietaire)
+
+        self.assertFalse(
+            self.permission.has_object_permission(
+                self._requete(self.tiers), None, reglages
+            )
+        )
+
+    def test_un_utilisateur_est_accessible_a_lui_meme(self):
+        """L'objet **est** l'utilisateur : `getattr(obj, "user")` leve, et le repli
+        compare l'objet a la personne connectee."""
+        # Rouge si : le repli disparait -- un praticien ne pourrait plus lire son
+        # propre compte, faute d'attribut `user` sur un `User`.
+        self.assertTrue(
+            self.permission.has_object_permission(
+                self._requete(self.proprietaire), None, self.proprietaire
+            )
+        )
+
+    def test_un_administrateur_accede_a_tout(self):
+        # Rouge si : l'administrateur perd l'acces -- l'onglet Utilisateurs du Cabinet
+        # cesserait de fonctionner.
+        reglages = TherapeutSettings.objects.create(user=self.proprietaire)
+
+        self.assertTrue(
+            self.permission.has_object_permission(
+                self._requete(self.administrateur), None, reglages
             )
         )
 

@@ -21,7 +21,10 @@ from libreosteoweb import models
 from libreosteoweb.api.services.facturation import (
     EncaissementRefuse,
     ResultatEncaissement,
+    SequenceInvalide,
     encaisser,
+    valider_prefixe_de_sequence,
+    valider_sequence_de_depart,
 )
 from libreosteoweb.tests.fixtures import (
     cree_consultation,
@@ -104,3 +107,45 @@ class TestEncaissement(TestCase):
         )
         with self.assertRaises(EncaissementRefuse):
             encaisser(consultation, "cash", self.cabinet)
+
+
+class TestValidationDeLaSequenceDeDepart(TestCase):
+    """Une seule autorite pour trois surfaces : le formulaire Cabinet, le serialiseur
+    DRF et la vue d'enregistrement l'appellent tous."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.cabinet = regle_cabinet()
+
+    def test_une_sequence_non_numerique_est_refusee(self):
+        # Rouge si : une sequence textuelle est acceptee -- les numeros de facture
+        # cesseraient de se comparer comme des nombres.
+        # `LANGUAGE_CODE = "fr"` (Libreosteo/settings/base.py) : le message sort
+        # traduit, pas dans le msgid anglais du code (mesure, mm. test_facturation.py).
+        with self.assertRaises(SequenceInvalide) as refus:
+            valider_sequence_de_depart("FA10", self.cabinet.id)
+
+        self.assertIn("que des chiffres", str(refus.exception))
+
+
+class TestValidationDuPrefixeDeSequence(TestCase):
+    def test_un_prefixe_de_plus_de_trois_caracteres_est_refuse(self):
+        # Rouge si : la longueur cesse d'etre bornee -- le prefixe deborderait de la
+        # colonne et des factures deja emises.
+        with self.assertRaises(SequenceInvalide) as refus:
+            valider_prefixe_de_sequence("ABCD")
+
+        self.assertIn("3 caractères maximum", str(refus.exception))
+
+    def test_un_prefixe_vide_ou_d_espaces_est_normalise_en_none(self):
+        # Rouge si : la chaine vide est ecrite telle quelle -- « » et `None` seraient
+        # deux absences de prefixe differentes en base.
+        self.assertIsNone(valider_prefixe_de_sequence(""))
+        self.assertIsNone(valider_prefixe_de_sequence("   "))
+
+    def test_un_prefixe_contenant_un_chiffre_est_refuse(self):
+        # Rouge si : un prefixe numerique passe -- il se confondrait avec le numero.
+        with self.assertRaises(SequenceInvalide) as refus:
+            valider_prefixe_de_sequence("A1")
+
+        self.assertIn("caractères alphabétiques", str(refus.exception))
