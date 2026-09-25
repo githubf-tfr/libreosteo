@@ -22,7 +22,13 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from libreosteoweb.api.views.pages.comptabilite import formater_montant, total_de
+from libreosteoweb import models
+from libreosteoweb.api.views.pages.comptabilite import (
+    formater_montant,
+    moyen_affiche,
+    texte_moyen_de_paiement,
+    total_de,
+)
 from libreosteoweb.models import Invoice, InvoiceStatus
 
 from .fixtures import (
@@ -135,6 +141,48 @@ class TestFormatageDuMontant(TestCase):
         for brut, attendu in cas:
             with self.subTest(valeur=brut):
                 self.assertEqual(attendu, formater_montant(Decimal(brut)))
+
+
+class TestMoyenDePaiementAffiche(TestCase):
+    """Les quatre conditions de `moyen_affiche`, reprises de `invoice-list.html:64-67`.
+
+    Deviation du brief : `paiments_list` (`models.py:387`) est un `property` sans
+    `fset`, adosse a `paiment_set` -- le related_name du ManyToMany `Paiment.invoice`
+    (`models.py:379-384`). Poser `facture.paiments_list = [...]` leve `AttributeError`
+    avant meme d'atteindre `moyen_affiche` ; la preuve passe donc par de vrais
+    `Paiment` lies en base, jamais par un attribut monte a la main.
+    """
+
+    def _paiment(self, mode: str) -> models.Paiment:
+        return models.Paiment.objects.create(
+            amount=Decimal("50.00"),
+            currency="EUR",
+            paiment_mode=mode,
+            date=timezone.now().date(),
+        )
+
+    def test_une_facture_non_payee_sans_encaissement_n_affiche_rien(self):
+        # Rouge si : la colonne affiche « Non payé » -- un libelle de moyen de paiement
+        # la ou il n'y en a aucun.
+        facture = _facture("E1", "50.00", paiment_mode="notpaid")
+
+        self.assertEqual("", moyen_affiche(facture))
+
+    def test_une_facture_non_payee_avec_un_encaissement_affiche_ce_moyen(self):
+        # Rouge si : le moyen de l'encaissement cesse de remonter -- la comptabilite
+        # afficherait « Non payé » sur une facture encaissee.
+        facture = _facture("E2", "50.00", paiment_mode="notpaid")
+        facture.paiment_set.add(self._paiment("cash"))
+
+        self.assertEqual(texte_moyen_de_paiement("cash"), moyen_affiche(facture))
+
+    def test_une_facture_non_payee_avec_deux_encaissements_affiche_multiple(self):
+        # Rouge si : le premier encaissement masque le second -- la ligne annoncerait
+        # un seul moyen pour un paiement fractionne.
+        facture = _facture("E3", "50.00", paiment_mode="notpaid")
+        facture.paiment_set.add(self._paiment("cash"), self._paiment("check"))
+
+        self.assertEqual("multiple", moyen_affiche(facture))
 
 
 class TestPageComptabilite(TestCase):
