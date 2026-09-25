@@ -63,6 +63,14 @@ jobs:
         # de .venv : setup-python + pip install ont tout mis dans l'interpreteur courant.
         # YARN se resout seul sur $HOME/.yarn/bin/yarn, pose par l'etape Install tooling.
         run: make static PYTHON=python
+      - name: Verify the static tree contract
+        # tests/qualite/test_contrat_arbre_statique.py porte deux tests en egalite
+        # d'ensemble qui se `skip` tant que `static/` n'existe pas (cf. le docstring du
+        # module) : le job `quality` ne construit jamais l'arbre, donc ne les fait
+        # jamais mordre. Ce job vient de le construire (etape precedente) pour
+        # `tests/functional` ; on y fait tourner le module ici, une seule fois, sans
+        # reconstruire l'arbre ni relancer `tests/functional`.
+        run: pytest tests/qualite/test_contrat_arbre_statique.py --no-cov -rs
       - name: Run functional tests
         run: |
           pytest tests/functional --no-cov \
