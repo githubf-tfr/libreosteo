@@ -71,17 +71,14 @@ def page_import_export(request: HttpRequest) -> HttpResponse:
     return render(request, "pages/import-export.html", _contexte(request))
 
 
-def _resume(analyse: dict, cle: str) -> dict | None:
+def _resume(analyse: dict, cle: str) -> dict:
     """Normalise le quadruplet d'`Extractor.analyze` en dictionnaire nomme.
 
     Le gabarit lirait `analyse.patient.1` ; un indice numerique dans un gabarit est une
     invitation a se tromper de colonne, et c'est exactement le genre de faute qu'aucun test
     ne rattrape.
     """
-    valeur = analyse.get(cle)
-    if not valeur:
-        return None
-    type_fichier, valide, vide, _erreurs = valeur
+    type_fichier, valide, vide, _erreurs = analyse[cle]
     return {"type": type_fichier, "valide": valide, "vide": vide}
 
 
