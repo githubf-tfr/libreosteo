@@ -1484,6 +1484,62 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-25 — Lot « solde du backlog » clos : neuf tâches, trois correctifs, une
+  régression trouvée par bissection** (vingt-trois commits, `7ed7634`..`309b0c2`). Spec :
+  `docs/superpowers/specs/2026-09-24-solde-backlog-design.md`. `make check` vert, **1 024
+  passed**, couverture **94,97 %** ; suite fonctionnelle **151 passed**.
+
+  **Ce que le lot a soldé** :
+  1. **La famille « praticien sans nom »**, close sur preuve — six surfaces, § dédié ci-dessus.
+  2. **`collectstatic` ne copie plus que ce qui sert** : 322 fichiers → **3**, avec un cliquet
+     en égalité d'ensemble qui mord désormais **en CI** (`309b0c2`).
+  3. **Trois suppressions isolées** : 31 fichiers de sources Font Awesome, 4 polices
+     Glyphicons de Bootstrap 3, 1 copie orpheline de `timeline.css`. Chacune vérifiée deux
+     fois — par l'implémenteur puis par un relecteur qui **refait** la recherche.
+  4. **Les montants passent à la convention française** sur les deux surfaces de lecture :
+     Comptabilité et facture imprimée rendent `55,00 €`. Les deux ponctuations ne cohabitent
+     plus sur la même page — le constat de D6d est clos. ⚠️ **La saisie reste inchangée** :
+     le champ refuse la virgule, et le point n'y était pas une négligence.
+  5. **Quatre entrées closes sans objet**, vérifiées dans l'arbre : `OfficeEvent.reference`
+     est **polymorphe** sur quatre `clazz`, une clef étrangère y est structurellement
+     impossible, et la suppression RGPD purge déjà le journal ; le TOCTOU du doublon patient
+     **ne peut plus produire de doublon** depuis D3 ; les deux premiers constats de
+     facturation sont des constats de lecture.
+
+  ⚠️ **L'indicateur d'attente de l'import a été fermé PAR LA MESURE, sans une ligne de
+  correctif** (`64ab4c2`). Le constat du 2026-09-12 disait « aucun indicateur » ; il en existe
+  un depuis D6d, et la mesure — opacité calculée, 0 avant, 1 pendant le vol, 0 après, rejouée
+  trois fois — montre qu'il s'affiche. **Un constat qui se révèle infondé se ferme : c'est un
+  résultat, pas un échec.**
+
+  ⚠️ **Une régression a été livrée, puis trouvée par bissection sept commits plus loin.**
+  L'exclusion de `collectstatic` passait d'abord par un `AppConfig` posé dans `INSTALLED_APPS`
+  **à la place** du littéral `django.contrib.staticfiles` (`f0cb705`). Or `pytest_django` teste
+  ce littéral **par comparaison de chaîne** pour installer `StaticFilesHandler` : le serveur de
+  test n'en avait plus, **tout fichier statique rendait 404**, Alpine ne démarrait jamais, et
+  **les 151 tests fonctionnels tombaient** sur la barrière de connexion. Corrigé par `d4e080f`,
+  qui descend les motifs dans `libreosteoweb/management/commands/collectstatic.py`.
+  **Deux régressions de plus étaient masquées derrière celle-là** — un ordre d'affichage
+  inversé et un montant périmé — livrées par des tâches qui ne pouvaient plus se valider en
+  fonctionnel ; corrigées par `0fda722` et `6f8ebf6`.
+
+  **Ce que cet épisode enseigne, et c'est le résultat le plus durable du lot** : les motifs
+  étaient justes, le cliquet juste, `make check` vert, et la revue avait **simulé l'algorithme
+  `fnmatch` de Django**. Rien ne pouvait voir le défaut, parce qu'il n'existait **que** dans la
+  suite fonctionnelle — que la tâche n'avait pas lancée et que sa revue avait consigne de ne
+  pas lancer, pour éviter les collisions de `pytest`. **Une revue qui ne mesure que ce que la
+  tâche mesure est aveugle aux mêmes endroits qu'elle.** Règle adoptée depuis : la suite
+  fonctionnelle complète revient au contrôleur, qui la passe après toute tâche touchant un
+  gabarit, un réglage ou un fichier statique. Elle a tourné cinq fois pendant ce lot.
+
+  **Deux prix assumés par le correctif**, documentés sur place : il s'appuie sur `set_options`,
+  méthode **interne** de Django — gardée par un test qui rougit si elle se déplace ; et
+  **l'ordre d'`INSTALLED_APPS` devient porteur**, `libreosteoweb` devant précéder
+  `django.contrib.staticfiles`. Une omission antérieure corrigée au passage :
+  `tests/qualite/test_contrat_arbre_statique.py` n'était **pas** au périmètre `mypy`.
+
+  **Suivi amont** : rien de repris d'amont dans ce lot.
+
 - **2026-09-24 — Lot correctif 2 clos : quatre écrans cessent de se taire** (cinq tâches,
   neuf commits, `4389c90`..`6e59213`). Spec :
   `docs/superpowers/specs/2026-09-23-lot-correctif-design.md`, § 11 pour les arbitrages.

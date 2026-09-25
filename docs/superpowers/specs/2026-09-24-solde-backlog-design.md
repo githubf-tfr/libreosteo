@@ -131,6 +131,27 @@ la place de `django.contrib.staticfiles` s'applique donc **aux deux appels** —
 le `Dockerfile` — sans qu'aucune ligne de construction ne change. C'est le seul endroit du
 dépôt où la règle peut vivre une fois.
 
+> ⚠️ **Note de correction du 2026-09-25 — cette voie a été essayée, elle casse la suite
+> fonctionnelle, et le produit ne l'emploie pas.** Elle est conservée ci-dessus telle qu'elle
+> a été décidée au cadrage, parce que le raisonnement reste juste sur `collectstatic` lui-même ;
+> ce qu'elle ignorait est ailleurs. `pytest_django` décide d'installer `StaticFilesHandler` en
+> testant `if "django.contrib.staticfiles" in settings.INSTALLED_APPS` — une **comparaison de
+> chaîne sur la liste de réglages**, pas une interrogation du registre d'applications. Remplacer
+> le littéral prive donc le serveur de test de son gestionnaire de fichiers statiques : **tout
+> fichier statique rend 404**, Alpine ne démarre jamais, et les 151 tests fonctionnels tombent
+> sur la barrière de connexion. Livré par `f0cb705`, mesuré sept commits plus loin par
+> bissection, corrigé par `d4e080f` — qui rend le littéral à `INSTALLED_APPS` et descend les
+> motifs dans `libreosteoweb/management/commands/collectstatic.py`, une surcharge de la commande
+> qui couvre les deux mêmes appels. **Trois tests neufs ferment la classe de défaut** et ne
+> dépendent pas de l'arbre construit, donc tournent dans le job `quality` : le premier aurait
+> fait rougir `f0cb705` au moment où il a été écrit.
+>
+> **Ce que cet épisode a coûté et enseigné** : les motifs d'exclusion étaient justes, le cliquet
+> était juste, `make check` était vert, et la revue de la tâche avait même simulé l'algorithme
+> `fnmatch` de Django. Rien ne pouvait voir le défaut, **parce qu'il n'existe que dans la suite
+> fonctionnelle** — que la tâche n'a pas lancée et que sa revue avait consigne de ne pas lancer.
+> La revue qui ne mesure que ce que la tâche mesure est aveugle aux mêmes endroits qu'elle.
+
 ⚠️ **Trois contraintes bornent les motifs, et aucune n'est théorique :**
 
 1. **`bootstrap.min.css` et `font-awesome/css/font-awesome.min.css` sont dans un
