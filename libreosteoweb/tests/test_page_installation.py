@@ -14,8 +14,11 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 """L'ecran de premier demarrage, cote rendu."""
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+
+MDP = "Ephemere-2026!"
 
 
 class TestEcranInstallation(TestCase):
@@ -73,8 +76,10 @@ class TestInstallViewMethodesAutorisees(TestCase):
     """
 
     def test_un_post_sur_l_ecran_d_installation_rend_405(self):
-        # Rouge si : `post` revient sur la vue, ou si `http_method_names` la
+        # Rouge si : `post` revient sur la vue **et** que `http_method_names` la
         # reautorise -- la reponse redeviendrait une 500 (DF5) ou un rendu muet.
+        # Mesure (mutations M7/M9, 2026-09-25) : l'un des deux seul laisse le 405 en
+        # place, `dispatch` retombant sur `http_method_not_allowed` dans les deux cas.
         reponse = self.client.post(reverse("install"), {})
 
         self.assertEqual(405, reponse.status_code)
@@ -84,3 +89,168 @@ class TestInstallViewMethodesAutorisees(TestCase):
         reponse = self.client.get(reverse("install"))
 
         self.assertEqual(200, reponse.status_code)
+
+
+class TestCreationDuCompteAdministrateur(TestCase):
+    """Le chemin nominal de la seule route du produit qui cree un superutilisateur.
+
+    La base de test part **sans aucun utilisateur** : c'est l'etat de premier demarrage,
+    et c'est le seul ou cette route fait quoi que ce soit.
+    """
+
+    def test_un_post_valide_cree_exactement_un_superutilisateur(self):
+        # Rouge si : la creation cesse de produire un superutilisateur (compte simple,
+        # deux comptes, aucun) ou si la redirection cesse de mener a l'accueil.
+        reponse = self.client.post(
+            reverse("accounts-create-admin"),
+            {"username": "praticien", "password1": MDP, "password2": MDP},
+        )
+
+        self.assertEqual(302, reponse.status_code)
+        self.assertEqual("/", reponse.url)
+        comptes = get_user_model().objects.all()
+        self.assertEqual(1, comptes.count())
+        cree = comptes.get()
+        self.assertEqual("praticien", cree.username)
+        self.assertTrue(cree.is_superuser)
+        self.assertTrue(cree.is_staff)
+
+    def test_un_next_vers_un_hote_etranger_ne_sort_pas_du_site(self):
+        # Rouge si : `url_has_allowed_host_and_scheme` disparait de `post` -- le
+        # praticien qui vient de creer son compte serait expedie hors du site.
+        reponse = self.client.post(
+            reverse("accounts-create-admin"),
+            {
+                "username": "praticien",
+                "password1": MDP,
+                "password2": MDP,
+                "next": "https://exemple-hostile.invalid/vol",
+            },
+        )
+
+        self.assertEqual(302, reponse.status_code)
+        self.assertEqual("/", reponse.url)
+
+    def test_un_next_interne_est_conserve(self):
+        # Rouge si : la garde devient un remplacement inconditionnel -- le « next »
+        # legitime serait perdu et l'utilisateur ne reviendrait jamais ou il allait.
+        reponse = self.client.post(
+            reverse("accounts-create-admin"),
+            {
+                "username": "praticien",
+                "password1": MDP,
+                "password2": MDP,
+                "next": "/patient/1",
+            },
+        )
+
+        self.assertEqual(302, reponse.status_code)
+        self.assertEqual("/patient/1", reponse.url)
+
+    def test_l_aller_retour_avec_un_next_hostile_ne_sort_pas_du_site(self):
+        """Le navigateur reposte ce que la page lui a donne : c'est cet aller-retour
+        complet qui doit tenir, pas seulement un POST fabrique a la main."""
+        # Rouge si : le filtrage cote POST disparait au motif que « le GET l'a deja vu ».
+        page = self.client.get(
+            reverse("accounts-create-admin")
+            + "?next=https://exemple-hostile.invalid/vol"
+        )
+        self.assertEqual(200, page.status_code)
+        corps = page.content.decode("utf-8")
+        depart = corps.index('name="next" value="') + len('name="next" value="')
+        next_reposte = corps[depart : corps.index('"', depart)]
+
+        reponse = self.client.post(
+            reverse("accounts-create-admin"),
+            {
+                "username": "praticien",
+                "password1": MDP,
+                "password2": MDP,
+                "next": next_reposte,
+            },
+        )
+
+        self.assertEqual(302, reponse.status_code)
+        self.assertEqual("/", reponse.url)
+
+    def test_un_nom_avec_une_espace_est_refuse_sans_creer_de_compte(self):
+        # Rouge si : le refus devient muet (aucune alerte a l'ecran) ou, pire, cree le
+        # compte quand meme. Ce qui refuse ici est le validateur de nom d'utilisateur de
+        # `UserCreationForm`, pas le `" " not in username` de la vue : mesure (mutation
+        # M3, 2026-09-25), retirer ce dernier laisse le test vert. Le comportement tenu
+        # est celui de l'ecran, pas la garde qui le produit.
+        reponse = self.client.post(
+            reverse("accounts-create-admin"),
+            {"username": "jean pierre", "password1": MDP, "password2": MDP},
+        )
+
+        self.assertEqual(200, reponse.status_code)
+        self.assertEqual(0, get_user_model().objects.count())
+        self.assertIn("alert-danger", reponse.content.decode("utf-8"))
+
+    def test_deux_mots_de_passe_differents_sont_refuses_sans_creer_de_compte(self):
+        # Rouge si : la confirmation du mot de passe cesse d'etre comparee -- un
+        # praticien se retrouverait enferme dehors avec un mot de passe qu'il ignore.
+        reponse = self.client.post(
+            reverse("accounts-create-admin"),
+            {"username": "praticien", "password1": MDP, "password2": "autre-chose-42"},
+        )
+
+        self.assertEqual(200, reponse.status_code)
+        self.assertEqual(0, get_user_model().objects.count())
+        self.assertIn("alert-danger", reponse.content.decode("utf-8"))
+
+    def test_le_formulaire_disparait_des_qu_un_administrateur_existe(self):
+        # Rouge si : la garde de `get` saute -- la regression exacte de `19cf0f0`,
+        # un anonyme qui se cree un superutilisateur sur une instance en service.
+        self.assertEqual(
+            200, self.client.get(reverse("accounts-create-admin")).status_code
+        )
+
+        get_user_model().objects.create_superuser("deja-la", "", MDP)
+
+        self.assertEqual(
+            404, self.client.get(reverse("accounts-create-admin")).status_code
+        )
+
+
+class TestEcranInstallationSelonLEtatDeLaBase(TestCase):
+    """`^install/$` **n'est pas** dans `NO_REROUTE_PATTERN_URL` : elle n'est publique que
+    par la branche « aucun utilisateur en base » de `LoginRequiredMiddleware`. Les deux
+    tests ci-dessous separent donc ce que ferme le middleware de ce que ferme la vue.
+    """
+
+    def test_l_ecran_est_servi_sur_base_vierge_puis_renvoie_a_la_connexion(self):
+        # Rouge si : l'ecran de premier demarrage cesse d'etre servi sur une instance
+        # neuve, ou reste ouvert a un anonyme des qu'un compte existe.
+        self.assertEqual(200, self.client.get(reverse("install")).status_code)
+
+        get_user_model().objects.create_superuser("deja-la", "", MDP)
+
+        reponse = self.client.get(reverse("install"))
+        self.assertEqual(302, reponse.status_code)
+        self.assertEqual(reverse("login") + "?next=" + reverse("install"), reponse.url)
+
+    def test_un_praticien_connecte_ne_peut_plus_rejouer_l_installation(self):
+        # Rouge si : la garde `is_staff` de `InstallView.get` saute -- l'ecran de premier
+        # demarrage se rendrait de nouveau sur une instance en service. C'est le seul
+        # chemin qui l'atteint : un anonyme, lui, est arrete avant par le middleware.
+        self.client.force_login(
+            get_user_model().objects.create_superuser("deja-la", "", MDP)
+        )
+
+        self.assertEqual(403, self.client.get(reverse("install")).status_code)
+
+    def test_l_ecran_d_inscription_propose_les_trois_champs(self):
+        """`/web-view/partials/register` (`displays.display_register`) : l'autre porte
+        du premier demarrage, servie non authentifiee elle aussi."""
+        # Rouge si : le fragment cesse de porter un des trois champs, ou cesse de
+        # poster vers la creation du compte administrateur.
+        reponse = self.client.get(reverse("accounts-register"))
+
+        corps = reponse.content.decode("utf-8")
+        self.assertEqual(200, reponse.status_code)
+        self.assertIn('name="username"', corps)
+        self.assertIn('name="password1"', corps)
+        self.assertIn('name="password2"', corps)
+        self.assertIn('action="%s"' % reverse("accounts-create-admin"), corps)
