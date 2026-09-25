@@ -108,17 +108,23 @@ def entrees_du_journal(
     evenements: Sequence[models.OfficeEvent],
 ) -> list[dict[str, Any]]:
     """Les entrees pretes a rendre : le gabarit ne branche sur rien."""
-    return [
-        {
-            "url": _url(evenement),
-            "est_patient": evenement.clazz == "Patient",
-            "nom_du_patient": nom_du_patient(evenement),
-            "commentaire": _(evenement.comment),
-            "date": evenement.date,
-            "therapeute": nom_du_praticien(evenement.user),
-        }
-        for evenement in evenements
-    ]
+    return [_entree(evenement) for evenement in evenements]
+
+
+def _entree(evenement: models.OfficeEvent) -> dict[str, Any]:
+    """Une entree. `cliquable` est porte ici, et non deduit au gabarit : un evenement
+    de reglage de cabinet n'a pas de cible, et `<a href="">` serait un lien ACTIF qui
+    recharge la page courante."""
+    cible = _url(evenement)
+    return {
+        "url": cible,
+        "cliquable": bool(cible),
+        "est_patient": evenement.clazz == "Patient",
+        "nom_du_patient": nom_du_patient(evenement),
+        "commentaire": _(evenement.comment),
+        "date": evenement.date,
+        "therapeute": nom_du_praticien(evenement.user),
+    }
 
 
 def grouper_par_jour(

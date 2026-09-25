@@ -318,6 +318,45 @@ class TestEntreeDuJournal(SocleDuJournal):
         self.assertIsNotNone(balise)
         self.assertEqual(sans_nom.get_username(), balise.group(1).strip())
 
+    def test_une_entree_de_reglage_de_cabinet_n_est_pas_cliquable(self):
+        """Quatre sortes d'evenements portent `clazz="OfficeSettings"`
+        (`api/events/settings.py:33,49,60,71`), dont le changement de sequence de
+        facturation. Ils arrivent au journal : `evenements_du_journal()` n'exclut que
+        `clazz="Patient", type=2`."""
+        # Rouge si : l'entree redevient une ancre -- `<a href="">` est un lien ACTIF qui
+        # recharge la page courante, donc un clic qui ne mene nulle part.
+        self._evenement(clazz="OfficeSettings", reference=1)
+
+        corps = self.client.get(URL).content.decode()
+
+        self.assertIn('data-testid="evenement-cabinet"', corps)
+        self.assertNotIn('href=""', corps)
+
+    def test_une_entree_de_reglage_de_cabinet_garde_son_commentaire(self):
+        # Rouge si : rendre l'entree non cliquable lui fait perdre son texte -- elle
+        # deviendrait une ligne muette au lieu d'une ligne non cliquable.
+        self._evenement(
+            clazz="OfficeSettings", reference=1, comment="Invoice sequence updated"
+        )
+
+        corps = self.client.get(URL).content.decode()
+
+        self.assertIn("Invoice sequence updated", corps)
+        # Convention « NOM Prenom » de `nom_du_praticien`, pas l'ordre litteral du brief
+        # (mesure : le corps rend "Tester Robot", jamais "Robot Tester").
+        self.assertIn(
+            "%s %s" % (self.praticien.last_name, self.praticien.first_name), corps
+        )
+
+    def test_une_entree_de_patient_reste_une_ancre(self):
+        # Rouge si : la garde de non-clicabilite deborde sur les entrees qui ont une
+        # cible -- le journal cesserait d'etre navigable.
+        self._evenement(clazz="Patient", reference=self.patient.id)
+
+        corps = self.client.get(URL).content.decode()
+
+        self.assertIn('href="/patient/%s"' % self.patient.id, corps)
+
 
 # `disabled` pose **nu** par le serveur, et non le `:disabled` qu'Alpine reprend ensuite :
 # le lookbehind ecarte le deux-points, sans quoi toute assertion sur l'etat initial du

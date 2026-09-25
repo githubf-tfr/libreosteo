@@ -3276,6 +3276,13 @@ deux dates.
    « Nouveau patient créé ».
    Attendu : la fiche de Jean-Luc Picard s'ouvre, titre de page « Picard Jean-Luc »,
    onglet « Infos générales » actif.
+5. Depuis la page Cabinet, changer la séquence de facturation, puis revenir au tableau
+   de bord et cliquer l'entrée de journal ainsi créée (icône « loupe », sans nom de
+   patient).
+   Attendu : **rien ne se produit** — la page ne navigue pas et ne se recharge pas.
+   L'entrée porte bien son commentaire, son ancienneté et le nom du thérapeute, mais
+   elle n'est pas un lien : un changement de réglage ne concerne aucun patient, donc
+   n'a aucune cible.
 
 ### Import CSV
 

@@ -1,0 +1,22 @@
+{% load i18n %}
+{# Le corps d'une entree du journal, inclus par les deux formes de `evenement.html` : #}
+{# l'ancre quand l'entree a une cible, l'element inerte quand elle n'en a pas. Sorti ici #}
+{# pour qu'aucune des deux formes ne duplique le balisage. #}
+<div class="float-start events-badge">
+  <i class="fa {% if entree.est_patient %}fa-user{% else %}fa-search{% endif %}"></i>
+</div>
+<div class="clearfix">
+  <div class="header">
+    <strong>{{ entree.nom_du_patient }}</strong>
+    {# C5 : le prefixe est **dans le gabarit**. `timeAgo.js` rendait « il y a moins #}
+    {# d'une minute » sous la minute ; `timesince` rend « 0 minutes ». Le libelle se #}
+    {# degrade sur une seule fenetre de soixante secondes, et la fiche le dit. #}
+    <small class="float-end text-muted">
+      <i class="fa fa-clock-o fa-fw"></i> {% blocktrans with anciennete=entree.date|timesince %}il y a {{ anciennete }}{% endblocktrans %}
+    </small>
+  </div>
+  <p>{{ entree.commentaire }}</p>
+  <small class="float-end text-muted">
+    <i class="fa fa-hand-o-right"></i> {{ entree.therapeute }}
+  </small>
+</div>

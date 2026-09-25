@@ -1,26 +1,18 @@
 {% load i18n %}
-{# Une entree du journal : un `<a href>` reel (A8). `loadOfficeevent` ecrivait #}
-{# `window.location.href` — deux autorites sur un element, ce que C2 interdit. L'ancre #}
-{# `evenement-cabinet` est conservee a l'octet : trois assertions du filet la lisent. #}
+{# Une entree du journal : un `<a href>` reel (A8) quand elle a une cible. `loadOfficeevent` #}
+{# ecrivait `window.location.href` -- deux autorites sur un element, ce que C2 interdit. #}
+{# L'ancre `evenement-cabinet` est conservee a l'octet, sur les deux formes : les #}
+{# assertions du filet la comptent, et elles comptent les entrees, pas les liens. #}
+{# Une entree sans cible (reglage de cabinet) n'est PAS une ancre : `<a href="">` est un #}
+{# lien actif qui recharge la page courante, donc un clic qui ne mene nulle part. #}
 <li class="clearfix officeevent">
+  {% if entree.cliquable %}
   <a href="{{ entree.url }}" data-testid="evenement-cabinet">
-    <div class="float-start events-badge">
-      <i class="fa {% if entree.est_patient %}fa-user{% else %}fa-search{% endif %}"></i>
-    </div>
-    <div class="clearfix">
-      <div class="header">
-        <strong>{{ entree.nom_du_patient }}</strong>
-        {# C5 : le prefixe est **dans le gabarit**. `timeAgo.js` rendait « il y a moins #}
-        {# d'une minute » sous la minute ; `timesince` rend « 0 minutes ». Le libelle se #}
-        {# degrade sur une seule fenetre de soixante secondes, et la fiche le dit. #}
-        <small class="float-end text-muted">
-          <i class="fa fa-clock-o fa-fw"></i> {% blocktrans with anciennete=entree.date|timesince %}il y a {{ anciennete }}{% endblocktrans %}
-        </small>
-      </div>
-      <p>{{ entree.commentaire }}</p>
-      <small class="float-end text-muted">
-        <i class="fa fa-hand-o-right"></i> {{ entree.therapeute }}
-      </small>
-    </div>
+    {% include "pages/fragments/evenement-contenu.html" %}
   </a>
+  {% else %}
+  <div data-testid="evenement-cabinet">
+    {% include "pages/fragments/evenement-contenu.html" %}
+  </div>
+  {% endif %}
 </li>
