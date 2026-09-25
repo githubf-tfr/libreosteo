@@ -51,9 +51,7 @@ class InvoiceSerializer(serializers.ModelSerializer, PaimentModeSerializer):
 
     def get_office_name(self, obj):
         office = OfficeSettings.objects.get(id=obj.officesettings_id)
-        if office is not None:
-            return office.office_name
-        return "n/a"
+        return office.office_name
 
     class Meta:
         model = Invoice
