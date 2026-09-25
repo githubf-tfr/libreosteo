@@ -418,7 +418,7 @@ mesurés contre les briefs, et les règles de conduite apprises. **Le lire avant
 | S4 — `Invoice.clean` | `7ff3be7` | sans appelant |
 | S5 — `Document.set_request` | `292c27b` | sans appelant, attribut jamais lu |
 
-**Couverture : 95,73 %** au dernier relevé. `fail_under` **reste à 94** — il se relève en **Z2
+**Couverture : 95,87 %** au dernier relevé (départ de la nuit : 94,96 %). `fail_under` **reste à 94** — il se relève en **Z2
 seulement**, à la fin du lot, à la partie entière de la couverture constatée (valeur attendue :
 **99**). Ne pas le relever avant.
 
