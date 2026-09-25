@@ -113,8 +113,10 @@ class TestAttachementDuProfilOrphelin(APITestCase):
 
     def test_un_profil_orphelin_n_est_enregistre_qu_une_fois(self):
         # Rouge si : le `else` saute et le second save() revient -- deux post_save pour
-        # un seul geste, donc deux indexations et, sur les ressources qui en produisent,
-        # deux evenements au journal.
+        # un seul geste. Aucun abonne n'ecoute `TherapeutSettings` aujourd'hui
+        # (receivers.py ne connecte que Patient et Examination, search_indexes.py
+        # n'indexe que Patient et Document) : le test garde le defaut en filet pour
+        # le jour ou un abonne (indexation, journal) s'y branchera.
         self.client.patch(self.url, data={"quality": "DO"}, format="json")
 
         self.assertEqual([self.orphelin.pk], self.enregistrements)
