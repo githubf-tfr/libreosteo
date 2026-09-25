@@ -15,12 +15,8 @@
 # import the logging library
 import logging
 
-from django.contrib.auth import get_user_model
-from django.forms.models import ModelForm
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
-
-from libreosteoweb import models
 
 from .permissions import maintenance_available
 
@@ -33,36 +29,6 @@ logger = logging.getLogger(__name__)
 # la lit par acces d'attribut de module, jamais par `from … import` (D6f, A1).
 new_version = None
 new_version_available = False
-
-
-def filter_fields(f):
-    return f is not None and f.formfield() is not None
-
-
-class GenericDisplay(ModelForm):
-    class Meta:
-        model = get_user_model()
-        fields = [f.name for f in model._meta.fields if f.editable]
-
-    def display_fields(self):
-        return dict(
-            [
-                (f.name, f.formfield().label)
-                for f in filter(filter_fields, self.Meta.model._meta.fields)
-            ]
-        )
-
-
-class UserDisplay(GenericDisplay):
-    class Meta:
-        model = get_user_model()
-        fields = [f.name for f in model._meta.fields if f.editable]
-
-
-class TherapeutSettingsDisplay(GenericDisplay):
-    class Meta:
-        model = models.TherapeutSettings
-        fields = [f.name for f in model._meta.fields if f.editable]
 
 
 @never_cache
