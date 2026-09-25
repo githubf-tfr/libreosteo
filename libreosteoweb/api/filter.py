@@ -56,14 +56,6 @@ def get_name_filters():
     return filterChain
 
 
-class FilterException(Exception):
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self):
-        return repr(self.value)
-
-
 class FilterManager(object):
     def __init__(self):
         self._chain = None
