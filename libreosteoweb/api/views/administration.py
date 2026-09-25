@@ -200,21 +200,17 @@ class OfficeSettingsView(viewsets.ModelViewSet):
         # regle, `services_facturation.valider_sequence_de_depart`, porte desormais la
         # comparaison (C4). La cle est toujours presente : `validate` l'ecrit sur les
         # deux branches de son premier `try`.
+        # `validate` rend toujours une chaine de chiffres (defaut calcule si vide, refus
+        # sinon) : aucune garde n'est necessaire ici.
         asked_value = serializer.validated_data["invoice_start_sequence"]
-        if asked_value is not None and asked_value.isnumeric():
-            try:
-                services_facturation.valider_sequence_de_depart(
-                    asked_value, serializer.instance.id
-                )
-            except services_facturation.SequenceInvalide as erreur:
-                raise PermissionDenied(detail=str(erreur)) from erreur
-            settings_event_tracer(serializer.instance, self.request.user, asked_value)
-            serializer.save()
-        else:
-            serializer.validated_data["invoice_start_sequence"] = (
-                serializer.instance.invoice_start_sequence
+        try:
+            services_facturation.valider_sequence_de_depart(
+                asked_value, serializer.instance.id
             )
-            serializer.save()
+        except services_facturation.SequenceInvalide as erreur:
+            raise PermissionDenied(detail=str(erreur)) from erreur
+        settings_event_tracer(serializer.instance, self.request.user, asked_value)
+        serializer.save()
 
 
 class TherapeutSettingsViewSet(viewsets.ModelViewSet):
