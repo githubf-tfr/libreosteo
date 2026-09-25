@@ -110,11 +110,18 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-    # `collectstatic` lit ses motifs d'exclusion sur la configuration de cette
-    # application : la sous-classe les porte, et les deux appels du depot (Makefile,
-    # Dockerfile) en heritent sans changer d'une ligne. Cf. le docstring de la classe.
-    "libreosteoweb.apps.ArbreStatiqueConfig",
+    # L'ORDRE DE CES DEUX LIGNES EST PORTEUR, ne pas les intervertir.
+    # `libreosteoweb/management/commands/collectstatic.py` masque la commande de Django
+    # pour imposer les motifs d'exclusion de l'arbre statique, et
+    # `django.core.management.get_commands()` parcourt les applications a l'envers : la
+    # premiere listee gagne. `libreosteoweb` doit donc preceder `staticfiles`.
+    # Le litteral `"django.contrib.staticfiles"` est lui aussi porteur :
+    # `pytest_django/live_server_helper.py` le cherche par comparaison de chaine dans
+    # `INSTALLED_APPS` pour installer `StaticFilesHandler`. Une sous-classe declaree a sa
+    # place — ce qu'a fait f0cb705 — rend 404 tout fichier statique en fonctionnel.
+    # `tests/qualite/test_contrat_arbre_statique.py` mesure ces deux invariants.
     "libreosteoweb",
+    "django.contrib.staticfiles",
     "django_filters",
     "rest_framework",
     "compressor",

@@ -48,6 +48,10 @@ import json
 from pathlib import Path
 
 import pytest
+from django.conf import settings
+from django.core.management import get_commands, load_command_class
+
+from libreosteoweb.management.commands.collectstatic import MOTIFS_EXCLUS, Command
 
 RACINE = Path(__file__).resolve().parents[2]
 PACKAGE_JSON = RACINE / "package.json"
@@ -168,3 +172,65 @@ def test_static_components_ne_porte_que_les_trois_fichiers_servis() -> None:
         "static/components/ porte un fichier qu'aucun gabarit ne reference : "
         + ", ".join(sorted(servis - SERVIS))
     )
+
+
+# --- Ou vivent les motifs d'exclusion, et pourquoi la reponse est porteuse -------------
+#
+# Les trois tests ci-dessous ne regardent pas l'arbre : ils ne se `skip` donc jamais, et
+# tournent y compris dans le job CI `quality` qui ne construit pas `static/`. Ils gardent
+# le mecanisme qui produit l'arbre, la ou les deux tests d'egalite ci-dessus gardent le
+# resultat.
+
+
+def test_installed_apps_porte_le_litteral_staticfiles() -> None:
+    """La chaine exacte, pas une sous-classe : c'est ainsi que pytest-django la cherche.
+
+    `pytest_django/live_server_helper.py` teste `"django.contrib.staticfiles" in
+    settings.INSTALLED_APPS` — une comparaison de **chaine**, pas une interrogation du
+    registre d'applications — pour decider d'installer `StaticFilesHandler`. Une
+    `AppConfig` derivee de `StaticFilesConfig` declaree a la place du litteral (commit
+    f0cb705) a rendu 404 tout fichier statique sous le serveur de test : Alpine ne
+    demarrait plus et `attendre_alpine_initialise()` expirait sur **chaque** test
+    fonctionnel. Aucun test unitaire ne l'avait vu, seule la suite fonctionnelle.
+    """
+    assert "django.contrib.staticfiles" in settings.INSTALLED_APPS
+
+
+def test_collectstatic_est_resolue_par_libreosteoweb() -> None:
+    """Le masquage de la commande depend de l'ordre de `INSTALLED_APPS`.
+
+    `django.core.management.get_commands()` parcourt les applications **a l'envers** et
+    ecrase au passage : la premiere listee gagne. `"libreosteoweb"` doit donc preceder
+    `"django.contrib.staticfiles"`. Interverties, les motifs d'exclusion disparaissent
+    sans bruit et `static/components/` reprend ses 322 fichiers.
+    """
+    assert get_commands()["collectstatic"] == "libreosteoweb"
+
+
+def test_la_commande_applique_les_motifs_du_depot() -> None:
+    """Les motifs arrivent bien dans la commande, defauts de Django compris.
+
+    Garde le point de couplage : `set_options` est le seul endroit ou Django resout les
+    motifs, et une evolution de Django qui le deplacerait rendrait le masquage muet.
+    """
+    # `load_command_class` prouve que c'est bien cette classe que `manage.py` chargera ;
+    # l'instance typee qui suit permet de lire `ignore_patterns` sans `type: ignore`.
+    chargee = load_command_class(get_commands()["collectstatic"], "collectstatic")
+    assert type(chargee) is Command
+
+    commande = Command()
+    commande.set_options(
+        interactive=False,
+        verbosity=0,
+        link=False,
+        clear=False,
+        dry_run=True,
+        ignore_patterns=[],
+        use_default_ignore_patterns=True,
+        post_process=False,
+    )
+
+    assert set(MOTIFS_EXCLUS) <= set(commande.ignore_patterns)
+    # Les defauts de Django ne sont pas remplaces mais completes : `*~` et consorts
+    # continuent d'elaguer, comme avant le masquage.
+    assert "*~" in commande.ignore_patterns
