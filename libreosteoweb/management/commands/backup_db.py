@@ -5,7 +5,7 @@ import zipfile
 from io import BytesIO, StringIO
 
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 import libreosteoweb
 from libreosteoweb import models
@@ -42,5 +42,11 @@ class Command(BaseCommand):
 
     def handle(self, file_name, **options):
         zf = backup_db()
-        open(file_name, "wb").write(zf.getvalue())
+        try:
+            with open(file_name, "wb") as archive:
+                archive.write(zf.getvalue())
+        except OSError as erreur:
+            raise CommandError(
+                "Impossible d'ecrire l'archive dans %s : %s" % (file_name, erreur)
+            ) from erreur
         self.stdout.write(self.style.SUCCESS("Backup created into %s" % (file_name,)))

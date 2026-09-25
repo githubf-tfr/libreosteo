@@ -212,6 +212,7 @@ files = [
     "libreosteoweb/tests/test_trace_redatation.py",
     "libreosteoweb/tests/test_traductions.py",
     "libreosteoweb/tests/test_utils.py",
+    "libreosteoweb/tests/test_version.py",
     "libreosteoweb/urls.py",
     "manage.py",
     "outils/__init__.py",

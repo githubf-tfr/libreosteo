@@ -12,13 +12,19 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Libreosteo.  If not, see <http://www.gnu.org/licenses/>.
+from unittest import mock
+
+import netifaces
 from django.test import TestCase
 
+from libreosteoweb.api import utils as module_utils
 from libreosteoweb.api.utils import (
+    LoggerWriter,
     NetworkHelper,
     _unicode,
     convert_to_long,
     maximum_numerique_des_numeros,
+    send_invoice_dummy,
 )
 
 
@@ -94,3 +100,48 @@ class TestMaximumNumeriqueDesNumeros(TestCase):
 
     def test_rend_none_sur_un_parc_vide(self):
         self.assertIsNone(maximum_numerique_des_numeros([]))
+
+
+class TestAdressesIndisponibles(TestCase):
+    def test_un_hote_sans_interface_lisible_rend_une_liste_vide(self):
+        """La panne est injectee a la frontiere systeme (`netifaces`), jamais sur une
+        methode de `NetworkHelper`."""
+
+        # Rouge si : l'echec se propage -- l'ecran Cabinet rendrait 500 sur un hote
+        # dont les interfaces ne sont pas lisibles, au lieu de n'afficher aucune adresse.
+        def interfaces_en_panne():
+            raise OSError("interfaces illisibles")
+
+        with mock.patch.object(netifaces, "interfaces", interfaces_en_panne):
+            # `module_utils.logger` et non la chaine "libreosteoweb.api.utils" : ce
+            # module nomme son logger par `getLogger(__file__)` (chemin absolu), pas
+            # `getLogger(__name__)` comme le reste du code -- mesure, ecart au rapport.
+            with self.assertLogs(module_utils.logger, level="ERROR"):
+                adresses = NetworkHelper().get_all_addresses()
+
+        self.assertEqual([], adresses)
+
+
+class TestLoggerWriter(TestCase):
+    def test_le_flux_accepte_write_et_flush(self):
+        """`call_command(stdout=…)` exige les deux : Django appelle `flush()` en fin de
+        commande, et un flux qui ne l'expose pas fait echouer la reindexation."""
+        # Rouge si : `flush` disparait -- `rebuild_index` leverait AttributeError et
+        # l'ecran « Reindexer » rendrait 500 au lieu de reconstruire.
+        recus = []
+        flux = LoggerWriter(recus.append)
+
+        flux.write("une ligne")
+        flux.flush()
+
+        self.assertEqual(["une ligne"], recus)
+
+
+class TestEnvoiDeFactureParDefaut(TestCase):
+    def test_l_envoi_de_facture_n_est_pas_implemente(self):
+        """`SEND_INVOICE_FUNC` (`settings/base.py:380`) pointe cette fonction : c'est le
+        defaut livre, et `test_page_consultation.py:1306` en depend deja par ecrit."""
+        # Rouge si : la fonction se met a rendre quelque chose -- le produit annoncerait
+        # un envoi de facture qui n'existe pas.
+        with self.assertRaises(NotImplementedError):
+            send_invoice_dummy(None)
