@@ -241,7 +241,8 @@ class TherapeutSettingsViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         if not serializer.instance.user:
             serializer.save(user=self.request.user)
-        serializer.save(user=serializer.instance.user)
+        else:
+            serializer.save(user=serializer.instance.user)
 
 
 DUMP_FILE = "libreosteo.db"

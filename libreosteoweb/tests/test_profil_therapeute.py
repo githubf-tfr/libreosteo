@@ -21,6 +21,7 @@ decocher que `last_events_enabled` : decocher `stats_enabled` ferait echouer la 
 piege n'existe pas : les **quatre** champs sont exerces.
 """
 
+from django.db.models.signals import post_save
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -76,3 +77,54 @@ class TestModulesOptionnelsDuProfil(APITestCase):
             for module in vue["modules"]
         ]
         self.assertEqual(MODULES, noms)
+
+
+class TestAttachementDuProfilOrphelin(APITestCase):
+    """Un `TherapeutSettings` sans utilisateur s'attache au demandeur -- **une fois**.
+
+    Le contrat mesure est celui que tout receveur `post_save` voit : un geste de
+    l'utilisateur, un enregistrement. C'est ce contrat que le double `save()` abime, et
+    c'est la seule surface ou il est observable.
+    """
+
+    def setUp(self):
+        with sans_receivers():
+            self.praticien = cree_praticien()
+        self.client.login(username="test", password="testpw")
+        self.orphelin = TherapeutSettings.objects.create(
+            professional_id="12345", office_identifier="12345"
+        )
+        self.url = reverse("therapeutsettings-detail", kwargs={"pk": self.orphelin.pk})
+        self.enregistrements = []
+        post_save.connect(self._compter, sender=TherapeutSettings)
+        self.addCleanup(post_save.disconnect, self._compter, sender=TherapeutSettings)
+
+    def _compter(self, sender, instance, **kwargs):
+        self.enregistrements.append(instance.pk)
+
+    def test_un_profil_orphelin_s_attache_au_demandeur(self):
+        # Rouge si : l'attachement disparait -- le profil resterait sans proprietaire
+        # et n'apparaitrait dans aucun « mes reglages ».
+        reponse = self.client.patch(self.url, data={"quality": "DO"}, format="json")
+
+        self.assertEqual(status.HTTP_200_OK, reponse.status_code)
+        self.orphelin.refresh_from_db()
+        self.assertEqual(self.praticien, self.orphelin.user)
+
+    def test_un_profil_orphelin_n_est_enregistre_qu_une_fois(self):
+        # Rouge si : le `else` saute et le second save() revient -- deux post_save pour
+        # un seul geste, donc deux indexations et, sur les ressources qui en produisent,
+        # deux evenements au journal.
+        self.client.patch(self.url, data={"quality": "DO"}, format="json")
+
+        self.assertEqual([self.orphelin.pk], self.enregistrements)
+
+    def test_un_profil_deja_attache_n_est_enregistre_qu_une_fois(self):
+        # Rouge si : le chemin nominal se met, lui aussi, a ecrire deux fois.
+        self.orphelin.user = self.praticien
+        self.orphelin.save()
+        self.enregistrements.clear()
+
+        self.client.patch(self.url, data={"quality": "DO"}, format="json")
+
+        self.assertEqual([self.orphelin.pk], self.enregistrements)
