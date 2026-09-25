@@ -17,9 +17,10 @@ sequence (D6d T9)."""
 
 import re
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -271,6 +272,64 @@ class TestPageCabinet(TestCase):
         assert trace is not None
         self.assertIn("20000", trace.comment)
 
+    def test_un_prefixe_de_plus_de_trois_caracteres_est_refuse_sous_le_champ(self):
+        """Un prefixe de 4 caracteres est intercepte par la contrainte `max_length=3`
+        du modele, avant meme que `clean_invoice_prefix_sequence` ne s'execute : le
+        message rendu est donc celui, generique, de Django, pas celui de
+        `valider_prefixe_de_sequence` (couvert par le test du prefixe numerique
+        ci-dessous, seul a atteindre cette fonction)."""
+        # Rouge si : le refus passe en 500 ou, pire, s'ecrit en base -- la numerotation
+        # des factures porterait un prefixe que le reste du produit rejette.
+        reponse = self.client.post(
+            reverse("cabinet-general"),
+            data=_charge_utile_valide(invoice_prefix_sequence="ABCD"),
+        )
+
+        # écart brief : le brief attendait 200 ; le formulaire invalide rend 422,
+        # comme les deux tests de borne de séquence voisins (même mécanisme
+        # `formulaire.is_valid()` dans `enregistrer_general`). Le brief attendait aussi
+        # le message de `valider_prefixe_de_sequence` (« 3 char length maximum ») ;
+        # inatteignable ici (cf. docstring), remplace par l'assertion generique des
+        # tests de borne voisins.
+        self.assertEqual(422, reponse.status_code)
+        self.assertIn("errorlist", reponse.content.decode("utf-8"))
+        self.cabinet.refresh_from_db()
+        self.assertNotEqual("ABCD", self.cabinet.invoice_prefix_sequence)
+
+    def test_un_prefixe_contenant_un_chiffre_est_refuse_sous_le_champ(self):
+        # Rouge si : un prefixe numerique passe -- il se confondrait avec le numero.
+        reponse = self.client.post(
+            reverse("cabinet-general"),
+            data=_charge_utile_valide(invoice_prefix_sequence="A1"),
+        )
+
+        # écart brief : idem, 422 et non 200 (formulaire invalide).
+        self.assertEqual(422, reponse.status_code)
+        self.cabinet.refresh_from_db()
+        self.assertNotEqual("A1", self.cabinet.invoice_prefix_sequence)
+
+    @override_settings(DISPLAY_SERVICE_NET_HELPER=False)
+    def test_sans_aide_reseau_l_ecran_ne_propose_aucune_adresse(self):
+        """`DISPLAY_SERVICE_NET_HELPER` vaut `True` dans le deploiement de reference ;
+        ce test prouve l'autre reglage, celui d'une instance derriere un proxy.
+
+        `127.0.0.1` est de toute facon exclu par `_adresses_reseau` quel que soit ce
+        reglage : l'asserter ne prouverait rien. L'adresse bouchonnee (`NetworkHelper.
+        get_bound_addresses`, sans connexion reseau reelle -- meme convention que
+        `test_utils.py::TestNetworkHelper`) tient lieu d'adresse « interne de l'hote » :
+        sa presence dans la reponse est ce que ce reglage doit empecher.
+        """
+        # Rouge si : le reglage cesse d'etre lu -- l'ecran afficherait une adresse
+        # interne de l'hote a une instance qui a demande qu'on ne le fasse pas.
+        with mock.patch(
+            "libreosteoweb.api.views.pages.cabinet.NetworkHelper.get_bound_addresses",
+            return_value=["192.0.2.10"],
+        ):
+            reponse = self.client.get(reverse("cabinet"))
+
+        self.assertEqual(200, reponse.status_code)
+        self.assertNotIn("192.0.2.10", reponse.content.decode("utf-8"))
+
 
 def _ligne_de(corps: str, username: str) -> str:
     """La `<tr>` portant ce nom d'utilisateur, ancree pour ne pas confondre deux lignes.
@@ -491,3 +550,184 @@ class TestOngletUtilisateurs(TestCase):
         self.assertEqual(422, reponse.status_code)
         cible.refresh_from_db()
         self.assertFalse(cible.check_password("un-mot-de-passe"))
+
+
+class TestCreationUtilisateur(TestCase):
+    """`utilisateur_nouveau` : la seule voie du produit pour ajouter un praticien."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.praticien = cree_praticien()
+            cree_reglages_praticien(self.praticien)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+        self.url = reverse("cabinet-utilisateur-nouveau")
+
+    def test_le_get_ouvre_la_modale_d_ajout(self):
+        # Rouge si : le bouton « Ajouter » cesse d'ouvrir un formulaire utilisable --
+        # l'ajout de praticien n'a pas d'autre porte dans le produit.
+        reponse = self.client.get(self.url)
+
+        corps = reponse.content.decode("utf-8")
+        self.assertEqual(200, reponse.status_code)
+        self.assertIn('id="form-utilisateur"', corps)
+        self.assertIn('name="username"', corps)
+        self.assertIn('name="password1"', corps)
+        self.assertIn('name="password2"', corps)
+
+    def test_un_nom_valide_cree_le_compte_et_rafraichit_le_tableau(self):
+        # Rouge si : le compte n'est pas cree, ou si la reponse cesse de rendre le
+        # tableau -- la ligne affichee ne serait plus celle que le serveur a ecrite.
+        reponse = self.client.post(
+            self.url,
+            data={
+                "username": "crusher",
+                "password1": "Mdp-2026!",
+                "password2": "Mdp-2026!",
+            },
+        )
+
+        self.assertEqual(200, reponse.status_code)
+        cree = get_user_model().objects.get(username="crusher")
+        self.assertTrue(cree.check_password("Mdp-2026!"))
+        self.assertIn("crusher", reponse.content.decode("utf-8"))
+
+    def test_un_nom_vide_est_refuse_sans_creer_de_compte(self):
+        # Rouge si : un nom vide cree un compte sans identifiant saisissable.
+        avant = get_user_model().objects.count()
+
+        reponse = self.client.post(
+            self.url,
+            data={
+                "username": "   ",
+                "password1": "Mdp-2026!",
+                "password2": "Mdp-2026!",
+            },
+        )
+
+        self.assertEqual(422, reponse.status_code)
+        self.assertEqual(avant, get_user_model().objects.count())
+        self.assertIn(
+            'data-testid="erreur-utilisateur"', reponse.content.decode("utf-8")
+        )
+
+    def test_un_nom_deja_pris_est_refuse_sans_creer_de_compte(self):
+        # Rouge si : la contrainte d'unicite remonte en 500 au lieu d'un refus lisible
+        # dans la modale.
+        avant = get_user_model().objects.count()
+
+        reponse = self.client.post(
+            self.url,
+            data={
+                "username": "test",
+                "password1": "Mdp-2026!",
+                "password2": "Mdp-2026!",
+            },
+        )
+
+        self.assertEqual(422, reponse.status_code)
+        self.assertEqual(avant, get_user_model().objects.count())
+
+    def test_deux_mots_de_passe_differents_sont_refuses_sans_creer_de_compte(self):
+        # Rouge si : la confirmation cesse d'etre comparee -- un praticien serait cree
+        # avec un mot de passe que personne ne connait.
+        avant = get_user_model().objects.count()
+
+        reponse = self.client.post(
+            self.url,
+            data={
+                "username": "crusher",
+                "password1": "Mdp-2026!",
+                "password2": "autre",
+            },
+        )
+
+        self.assertEqual(422, reponse.status_code)
+        self.assertEqual(avant, get_user_model().objects.count())
+
+    def test_un_nom_saisi_est_conserve_dans_la_modale_reaffichee(self):
+        # Rouge si : le refus vide le champ -- le praticien retaperait tout.
+        reponse = self.client.post(
+            self.url,
+            data={
+                "username": "crusher",
+                "password1": "Mdp-2026!",
+                "password2": "autre",
+            },
+        )
+
+        self.assertIn('value="crusher"', reponse.content.decode("utf-8"))
+
+    def test_un_nom_d_utilisateur_avec_une_espace_est_refuse(self):
+        """Le message de refus du nom vide promet deja cette garde (« Your login must
+        not contain space »), et l'ecran de premier demarrage refuse ce meme nom
+        (`installation.py:64`). `create_user()` ne fait tourner aucun validateur."""
+        # Rouge si : un compte « jean pierre » est cree -- un identifiant que le
+        # formulaire de connexion ne sait pas resaisir proprement.
+        avant = get_user_model().objects.count()
+
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-nouveau"),
+            data={
+                "username": "jean pierre",
+                "password1": "Mdp-2026!",
+                "password2": "Mdp-2026!",
+            },
+        )
+
+        self.assertEqual(422, reponse.status_code)
+        self.assertEqual(avant, get_user_model().objects.count())
+
+
+class TestCreationUtilisateurParUnNonAdministrateur(TestCase):
+    def setUp(self):
+        with sans_receivers():
+            cree_praticien()
+            self.simple = cree_praticien(username="simple", is_staff=False)
+            cree_reglages_praticien(self.simple)
+            regle_cabinet()
+        self.client.login(username="simple", password="testpw")
+
+    def test_un_non_administrateur_ne_peut_pas_creer_de_compte(self):
+        # Rouge si : la garde saute -- n'importe quel praticien pourrait s'ouvrir des
+        # comptes sur le cabinet.
+        avant = get_user_model().objects.count()
+
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-nouveau"),
+            data={
+                "username": "intrus",
+                "password1": "Mdp-2026!",
+                "password2": "Mdp-2026!",
+            },
+        )
+
+        self.assertEqual(403, reponse.status_code)
+        self.assertEqual(avant, get_user_model().objects.count())
+
+    def test_un_non_administrateur_ne_peut_pas_changer_le_mot_de_passe_d_un_tiers(self):
+        # Rouge si : la garde saute -- un praticien pourrait prendre le compte d'un autre.
+        with sans_receivers():
+            cible = cree_praticien(username="cible", is_staff=False)
+
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[cible.pk]),
+            data={"password1": "Vole-2026!", "password2": "Vole-2026!"},
+        )
+
+        self.assertEqual(403, reponse.status_code)
+        cible.refresh_from_db()
+        self.assertFalse(cible.check_password("Vole-2026!"))
+
+    def test_la_modale_de_mot_de_passe_s_ouvre_en_get(self):
+        # Rouge si : le GET tombe dans la branche d'ecriture et refuse en 403 -- plus
+        # personne ne pourrait ouvrir la modale.
+        with sans_receivers():
+            cible = cree_praticien(username="cible", is_staff=False)
+
+        reponse = self.client.get(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[cible.pk])
+        )
+
+        self.assertEqual(200, reponse.status_code)
+        self.assertIn('id="form-mot-de-passe"', reponse.content.decode("utf-8"))

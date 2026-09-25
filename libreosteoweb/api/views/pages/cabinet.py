@@ -458,6 +458,8 @@ def utilisateur_nouveau(request: HttpRequest) -> HttpResponse:
     erreur = None
     if not nom:
         erreur = _("Your login must not contain space")
+    elif " " in nom:
+        erreur = _("Your login must not contain space")
     elif get_user_model().objects.filter(username=nom).exists():
         erreur = _("A user with that username already exists.")
     elif not mot_de_passe or mot_de_passe != request.POST.get("password1", ""):
