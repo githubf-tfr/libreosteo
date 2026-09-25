@@ -142,7 +142,7 @@ def test_consultation_facturee(
 
     page.goto(f"{live_server.url}/invoice/{facture.id}")
     expect(page.locator("#patient")).to_contain_text("Jean-Luc Picard")
-    expect(page.locator("#main")).to_contain_text("Template with 55 EUR")
+    expect(page.locator("#main")).to_contain_text("Template with 55,00 EUR")
     expect(page.locator("#invoice-number")).to_contain_text("10000")
 
 

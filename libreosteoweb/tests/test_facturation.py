@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
-import locale
 from datetime import timedelta
 from decimal import Decimal
 
@@ -737,8 +736,15 @@ class TestTemplatize(TestCase):
             templatize("Bonjour <nom>", {"nom": "Picard"}), "Bonjour Picard"
         )
 
-    def test_valeur_flottante_rendue_selon_la_locale(self):
-        self.assertEqual(templatize("<amount>", {"amount": 50.0}), locale.str(50.0))
+    def test_un_montant_flottant_est_rendu_en_convention_francaise(self):
+        """`locale.str` rendait « 50 » pour 50.0 : le point ou la virgule dependaient de
+        la locale du **processus**, jamais du produit. Le format est desormais decide par
+        `api.utils.formater_montant_francais`, partage avec la Comptabilite.
+
+        A quoi ce test est rouge : a un retour a `locale.str`, et a toute perte des
+        decimales de queue.
+        """
+        self.assertEqual(templatize("<amount>", {"amount": 50.0}), "50,00")
 
     def test_texte_sans_balise_est_rendu_tel_quel(self):
         self.assertEqual(templatize("Aucune balise", {}), "Aucune balise")
@@ -755,21 +761,21 @@ class TestTemplatize(TestCase):
 
         self.assertEqual(templatize("<inexistant>", SansAttribut()), "None")
 
-    def test_valeur_decimale_rendue_comme_la_valeur_flottante_equivalente(self):
-        """Jumeau décimal de `test_valeur_flottante_rendue_selon_la_locale`. Sans lui, la
-        ligne `Template with 55 EUR` de la facture imprimée deviendrait
-        `Template with 55.00 EUR` dès que le montant est un `Decimal` : `locale.str(55.0)`
-        vaut `'55'`, quand `str(Decimal("55.00"))` vaut `'55.00'`."""
-        for decimal, flottant in [
-            (Decimal("55.00"), 55.0),
-            (Decimal("55.55"), 55.55),
-            (Decimal("0.00"), 0.0),
-            (Decimal("-55.55"), -55.55),
+    def test_un_montant_decimal_est_rendu_comme_le_flottant_equivalent(self):
+        """Les quatre cas qui auraient pu casser : le zero de queue, le zero, le negatif
+        (avoir) et le montant a centimes.
+
+        A quoi ce test est rouge : a `str(Decimal)` -- qui rendrait « 55.00 » --, a
+        `locale.str` -- qui rendrait « 55 » -- et a un arrondi a une decimale.
+        """
+        for decimal, attendu in [
+            (Decimal("55.00"), "55,00"),
+            (Decimal("55.55"), "55,55"),
+            (Decimal("0.00"), "0,00"),
+            (Decimal("-55.55"), "-55,55"),
         ]:
             with self.subTest(montant=str(decimal)):
-                self.assertEqual(
-                    templatize("<amount>", {"amount": decimal}), locale.str(flottant)
-                )
+                self.assertEqual(templatize("<amount>", {"amount": decimal}), attendu)
 
 
 class TestDateDeLaFacture(APITestCase):

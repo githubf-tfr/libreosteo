@@ -13,14 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # Invoice Extras filter
-import locale
 import logging
 import re
 from decimal import Decimal
 
 from django import template
 
-from libreosteoweb.api.utils import _unicode
+from libreosteoweb.api.utils import _unicode, formater_montant_francais
 
 register = template.Library()
 logger = logging.getLogger(__name__)
@@ -46,14 +45,18 @@ def templatize(value, obj):
                 # de laisser `todisplay` non affecte -- l'`UnboundLocalError` que ce
                 # commentaire corrige.
                 todisplay = None
-            # Un montant est desormais un Decimal. Le branchement ne reconnaissait que le
-            # flottant, si bien qu'un Decimal repartait par la branche `else`, donc par
-            # `str()`, qui garde les zeros de queue de `decimal_places=2` : la facture
-            # imprimee aurait affiche '55.00' la ou elle affichait '55'. `locale.str`, lui,
-            # rend deja pour un Decimal la meme chaine que pour le flottant equivalent --
-            # il convertit par `%.12g` -- : il suffit de le laisser passer par ici.
+            # Le montant est rendu en convention francaise -- virgule, deux decimales --
+            # par la meme fonction que la colonne Montant de la Comptabilite. Avant, ce
+            # branchement appelait `locale.str`, dont le separateur depend de la locale du
+            # **processus** et non du produit : le corps de la facture rendait « 55.55 »
+            # quand la ligne HONORAIRES, neuf lignes plus bas, rendait deja « 55,55 EUR ».
+            # Les deux ponctuations ne cohabitent plus sur la page imprimee.
+            #
+            # Le test de type reste **avant** le formatage : `templatize` remplace toutes
+            # les balises du gabarit de facture, dont le numero et les noms, qui ne sont
+            # pas des nombres.
             if isinstance(todisplay, (float, Decimal)):
-                return _unicode(locale.str(todisplay))
+                return formater_montant_francais(Decimal(str(todisplay)))
             else:
                 return _unicode(todisplay)
         return val

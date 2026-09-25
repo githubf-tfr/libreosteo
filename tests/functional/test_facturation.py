@@ -91,7 +91,7 @@ def test_facture_avec_la_nouvelle_sequence(
     assert facture.number == "25000"
     page.goto(f"{live_server.url}/invoice/{facture.id}")
     expect(page.locator("#invoice-number")).to_contain_text("25000")
-    expect(page.locator("#main")).to_contain_text("Template with 55 EUR")
+    expect(page.locator("#main")).to_contain_text("Template with 55,00 EUR")
     assert facture.patient_family_name == patient.family_name
 
 
@@ -300,7 +300,7 @@ def test_avoir_sur_facture_deja_emise(
     remplacante = Invoice.objects.exclude(id=facture_initiale.id).get()
     page.goto(f"{live_server.url}/invoice/{remplacante.id}")
     expect(page.locator("#patient")).to_contain_text("Jean-Luc Picard")
-    expect(page.locator("#main")).to_contain_text("Template with 55 EUR")
+    expect(page.locator("#main")).to_contain_text("Template with 55,00 EUR")
     expect(page.locator("#invoice-number")).to_contain_text(remplacante.number)
     expect(page.locator("#invoice-number")).to_contain_text(facture_initiale.number)
 
@@ -425,7 +425,7 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     # onglet via `context.expect_page`, employe ailleurs dans ce fichier quand
     # l'ouverture reelle de l'onglet importe).
     page.goto(f"{live_server.url}/invoice/{facture_a_centimes.id}")
-    expect(page.locator("#main")).to_contain_text("Template with 55.55 EUR")
+    expect(page.locator("#main")).to_contain_text("Template with 55,55 EUR")
     expect(page.locator("#main")).to_contain_text("55,55 EUR")
 
     page.goto(f"{live_server.url}/invoices")
@@ -531,7 +531,7 @@ def test_impression_de_facture_reprend_cabinet_et_therapeute(
         "Jean-Luc Picard",
         ligne_lieu_date,
         f"Facture {facture.number}",
-        "Template with 55 EUR",
+        "Template with 55,00 EUR",
         "Règlement par chèque",
         "HONORAIRES",
         "55,00 EUR",

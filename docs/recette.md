@@ -1530,7 +1530,7 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
    thérapeute `Tester Robot` ; qualité `Ostéopathe DO` ; `Adeli : 67654684` ;
    patient `Jean-Luc Picard` ; une ligne de lieu et date au format
    « À Le Vigen, le <date du jour> » ; `Facture 10000` ; le contenu de facture
-   `Template with 55 EUR` ; `Règlement par chèque` ; `HONORAIRES 55,00 EUR` ; pied
+   `Template with 55,00 EUR` ; `Règlement par chèque` ; `HONORAIRES 55,00 EUR` ; pied
    de page `Footer`.
 
 ### R-THE-03 — Paramètres d'affichage du profil
@@ -2881,7 +2881,7 @@ dossier entier depuis la base.
    thérapeute sont déjà couvertes par R-THE-02 et ne sont pas reprises ici).
    Attendu : le contenu affiche, entre ces mentions et le pied de page :
    `Jean-Luc Picard` ; une ligne « À Le Vigen, le <date de la séance> » ; `Facture 10000` ;
-   `Template with 55 EUR` ; `Règlement par chèque` ; une ligne « HONORAIRES » avec
+   `Template with 55,00 EUR` ; `Règlement par chèque` ; une ligne « HONORAIRES » avec
    le montant `55,00 EUR`.
 4. Menu « Comptabilité ».
    Attendu : la ligne correspondante affiche N° de facture `10000`, Montant
@@ -2995,9 +2995,10 @@ dossier entier depuis la base.
    `55.55`, moyen de paiement « Espèces ».
    Attendu : le panneau affiche un encart « Facture » avec le lien `n° 10001`.
 2. Cliquer le bouton d'impression (icône imprimante verte).
-   Attendu : un nouvel onglet s'ouvre ; le contenu porte `Template with 55.55 EUR` et
+   Attendu : un nouvel onglet s'ouvre ; le contenu porte `Template with 55,55 EUR` et
    une ligne « HONORAIRES » avec le montant `55,55 EUR` — pas `55,56`, pas
-   `55,549999`.
+   `55,549999`. **Les deux montants de la page portent la même ponctuation — c'est ce
+   que cette étape vérifie, et c'est ce qui n'était pas vrai avant.**
 3. Menu « Comptabilité ».
    Attendu : deux lignes ; celle du numéro `10001` affiche Montant `55,55 €`
    (celle du `10000` affiche toujours `55,00 €`) ; la ligne « Montant total sur la période
