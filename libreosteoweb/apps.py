@@ -20,6 +20,41 @@ from django.apps import AppConfig
 logger = logging.getLogger(__name__)
 
 
+def purger_les_imports_en_attente():
+    """Supprime les depots d'import restes en base au demarrage precedent.
+
+    Un echec ne doit pas empecher l'application de demarrer : le depot d'import est un
+    fichier de travail, la base ne l'est pas. Fonction de module et non corps de
+    `ready()` pour qu'un test puisse l'appeler : `ready()` s'execute une seule fois, au
+    demarrage de la suite, sur une base qui n'a rien a purger.
+    """
+    import libreosteoweb.models as models
+
+    file_import_list = models.FileImport.objects.all()
+    try:
+        for f in file_import_list:
+            f.delete()
+    except Exception:
+        logger.debug("Exception when purging files at starting application")
+
+
+def initialiser_le_cabinet_par_defaut():
+    """Cree l'unique `OfficeSettings` quand la base n'en porte aucun.
+
+    Meme motif d'extraction que ci-dessus : les migrations en posent un, donc la branche
+    de creation n'est jamais prise au demarrage de la suite.
+    """
+    import libreosteoweb.models as models
+
+    try:
+        nb_office_settings = models.OfficeSettings.objects.all().count()
+        if nb_office_settings <= 0:
+            default = models.OfficeSettings()
+            default.save()
+    except Exception:
+        logger.warn("No database ready to initialize office settings")
+
+
 class LibreosteoConfig(AppConfig):
     name = "libreosteoweb"
     verbose_name = "Libreosteo WebApp"
@@ -32,19 +67,6 @@ class LibreosteoConfig(AppConfig):
         # existe : `OneSessionPerUserMiddleware` ne trouve pas `logged_in_user` et
         # deconnecte aussitot — un vert qui dependait de l'ordre de collecte des tests.
         import libreosteoweb.api.receivers  # noqa: F401
-        import libreosteoweb.models as models
 
-        file_import_list = models.FileImport.objects.all()
-        try:
-            for f in file_import_list:
-                f.delete()
-        except Exception:
-            logger.debug("Exception when purging files at starting application")
-
-        try:
-            nb_office_settings = models.OfficeSettings.objects.all().count()
-            if nb_office_settings <= 0:
-                default = models.OfficeSettings()
-                default.save()
-        except Exception:
-            logger.warn("No database ready to initialize office settings")
+        purger_les_imports_en_attente()
+        initialiser_le_cabinet_par_defaut()

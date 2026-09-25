@@ -171,6 +171,7 @@ files = [
     "libreosteoweb/tests/test_concurrence.py",
     "libreosteoweb/tests/test_context_processors.py",
     "libreosteoweb/tests/test_delete_patient.py",
+    "libreosteoweb/tests/test_demarrage_application.py",
     "libreosteoweb/tests/test_dossier_patient.py",
     "libreosteoweb/tests/test_exploitation.py",
     "libreosteoweb/tests/test_facturation.py",
