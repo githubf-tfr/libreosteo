@@ -63,3 +63,24 @@ class TestEcranInstallation(TestCase):
             corps,
         )
         self.assertNotIn("Join the user community", corps)
+
+
+class TestInstallViewMethodesAutorisees(TestCase):
+    """`^install/$` est servie **non authentifiee** (`NO_REROUTE_PATTERN_URL`).
+
+    Une 500 y est le pire endroit pour en avoir une : c'est la premiere page qu'un
+    deploiement neuf expose au reseau.
+    """
+
+    def test_un_post_sur_l_ecran_d_installation_rend_405(self):
+        # Rouge si : `post` revient sur la vue, ou si `http_method_names` la
+        # reautorise -- la reponse redeviendrait une 500 (DF5) ou un rendu muet.
+        reponse = self.client.post(reverse("install"), {})
+
+        self.assertEqual(405, reponse.status_code)
+
+    def test_l_ecran_d_installation_reste_servi_en_get(self):
+        # Rouge si : le retrait de `post` a emporte `get` avec lui.
+        reponse = self.client.get(reverse("install"))
+
+        self.assertEqual(200, reponse.status_code)

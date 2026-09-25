@@ -85,7 +85,7 @@ class CreateAdminAccountView(TemplateView):
 
 class InstallView(TemplateView):
     template_name = "install.html"
-    http_method_names = ["get", "post", "head", "options", "trace"]
+    http_method_names = ["get", "head", "options", "trace"]
 
     def get(self, request, *args, **kwargs):
         """
@@ -93,18 +93,4 @@ class InstallView(TemplateView):
         """
         if len(get_user_model().objects.filter(is_staff__exact=True)) > 0:
             return HttpResponseForbidden()
-        self.redirect_field_name = request.POST.get(
-            REDIRECT_FIELD_NAME, request.GET.get(REDIRECT_FIELD_NAME, "")
-        )
         return super(TemplateView, self).render_to_response(self.get_context_data())
-
-    def post(self, request, *args, **kwargs):
-        if len(get_user_model().objects.filter(is_staff__exact=True)) > 0:
-            return HttpResponseForbidden()
-        return super(TemplateView, self).render_to_response(self.get_context_data())
-
-    def get_context_data(self, **kwargs):
-        context = super(TemplateView, self).get_context_data(**kwargs)
-        if self.redirect_field_name:
-            context[REDIRECT_FIELD_NAME] = self.redirect_field_name
-        return context
