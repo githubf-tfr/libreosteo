@@ -307,6 +307,21 @@ class TestLoginRequiredMiddleware(APITestCase):
         self.assertEqual(reponse.url, reverse("login"))
         self.assertNotIn(SESSION_KEY, self.client.session)
 
+    def test_une_url_web_view_conserve_sa_destination_dans_next(self):
+        """Le jumeau `logout` de ce geste a ete retire par `bde1f53` ; celui-ci portait
+        exactement le meme defaut, laisse hors du perimetre de ce portage."""
+        # Rouge si : `request.path = ""` revient -- la redirection repartirait avec un
+        # `?next=` vide et l'utilisateur, apres connexion, ne reviendrait nulle part.
+        with sans_receivers():
+            cree_praticien()
+
+        reponse = self.client.get("/web-view/partials/inexistant")
+
+        self.assertEqual(302, reponse.status_code)
+        self.assertEqual(
+            reverse("login") + "?next=/web-view/partials/inexistant", reponse.url
+        )
+
     def test_le_refus_d_authentification_est_journalise_en_warning(self):
         with sans_receivers():
             cree_praticien()

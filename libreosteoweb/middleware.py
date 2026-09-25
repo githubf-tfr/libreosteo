@@ -154,11 +154,6 @@ class LoginRequiredMiddleware(MiddlewareMixin):
             # entre dans `NO_REROUTE_PATTERN_URL` (Libreosteo/settings/base.py), cette
             # branche n'est de toute facon plus jamais atteinte pour cette URL : la
             # requete est court-circuitee plus haut par `no_reroute_pattern()`.
-            # ⚠️ La branche `"web-view" in path` juste en dessous partage exactement le
-            # meme defaut (mutation de `request.path`, jamais de `path`) et reste hors du
-            # perimetre de ce portage : non touchee, non corrigee ici.
-            if "web-view" in path:
-                request.path = ""
             if not any(m.match(path) for m in get_exempts()):
                 logger.warning(
                     "query path %s, authentication required. redirect to authentication form %s "
