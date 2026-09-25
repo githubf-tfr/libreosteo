@@ -17,7 +17,6 @@ import pathlib
 import re
 
 RACINE = pathlib.Path(__file__).resolve().parents[1]
-GAB = RACINE / "libreosteoweb" / "templates"
 
 RUPTURE = {
     # panneaux -> cartes (supprimes en BS4)
@@ -286,26 +285,3 @@ def occurrences(
     """
     _, jetons, par_fichier = _balayage(racine)
     return jetons, par_fichier
-
-
-if __name__ == "__main__":
-    total_occ, occ, gabarits = _balayage(GAB)
-    print(f"Occurrences de classe, tous jetons confondus : {total_occ}")
-    print(
-        f"Occurrences qui ne survivent pas a Bootstrap 5 : {sum(occ.values())}"
-        f"  ({len(occ)} jetons distincts)"
-    )
-    print(f"Gabarits touches : {len(gabarits)} sur {len(list(GAB.rglob('*.html')))}")
-    sans_equiv = {t: n for t, n in occ.items() if RUPTURE[t] is None}
-    print(
-        f"  dont sans equivalent direct (style a reprendre) : "
-        f"{sum(sans_equiv.values())} occurrences, {len(sans_equiv)} jetons"
-    )
-    print()
-    print("=== jetons, par frequence ===")
-    for jeton, n in sorted(occ.items(), key=lambda kv: -kv[1]):
-        print(f"{n:4d}  {jeton:28s} -> {RUPTURE[jeton]}")
-    print()
-    print("=== gabarits, par nombre d'occurrences a reprendre ===")
-    for nom, n in gabarits.most_common():
-        print(f"{n:4d}  {(GAB / nom).relative_to(RACINE)}")
