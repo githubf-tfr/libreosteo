@@ -3282,7 +3282,10 @@ deux dates.
 ### R-IMP-01 — Import d'un fichier de patients
 
 - **Domaine** : Import CSV
-- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_import_des_patients
+- **Couverture auto** : oui — tests/functional/test_import_csv.py::test_import_des_patients,
+  ::test_l_indicateur_d_attente_s_affiche_pendant_l_import (la fenêtre d'attente pendant le
+  `POST …/integrate`, mesurée sur l'opacité calculée de `#import-en-cours` : l'écran dit
+  qu'il travaille)
 - **État requis** : E1. Cette fiche importe durablement 100 patients depuis
   `tests/functional/resources/patients_1.csv` : remonter l'état E1 (chapitre 1)
   avant de jouer une autre fiche qui en dépend.

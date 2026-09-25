@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from django.utils import timezone
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, Route, expect
 from playwright.sync_api import TimeoutError as DelaiPlaywrightDepasse
 from pytest_django.live_server_helper import LiveServer
 
@@ -304,3 +304,100 @@ def test_analyse_en_echec_affiche_un_message(
     # a moitie rempli, qui laisserait croire que le fichier a ete lu.
     expect(page.locator("#patient-file-analyze")).to_have_count(0)
     assert Patient.objects.count() == 0
+
+
+def test_l_indicateur_d_attente_s_affiche_pendant_l_import(
+    page: Page, live_server: LiveServer, tmp_path: Path
+) -> None:
+    """**Une mesure, pas un correctif.** Le constat du 2026-09-12 -- « 100 patients,
+    114 s, rien ne bouge pendant deux minutes » -- est la seule observation du defaut,
+    elle est manuelle, elle date d'avant D6g, et rien dans le depot ne la confirmait ni
+    ne l'infirmait : zero occurrence d'`import-en-cours` ou de `htmx-indicator` sous
+    `tests/` avant ce test.
+
+    **Ce que ce test regarde** : l'opacite calculee de `#import-en-cours` avant le clic,
+    pendant le vol du `POST …/integrate`, et apres la reponse.
+
+    ⚠️ **`to_be_visible()` seul serait une garde vide sur un `<span>` opacite a la main** :
+    Playwright considere qu'un element a `opacity: 0` est visible -- il a une boite non
+    nulle et n'est ni `display:none` ni `visibility:hidden`. **Mesure sur cet ecran
+    precis** : la regle que htmx injecte lui-meme au demarrage
+    (`.htmx-indicator{opacity:0;visibility:hidden}`, aucun fichier CSS du depot ne la
+    porte) couple les deux au repos, si bien qu'ici `to_be_visible()`/`to_be_hidden()`
+    *distinguent* correctement le repos du vol -- mais c'est l'opacite calculee qui reste
+    la garde de fond, celle qui tiendrait meme si `visibility` disparaissait de cette
+    regle demain. `to_have_css` et non une lecture `evaluate()` a un seul coup : la meme
+    regle injectee porte `transition: opacity 200ms ease-in` sur l'etat allume, et une
+    lecture immediate apres que `to_be_visible()` se resout peut tomber en pleine
+    animation (mesure : premiere version de ce test, rouge sur une opacite fractionnaire
+    ni "0" ni "1"). `to_have_css` sonde jusqu'a l'etat stable, comme `to_be_visible`.
+
+    **A quoi ce test est rouge** : au retrait de `hx-indicator` du bouton (htmx ne pose
+    alors pas `htmx-request` sur le `<span>`, dont l'opacite reste a 0 pendant tout le
+    vol), et a une regle CSS qui neutraliserait `.htmx-indicator`. La regle
+    `.htmx-indicator{opacity:0}` / `.htmx-request.htmx-indicator{opacity:1}` est injectee
+    par htmx lui-meme au demarrage, sans qu'aucun fichier CSS du depot ne la porte : ce
+    test la mesure aussi.
+
+    **Ce qu'il ne regarde pas** : ce que l'oeil percoit -- un indicateur affiche mais
+    hors ecran, ou trop petit, resterait vert. C'est `R-IMP-01` qui en repond.
+
+    La reponse est retenue par `page.route` : c'est le seul moyen d'observer une fenetre
+    qui n'existe que pendant une requete (meme idiome que
+    `test_consultation.py::test_la_saisie_est_bloquee_pendant_que_l_enregistrement_est_en_vol`).
+    Le fichier est reduit a deux lignes de donnees pour que l'import lui-meme ne dure pas
+    la minute des 100 patients : ce que ce test mesure est la fenetre, pas le volume.
+
+    Le `try`/`finally` draine le gestionnaire de route dans les deux issues : un echec
+    entre le `page.route` et la fin du test laisserait sinon `retenir_l_integration`
+    endormi, et c'est le *test suivant* qui casserait (mesure sur `test_code_postal.py`).
+    """
+    fichier_court = tmp_path / "patients_2_lignes.csv"
+    with fichier_court.open("w") as sortie:
+        subprocess.run(
+            ["head", "-3", FICHIER_PATIENTS],
+            check=True,
+            stdout=sortie,
+        )
+
+    connexion(page, live_server)
+    ouvrir_import(page)
+    page.set_input_files("#patient-file", str(fichier_court))
+    page.click("button:has-text('Analyser')")
+    expect(page.get_by_test_id("analyse-patients-ok")).to_be_visible()
+
+    indicateur = page.locator("#import-en-cours")
+
+    # Preuve de presence de l'element (attache au DOM), et preuve qu'il est **eteint**
+    # avant le clic : sans cette seconde moitie, l'assertion de vol ne prouverait rien, un
+    # indicateur toujours allume la satisfaisant aussi bien. `to_be_hidden()` et non
+    # `to_be_visible()` : la regle injectee par htmx couple `opacity:0` a
+    # `visibility:hidden` au repos (mesure ci-dessus), et c'est bien ce que Playwright doit
+    # constater ici -- l'ecran est correctement muet avant tout clic.
+    expect(indicateur).to_be_attached()
+    expect(indicateur).to_be_hidden()
+    expect(indicateur).to_have_css("opacity", "0")
+
+    def retenir_l_integration(route: Route) -> None:
+        page.wait_for_timeout(3000)
+        route.continue_()
+
+    page.route("**/integrate", retenir_l_integration)
+
+    try:
+        page.get_by_role("button", name="Importer", exact=True).click()
+
+        # La fenetre d'observation : le `POST` est retenu 3 s par le gestionnaire de route.
+        expect(indicateur).to_be_visible()
+        expect(indicateur).to_have_css("opacity", "1")
+
+        # Draine la requete retenue avant la fin du test : fermer la page pendant que le
+        # gestionnaire de route dort encore casse le test suivant (mesure sur
+        # `test_consultation.py`). C'est aussi la preuve que l'indicateur **s'eteint**, sans
+        # quoi un indicateur allume en permanence passerait l'assertion ci-dessus.
+        expect(page.get_by_test_id("import-reussi-titre")).to_be_visible(timeout=60_000)
+        expect(indicateur).to_be_hidden()
+        expect(indicateur).to_have_css("opacity", "0")
+        assert Patient.objects.count() == 2
+    finally:
+        page.unroute_all(behavior="ignoreErrors")
