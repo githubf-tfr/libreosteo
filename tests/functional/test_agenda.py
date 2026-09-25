@@ -26,8 +26,8 @@ def definir_nom_du_therapeute(page: Page) -> None:
     (`tests/functional/conftest.py::socle`), a la difference de `professional_id` et
     `quality` (`TherapeutSettings`) : `get_user_model().objects.create_superuser` ne
     pose ni prenom ni nom. Sans ce passage par l'interface (meme geste que
-    test_therapeute.py::test_reglage_du_therapeute), la signature « Robot Tester » des
-    evenements du tableau de bord reste une simple espace.
+    test_therapeute.py::test_reglage_du_therapeute), la signature « Tester Robot » des
+    evenements du tableau de bord tomberait sur le repli `get_username`.
     """
     ouvrir_profil_therapeute(page)
     page.fill("input[name='last_name']", "Tester")
@@ -68,7 +68,11 @@ def test_evenement_genere_a_la_creation_d_un_patient(
     # Libelle exact de `timeAgo.js` variable selon le delai ecoule (fiche) : seul le
     # prefixe est stable dans la fenetre d'execution d'un test.
     expect(entree).to_contain_text("il y a")
-    expect(entree).to_contain_text("Robot Tester")
+    # « NOM Prenom », et non « Prenom NOM » : depuis 466f518 le journal compose son
+    # praticien par `nom_du_praticien` (tableau_de_bord.py), qui rejoue la regle de
+    # `partials/praticien-nom.html` — la meme que les cinq autres surfaces du produit,
+    # dont la facture imprimee (test_facturation.py::test_impression_de_facture_...).
+    expect(entree).to_contain_text("Tester Robot")
 
 
 def test_regroupement_et_navigation_depuis_le_tableau_de_bord(
@@ -107,7 +111,8 @@ def test_regroupement_et_navigation_depuis_le_tableau_de_bord(
     expect(entrees.nth(2)).to_contain_text("Nouveau patient créé")
     for indice in range(3):
         expect(entrees.nth(indice)).to_contain_text("Picard Jean-Luc")
-        expect(entrees.nth(indice)).to_contain_text("Robot Tester")
+        # Meme convention « NOM Prenom » que plus haut (466f518).
+        expect(entrees.nth(indice)).to_contain_text("Tester Robot")
 
     # Barrieres ci-dessus immediatement satisfaites par le document rendu au `page.goto`
     # ci-dessus : elles ne prouvent rien sur Alpine, qui pilote le filtre juste apres. Site

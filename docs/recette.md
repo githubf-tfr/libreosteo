@@ -3241,7 +3241,8 @@ deux dates.
    D6f** : sous la minute, le produit affiche désormais « il y a 0 minutes » là où il
    affichait « il y a moins d'une minute ». `timeAgo.js` a été remplacé par le filtre
    `timesince` de Django, qui n'a pas ce libellé ; le préfixe, lui, est dans le
-   gabarit et ne bouge pas. Signée « Robot Tester ».
+   gabarit et ne bouge pas. Signée « Tester Robot » — le journal affiche le praticien
+   au format « NOM Prénom », comme les cinq autres surfaces du produit.
 
 ### R-AGE-02 — Regroupement et navigation depuis les événements du tableau de bord
 
@@ -3257,7 +3258,7 @@ deux dates.
    par défaut « Par jour ») affiche un en-tête de date (date du jour) sous lequel
    figurent trois entrées classées de la plus récente à la plus ancienne : deux
    « Nouvelle consultation » puis « Nouveau patient créé », toutes au nom de
-   « Picard Jean-Luc », signées « Robot Tester ».
+   « Picard Jean-Luc », signées « Tester Robot » (format « NOM Prénom »).
 2. Cliquer le chevron du panneau « Évènements », puis l'entrée « Tout » du menu
    déroulant.
    Attendu : les trois mêmes entrées restent affichées, dans le même ordre, mais sans
