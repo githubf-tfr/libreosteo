@@ -764,9 +764,11 @@ class TestTemplatize(TestCase):
     def test_une_balise_vide_ne_leve_pas(self):
         """`<>` est un cas du corps de facture, pas une hypothese : le groupe de
         capture participe toujours et rend la chaine vide, jamais `None`."""
-        # Rouge si : le motif devient optionnel (`(?P<tag>.*?)?`) ou passe en
-        # alternative -- `val` vaudrait alors None et le rendu changerait en
-        # silence sur une facture imprimee.
+        # Rouge si : le groupe `tag` cesse de participer au match d'une balise vide
+        # (ex. `<(?:|(?P<tag>.+))>`) -- `val` vaudrait alors None et le rendu
+        # changerait en silence sur une facture imprimee. Verifie : rendre `.*?`
+        # optionnel (`(?P<tag>.*?)?`) ne suffit pas, le groupe matche deja la chaine
+        # vide (`groups()` -> `('',)`).
         self.assertEqual("None", templatize("<>", {}))
 
     def test_un_montant_decimal_est_rendu_comme_le_flottant_equivalent(self):
