@@ -80,12 +80,6 @@ class ExaminationSerializer(SansRognageMixin):
         to_validate = value
         if timezone.is_naive(value):
             to_validate = value.replace(tzinfo=ZoneInfo("UTC"))
-        current = timezone.now()
-        if timezone.is_naive(current):
-            current = current.replace(tzinfo=ZoneInfo("UTC"))
-        # if to_validate >= current:
-        #    raise serializers.ValidationError(
-        #        _('The examination date is not valid'))
         return to_validate
 
     def get_invoice_by_email(self, obj):
