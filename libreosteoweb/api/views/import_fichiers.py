@@ -14,7 +14,6 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 
-from django.http import Http404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -35,8 +34,6 @@ class FileImportViewSet(viewsets.ModelViewSet):
     queryset = models.FileImport.objects.all()
 
     def perform_create(self, serializer):
-        if not self.request.user.is_authenticated:
-            raise Http404()
         instance = serializer.save()
         try:
             services_import.analyser(instance)

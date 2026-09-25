@@ -15,7 +15,6 @@
 import logging
 
 from django.db import connection
-from django.http import Http404
 from drf_excel.mixins import XLSXFileMixin
 from drf_excel.renderers import XLSXRenderer
 from rest_framework import status, viewsets
@@ -104,13 +103,9 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         )
 
     def perform_create(self, serializer):
-        if not self.request.user.is_authenticated:
-            raise Http404()
         serializer.save(therapeut=self.request.user, office=self.request.officesettings)
 
     def perform_update(self, serializer):
-        if not self.request.user.is_authenticated:
-            raise Http404()
         # L'ancienne date se lit AVANT `serializer.save()`, qui applique
         # `validated_data` sur `serializer.instance` : apres, elle est perdue.
         ancienne_date = serializer.instance.date

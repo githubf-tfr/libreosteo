@@ -16,7 +16,6 @@ import logging
 
 from django.conf import settings
 from django.db import IntegrityError, connection, transaction
-from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from drf_excel.mixins import XLSXFileMixin
 from drf_excel.renderers import XLSXRenderer
@@ -217,8 +216,6 @@ class PatientDocumentViewSet(viewsets.ModelViewSet):
             return models.PatientDocument.objects.all()
 
     def perform_create(self, serializer):
-        if not self.request.user.is_authenticated:
-            raise Http404()
         serializer.save(user=self.request.user)
 
     def is_demonstration(self):
