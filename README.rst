@@ -747,11 +747,10 @@ inherited from ``base.py``.
 Vendored third-party assets
 ===========================
 
-Three families of third-party assets live under ``libreosteoweb/static/``, are versioned in
-git, and are declared in no manifest at all. They are listed here because they are invisible
-to ``package.json`` and to ``yarn.lock``, and because they are the part of the frontend most
-likely to outlive a framework migration. Versions are read from the files themselves; where
-a file carries no version, that is said rather than guessed.
+One family of third-party assets lives under ``libreosteoweb/static/``, is versioned in
+git, and is declared in no manifest at all. It is listed here because it is invisible
+to ``package.json`` and to ``yarn.lock``, and because it is the part of the frontend most
+likely to outlive a framework migration. Its version is read from the file itself.
 
 There were six until the visual base was migrated to Bootstrap 5, which served it from
 ``package.json`` instead and deleted eight sheets that no template referenced any more:
@@ -761,20 +760,16 @@ SB Admin 2, metisMenu and the DataTables theme therefore leave this table: nothi
 is left on disk. Bootstrap is now an ordinary ``package.json`` dependency,
 ``@components/bootstrap``, pinned to an exact version.
 
-**One of the two that remain has no consumer**, and that is said rather than left to be
-discovered:
+Only one family remains, Font Awesome, and it is loaded by ``base.html`` on every page.
 
-- **The SB Admin 2 timeline sheet, in its unreferenced copy.** There are two,
-  ``css/plugins/timeline.css`` (3 910 bytes) and ``css/plugins/timeline/timeline.css``
-  (3 032 bytes), and they are **not** the same file: ``diff`` reports 45 lines present only
-  in the first — a whole ``@media(max-width:767px)`` block and the ``.timeline-panel:after``
-  arrow — against 9 present only in the second (``.timeline-footer``,
-  ``.timeline-panel-footer``). They are two divergent forks of the same upstream sheet. Only
-  the second is loaded, by ``pages/dossier-patient.html``. The first is therefore kept until
-  someone decides what its extra rules are worth; deleting it on the strength of its name
-  alone is exactly the mistake this fork has paid for twice.
-
-Font Awesome, the other, is loaded by ``base.html`` on every page.
+The SB Admin 2 timeline sheet's unreferenced copy — ``css/plugins/timeline.css``
+(3 910 bytes), distinct from the served ``css/plugins/timeline/timeline.css`` (3 032 bytes)
+by 45 lines it alone carried (a whole ``@media(max-width:767px)`` block and the
+``.timeline-panel:after`` arrow) against 9 present only in the served copy
+(``.timeline-footer``, ``.timeline-panel-footer``) — was removed on 2026-09-25. Only
+``css/plugins/timeline/timeline.css`` is loaded, by ``pages/dossier-patient.html``; the 45
+lines the other copy carried alone would have changed the timeline's accepted rendering,
+which is a product change nobody asked for. A single ``git revert`` brings them back.
 
 The Bootstrap 3 Glyphicon fonts were removed on 2026-09-24. Nothing referenced them:
 ``css/bootstrap.css``, the only sheet that did, went with the Bootstrap 5 migration, and
@@ -793,7 +788,6 @@ with them. The count is the number of families actually present, not a historica
 Family                               Location                                        Version as shipped
 ===================================  ==============================================  =====================
 Font Awesome                         ``font-awesome/``                               4.5.0 (file header)
-SB Admin 2 timeline sheet            ``css/plugins/timeline.css``                    not stated in the file
 ===================================  ==============================================  =====================
 
 Font Awesome explains half of a purge made when the frontend filet was built:
