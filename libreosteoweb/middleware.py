@@ -191,8 +191,6 @@ class OfficeSettingsMiddleware(MiddlewareMixin):
         if hasattr(request, "officesettings"):
             return
 
-        path = request.path.lstrip("/")
-
         multiple_office = OfficeSettings.objects.all().count()
         request.has_multiple_office = multiple_office > 1
         if request.has_multiple_office:
@@ -201,8 +199,6 @@ class OfficeSettingsMiddleware(MiddlewareMixin):
                 id=request.session.get("officesettings")
             ).first()
             if current_officesettings is None:
-                if any(m.match(path) for m in self.no_reroute_pattern()):
-                    return
                 # Redirect to the Office Settings form if not already
                 # redirected
                 #
@@ -218,15 +214,6 @@ class OfficeSettingsMiddleware(MiddlewareMixin):
         else:
             current_officesettings = OfficeSettings.objects.first()
         request.officesettings = current_officesettings
-
-    def no_reroute_pattern(self):
-        no_reroute = []
-        if hasattr(settings, "OFFICE_SETTINGS_NO_REROUTE_PATTERN_URL"):
-            no_reroute += [
-                compile(expr)
-                for expr in settings.OFFICE_SETTINGS_NO_REROUTE_PATTERN_URL
-            ]
-        return no_reroute
 
 
 class OneSessionPerUserMiddleware:
