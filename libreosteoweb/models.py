@@ -386,10 +386,6 @@ class Invoice(models.Model):
 
     paiments_list = property(_get_paiments_list)
 
-    def clean(self):
-        if self.date is None:
-            self.date = timezone.now()
-
     class Meta:
         # Meme raison que `Examination._get_last_invoice` : a date egale, `id`
         # departage sur l'ordre d'emission. C'est ce tri qui ordonne l'ecran
