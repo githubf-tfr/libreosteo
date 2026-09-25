@@ -327,7 +327,10 @@ def test_liste_des_factures(page: Page, live_server: LiveServer) -> None:
     expect(ligne).to_have_count(1)
     expect(ligne).to_contain_text(facture.number)
     expect(ligne).to_contain_text("Jean-Luc Picard")
-    expect(ligne).to_contain_text("55 €")
+    # Deux decimales fixes et virgule depuis 14a537e (convention francaise, portee par
+    # `api.utils.formater_montant_francais`) : la colonne Montant rend « 55,00 € », plus
+    # le « 55 € » que `normalize()` produisait.
+    expect(ligne).to_contain_text("55,00 €")
     expect(ligne).to_contain_text("Chèque")
     expect(ligne).to_contain_text("Réglée")
 
