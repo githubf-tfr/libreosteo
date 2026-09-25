@@ -15,6 +15,7 @@
 import logging
 import re
 import socket
+from decimal import Decimal
 from typing import Any, Iterable
 
 import netifaces
@@ -131,3 +132,27 @@ class LoggerWriter:
 
 def send_invoice_dummy(request, pk=None):
     raise NotImplementedError("send_invoice_dummy is not implemented yet")
+
+
+def formater_montant_francais(valeur: Decimal) -> str:
+    """Un montant, ecrit comme le produit francophone l'ecrit : virgule, deux decimales.
+
+    **Autorite unique du format.** Deux surfaces de lecture la partagent -- la colonne
+    Montant de la Comptabilite (`api/views/pages/comptabilite.py`) et le corps de la
+    facture imprimee (`templatetags/invoice_extras.py`) --, et c'est ce partage qui
+    empeche les deux ponctuations de cohabiter sur la meme page, ce qui etait le constat
+    d'origine.
+
+    **Deux decimales fixes, jamais `normalize()`** : sur une colonne de montants,
+    « 55 € » a cote de « 0.1 € » n'est pas une question de separateur.
+
+    ⚠️ **Ce format ne vaut que pour la lecture.** La **saisie** (`#amount`,
+    `facturation-modale.html`) porte un `pattern` HTML qui refuse la virgule, et son
+    prerempissage (`api/views/pages/consultation.py`) doit donc continuer a rendre un
+    point. Cette asymetrie est assumee et portee au journal ; l'appeler ici casserait la
+    saisie.
+
+    Aucun separateur de milliers : il n'y en avait pas avant, et en ajouter un serait un
+    changement que personne n'a demande.
+    """
+    return f"{valeur:.2f}".replace(".", ",")

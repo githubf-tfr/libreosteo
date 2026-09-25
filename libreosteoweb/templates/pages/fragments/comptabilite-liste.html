@@ -12,9 +12,10 @@
   {# **Bootstrap 5** morte dans un produit Bootstrap 3, que D6g aurait rendue soudain #}
   {# vivante avec un espacement qu'elle n'a jamais eu (A21). L'ancre a ete posee par D6d T5 #}
   {# sur l'ecran d'avant, et `test_montant_a_centimes` la consomme deja. #}
-  {# La **ponctuation** ne bouge pas : `{{ total }}` est deja une chaine formatee par la #}
-  {# vue (`format(v.normalize(), "f")`), jamais un `Decimal` rendu par Django — sans quoi #}
-  {# la localisation ecrirait « 110,55 » et changerait le produit (A5). #}
+  {# `{{ total }}` est deja une chaine formatee par la vue #}
+  {# (`api.utils.formater_montant_francais`, T6), jamais un `Decimal` rendu par Django : #}
+  {# `L10N`/`floatformat` ne se laissent pas piloter depuis la vue pour les deux decimales #}
+  {# fixes qu'exige une colonne de montants. #}
   <div data-testid="total-comptabilite">
     <p><b>{% trans 'Total amount on selected period' %}</b>: <span>{{ total }}</span></p>
   </div>
@@ -43,9 +44,10 @@
           <td>{{ facture.number|default:"n/a" }}</td>
           <td>{{ facture.date|date:"l j F Y" }}</td>
           <td>{{ facture.patient_first_name }} {{ facture.patient_family_name }}</td>
-          {# Le montant est formate par la vue, comme le total : `{{ facture.amount }}` #}
-          {# rendrait « 55,55 » et casserait `test_montant_a_centimes`, qui attend #}
-          {# « 55.55 € » a l'octet. #}
+          {# Le montant est formate par la vue, comme le total : `api.utils #}
+          {# .formater_montant_francais` (T6) est l'autorite unique du format, partagee #}
+          {# avec le corps de la facture imprimee. `test_montant_a_centimes` attend #}
+          {# « 55,55 € » a l'octet, deux decimales fixes. #}
           <td>{{ facture.montant_affiche }} €</td>
           <td>{{ facture.moyen_affiche }}</td>
           <td>

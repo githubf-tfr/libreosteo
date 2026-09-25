@@ -41,6 +41,7 @@ from django.utils.translation import gettext as _
 from libreosteoweb import models
 from libreosteoweb.api.notifications import reponse_avec_notification
 from libreosteoweb.api.services import facturation as services_facturation
+from libreosteoweb.api.utils import formater_montant_francais
 
 PLAGES_PREDEFINIES = ("mois", "annee", "annee-precedente")
 
@@ -114,21 +115,17 @@ def total_de(queryset) -> Decimal:
 
 
 def formater_montant(valeur: Decimal) -> str:
-    """Reproduit l'affichage actuel **a l'octet**, sur les sept cas mesures (A5, F6).
+    """La colonne Montant et le total de la Comptabilite, en convention francaise.
 
-    `{{ v }}` rendrait « 110,55 » et conserverait les zeros de queue ; `|floatformat` sans
-    argument **arrondirait** a « 110,6 » ; `{% localize off %}` **ne neutralise pas**
-    `floatformat`. Une seule forme reproduit l'affichage d'aujourd'hui, et elle est dans la
-    vue.
+    Le format est decide par `api.utils.formater_montant_francais`, partage avec le corps
+    de la facture imprimee : les deux surfaces de **lecture** disent la meme chose, et la
+    page imprimee ne porte plus deux ponctuations a neuf lignes d'ecart.
 
-    D6d **ne bascule pas** en virgule (A5, § Ecartes) : l'engagement du chantier est « memes
-    libelles », et la divergence point/virgule entre l'ecran et la facture imprimee
-    **preexiste** — `invoice-result.html:81` rend deja « 55,55 EUR » avec une virgule, et
-    `test_facturation.py` assert les deux ponctuations sur la meme page (F4). Elle est
-    versee au `KANBAN.md` comme defaut produit, pour que l'utilisateur tranche hors d'un lot
-    de migration.
+    **Le montant reste formate en Python, jamais par le gabarit** -- c'est le motif
+    d'origine et il n'a pas change : `L10N` et `floatformat` ne se laissent pas piloter
+    depuis la vue, et `{% localize off %}` ne neutralise pas `floatformat`.
     """
-    return format(valeur.normalize(), "f")
+    return formater_montant_francais(valeur)
 
 
 def texte_moyen_de_paiement(code: str) -> str:

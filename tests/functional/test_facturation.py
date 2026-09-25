@@ -428,12 +428,12 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
     page.goto(f"{live_server.url}/invoices")
     lignes = page.locator("tbody tr")
     expect(lignes).to_have_count(2)
-    expect(lignes.filter(has_text=facture_a_centimes.number)).to_contain_text("55.55 €")
+    expect(lignes.filter(has_text=facture_a_centimes.number)).to_contain_text("55,55 €")
     # `mb-3` est une classe d'espacement **Bootstrap 5**, sans effet dans un produit
     # Bootstrap 3, et D6g la rendrait soudain vivante avec un espacement qu'elle n'a jamais
-    # eu : le filet ne s'y ancre plus (D6d, A21). La **ponctuation attendue ne bouge pas** —
-    # « 110.55 », avec un point — seul le selecteur change.
-    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("110.55")
+    # eu : le filet ne s'y ancre plus (D6d, A21). Seul le selecteur change — la ponctuation,
+    # elle, bouge : « 110,55 », virgule francaise (T6).
+    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("110,55")
 
     # (b) troisieme consultation, montant a trois decimales : refuse.
     numeros_avant = set(Invoice.objects.values_list("number", flat=True))
@@ -659,7 +659,7 @@ def test_periode_par_defaut_de_la_comptabilite(
     # Preuve de l'absence, indissociable de la preuve de presence : un ecran qui
     # n'afficherait rien du tout passerait la seule assertion de compte.
     expect(lignes).not_to_contain_text("30000")
-    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("55")
+    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("55,00")
 
 
 def test_periode_sans_facture(
@@ -686,7 +686,7 @@ def test_periode_sans_facture(
     ouvrir_la_comptabilite(page)
 
     expect(page.locator("tbody tr")).to_have_count(0)
-    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("0")
+    expect(page.get_by_test_id("total-comptabilite")).to_contain_text("0,00")
 
 
 def test_total_exact_sur_trois_factures_a_centimes(
@@ -711,10 +711,10 @@ def test_total_exact_sur_trois_factures_a_centimes(
 
     expect(page.locator("tbody tr")).to_have_count(3)
     total = page.get_by_test_id("total-comptabilite")
-    expect(total).to_contain_text("166.65")
+    expect(total).to_contain_text("166,65")
     # Preuve d'absence, indissociable : c'est l'artefact lui-meme qui ne doit plus
     # apparaitre, et une assertion de presence seule ne le dirait pas.
-    expect(total).not_to_contain_text("166.6499")
+    expect(total).not_to_contain_text("166,6499")
 
 
 def test_filtre_de_periode_par_les_champs_de_date(

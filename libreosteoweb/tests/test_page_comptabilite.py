@@ -110,17 +110,27 @@ class TestReglesDExclusionDuTotal(TestCase):
 
 
 class TestFormatageDuMontant(TestCase):
-    def test_le_formatage_reproduit_l_affichage_actuel(self):
-        """Les sept cas de F6, dont le zero de queue et le negatif — les deux qui
-        auraient pu casser."""
+    def test_le_formatage_rend_la_convention_francaise(self):
+        """Les sept cas de F6, retournes : virgule et **deux decimales fixes**.
+
+        Deux defauts sont fermes ici, et ils sont independants. Le separateur : le
+        produit est francophone. Et `normalize()`, qui rendait « 55 » pour 55,00 et
+        « 0.1 » pour 0,10 -- sur une colonne de montants, ce n'est pas une question de
+        ponctuation.
+
+        A quoi ce test est rouge : a un `format(valeur, "f")` qui garderait le point, et
+        a tout formatage qui laisserait tomber un zero de queue. Le negatif et le zero
+        sont assis parce que ce sont les deux qui auraient pu casser (avoir, periode
+        vide).
+        """
         cas = (
-            ("55.00", "55"),
-            ("55.55", "55.55"),
-            ("110.55", "110.55"),
-            ("110.00", "110"),
-            ("0.00", "0"),
-            ("0.10", "0.1"),
-            ("-55.55", "-55.55"),
+            ("55.00", "55,00"),
+            ("55.55", "55,55"),
+            ("110.55", "110,55"),
+            ("110.00", "110,00"),
+            ("0.00", "0,00"),
+            ("0.10", "0,10"),
+            ("-55.55", "-55,55"),
         )
         for brut, attendu in cas:
             with self.subTest(valeur=brut):

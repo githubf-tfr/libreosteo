@@ -755,7 +755,7 @@ paraphrasent pas.
    Attendu : le patient `Picard Jean-Luc` est retrouvé par le champ de recherche ; son
    onglet « Consultations » liste les **deux** consultations ; l'onglet « Compte-rendus
    médicaux » liste le document « Radiographie lombaire » ; la Comptabilité liste la
-   facture `10000` à `55 €`.
+   facture `10000` à `55,00 €`.
 
 **Constat** : la montée transporte la base telle qu'elle est, pas telle que
 l'application sait la resérialiser — et le seul geste qui la rende sûre,
@@ -1036,7 +1036,7 @@ que la CI appelle, jamais dans le seul fichier de workflow.
    complet porte `WSGI app 0 (mountpoint='') ready` et aucune ligne `Applying`.
 7. Se connecter à l'interface avec `test` / `test`, menu « Comptabilité ».
    Attendu : deux lignes, l'une portant le n° de facture `10000` et l'autre
-   `1000000`, toutes deux à `55 €` — la facture renumérotée reste consultable et
+   `1000000`, toutes deux à `55,00 €` — la facture renumérotée reste consultable et
    réimprimable depuis cet écran, ce qui est le seul recours du praticien si le
    patient détient l'ancien numéro.
 
@@ -1520,7 +1520,7 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
 
 1. Menu du haut, cliquer « Comptabilité ».
    Attendu : page « Comptabilité » affichée ; le tableau liste une ligne unique :
-   N° de facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de
+   N° de facture `10000`, Patient `Jean-Luc Picard`, Montant `55,00 €`, Moyen de
    paiement `Chèque`, État `Réglée`.
 2. Sur cette ligne, ouvrir le menu « Actions », cliquer « Imprimer ».
    Attendu : un nouvel onglet s'ouvre ; titre de page au format
@@ -2416,7 +2416,7 @@ fermée.
    consultations et son document joint ont disparu).
 5. Cliquer « Comptabilité » (menu du haut).
    Attendu : la ligne de facturation créée à l'état E2 est toujours présente : N° de
-   facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de paiement
+   facture `10000`, Patient `Jean-Luc Picard`, Montant `55,00 €`, Moyen de paiement
    `Chèque`, État `Réglée` — la facture n'est pas supprimée par la cascade.
 
 ### R-DOC-05 — Accès non authentifié à un document
@@ -2574,7 +2574,7 @@ fermée.
    deux boutons (imprimer, annuler) et le lien `n° 10001`.
 4. Cliquer « Comptabilité ».
    Attendu : une nouvelle ligne apparaît en tête de liste : N° de facture `10001`,
-   Patient `Jean-Luc Picard`, Montant `55 €`, Moyen de paiement `Espèces`, État
+   Patient `Jean-Luc Picard`, Montant `55,00 €`, Moyen de paiement `Espèces`, État
    `Réglée`.
 
 ### R-CON-04 — Redatation d'une consultation, tracée au tableau de bord
@@ -2885,7 +2885,7 @@ dossier entier depuis la base.
    le montant `55,00 EUR`.
 4. Menu « Comptabilité ».
    Attendu : la ligne correspondante affiche N° de facture `10000`, Montant
-   `55 €`, État `Réglée` (déjà réglée par chèque, cf. état E2).
+   `55,00 €`, État `Réglée` (déjà réglée par chèque, cf. état E2).
 
 ### R-FAC-02 — Liste des factures : contenu et navigation
 
@@ -2903,7 +2903,7 @@ dossier entier depuis la base.
    Attendu : page « Comptabilité » affichée ; deux champs de date, « Du » et « Au »,
    préremplis au premier et au dernier jour du mois en cours ; trois liens de plage
    prédéfinie (le mois en cours, l'année en cours, l'année précédente) ; le tableau liste
-   une ligne unique : N° de facture `10000`, Patient `Jean-Luc Picard`, Montant `55 €`,
+   une ligne unique : N° de facture `10000`, Patient `Jean-Luc Picard`, Montant `55,00 €`,
    Moyen de paiement `Chèque`, État `Réglée`.
 2. Sur cette ligne, ouvrir le menu « Actions ».
    Attendu : un menu déroulant s'ouvre, avec deux entrées « Imprimer » et
@@ -2985,7 +2985,7 @@ dossier entier depuis la base.
   de l'étape 4, dont la clôture est refusée) : remonter l'état E2 (chapitre 1) avant
   de jouer une autre fiche qui en dépend — en particulier avant R-FAC-02 et R-FAC-04,
   dont les attendus littéraux annoncent « une seule ligne » en Comptabilité et un
-  total de `55`, et avant R-CON-03 et R-FAC-03, dont les numéros attendus partent
+  total de `55,00`, et avant R-CON-03 et R-FAC-03, dont les numéros attendus partent
   de `10001`.
 
 **Étapes**
@@ -2999,9 +2999,9 @@ dossier entier depuis la base.
    une ligne « HONORAIRES » avec le montant `55,55 EUR` — pas `55,56`, pas
    `55,549999`.
 3. Menu « Comptabilité ».
-   Attendu : deux lignes ; celle du numéro `10001` affiche Montant `55.55 €`
-   (celle du `10000` affiche toujours `55 €`) ; la ligne « Montant total sur la période
-   sélectionnée: » affiche `110.55` — un nombre, jamais une concaténation du type
+   Attendu : deux lignes ; celle du numéro `10001` affiche Montant `55,55 €`
+   (celle du `10000` affiche toujours `55,00 €`) ; la ligne « Montant total sur la période
+   sélectionnée: » affiche `110,55` — un nombre, jamais une concaténation du type
    `05555.55`.
 4. Sur la fiche Picard, démarrer une nouvelle consultation et cliquer « Clôturer »
    (mêmes gestes que R-CON-03, étapes 1 et 2), choisir « Facturée », saisir cette
@@ -3121,18 +3121,18 @@ deux dates.
 2. Menu du haut, cliquer « Comptabilité ».
    Attendu : page « Comptabilité » affichée ; deux champs de date affichent le premier et
    le dernier jour du **mois en cours** ; le tableau liste les trois factures ; la ligne de
-   total affiche `Montant total sur la période sélectionnée: 166.65`.
+   total affiche `Montant total sur la période sélectionnée: 166,65`.
    **C'est l'étape qui mesure la dette que ce lot referme** : avant, ce même total
    s'affichait `166.64999999999998`, la somme étant calculée en virgule flottante dans le
    navigateur.
 3. Cliquer la plage prédéfinie de l'année précédente.
    Attendu : le tableau ne liste aucune facture ; la ligne de total affiche
-   `Montant total sur la période sélectionnée: 0` — un zéro, jamais une valeur vide ; les
+   `Montant total sur la période sélectionnée: 0,00` — un zéro, jamais une valeur vide ; les
    champs « Du » et « Au » **suivent le clic**, et affichent le premier et le dernier jour
    de l'année précédente. Sans rechargement : l'écran ne se contredit jamais lui-même, et
    le bouton « XLSX » exporte bien la période affichée (R-FAC-02, étape 4).
 4. Cliquer la plage prédéfinie de l'année en cours.
-   Attendu : les trois factures sont de nouveau listées ; le total affiche `166.65`.
+   Attendu : les trois factures sont de nouveau listées ; le total affiche `166,65`.
 5. Saisir dans le champ « Du » la date du jour, dans le champ « Au » la date du jour, puis
    valider.
    Attendu : les trois factures sont listées, l'URL affichée porte les deux dates saisies.
@@ -3140,8 +3140,8 @@ deux dates.
 6. Sur la première ligne, ouvrir le menu « Actions » et cliquer « Annuler », confirmer.
    Attendu : un message de confirmation s'affiche ; la facture passe à l'état « Annulée »
    et un avoir apparaît dans la liste, portant un montant négatif. **Le total passe de
-   `166.65` à `111.10`**, soit les deux factures qui restent valides : la facture annulée
-   reste comptée à `+55.55` et l'avoir à `-55.55`, les deux s'annulant exactement. C'est
+   `166,65` à `111,10`**, soit les deux factures qui restent valides : la facture annulée
+   reste comptée à `+55,55` et l'avoir à `-55,55`, les deux s'annulant exactement. C'est
    la règle du produit et non un effet de bord — une facture n'est retirée de la somme que
    lorsque son numéro figure dans le champ `replace` d'une autre facture de la période, ce
    que l'annulation par avoir ne fait sur aucune des deux.
@@ -3560,7 +3560,7 @@ journal.
    liste les deux consultations créées à l'état E2 ; l'onglet « Compte-rendus
    médicaux » liste le document « Radiographie lombaire » ; le menu
    « Comptabilité » liste la facture N° `10000`, patient `Jean-Luc Picard`,
-   montant `55 €`, moyen de paiement `Chèque`, état `Réglée`.
+   montant `55,00 €`, moyen de paiement `Chèque`, état `Réglée`.
 
 ### R-SAU-03 — Diagnostic d'une archive avant de la restaurer
 
