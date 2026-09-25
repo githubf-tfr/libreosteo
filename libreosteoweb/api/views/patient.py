@@ -219,14 +219,7 @@ class PatientDocumentViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def is_demonstration(self):
-        is_demonstration = settings.DEMONSTRATION
-        if not is_demonstration and hasattr(self.request, "tenant"):
-            is_demonstration = (
-                self.request.tenant
-                and self.request.tenant.schema_name
-                and self.request.tenant.schema_name == "demonstration"
-            )
-        return is_demonstration
+        return settings.DEMONSTRATION
 
     def get_serializer_class(self):
         if self.is_demonstration():
