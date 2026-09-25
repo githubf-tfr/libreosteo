@@ -18,6 +18,7 @@ elle n'est pas conditionnee au statut de la consultation."""
 
 from datetime import timedelta
 
+from django.db.models.signals import post_save
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -100,3 +101,56 @@ class TestTraceDeLaRedatation(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         types = [e["type"] for e in reponse.data["results"]]
         self.assertIn(Examination.TYPE_UPDATE_DATE, types)
+
+
+class TestUnSeulEnregistrementParRedatation(APITestCase):
+    """Une consultation sans therapeute s'attache au demandeur -- **une fois**.
+
+    Meme contrat que pour les reglages (D1) : ce que voit un receveur `post_save`.
+    Ici l'enjeu est direct -- `receiver_examination` et le tracage de redatation sont
+    branches sur cette surface.
+    """
+
+    def setUp(self):
+        with sans_receivers():
+            self.praticien = cree_praticien()
+            cree_reglages_praticien(self.praticien)
+            regle_cabinet()
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=None)
+        self.client.login(username="test", password="testpw")
+        self.url = reverse("examination-detail", kwargs={"pk": self.consultation.id})
+        self.enregistrements = []
+        post_save.connect(self._compter, sender=Examination)
+        self.addCleanup(post_save.disconnect, self._compter, sender=Examination)
+
+    def _compter(self, sender, instance, **kwargs):
+        self.enregistrements.append(instance.pk)
+
+    def test_une_consultation_sans_therapeute_s_attache_au_demandeur(self):
+        # Rouge si : l'attachement disparait -- la consultation resterait anonyme au
+        # journal et dans la facture.
+        reponse = self.client.patch(
+            self.url, data={"reason": "lombalgie"}, format="json"
+        )
+
+        self.assertEqual(status.HTTP_200_OK, reponse.status_code)
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.praticien, self.consultation.therapeut)
+
+    def test_une_consultation_sans_therapeute_n_est_enregistree_qu_une_fois(self):
+        # Rouge si : le `else` saute -- deux post_save pour un seul geste, sur la
+        # surface meme ou se branche le tracage de redatation.
+        self.client.patch(self.url, data={"reason": "lombalgie"}, format="json")
+
+        self.assertEqual([self.consultation.pk], self.enregistrements)
+
+    def test_une_redatation_ne_trace_qu_un_evenement(self):
+        # Rouge si : un second enregistrement fait passer deux fois par les receveurs
+        # et produit une trace de redatation en double au journal.
+        nouvelle = self.consultation.date - timedelta(days=3)
+
+        self.client.patch(self.url, data={"date": nouvelle.isoformat()}, format="json")
+
+        traces = OfficeEvent.objects.filter(type=Examination.TYPE_UPDATE_DATE)
+        self.assertEqual(1, traces.count())

@@ -111,7 +111,8 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         ancienne_date = serializer.instance.date
         if not serializer.instance.therapeut:
             serializer.save(therapeut=self.request.user)
-        serializer.save(therapeut=serializer.instance.therapeut)
+        else:
+            serializer.save(therapeut=serializer.instance.therapeut)
         redatation_event_tracer(
             serializer.instance,
             self.request.user,
