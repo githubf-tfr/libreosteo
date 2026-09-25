@@ -297,7 +297,7 @@ class TestLoginRequiredMiddleware(APITestCase):
         2026-09-19) : la session doit aussi etre videe, pas seulement la redirection
         conservee - sans quoi un token corrompu revalide a chaque requete reproduit
         l'echec indefiniment. La cible de redirection ne change pas (`login`, jamais
-        `get_logout_url()` qui rendrait 405 sur ce fork)."""
+        l'URL de deconnexion, qui rendrait 405 sur ce fork)."""
         with sans_receivers():
             cree_praticien()
         self.client.login(username="test", password="testpw")

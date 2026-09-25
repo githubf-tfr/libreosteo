@@ -33,10 +33,6 @@ def get_login_url():
     return reverse(settings.LOGIN_URL_NAME)
 
 
-def get_logout_url():
-    return reverse(settings.LOGOUT_URL_NAME)
-
-
 def initialize_admin_url():
     return reverse(settings.INITIALIZE_ADMIN_URL_NAME)
 
@@ -142,7 +138,7 @@ class LoginRequiredMiddleware(MiddlewareMixin):
                 # Portage du sujet 3/3 du commit amont `33753e0e1da7` (KANBAN,
                 # § Suivi amont, 2026-09-19) : sans ce vidage, un token corrompu
                 # reste en session et revalide le meme echec a chaque requete.
-                # La cible reste `login`, jamais `get_logout_url()` comme le fait
+                # La cible reste `login`, jamais l'URL de deconnexion comme le fait
                 # l'amont - `LogoutView` est restreinte a POST/OPTIONS depuis
                 # Django 5.2 (`c1e6dd6`) et une redirection GET y rendrait 405.
                 logout(request)
