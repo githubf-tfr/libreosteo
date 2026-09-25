@@ -675,10 +675,6 @@ class Document(models.Model):
         self.mime_type = mimetypes.guess_type(self.document_file.path)[0]
         logger.info("mime_type = %s " % self.mime_type)
 
-    def set_request(self, request):
-        """Use this setter to have the request which creates the instance"""
-        self.request = request
-
 
 class PatientDocument(models.Model):
     """
