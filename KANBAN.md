@@ -395,7 +395,58 @@ Tenu à la main.
   `card-header`) : l'écart réel est de **20 px**, conforme à l'attendu — 0 px avant le lot.
   R-VIS-12 ne change pas sur ce point.
 
+- (2026-09-26) **Suite unitaire sur PostgreSQL : trois décisions de l'utilisateur.** Spec :
+  `docs/superpowers/specs/2026-09-26-suite-unitaire-postgresql-design.md` § 11.
+  - **DU1 — le serveur de test s'authentifie en `trust`, sans mot de passe.** Conteneur
+    jetable (`tmpfs`, `--rm`), publié sur `127.0.0.1` seul, sans donnée réelle : aucun secret
+    à créer, stocker ni passer à la CI. Alternative restée ouverte : un mot de passe via
+    `LIBREOSTEO_TEST_DB_PASSWORD` (déjà lue), qui demanderait un gabarit `.example` vide en
+    local et un secret de dépôt en CI.
+  - **DU2 — les branches sqlite des verrous consultatifs d'export sont retirées**, le code
+    devenant PostgreSQL seul. Prix accepté : l'export rend 500 sur le serveur de
+    développement sqlite, jusqu'au lot qui le bascule (cf. « À faire » ci-dessous).
+    Alternative restée ouverte : garder les deux branches, au prix de deux `locked = True`
+    non couverts à motiver.
+  - **DU3 — l'image officielle `postgres:18-alpine`, sans modification, sert aux tests et à
+    la production ; l'image dédiée `familletra/libreosteo-pg` est supprimée.** Épinglée par
+    digest dans le compose, source unique de la mineure pour le serveur de test et le
+    cliquet de moteur ; bascule du parc réel sans migration de données, laissée à
+    l'utilisateur (cf. « À faire » ci-dessous). Motif : la seule instruction propre à l'image
+    dédiée (`apk add tzdata`) est sans effet sur l'officielle, et elle coûtait une
+    construction et une publication par commit.
+
 ## À faire
+
+- **Bascule du parc sur l'image officielle — geste de l'utilisateur** (lot « suite unitaire
+  sur PostgreSQL », 2026-09-26). Procédure (spec § 5.7) : relever les comptes témoins par
+  `psql` ; mettre le dépôt au commit du lot (`c8b0b45`) ; `docker compose --env-file .env -f
+  Docker/deploy/pg/docker-compose.yml pull db` puis `… up -d` ; vérifier `db` sain, `exec db
+  postgres --version` en `18`, `images` au digest du compose, mêmes comptes témoins, le
+  répertoire hôte ne porte que `18/`, `PG_VERSION` lu dans le conteneur rend `18`, aucune
+  ligne `incompatible` ni `collation version mismatch`. Retour arrière : commit précédent et
+  `up -d`. Tag du parc réel à confirmer (`a0908b0` d'après `.env.example`, non vérifié). T1 a
+  mesuré les deux mineures (officielle et fork) identiques (`18.6`), sans note de version :
+  aucun geste supplémentaire connu à ce jour.
+- **Effacer les images `familletra/libreosteo-pg` de Docker Hub** — après bascule constatée
+  du parc ci-dessus (chemin de retour arrière d'ici là).
+- **Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
+  décision de l'utilisateur du 2026-09-26) — (1) suite fonctionnelle Playwright et serveur de
+  développement sur PostgreSQL : retire le monkeypatch `BEGIN IMMEDIATE` de
+  `tests/functional/conftest.py` (commentaire périmé, Django 5.2 offre
+  `OPTIONS["transaction_mode"]`), lève les `--ds=Libreosteo.settings` du `Makefile` et de la
+  CI, moteur par défaut de `base.py` (l'export XLSX rend 500 en dev sqlite depuis T11) ; (2)
+  puis retrait du mode standalone (`Libreosteo/standalone.py`, `server.py`, `setup.py`,
+  `settings/standalone.py`), après recherche du consommateur et du motif de conservation au
+  journal ; `settings/demonstration.py` et `is_demonstration` à trancher. Pas de traque des
+  mentions « sqlite » dans les commentaires : elles tombent avec (1).
+- **Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
+  version à chaque construction ; la suite unitaire épingle seulement son pilote de test
+  (`VERSION_PSYCOPG2 = 2.9.13`).
+- **Routine de relève du digest de `postgres:18-alpine`** — renvoyée (2026-09-26) ; d'ici là,
+  relever le digest est un commit ordinaire, vert sous `make check`.
+- **`patients.xsls`** (`PatientViewSet.filename`) — constat (2026-09-26) : extension fautive
+  et de toute façon morte, `XLSXFileMixin` venant après `ModelViewSet` dans les bases de
+  `PatientViewSet`/`ExaminationViewSet`, son `finalize_response` ne s'exécute jamais.
 
 > 🌙 **Relevé de décision de la nuit du 2026-09-24 au 2026-09-25.** L'utilisateur a confié
 > l'exécution complète en autonomie avant de dormir, avec quatre autonomies explicitement
@@ -406,7 +457,7 @@ Tenu à la main.
 > Toute décision prise en son absence est ci-dessous, avec son motif et ce qu'elle coûte si
 > elle est fausse. **Les commits sont séparés : chacune se défait seule.**
 >
-> **Ruling — les verrous consultatifs PostgreSQL restent non couverts.** Huit instructions
+> ~~**Ruling — les verrous consultatifs PostgreSQL restent non couverts.**~~ Huit instructions
 > ne sont pas atteignables parce que **la suite unitaire tourne sur sqlite**. J'ai refusé de
 > basculer la suite sur PostgreSQL cette nuit : c'est un changement d'infrastructure de test
 > à risque réel (CI, fixtures, durée), sans rapport avec l'objectif de couverture, et le
@@ -414,7 +465,9 @@ Tenu à la main.
 > `CLAUDE.md` § Déploiement a sorti sqlite des cibles, et la suite unitaire est le dernier
 > endroit qui l'utilise. **Lot à part, à décider par l'utilisateur.** *Coût si l'arbitrage est
 > faux* : huit instructions restent non prouvées, sur du code de verrouillage dont la
-> défaillance serait une corruption concurrente.
+> défaillance serait une corruption concurrente. — **levé le 2026-09-26 par `d1bd8b3` (T6) et
+> `22cb956` (T11)** : bascule de la suite unitaire sur PostgreSQL faite, branches sqlite des
+> verrous consultatifs retirées ; cf. lot « suite unitaire sur PostgreSQL » ci-dessous.
 >
 > ⚠️ **Six défauts trouvés par les deux audits de la nuit, dont deux sur des routes
 > d'API.** Aucun n'était connu avant. Par ordre d'enjeu :
@@ -1227,12 +1280,13 @@ Chacun avec son motif de non-correction — détail dans
   indépendant de la suppression S19. `status` est un `CharField` libre hérité de l'amont,
   aucun geste d'écran ne l'atteint, et le durcissement appartiendrait à
   `ExaminationInvoicingSerializer.validate`.
-- **Le renforcement du `raise Exception("Operation already in progress")`** des verrous
+- ~~**Le renforcement du `raise Exception("Operation already in progress")`** des verrous
   consultatifs (`patient.py:63`, `consultation.py:164`) en une réponse 409 : la ligne est
   **impossible à éprouver** tant que I1 tient (huit instructions, verrous PostgreSQL
   inatteignables sur la suite unitaire, qui tourne sur sqlite — cf. arbitrage Q1), et
   corriger sans preuve est exactement ce que le dépôt s'interdit. À rouvrir avec la bascule
-  PostgreSQL.
+  PostgreSQL.~~ — **clos le 2026-09-26 par `e59a4e2`** (T10) : export refusé en 409 texte
+  lisible, verrou libéré en `finally`, limité au verrou effectivement tenu.
 - **Le critère du middleware (aucun utilisateur en base) n'est pas celui de la vue (aucun
   `is_staff`)** sur la route `/install/` — sans danger, le middleware étant le plus strict,
   mais non testé et arbitré nulle part. Dette ouverte par la reprise du 2026-09-25.
@@ -1592,6 +1646,58 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-26 — Lot « suite unitaire sur PostgreSQL » clos : bascule de la suite unitaire de
+  sqlite vers PostgreSQL, image officielle épinglée par digest, verrous consultatifs
+  PostgreSQL seul, export refusé en 409, un défaut d'archive corrigé** (15 commits, `44bd268`
+  .. `c8b0b45`). Spec : `docs/superpowers/specs/2026-09-26-suite-unitaire-postgresql-design.md`.
+  `make check` vert, **1144 passed, 12 warnings**, couverture **99,98 %** sur **4541
+  instructions** (1 manquante : I2, `dossier_patient.py:274`, garde de typage qu'impose
+  mypy) ; `fail_under` inchangé à 99. Suite fonctionnelle **152 passed, 1 warning** aux trois
+  passes du contrôleur, toujours sur sqlite (hors périmètre du lot) : après T2 (531,98 s),
+  après T6 (529,5 s, aucune mention de psycopg2), après T11 (541,6 s, 0 mention psycopg2).
+  **Le plan est achevé et supprimé, fondu dans cette entrée et dans la spec ci-dessus**
+  (`docs/superpowers/plans/2026-09-26-suite-unitaire-postgresql-plan.md`).
+
+  **La bascule.** T2 (`120d75e`) sert `db` par `postgres:18-alpine`, épinglé par digest, à la
+  place de l'image dédiée `familletra/libreosteo-pg` (DU3). T6 (`d1bd8b3`) fait tourner la
+  suite sur ce serveur. **Les deux durées de T6 contre `BASE_SQLITE`** (T1 : 1135 passed, 12
+  warnings, 215,53 s sur sqlite) : `make check` rejoué deux fois depuis un démon vide donne
+  **252,97 s** puis **252,29 s**, 1140 passed, 12 warnings à chaque fois — écart de **+37,5 s
+  (+17 %)** mesuré par T1, marge de 47 s sous le plafond de 300 s (critère 5). **Warnings et
+  leur différence : aucune** — `warnings summary` identique à `BASE_SQLITE` (diff vide), 12
+  des deux côtés à chaque mesure du lot. Le plafond a ensuite débordé à 305,92 s après T7-T9
+  (enquête `rapport-duree.md` : environnement partagé du bac à sable, hachage PBKDF2 premier
+  poste CPU) ; T6b (`031d001`) ramène la suite à **86,0 s** par un hacheur MD5 en test seul
+  (`Libreosteo/settings/test.py`), la production gardant PBKDF2.
+
+  **Ce que la bascule a trouvé** (première passe T1, écarts du § 2 de la spec) :
+  - E1 (SQL propre à sqlite, `PRAGMA query_only`) → T6 : forme PostgreSQL (`SET
+    default_transaction_read_only`, rétablie en `finally`).
+  - **E2 — un montant hors capacité (`numeric(10,2)`) rendait 500** ; corrigé par T7
+    (`83ffbcf`) en **412 « défaut d'archive »** (`DataError` rattrapée dans `restaurer()`).
+    Défaut produit réel, corrigé dans le lot.
+  - E3 (code du perdant d'une course de création, non asserté) → T8 (`b0abad4`) : exactement
+    un 201 et un 400 assertés.
+  - **E4 — `sans_atomic_requests()` retirée, preuve refaite sous `ATOMIC_REQUESTS` (le régime
+    réel)** par T9 (`ddebea4`) : **aucun défaut produit révélé**, contrairement à la branche
+    « si l'un rougit » envisagée par le brief.
+  - E5 (identifiant de cabinet supposé en dur) → T4 (`92470f2`) : élargi à la clé de session
+    (`{"officesettings": 2}`) en plus de `get(id=2)`, relecture de l'objet créé.
+  - E6 (ordre à clés de tri égales) → T5 (`ef71642`) : docstring datée comme mesure sqlite,
+    tests inchangés.
+  - E7, E8, E9 (casse/accents, longueurs/précision, transaction avortée) → inventaire de T1 :
+    aucun échec constaté, rien à faire.
+  - E10 (tuyauterie sqlite du `conftest.py` unitaire) → T6 : retirée.
+  - **E11 — nouveau, trouvé par T1** (l'identifiant de la facture passait pour celui de la
+    consultation dans `TestRegularizeNotPaidInvoice`, vrai par coïncidence sous sqlite) → T4b
+    (`00315a3`), tâche ajoutée au plan (amendement `0fdc920`) : corrigé.
+
+  **Recette** : `R-INST-09` (une base existante redémarre sur l'image officielle) et
+  `R-IMP-05` (export patients/consultations, refus d'un export concurrent) — **verdict OK,
+  6/6 et 5/5**, sur le commit `c8b0b45`. Aucun KO, aucune tâche correctrice.
+
+  **CI (critère 6)** : non constatée — ce lot n'a pas poussé.
 
 - **2026-09-26 — Lot « couverture 100 % » clos : 23 suppressions, 145 instructions
   couvertes, neuf défauts corrigés, plancher relevé à 99** (54 commits, `064e94d`..`5016f3a`).
@@ -6017,6 +6123,33 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   - **Trois défauts avérés corrigés**, cf. « Pièges rencontrés ».
 
 ## Pièges rencontrés
+
+- **2026-09-26 (lot « suite unitaire sur PostgreSQL »)** — constats versés, non corrigés,
+  chacun avec son motif :
+  - Le verrou consultatif d'export ne peut pas être disputé dans le déploiement de référence
+    (`uwsgi --processes 1 --threads 1`, un seul worker) : les deux exports (patients,
+    consultations) partagent la même clef `1`, ni voulu ni épinglé.
+  - Sous `ATOMIC_REQUESTS`, une erreur SQL pendant l'export fait échouer le
+    `pg_advisory_unlock` du `finally` (transaction avortée) et masque l'erreur d'origine au
+    journal ; le verrou est tout de même rendu à la fermeture de connexion (`CONN_MAX_AGE`
+    nul).
+  - `decimal.InvalidOperation` reste rattrapée dans `restaurer()` parmi les défauts d'archive,
+    sans producteur connu sous Django 5.2 (constat T7) — retrait renvoyé.
+  - Le serveur de test (`libreosteo-test-pg`) est partagé par les arbres de travail : un arbre
+    sur un autre digest ou un autre port le remplace sous une suite en cours (Review Focus 1
+    de T6, risque résiduel, non gardé).
+  - **L'export XLSX ne pose jamais de nom de fichier** : `XLSXFileMixin` vient après
+    `ModelViewSet` dans les bases de `PatientViewSet`/`ExaminationViewSet`, son
+    `finalize_response` ne s'exécute jamais ; `filename = "patients.xsls"` est mort et fautif
+    (constat T10). Motif : changer l'ordre des bases changerait l'export nominal, hors
+    périmètre du lot.
+  - **Un refus d'export en 409 remplace l'écran de l'application par une page de texte brut**,
+    sans menu (le lien d'export est une navigation complète, pas un appel XHR) ; lisible, non
+    intégré (constat T10, confirmé en recette T13). Motif : le lot demandait le passage
+    500 → 409 lisible, pas l'intégration à l'écran.
+  - Les 12 warnings de `make check` sont préexistants et identifiés (initialisation de l'app,
+    `loaddata` sans données) ; aucun n'est propre à PostgreSQL (diff nul avec la mesure
+    sqlite de T1).
 
 - **2026-09-18 (D9, T3)** — **`detail.elt` n'est pas fiable dans un gestionnaire htmx ;
   `detail.requestConfig.elt` l'est.** Dès que la réponse remplace la **racine même** de
