@@ -304,7 +304,9 @@ def annuler_facture(request: HttpRequest, identifiant: int) -> HttpResponse:
         "fin": fin,
         "therapeut_id": therapeut_id,
     }
-    if request.method == "GET":
+    # Seul `POST` annule : `HEAD`, `OPTIONS` et `TRACE` passent `CsrfViewMiddleware`
+    # sans jeton, et ne doivent donc jamais atteindre l'ecriture.
+    if request.method != "POST":
         return render(request, "partials/modale.html", contexte)
     if facture.status == models.InvoiceStatus.CANCELED:
         return reponse_avec_notification(

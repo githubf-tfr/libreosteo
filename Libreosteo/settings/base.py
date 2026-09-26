@@ -361,6 +361,10 @@ HAYSTACK_CONNECTIONS = {
 
 HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"
 
+# L'extrait de `{% highlight %}` est insere sans echappement : le surligneur de haystack y
+# recopiait le balisage des champs `|safe` de l'index (XSS stocke). Cf. `api/surlignage.py`.
+HAYSTACK_CUSTOM_HIGHLIGHTER = "libreosteoweb.api.surlignage.Surligneur"
+
 COMPRESS_CSS_FILTERS = [
     "compressor.filters.css_default.CssAbsoluteFilter",
     "compressor.filters.cssmin.rCSSMinFilter",

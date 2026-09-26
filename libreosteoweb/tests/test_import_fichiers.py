@@ -348,6 +348,27 @@ class TestIntegrationPatients(APITestCase):
         self.depose_et_integre([ligne_patient(1), ligne_patient(2, nom="Crusher")])
         self.assertEqual(OfficeEvent.objects.filter(clazz="Patient").count(), 0)
 
+    def test_un_get_n_integre_rien_et_rend_405(self):
+        """`SessionAuthentication` ne verifie le jeton CSRF que sur les methodes non
+        sures : un `GET` venu d'un autre site ne doit pas integrer."""
+        depot = self.client.post(
+            reverse("fileimport-list"),
+            data={
+                "file_patient": csv_televerse(
+                    "patients.csv", ENTETE_PATIENT, [ligne_patient(1)]
+                )
+            },
+            format="multipart",
+        )
+        self.assertEqual(1, FileImport.objects.get(id=depot.data["id"]).status)
+
+        reponse = self.client.get(
+            reverse("fileimport-integrate", kwargs={"pk": depot.data["id"]})
+        )
+
+        self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, reponse.status_code)
+        self.assertEqual(0, Patient.objects.count())
+
     def test_une_ligne_en_erreur_est_remontee_avec_son_motif(self):
         reponse = self.depose_et_integre(
             [ligne_patient(1), ligne_patient(2, nom="Crusher", naissance="32/13/2020")]

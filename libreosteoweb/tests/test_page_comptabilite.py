@@ -18,7 +18,7 @@ import re
 from datetime import timedelta
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -273,6 +273,27 @@ class TestPageComptabilite(TestCase):
 
         self.assertEqual(409, reponse.status_code)
         self.assertIn('data-severite="erreur"', reponse.content.decode("utf-8"))
+
+    def test_seul_post_annule_la_facture(self):
+        # Rouge si : une methode que `CsrfViewMiddleware` laisse passer sans jeton
+        # (`HEAD`, `OPTIONS`, `TRACE`) atteint l'annulation -- CSRF (CWE-352).
+        facture = _facture(
+            "D7",
+            "55.00",
+            status=InvoiceStatus.INVOICED_PAID,
+            therapeut_id=self.praticien.pk,
+        )
+        client = Client(enforce_csrf_checks=True)
+        client.login(username="test", password="testpw")
+        url = reverse("comptabilite-annuler", args=[facture.id])
+
+        for methode in ("head", "options", "trace"):
+            with self.subTest(methode=methode):
+                getattr(client, methode)(url)
+
+                facture.refresh_from_db()
+                self.assertNotEqual(InvoiceStatus.CANCELED, facture.status)
+                self.assertIsNone(facture.canceled_by_id)
 
     def test_les_trois_plages_predefinies_se_calculent_sur_le_serveur(self):
         """Les trois plages de `invoice.js:96-111` (C7) : chacune rend `200` et n'echoue

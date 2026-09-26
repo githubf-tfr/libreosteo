@@ -21,6 +21,7 @@ from typing import cast
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 
 from libreosteoweb import models
 from libreosteoweb.api.file_integrator import Extractor
@@ -165,6 +166,10 @@ def _erreurs_lisibles(brutes: list) -> list[dict]:
     return lisibles
 
 
+# `POST` seulement : un `GET` n'est pas controle par `CsrfViewMiddleware` et le cookie de
+# session `SameSite=Lax` l'accompagne sur une navigation venue d'un autre site, donc une
+# simple page tierce rejouerait l'import et doublerait chaque consultation importee.
+@require_POST
 def integrer(request: HttpRequest, identifiant: int) -> HttpResponse:
     """Integre un couple deja analyse, et rend le panneau de resultat choisi par la vue."""
     instance = get_object_or_404(models.FileImport, pk=identifiant)

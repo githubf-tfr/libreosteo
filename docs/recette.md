@@ -3937,6 +3937,10 @@ déjà les migrations et vide la base. Cette fiche est ce qui transforme ce juge
   l'index ne rend aucun patient absent de l'archive, et la purge ne reconstruit pas —
   et par
   tests/functional/test_recherche.py::test_un_index_vide_est_nomme_sur_l_ecran_de_recherche.
+  L'étape 5 est couverte côté serveur par
+  libreosteoweb/tests/test_exploitation.py::TestReconstructionIndex::
+  test_un_get_ne_reconstruit_pas_l_index, ::test_un_post_sans_jeton_csrf_est_refuse et
+  ::test_le_bouton_de_l_ecran_poste_avec_le_jeton_de_la_page.
   Non couvert : le parcours lui-même, du clic à l'écran)
 - **État requis** : E2
 
@@ -3970,6 +3974,14 @@ déjà les migrations et vide la base. Cette fiche est ce qui transforme ce juge
 
    Jouer alors « Réindexer » (étapes 1 et 2), puis rechercher `Picard` de nouveau.
    Attendu : le résultat `Picard Jean-Luc` est de retour.
+5. Toujours connecté, ouvrir les outils de développement (F12), onglet « Réseau », puis
+   saisir `http://localhost:8085/internal/rebuild_index` dans la barre d'adresse et
+   valider.
+   Attendu : la réponse est immédiate, la page reste blanche, et l'onglet « Réseau »
+   donne à cette requête le statut **405**. Aucune reconstruction ne part : l'action
+   n'accepte plus que le POST jeton CSRF à l'appui du bouton « réindexer », et une
+   navigation depuis un site tiers ne la déclenche plus sous la session d'un
+   administrateur (F27).
 
 **Ordre de grandeur de l'étape 2.** Le bouton « réindexer » accorde au travail un délai
 d'attente de 180 s. Mesure prise sur un parc de 101 patients et 2 consultations (état E2

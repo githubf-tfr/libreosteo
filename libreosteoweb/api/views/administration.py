@@ -239,6 +239,21 @@ class TherapeutSettingsViewSet(viewsets.ModelViewSet):
             apiserializers.TherapeutSettingsSerializer(therapeut_settings).data
         )
 
+    def perform_create(self, serializer):
+        # `user` est une cle choisie par le client, et une creation n'a pas d'objet sur
+        # lequel `has_object_permission` trancherait : sans cette garde, un praticien non
+        # administrateur poserait l'identite de facturation d'un confrere encore sans
+        # profil (CWE-639). Seul le cas « profil d'un autre » est refuse ; l'omission de
+        # `user` et la creation par l'administrateur restent inchangees.
+        demande = serializer.validated_data.get("user")
+        if (
+            not self.request.user.is_staff
+            and demande is not None
+            and demande != self.request.user
+        ):
+            raise PermissionDenied()
+        serializer.save()
+
     def perform_update(self, serializer):
         if not serializer.instance.user:
             serializer.save(user=self.request.user)
@@ -270,7 +285,11 @@ class DbDump(PermissionRequiredMixin, View):
 
 
 class RebuildIndex(StaffRequiredMixin, View):
-    def get(self, request, *args, **kwargs):
+    # POST seul (F27) : servie en GET, l'action echappait a `CsrfViewMiddleware`, et une
+    # simple navigation depuis un site tiers lancait, sous la session d'un administrateur,
+    # une reconstruction synchrone de l'index. `View` rend desormais 405 a un GET ; le
+    # bouton de `pages/reindexation.html` poste avec l'en-tete `X-CSRFToken` de `base.html`.
+    def post(self, request, *args, **kwargs):
         # `HttpResponse("index rebuilt")` etait du texte nu que personne n'affichait :
         # `rebuild_index.js` posait `$scope.finished = true` sans le lire, et son seul
         # consommateur disparait avec ce commit. La reponse est desormais le fragment que

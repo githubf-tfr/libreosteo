@@ -335,7 +335,20 @@ def _contexte_utilisateurs(request: HttpRequest, hors_bande: bool = False) -> di
 
 
 def fragment_utilisateurs(request: HttpRequest) -> HttpResponse:
-    """Le `<tbody>` seul : c'est la cible du tri (A9)."""
+    """Le `<tbody>` seul : c'est la cible du tri (A9).
+
+    Reserve au personnel, comme l'onglet qui le porte (`_onglets`, `_contexte`) : masquer
+    l'onglet ne suffit pas, la route reste appelable, et la liste donne le nom de
+    connexion, `is_staff` et `is_active` de chaque compte.
+    """
+    if not request.user.is_staff:
+        return reponse_avec_notification(
+            request,
+            "",
+            "erreur",
+            _("You do not have permission to perform this action."),
+            status=403,
+        )
     return render(
         request,
         "pages/fragments/cabinet-utilisateurs-corps.html",
@@ -351,11 +364,26 @@ def cellule(request: HttpRequest, identifiant: int, champ: str) -> HttpResponse:
     partait sans rappel : un refus etait invisible, la cellule gardait la valeur saisie, et
     la grille divergeait de la base en silence. Ici, la cellule rendue apres ecriture porte
     **la valeur relue de l'instance**, jamais celle qui a ete postee.
+
+    Le personnel seul, en `GET` comme en `POST`, et **avant toute lecture de la cible** :
+    la cellule rendue, en edition comme en refus, porte le `username` et la valeur de la
+    cible — en parcourant les identifiants, un non-administrateur relisait la liste des
+    comptes que `fragment_utilisateurs` lui refuse.
     """
+    if not request.user.is_staff:
+        return reponse_avec_notification(
+            request,
+            "",
+            "erreur",
+            _("You do not have permission to perform this action."),
+            status=403,
+        )
     if champ not in COLONNES_EDITABLES:
         raise Http404("colonne non editable")
     utilisateur = get_object_or_404(get_user_model(), pk=identifiant)
-    if request.method == "GET":
+    # Seul `POST` ecrit : `HEAD`, `OPTIONS` et `TRACE` passent `CsrfViewMiddleware` sans
+    # jeton, et un `HEAD` arrivant ici viderait le champ (`request.POST` est vide).
+    if request.method != "POST":
         return render(
             request,
             "pages/fragments/cellule-edition.html",
@@ -364,14 +392,6 @@ def cellule(request: HttpRequest, identifiant: int, champ: str) -> HttpResponse:
                 "champ": champ,
                 "valeur": getattr(utilisateur, champ),
             },
-        )
-    if not request.user.is_staff:
-        return _cellule_refusee(
-            request,
-            utilisateur,
-            champ,
-            _("You do not have permission to perform this action."),
-            status=403,
         )
     # **La meme fonction de filtre que `UserOfficeSerializer`** (D6d T3) : une seule
     # autorite pour la casse des noms, et les cinq assertions de
@@ -443,7 +463,8 @@ def utilisateur_nouveau(request: HttpRequest) -> HttpResponse:
     qui chargeait toute la liste et la parcourait ; c'est desormais la contrainte du
     modele, et le refus est rendu dans la modale.
     """
-    if request.method == "GET":
+    # Seul `POST` ecrit (`HEAD` & co. passent `CsrfViewMiddleware` sans jeton).
+    if request.method != "POST":
         return render(request, "partials/modale.html", _modale_utilisateur(request))
     if not request.user.is_staff:
         return reponse_avec_notification(
@@ -515,9 +536,13 @@ def mot_de_passe_utilisateur(request: HttpRequest, identifiant: int) -> HttpResp
         "formulaire_confirmer": "form-mot-de-passe",
         "action": reverse("cabinet-utilisateur-mot-de-passe", args=[identifiant]),
     }
-    if request.method == "GET":
+    # Seul `POST` ecrit (`HEAD` & co. passent `CsrfViewMiddleware` sans jeton).
+    if request.method != "POST":
         return render(request, "partials/modale.html", contexte)
-    if not request.user.is_staff:
+    # Meme refus en demonstration que `profil.mot_de_passe` : sans lui, un compte de
+    # demonstration membre du personnel changerait ici le mot de passe des comptes
+    # partages, le sien compris.
+    if not request.user.is_staff or settings.DEMONSTRATION:
         return reponse_avec_notification(
             request,
             "",

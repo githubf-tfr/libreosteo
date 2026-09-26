@@ -58,6 +58,11 @@ class IsDataAccessAllowed(permissions.BasePermission):
             "libreosteoweb.patient.data_dump"
         ):
             return True
+        # La purge RGPD (`PatientViewSet.perform_destroy`) est irreversible : meme barriere
+        # `is_staff` que `dossier_suppression`, sans quoi `DELETE /api/patients/<id>?gdpr=`
+        # la rouvrait a tout compte authentifie (KANBAN, changement 5 du lot D6e).
+        if view.action == "destroy":
+            return bool(request.user and request.user.is_staff)
         if view.action != "list" and request.user:
             return True
         return False

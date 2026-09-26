@@ -393,6 +393,64 @@ class TestLoginRequiredMiddleware(APITestCase):
         self.assertEqual(reponse.status_code, 302)
         self.assertIn("authentication required", journal.output[0])
 
+    def test_un_saut_de_ligne_dans_le_chemin_ne_forge_pas_de_ligne_de_journal(self):
+        """F22 (CWE-117) : le serveur frontal decode `%0D%0A` en vrais CR/LF, qu'un
+        client anonyme glisse dans le chemin pour ecrire une fausse ligne de journal."""
+        with sans_receivers():
+            cree_praticien()
+        with self.assertLogs("libreosteoweb.middleware", level="WARNING") as journal:
+            self.client.get(
+                "/x%0D%0AINFO%20middleware%20user%20[admin]%20authenticated"
+            )
+        message = journal.records[0].getMessage()
+        self.assertNotIn("\n", message)
+        self.assertNotIn("\r", message)
+        self.assertIn("x\\r\\nINFO middleware user [admin] authenticated", message)
+
+    def test_un_saut_de_ligne_dans_la_methode_ne_forge_pas_de_ligne_de_journal(self):
+        """La methode HTTP n'est validee ni par Django ni par ce middleware ; sur une URL
+        exemptee, un anonyme la voit journalisee en INFO."""
+        with sans_receivers():
+            cree_praticien()
+        with self.assertLogs("libreosteoweb.middleware", level="INFO") as journal:
+            self.client.generic("G\nINFO", reverse("login"))
+        (message,) = [
+            r.getMessage()
+            for r in journal.records
+            if "authenticated for" in r.getMessage()
+        ]
+        self.assertNotIn("\n", message)
+        self.assertIn("authenticated for G\\nINFO /accounts/login/", message)
+
+    @override_settings(
+        LIBREOSTEO_AUTHENTICATOR=[
+            "libreosteoweb.tests.test_acces.AuthentificateurQuiEchoue"
+        ]
+    )
+    def test_l_echec_de_l_authentificateur_ne_journalise_pas_de_saut_de_ligne(self):
+        with sans_receivers():
+            cree_praticien()
+        with self.assertLogs("libreosteoweb.middleware", level="ERROR") as journal:
+            self.client.generic("G\rX", "/y%0Az")
+        message = journal.records[0].getMessage()
+        self.assertNotIn("\n", message)
+        self.assertNotIn("\r", message)
+        self.assertIn("Request on G\\rX /y\\nz,", message)
+
+    def test_un_chemin_legitime_est_journalise_tel_quel(self):
+        # Rouge si : le chemin passe par `repr` ou `%r` -- la ligne prend des guillemets
+        # et ne correspond plus a la forme que fixe R-DOC-05, etape 3 (docs/recette.md).
+        # L'accent prouve qu'un caractere imprimable non ASCII n'est pas echappe.
+        with sans_receivers():
+            cree_praticien()
+        with self.assertLogs("libreosteoweb.middleware", level="WARNING") as journal:
+            self.client.get("/files/documents/écho.csv")
+        self.assertEqual(
+            "query path files/documents/écho.csv, authentication required. "
+            "redirect to authentication form /accounts/login/ ",
+            journal.records[0].getMessage(),
+        )
+
     def test_deconnexion_sans_session_valide_atteint_le_logoutview(self):
         """Portage du sujet 2/3 du commit amont `33753e0e1da7` (KANBAN, § Suivi amont,
         2026-09-19) : une session qui expire pendant qu'un praticien clique sur

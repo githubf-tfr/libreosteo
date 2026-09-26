@@ -166,6 +166,27 @@ class TestIntegrer(BaseImport):
         )
         self.assertEqual(409, reponse.status_code)
 
+    def test_un_get_n_integre_rien_et_rend_405(self):
+        """Un `GET` echappe au controle CSRF : une navigation venue d'un autre site
+        rejouerait l'import d'un depot deja analyse."""
+        self.client.post(
+            reverse("import-analyse"),
+            data={
+                "patientFile": csv_televerse(
+                    "patients.csv", ENTETE_PATIENT, [ligne_patient(1)]
+                )
+            },
+        )
+        depot = models.FileImport.objects.get()
+        self.assertEqual(1, depot.status)
+
+        reponse = self.client.get(
+            reverse("import-integration", kwargs={"identifiant": depot.pk})
+        )
+
+        self.assertEqual(405, reponse.status_code)
+        self.assertEqual(0, models.Patient.objects.count())
+
     def test_le_panneau_de_succes_et_le_panneau_d_erreurs_sont_exclusifs(self):
         reponse_analyse = self.client.post(
             reverse("import-analyse"),

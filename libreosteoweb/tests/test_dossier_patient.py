@@ -170,6 +170,23 @@ class TestSuppressionPatient(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_403_FORBIDDEN)
         self.assertTrue(Patient.objects.filter(id=self.patient.id).exists())
 
+    def test_un_compte_non_administrateur_ne_purge_pas_par_l_api(self):
+        """Meme barriere `is_staff` que `dossier_suppression` (KANBAN D6e, changement 5) :
+        la voie REST ne rouvre pas la purge RGPD a un compte qui n'a pas ce droit. Le cas
+        administrateur, qui purge, est `test_supprimer_un_patient_avec_gdpr_efface_tout`.
+        """
+        with sans_receivers():
+            consultation = cree_consultation(self.patient, therapeut=self.user)
+            cree_praticien(username="simple", is_staff=False)
+        self.client.logout()
+        self.client.login(username="simple", password="testpw")
+        reponse = self.client.delete(
+            reverse("patient-detail", kwargs={"pk": self.patient.id}) + "?gdpr=true"
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Patient.objects.filter(id=self.patient.id).exists())
+        self.assertTrue(Examination.objects.filter(id=consultation.id).exists())
+
     def test_supprimer_un_patient_avec_gdpr_efface_tout(self):
         consultation = self.client.post(
             reverse("examination-list"),
@@ -470,12 +487,17 @@ class TestConsultation(APITestCase):
         self.assertFalse(OfficeEvent.objects.filter(clazz="Examination").exists())
 
     def test_supprimer_une_consultation_cloturee_est_refuse(self):
-        creation = self.cree_par_l_api(status=ExaminationStatus.NOT_INVOICED)
+        # Creee en base et non par l'API : `POST /api/examinations` refuse une
+        # consultation qui ne nait pas « en cours ».
+        with sans_receivers():
+            consultation = cree_consultation(
+                self.patient, therapeut=self.user, status=ExaminationStatus.NOT_INVOICED
+            )
         reponse = self.client.delete(
-            reverse("examination-detail", kwargs={"pk": creation.data["id"]})
+            reverse("examination-detail", kwargs={"pk": consultation.id})
         )
         self.assertEqual(reponse.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertTrue(Examination.objects.filter(id=creation.data["id"]).exists())
+        self.assertTrue(Examination.objects.filter(id=consultation.id).exists())
 
     def test_les_consultations_du_patient_sont_rendues_de_la_plus_recente(self):
         ancienne = self.cree_par_l_api(

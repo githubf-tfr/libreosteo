@@ -19,6 +19,7 @@ from drf_excel.mixins import XLSXFileMixin
 from drf_excel.renderers import XLSXRenderer
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
@@ -30,6 +31,7 @@ from libreosteoweb.api.invoicing import generator as invoicing_generator
 
 from ..exceptions import Forbidden, reponse_export_deja_en_cours
 from ..renderers import ExaminationCSVRenderer
+from ..serializers.consultation import CHAMP_GOUVERNE
 from ..services import facturation as services_facturation
 
 # Get an instance of a logger
@@ -103,6 +105,16 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         )
 
     def perform_create(self, serializer):
+        # Une consultation creee par le client nait « en cours » et sans facture : la
+        # suite de son cycle appartient a `close`, `invoice` et `update_paiement`. La
+        # garde est ici et non dans le serialiseur (cf. `ExaminationSerializer.validate`).
+        refus = {}
+        if serializer.validated_data["status"] != models.ExaminationStatus.IN_PROGRESS:
+            refus["status"] = [CHAMP_GOUVERNE]
+        if serializer.validated_data.get("invoices"):
+            refus["invoices"] = [CHAMP_GOUVERNE]
+        if refus:
+            raise ValidationError(refus)
         serializer.save(therapeut=self.request.user, office=self.request.officesettings)
 
     def perform_update(self, serializer):

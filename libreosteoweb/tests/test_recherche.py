@@ -14,10 +14,14 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 """La recherche est un document a elle, sur une URL reelle."""
 
-from django.core.management import call_command
-from django.test import TestCase
-from django.urls import reverse
+import re
 
+from django.core.management import call_command
+from django.test import SimpleTestCase, TestCase
+from django.urls import reverse
+from haystack.utils.highlighting import Highlighter
+
+from libreosteoweb.api.surlignage import Surligneur
 from libreosteoweb.models import Patient
 from libreosteoweb.tests.fixtures import cree_patient, cree_praticien, sans_receivers
 
@@ -175,3 +179,123 @@ class TestIndexVidePourUnNonStaff(TestCase):
         corps = reponse.content.decode("utf-8")
         self.assertIn('data-testid="index-vide"', corps)
         self.assertNotIn(reverse("reindexation"), corps)
+
+
+class TestExtraitDeRecherche(TestCase):
+    """L'extrait surligne est du texte : un balisage saisi dans un champ ne s'y execute pas.
+
+    `{% highlight %}` insere son extrait sans echappement, et les champs de texte riche
+    entrent dans l'index en `|safe`. Le surligneur de haystack ne s'en remettait qu'a
+    `strip_tags`, qui ne retire rien tant que le texte ne porte pas a la fois `<` et `>`
+    (XSS stocke). `api/surlignage.py` neutralise `<` et `>` a l'emission, sans rien changer
+    a la fenetre ni aux occurrences.
+    """
+
+    def setUp(self):
+        with sans_receivers():
+            self.praticien = cree_praticien()
+        self.client.force_login(self.praticien)
+
+    def _extrait(self, requete):
+        """L'extrait rendu pour l'unique resultat de `requete`, et le texte indexe."""
+        reponse = self.client.get(
+            reverse("search"), {"q": requete}, headers={"HX-Request": "true"}
+        )
+        self.assertEqual(reponse.status_code, 200)
+        extraits = re.findall(
+            r'<p class="extract"><span>(.*?)</span></p>',
+            reponse.content.decode("utf-8"),
+            re.S,
+        )
+        self.assertEqual(len(extraits), 1)
+        return extraits[0], reponse.context["page"].object_list[0].text
+
+    def test_un_balisage_sans_chevron_fermant_reste_du_texte(self):
+        """Le scenario du rapport : aucun `>` dans tout le texte indexe, `strip_tags` ne
+        retire donc rien, et l'extrait ouvrait une balise `<img>` dont l'`onerror`
+        s'executait dans la session de qui cherchait ce patient."""
+        with sans_receivers():
+            cree_patient(job="<img src=x onerror=alert(1) ")
+
+        extrait, _ = self._extrait("Picard")
+
+        self.assertNotIn("<img", extrait)
+        self.assertIn("&lt;img src=x onerror=alert(1) ", extrait)
+
+    def test_l_extrait_d_un_dossier_ordinaire_ne_bouge_pas(self):
+        """Fenetre identique a haystack, entites comprises. L'autoescape de l'index ecrit
+        chaque apostrophe d'un champ ordinaire `&#x27;` (six caracteres pour un) : un
+        correctif qui decoderait le texte avant de calculer la fenetre la deplacerait, et
+        l'extrait ne s'arreterait plus au meme endroit : ici, il irait jusqu'a « Escrime
+        et équita... » au lieu de « Es... »."""
+        with sans_receivers():
+            cree_patient(
+                original_name="D'Artagnan",
+                address_city="L'Isle-d'Abeau",
+                job="Ostéopathe & kiné",
+                hobbies="Escrime et équitation",
+            )
+
+        extrait, texte = self._extrait("Picard")
+
+        self.assertEqual(extrait, Highlighter("Picard", max_length=80).highlight(texte))
+        self.assertEqual(
+            extrait,
+            '<span class="highlighted">Picard</span>\n'
+            "D&#x27;Artagnan\n"
+            "Jean-Luc\n"
+            "\n"
+            "L&#x27;Isle-d&#x27;Abeau\n"
+            "\n"
+            "\n"
+            "Ostéopathe & kiné\n"
+            "Es...",
+        )
+
+
+class TestSurligneur(SimpleTestCase):
+    """Le surligneur seul : meme sortie que haystack tant que le texte ne porte aucun
+    chevron, chevrons neutralises sinon."""
+
+    def test_sans_chevron_restant_la_sortie_est_celle_de_haystack(self):
+        """Tant que `strip_tags` ne laisse aucun chevron, rien ne change : les entites de
+        l'index comptent et se surlignent comme avant, « amp » est trouve a l'interieur de
+        `&amp;`, et « d'artagnan » ne l'est pas dans `D&#x27;Artagnan`."""
+        cas = [
+            (
+                "amp",
+                "<p>Tom &amp; Jerry</p>",
+                '...<span class="highlighted">amp</span>; Jerry',
+            ),
+            ("d'artagnan", "Picard\nD&#x27;Artagnan\n", "Picard\nD&#x27;Artagnan\n"),
+        ]
+        for requete, texte, attendu in cas:
+            with self.subTest(requete=requete):
+                obtenu = Surligneur(requete, max_length=80).highlight(texte)
+                self.assertEqual(obtenu, attendu)
+                self.assertEqual(
+                    obtenu, Highlighter(requete, max_length=80).highlight(texte)
+                )
+
+    def test_sans_classe_et_termes_chevauchants_comme_haystack(self):
+        """Deux branches reprises de haystack : balise sans classe, et deux termes qui
+        commencent au meme endroit -- seul le premier est surligne."""
+        texte = "Picard, Jean-Luc"
+        obtenu = Surligneur("pic picard", css_class="").highlight(texte)
+        self.assertEqual(obtenu, "<span>Pic</span>ard, Jean-Luc")
+        self.assertEqual(
+            obtenu, Highlighter("pic picard", css_class="").highlight(texte)
+        )
+
+    def test_un_terme_surligne_qui_porte_un_chevron_reste_du_texte(self):
+        self.assertEqual(
+            Surligneur("<img").highlight("<img src=x onerror=alert(1) "),
+            '<span class="highlighted">&lt;img</span> src=x onerror=alert(1) ',
+        )
+
+    def test_un_chevron_fermant_laisse_par_strip_tags_reste_du_texte(self):
+        """`strip_tags` renonce quand une passe ne retire plus rien, et rend le reste."""
+        self.assertEqual(
+            Surligneur("x").highlight("<<img src=x onerror=alert(1)>>"),
+            "&lt;&gt;",
+        )

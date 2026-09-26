@@ -31,6 +31,7 @@ from libreosteoweb.api.invoicing.generator import (
     _convertir_si_numero_deja_emis,
 )
 from libreosteoweb.models import (
+    Examination,
     ExaminationStatus,
     Invoice,
     InvoiceStatus,
@@ -998,3 +999,120 @@ class TestDateDeLaFacture(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         facture.refresh_from_db()
         self.assertEqual(facture.date, self.seance)
+
+
+class TestChampsGouvernesDeLaConsultation(APITestCase):
+    """`status`, `status_reason`, `invoices`, `office` et `patient` appartiennent a la
+    cloture et a la facturation : `/api/examinations` refuse qu'un client les change."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+        self.url = reverse("examination-detail", kwargs={"pk": self.consultation.id})
+
+    def facture(self):
+        reponse = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        return Invoice.objects.get(id=reponse.data["invoiced"])
+
+    def test_une_consultation_facturee_ne_repasse_pas_en_cours(self):
+        # Rouge si : le scenario du rapport repasse -- `status` remis a 0 par le client,
+        # la suppression franchit alors la garde `status == 0` et orpheline la facture.
+        self.facture()
+        reponse = self.client.patch(
+            self.url, data={"status": ExaminationStatus.IN_PROGRESS}, format="json"
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("status", reponse.data)
+        self.assertEqual(self.client.delete(self.url).status_code, 403)
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.status, ExaminationStatus.INVOICED_PAID)
+
+    def test_marquer_payee_sans_encaissement_est_refuse(self):
+        reponse = self.client.patch(
+            self.url, data={"status": ExaminationStatus.INVOICED_PAID}, format="json"
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
+
+    def test_les_factures_ne_se_detachent_pas(self):
+        facture = self.facture()
+        reponse = self.client.patch(self.url, data={"invoices": []}, format="json")
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual([facture], list(self.consultation.invoices.all()))
+
+    def test_ni_patient_ni_cabinet_ni_motif_de_non_facturation_ne_changent(self):
+        with sans_receivers():
+            autre = cree_patient(family_name="Riker", first_name="William")
+        for charge in (
+            {"patient": autre.id},
+            {"office": 1},
+            {"status_reason": "Confrere"},
+        ):
+            with self.subTest(charge=charge):
+                reponse = self.client.patch(self.url, data=charge, format="json")
+                self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.patient_id, self.patient.id)
+        self.assertIsNone(self.consultation.office_id)
+        self.assertIsNone(self.consultation.status_reason)
+
+    def test_renvoyer_la_consultation_telle_que_lue_reste_accepte(self):
+        # Rouge si : la garde refuse un PUT qui renvoie les champs gouvernes inchanges --
+        # c'est la forme meme d'un PUT.
+        facture = self.facture()
+        charge = dict(self.client.get(self.url).data)
+        charge["reason"] = "Cervicalgie"
+        reponse = self.client.put(self.url, data=charge, format="json")
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK, reponse.data)
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.reason, "Cervicalgie")
+        self.assertEqual(self.consultation.status, ExaminationStatus.INVOICED_PAID)
+        self.assertEqual([facture], list(self.consultation.invoices.all()))
+
+    def test_une_consultation_creee_nait_en_cours_et_sans_facture(self):
+        facture = self.facture()
+        base = {"patient": self.patient.id, "date": "2026-09-12T10:00:00Z", "type": 1}
+        for charge in (
+            {**base, "status": ExaminationStatus.INVOICED_PAID},
+            {**base, "status": ExaminationStatus.IN_PROGRESS, "invoices": [facture.id]},
+        ):
+            with self.subTest(charge=charge), sans_receivers():
+                reponse = self.client.post(
+                    reverse("examination-list"), data=charge, format="json"
+                )
+                self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Examination.objects.count(), 1)
+        with sans_receivers():
+            reponse = self.client.post(
+                reverse("examination-list"),
+                data={**base, "status": ExaminationStatus.IN_PROGRESS},
+                format="json",
+            )
+        self.assertEqual(reponse.status_code, status.HTTP_201_CREATED, reponse.data)
+
+    def test_une_facturation_concurrente_survit_a_la_modification(self):
+        """`update_fields`, prouve par ce qu'il empeche : l'instance est lue **avant**
+        une facturation concurrente, puis enregistree. Une sauvegarde non bornee la
+        ramenerait « en cours », donc supprimable, la facture restant rattachee."""
+        lue = Examination.objects.get(pk=self.consultation.pk)
+        facture = self.facture()
+        serialiseur = apiserializers.ExaminationSerializer(
+            lue, data={"reason": "Cervicalgie"}, partial=True
+        )
+        self.assertTrue(serialiseur.is_valid(), serialiseur.errors)
+        serialiseur.save(therapeut=self.user)
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.reason, "Cervicalgie")
+        self.assertEqual(self.consultation.status, ExaminationStatus.INVOICED_PAID)
+        self.assertEqual([facture], list(self.consultation.invoices.all()))

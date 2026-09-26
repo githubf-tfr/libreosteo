@@ -41,9 +41,12 @@
                             {# `hx-request` pose le delai a 180 000 ms, valeur du #}
                             {# `--http-timeout 180` d'uwsgi : htmx 2 n'a aucun plafond par #}
                             {# defaut, et le laisser implicite serait reproduire S4-10 par #}
-                            {# une autre porte (D6d, A12). #}
+                            {# une autre porte (D6d, A12). `hx-post` et non `hx-get` #}
+                            {# (F27) : l'action refuse le GET, qu'une navigation depuis #}
+                            {# un site tiers suffisait a declencher ; le jeton CSRF part #}
+                            {# par le `hx-headers` du `<body>` de `base.html`. #}
                             <button class="btn btn-success" type="button"
-                                    hx-get="{% url 'rebuild_index' %}"
+                                    hx-post="{% url 'rebuild_index' %}"
                                     hx-target="#resultat-reindexation"
                                     hx-indicator="#reindexation-en-cours"
                                     hx-disabled-elt="this"

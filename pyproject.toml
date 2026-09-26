@@ -157,6 +157,7 @@ files = [
     "libreosteoweb/api/services/sauvegarde.py",
     "libreosteoweb/api/signals.py",
     "libreosteoweb/api/statistics.py",
+    "libreosteoweb/api/surlignage.py",
     "libreosteoweb/api/texte_riche.py",
     "libreosteoweb/api/utils.py",
     "libreosteoweb/api/validators.py",

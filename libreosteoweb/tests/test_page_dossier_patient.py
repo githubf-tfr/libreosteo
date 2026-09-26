@@ -891,6 +891,16 @@ class TestConsentement(_SocleDuDossier):
         self.patient.refresh_from_db()
         self.assertEqual(self.patient.job, "Cuisinier")
 
+    def test_un_get_ne_recueille_pas_le_consentement(self) -> None:
+        """Rouge si : un `GET` -- hors controle CSRF, donc forgeable par une navigation
+        depuis un site tiers -- date le consentement."""
+        reponse = self.client.get(
+            reverse("dossier-consentement", args=[self.patient.pk])
+        )
+        self.assertEqual(reponse.status_code, 405)
+        self.patient.refresh_from_db()
+        self.assertIsNone(self.patient.consent)
+
 
 class TestSuppressionRgpd(_SocleDuDossier):
     def test_la_modale_conditionne_son_bouton_a_la_case(self) -> None:
@@ -1277,6 +1287,14 @@ class TestConsultations(_SocleDuDossier):
         )
         self.assertEqual(reponse.status_code, 409)
         self.assertEqual(models.Examination.objects.count(), 1)
+
+    def test_un_get_n_ouvre_aucune_consultation(self) -> None:
+        """Un `GET` echappe au controle CSRF : un lien tiers ne doit rien creer."""
+        reponse = self.client.get(
+            reverse("consultation-nouvelle", args=[self.patient.pk])
+        )
+        self.assertEqual(reponse.status_code, 405)
+        self.assertFalse(models.Examination.objects.exists())
 
     def test_la_reponse_bascule_sur_l_onglet_de_la_consultation(self) -> None:
         """Surface 4 des cinq de C8 : l'entree d'onglet **et** son panneau reviennent, et

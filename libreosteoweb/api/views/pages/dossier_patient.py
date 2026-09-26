@@ -70,6 +70,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_POST
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from libreosteoweb import models
@@ -922,8 +923,12 @@ def dossier_titre_cellule(
     )
 
 
+@require_POST
 def dossier_consentement(request: HttpRequest, identifiant: str) -> HttpResponse:
     """« Obtenir le consentement » : la branche de mise a jour du serialiseur (regle 6).
+
+    **`POST` seul** (405 sinon) : un `GET` echappe au controle CSRF, et une simple
+    navigation depuis un site tiers daterait -- ou re-daterait -- le consentement.
 
     `PatientSerializer.to_internal_value` pose `timezone.localdate()` des lors que
     `consent_check` est vrai et qu'aucun `id` ne figure dans la charge — ce qui est
@@ -1001,11 +1006,16 @@ def _purger_le_dossier(patient: models.Patient, request: HttpRequest) -> None:
     patient.delete()
 
 
+@require_POST
 def nouvelle_consultation(request: HttpRequest, identifiant: str) -> HttpResponse:
     """`POST /patient/<id>/examination/new` : ouvre une consultation et bascule dessus.
 
     Le produit n'en ouvre qu'une a la fois, et `#new-examination-btn` est desactive quand
     il y en a deja une. Le serveur ne s'en remet pas a cette affordance.
+
+    **`POST` seul, et le serveur le fait respecter** (`405` sinon) : la vue ecrit en base,
+    et un `GET` n'est pas controle par `CsrfViewMiddleware`. Sans cette barriere, un simple
+    lien tiers suivi par un praticien connecte ouvrait une seance a son nom (CWE-352).
     """
     patient = _patient(identifiant)
     if _consultation_en_cours(patient) is not None:

@@ -25,6 +25,14 @@ from .administration import OfficeDetailSerializer, UserInfoSerializer
 from .facturation import InvoiceSerializer
 from .patient import PatientExportSerializer
 
+# Les champs de la consultation gouvernes par la cloture et la facturation (`close`,
+# `invoice`, `update_paiement`), jamais par le client : ceux que `FormulaireConsultation`
+# tient hors de ses `fields`. `therapeut` n'y est pas : `ExaminationViewSet` le force deja.
+CHAMPS_GOUVERNES = ("status", "status_reason", "invoices", "office", "patient")
+# Hors gettext, comme `Forbidden.default_detail` : aucun ecran ne rend cette erreur de
+# l'API, et une entree de catalogue imposerait de recompiler le `.mo`.
+CHAMP_GOUVERNE = "This field is set by closing or invoicing the examination."
+
 
 class ExaminationExtractSerializer(serializers.ModelSerializer):
     therapeut = UserInfoSerializer()
@@ -81,6 +89,51 @@ class ExaminationSerializer(SansRognageMixin):
         if timezone.is_naive(value):
             to_validate = value.replace(tzinfo=ZoneInfo("UTC"))
         return to_validate
+
+    def validate(self, attrs):
+        """A la modification, un champ gouverne est absent ou inchange ; sinon, 400.
+
+        Refuser plutot que passer ces champs en lecture seule : `status` et `patient`
+        restent obligatoires sur un PUT, qui renvoie la consultation telle qu'il l'a lue.
+        La creation se garde dans `ExaminationViewSet.perform_create`, pas ici : ce
+        serialiseur cree aussi les consultations importees (`file_integrator.py`), nees
+        « non facturees », et valide celle d'une annulation par facture corrective.
+        """
+        if self.instance is None:
+            return attrs
+        modifies = [
+            champ
+            for champ in CHAMPS_GOUVERNES
+            if champ in attrs and not self._inchange(champ, attrs[champ])
+        ]
+        if modifies:
+            raise serializers.ValidationError(
+                {champ: [CHAMP_GOUVERNE] for champ in modifies}
+            )
+        return attrs
+
+    def _inchange(self, champ, valeur):
+        if champ == "invoices":
+            actuelles = self.instance.invoices.values_list("pk", flat=True)
+            return {facture.pk for facture in valeur} == set(actuelles)
+        if champ in ("office", "patient"):
+            return getattr(valeur, "pk", None) == getattr(self.instance, champ + "_id")
+        return valeur == getattr(self.instance, champ)
+
+    def update(self, instance, validated_data):
+        """N'ecrit que les colonnes hors champs gouvernes, bornees par `update_fields`.
+
+        `validate` a compare les champs gouvernes a l'instance lue en debut de requete ;
+        une facturation ou une cloture concurrente a pu ecrire depuis. Un `save()` non
+        borne reecrirait toutes les colonnes depuis cette lecture, ramenant la seance « en
+        cours », donc supprimable : la course que `ecrire_le_volet` ferme cote page. Les
+        factures (M2M) ne sont pas reecrites non plus.
+        """
+        colonnes = [champ for champ in validated_data if champ not in CHAMPS_GOUVERNES]
+        for champ in colonnes:
+            setattr(instance, champ, validated_data[champ])
+        instance.save(update_fields=colonnes)
+        return instance
 
     def get_invoice_by_email(self, obj):
         p = Patient.objects.filter(id=obj.patient_id).first()

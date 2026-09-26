@@ -264,5 +264,17 @@ def _changer_mot_de_passe(request: HttpRequest) -> HttpResponse:
 def mot_de_passe(request: HttpRequest) -> HttpResponse:
     """GET : la modale. POST : l'ecriture. Une sous-ressource, une URL (A2)."""
     if request.method == "POST":
+        # En demonstration, les identifiants des comptes partages sont affiches sur la
+        # page de connexion : un visiteur qui en change le mot de passe les ferme a tous
+        # les autres. `profil-identite.html` masque le bouton, mais masquer n'interdit
+        # rien — le refus est celui du serveur.
+        if settings.DEMONSTRATION:
+            return reponse_avec_notification(
+                request,
+                "",
+                "erreur",
+                _("You do not have permission to perform this action."),
+                status=403,
+            )
         return _changer_mot_de_passe(request)
     return _modale_mot_de_passe(request)

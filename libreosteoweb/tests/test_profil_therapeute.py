@@ -130,3 +130,62 @@ class TestAttachementDuProfilOrphelin(APITestCase):
         self.client.patch(self.url, data={"quality": "DO"}, format="json")
 
         self.assertEqual([self.orphelin.pk], self.enregistrements)
+
+
+class TestCreationDuProfilParUnTiers(APITestCase):
+    """`POST /api/profiles` ne laisse pas un praticien poser le profil d'un confrere.
+
+    `user` est une cle choisie par le client ; la creation n'a pas d'objet sur lequel
+    `has_object_permission` trancherait. Sans garde, un praticien non administrateur
+    ecrit l'identite de facturation (numero professionnel, SIRET, pied de facture) d'un
+    confrere qui n'a pas encore de profil, et chaque `get_or_create(user=confrere)` la
+    reprend ensuite.
+    """
+
+    def setUp(self):
+        with sans_receivers():
+            self.attaquant = cree_praticien(username="attaquant", is_staff=False)
+            self.confrere = cree_praticien(username="confrere", is_staff=False)
+            self.administrateur = cree_praticien(username="chef")
+        self.url = reverse("therapeutsettings-list")
+
+    def test_un_praticien_ne_cree_pas_le_profil_d_un_confrere(self):
+        # Rouge si : la cle `user` du client redevient souveraine a la creation.
+        self.client.login(username="attaquant", password="testpw")
+
+        reponse = self.client.post(
+            self.url,
+            data={"user": self.confrere.pk, "professional_id": "FAUX"},
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_403_FORBIDDEN, reponse.status_code)
+        self.assertFalse(TherapeutSettings.objects.filter(user=self.confrere).exists())
+
+    def test_un_praticien_cree_encore_son_propre_profil(self):
+        # Rouge si : la garde refuse aussi le cas legitime.
+        self.client.login(username="attaquant", password="testpw")
+
+        reponse = self.client.post(
+            self.url,
+            data={"user": self.attaquant.pk, "professional_id": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_201_CREATED, reponse.status_code)
+        self.assertEqual(
+            "12345", TherapeutSettings.objects.get(user=self.attaquant).professional_id
+        )
+
+    def test_un_administrateur_cree_encore_le_profil_d_un_praticien(self):
+        # Rouge si : la garde retire a l'administrateur un droit qu'il avait.
+        self.client.login(username="chef", password="testpw")
+
+        reponse = self.client.post(
+            self.url,
+            data={"user": self.confrere.pk, "professional_id": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_201_CREATED, reponse.status_code)
+        self.assertTrue(TherapeutSettings.objects.filter(user=self.confrere).exists())

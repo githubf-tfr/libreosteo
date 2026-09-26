@@ -20,7 +20,7 @@ from decimal import Decimal
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -501,6 +501,55 @@ class TestOngletUtilisateurs(TestCase):
         self.praticien.refresh_from_db()
         self.assertNotEqual("Pirate", self.praticien.first_name)
 
+    def _connecte_un_non_administrateur_face_a_picard(self):
+        with sans_receivers():
+            picard = cree_praticien(username="picard", is_staff=True)
+            cree_praticien(username="simple", is_staff=False)
+        picard.first_name = "Jean-Luc"
+        picard.save()
+        self.client.logout()
+        self.client.login(username="simple", password="testpw")
+        return picard
+
+    def test_un_non_administrateur_ne_lit_pas_la_liste_des_comptes(self):
+        # Rouge si : la garde saute -- tout praticien relirait les noms de connexion de
+        # tous les comptes, administrateurs signales, par la route du tri.
+        self._connecte_un_non_administrateur_face_a_picard()
+
+        reponse = self.client.get(reverse("cabinet-utilisateurs"))
+
+        self.assertEqual(403, reponse.status_code)
+        self.assertNotIn("picard", reponse.content.decode("utf-8"))
+
+    def test_un_non_administrateur_ne_lit_pas_une_cellule(self):
+        # Rouge si : la garde ne couvre plus le `GET` -- la cellule en edition porterait
+        # le nom de connexion et la valeur de la cible, identifiant par identifiant.
+        picard = self._connecte_un_non_administrateur_face_a_picard()
+
+        reponse = self.client.get(
+            reverse("cabinet-utilisateur-cellule", args=[picard.pk, "first_name"])
+        )
+
+        self.assertEqual(403, reponse.status_code)
+        corps = reponse.content.decode("utf-8")
+        self.assertNotIn("picard", corps)
+        self.assertNotIn("Jean-Luc", corps)
+
+    def test_le_refus_d_ecriture_ne_rend_pas_la_cible(self):
+        # Rouge si : le refus rend la cellule de la cible -- un `POST` refuse suffirait a
+        # relire son nom de connexion et sa valeur en base.
+        picard = self._connecte_un_non_administrateur_face_a_picard()
+
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-cellule", args=[picard.pk, "first_name"]),
+            data={"valeur": "Pirate"},
+        )
+
+        self.assertEqual(403, reponse.status_code)
+        corps = reponse.content.decode("utf-8")
+        self.assertNotIn("picard", corps)
+        self.assertNotIn("Jean-Luc", corps)
+
     def test_un_refus_de_cellule_rend_la_cellule_en_edition_et_n_ecrit_pas(self):
         reponse = self.client.post(
             reverse(
@@ -513,6 +562,25 @@ class TestOngletUtilisateurs(TestCase):
         self.assertIn("erreur-cellule", reponse.content.decode("utf-8"))
         self.praticien.refresh_from_db()
         self.assertEqual("", self.praticien.first_name)
+
+    def test_seul_post_ecrit_une_cellule(self):
+        # Rouge si : une methode que `CsrfViewMiddleware` laisse passer sans jeton
+        # (`HEAD`, `OPTIONS`, `TRACE`) atteint l'ecriture -- `request.POST` y est vide,
+        # et le champ serait efface (CWE-352).
+        self.praticien.first_name = "Beverly"
+        self.praticien.save()
+        client = Client(enforce_csrf_checks=True)
+        client.login(username="test", password="testpw")
+        url = reverse(
+            "cabinet-utilisateur-cellule", args=[self.praticien.pk, "first_name"]
+        )
+
+        for methode in ("head", "options", "trace"):
+            with self.subTest(methode=methode):
+                getattr(client, methode)(url)
+
+                self.praticien.refresh_from_db()
+                self.assertEqual("Beverly", self.praticien.first_name)
 
     def test_une_colonne_non_editable_est_une_404(self):
         """La liste close est un garde-fou, pas une convention."""
@@ -538,6 +606,21 @@ class TestOngletUtilisateurs(TestCase):
         self.assertEqual(200, reponse.status_code)
         cible.refresh_from_db()
         self.assertTrue(cible.check_password("nouveau-mot-de-passe"))
+
+    @override_settings(DEMONSTRATION=True)
+    def test_en_demonstration_le_personnel_ne_change_pas_le_mot_de_passe(self):
+        """Rouge si : en demonstration, un compte partage membre du personnel contourne
+        le refus du profil par ce chemin, sur un tiers comme sur lui-meme."""
+        with sans_receivers():
+            cible = cree_praticien(username="cible", is_staff=False)
+        for utilisateur in (cible, self.praticien):
+            reponse = self.client.post(
+                reverse("cabinet-utilisateur-mot-de-passe", args=[utilisateur.pk]),
+                data={"password1": "Vole-2026!", "password2": "Vole-2026!"},
+            )
+            self.assertEqual(403, reponse.status_code)
+            utilisateur.refresh_from_db()
+            self.assertFalse(utilisateur.check_password("Vole-2026!"))
 
     def test_deux_mots_de_passe_differents_sont_refuses_sans_ecrire(self):
         """Equivalent de page de `TestMotDePasse.test_charge_invalide_est_refusee`."""

@@ -42,7 +42,9 @@ class FileImportViewSet(viewsets.ModelViewSet):
         except services_import.FichierPatientManquant as erreur:
             raise ValidationError(str(erreur))
 
-    @action(detail=True, methods=["post", "get"])
+    # `POST` seulement, comme la vue de page : `SessionAuthentication` ne verifie le jeton
+    # CSRF que sur les methodes non sures, un `GET` venu d'un autre site integrerait.
+    @action(detail=True, methods=["post"])
     def integrate(self, request, pk=None):
         try:
             rapport = services_import.integrer(

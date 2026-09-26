@@ -15,7 +15,7 @@
 """La page de profil : deux onglets, deux ecritures, une modale (D6d T7)."""
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from libreosteoweb.api.views.pages.profil import modules_du_profil
@@ -225,6 +225,19 @@ class TestPageProfil(TestCase):
         self.assertIn('data-severite="succes"', reponse.content.decode("utf-8"))
         self.praticien.refresh_from_db()
         self.assertTrue(self.praticien.check_password("nouveaumdp"))
+
+    @override_settings(DEMONSTRATION=True)
+    def test_en_demonstration_le_mot_de_passe_ne_change_pas(self):
+        """Rouge si : le refus ne tient qu'au bouton masque par le gabarit — un POST
+        direct fermerait le compte partage de demonstration a tous les visiteurs."""
+        reponse = self.client.post(
+            reverse("profil-mot-de-passe"),
+            data={"password1": "nouveaumdp", "password2": "nouveaumdp"},
+        )
+        self.assertEqual(403, reponse.status_code)
+        self.assertIn('data-severite="erreur"', reponse.content.decode("utf-8"))
+        self.praticien.refresh_from_db()
+        self.assertTrue(self.praticien.check_password("testpw"))
 
     def test_les_modules_exposes_au_gabarit_portent_leur_valeur_courante(self):
         """`modules_du_profil` est la seule facon de rendre une case cochee : un gabarit

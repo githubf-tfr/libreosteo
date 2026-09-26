@@ -83,6 +83,22 @@ def get_authenticator():
         return FakeDummyAuthenticator()
 
 
+def pour_journal(valeur: str) -> str:
+    """Neutralise une valeur issue de la requete avant de la journaliser (CWE-117).
+
+    Le serveur frontal decode `%0A`/`%0D` du chemin en vrais sauts de ligne, et la
+    methode HTTP n'est verifiee par personne : les journaliser telles quelles laisse
+    un client anonyme forger des lignes de journal entieres. Seul un caractere non
+    imprimable (`str.isprintable`) est remplace par son echappement (`\\n`, `\\x1b`,
+    `\\u2028`...) ; un chemin legitime sort donc a l'identique, sans guillemets de
+    `repr` - la forme de ligne que fixe la fiche de recette R-DOC-05, etape 3.
+    """
+    return "".join(
+        c if c.isprintable() else c.encode("unicode_escape").decode("ascii")
+        for c in valeur
+    )
+
+
 class FakeDummyAuthenticator:
     def authenticate(self, request):
         pass
@@ -132,8 +148,9 @@ class LoginRequiredMiddleware(MiddlewareMixin):
                 get_authenticator().authenticate(request)
             except Exception:
                 logger.error(
-                    "Request on %s %s, but authentication failed on authenticator"
-                    % (request.method, request.path)
+                    "Request on %s %s, but authentication failed on authenticator",
+                    pour_journal(request.method),
+                    pour_journal(request.path),
                 )
                 # Portage du sujet 3/3 du commit amont `33753e0e1da7` (KANBAN,
                 # § Suivi amont, 2026-09-19) : sans ce vidage, un token corrompu
@@ -156,13 +173,16 @@ class LoginRequiredMiddleware(MiddlewareMixin):
             # requete est court-circuitee plus haut par `no_reroute_pattern()`.
             if not any(m.match(path) for m in get_exempts()):
                 logger.warning(
-                    "query path %s, authentication required. redirect to authentication form %s "
-                    % (path, get_login_url())
+                    "query path %s, authentication required. redirect to authentication form %s ",
+                    pour_journal(path),
+                    get_login_url(),
                 )
                 return rediriger(request, get_login_url() + "?next=" + request.path)
         logger.info(
-            "user [%s] authenticated for %s %s"
-            % (request.user, request.method, request.path)
+            "user [%s] authenticated for %s %s",
+            request.user,
+            pour_journal(request.method),
+            pour_journal(request.path),
         )
 
 
