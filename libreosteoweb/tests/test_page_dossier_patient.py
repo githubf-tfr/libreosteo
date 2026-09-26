@@ -1496,6 +1496,23 @@ class TestAnnulationDeFacture(_SocleDuDossier):
         consultation.refresh_from_db()
         self.assertIsNotNone(consultation.last_invoice)
 
+    def test_annuler_la_facture_d_une_consultation_qui_n_en_a_pas_rend_404(
+        self,
+    ) -> None:
+        """La modale d'annulation n'est proposee que sur une consultation facturee ;
+        l'URL, elle, reste atteignable."""
+        # Rouge si : la reponse devient 500 -- une URL devinee ferait tomber l'ecran
+        # au lieu d'un honnete « rien a annuler ».
+        with sans_receivers():
+            sans_facture = cree_consultation(self.patient, therapeut=self.praticien)
+
+        reponse = self.client.post(
+            reverse("consultation-annulation-facture", args=[sans_facture.id]),
+            data={"etape": "confirme"},
+        )
+
+        self.assertEqual(404, reponse.status_code)
+
 
 class TestEtatInitialDAlpine(_SocleDuDossier):
     """Regle 1 du lot : tout attribut pose par le serveur pose l'etat Alpine correspondant.
@@ -1827,6 +1844,34 @@ class TestContexteExpose(_SocleDuDossier):
 
 class TestAgeAffiche(_SocleDuDossier):
     """`format_age` (`patient.js:130-162`), transpose — le titre l'affiche a cote du nom."""
+
+    def test_un_anniversaire_prevu_demain_recule_d_une_annee(self) -> None:
+        """Le cas « ne le 30 decembre, on est le 2 janvier » : le jour est negatif, le
+        mois le devient a son tour, et l'annee recule."""
+        # Rouge si : le report negatif disparait -- un patient serait annonce un an plus
+        # vieux qu'il n'est, chaque annee entre le 1er janvier et son anniversaire.
+        demain = timezone.localdate() + timedelta(days=1)
+        # Le 29 fevrier est le seul jour ou `replace(year=…)` leve : on s'en ecarte.
+        if (demain.month, demain.day) == (2, 29):
+            demain = demain + timedelta(days=2)
+        naissance = demain.replace(year=demain.year - 30)
+
+        rendu = dossier_patient._age(naissance)
+
+        self.assertIn("29 ans", rendu)
+
+    def test_un_anniversaire_passe_hier_donne_l_age_plein(self) -> None:
+        """Le jumeau du precedent : sans lui, le test ci-dessus passerait aussi bien
+        sur une fonction qui retrancherait toujours une annee."""
+        # Rouge si : l'age est minore d'un an juste apres l'anniversaire.
+        hier = timezone.localdate() - timedelta(days=1)
+        if (hier.month, hier.day) == (2, 29):
+            hier = hier - timedelta(days=2)
+        naissance = hier.replace(year=hier.year - 30)
+
+        rendu = dossier_patient._age(naissance)
+
+        self.assertIn("30 ans", rendu)
 
     def test_un_nourrisson_s_affiche_en_jours(self) -> None:
         """Les jours ne s'affichent **qu'en l'absence d'annees** : c'est la regle d'origine,

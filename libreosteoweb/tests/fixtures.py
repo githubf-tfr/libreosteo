@@ -23,6 +23,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import signals
 from django.utils import timezone
 
+import libreosteoweb
 from libreosteoweb.api.receivers import (
     block_disconnect_all_signal,
     receiver_examination,
@@ -119,5 +120,16 @@ def archive_de_restauration(version, contenu_dump="[]", avec_dump=True):
         if avec_dump:
             archive.writestr("dump.json", contenu_dump)
         archive.writestr("meta", version)
+    tampon.seek(0)
+    return SimpleUploadedFile("sauvegarde.zip", tampon.read(), "application/zip")
+
+
+def _archive_avec_document(chemin, contenu, contenu_dump="[]"):
+    """Comme `archive_de_restauration`, un membre de plus : un document a cote du dump."""
+    tampon = io.BytesIO()
+    with zipfile.ZipFile(tampon, "w") as archive:
+        archive.writestr("dump.json", contenu_dump)
+        archive.writestr("meta", libreosteoweb.__version__)
+        archive.writestr(chemin, contenu)
     tampon.seek(0)
     return SimpleUploadedFile("sauvegarde.zip", tampon.read(), "application/zip")

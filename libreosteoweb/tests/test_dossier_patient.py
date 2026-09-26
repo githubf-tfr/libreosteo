@@ -746,6 +746,59 @@ class TestDocumentsPatient(APITestCase):
         self.assertEqual(reponse.status_code, 304)
         self.assertNotIn("Content-Disposition", reponse.headers)
 
+    def test_les_documents_d_un_patient_sont_rendus_par_date_de_document(self):
+        """Deux pieces deposees en ordre inverse de leur date de document : seul un
+        tri sur la date, et non sur l'ordre de depot, les rend dans le bon sens."""
+        # Rouge si : l'ordre change -- la chronologie du dossier presenterait les
+        # pieces dans le desordre.
+        for nom, date_document in (
+            ("recente.txt", "2026-06-01"),
+            ("ancienne.txt", "2020-01-01"),
+        ):
+            self.client.post(
+                reverse("PatientDocuments-list"),
+                data={
+                    "patient": self.patient.id,
+                    "attachment_type": PatientDocument.AttachmentType.MEDICAL,
+                    "document.title": nom,
+                    "document.document_date": date_document,
+                    "document.document_file": SimpleUploadedFile(
+                        nom, b"contenu", content_type="text/plain"
+                    ),
+                },
+                format="multipart",
+            )
+
+        reponse = self.client.get(
+            reverse("PatientDocuments-list"), {"patient": self.patient.id}
+        )
+
+        self.assertEqual(status.HTTP_200_OK, reponse.status_code)
+        dates = [entree["document"]["document_date"] for entree in reponse.data]
+        self.assertEqual(sorted(dates), dates)
+
+    def test_un_patient_sans_document_rend_400(self):
+        """Le repli d'un dossier vide est un refus de requete, pas une liste vide :
+        c'est ce que le client attend depuis l'amont."""
+        # Rouge si : la reponse devient 500 -- l'onglet Documents d'un dossier neuf
+        # rendrait une page d'erreur.
+        with sans_receivers():
+            sans_piece = cree_patient(family_name="Crusher", first_name="Beverly")
+
+        reponse = self.client.get(
+            reverse("PatientDocuments-list"), {"patient": sans_piece.id}
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, reponse.status_code)
+
+    def test_un_identifiant_de_patient_non_numerique_rend_400(self):
+        """Review Focus : le parametre vient de l'URL, donc du client."""
+        # Rouge si : la valeur part telle quelle a la base -- sqlite comme PostgreSQL
+        # levent, et la reponse est 500 la ou 400 est juste.
+        reponse = self.client.get(reverse("PatientDocuments-list"), {"patient": "abc"})
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, reponse.status_code)
+
 
 class TestSessionUtilisateur(APITestCase):
     def setUp(self):

@@ -16,12 +16,15 @@
 
 import io
 import json
+import os
+import tempfile
 import zipfile
 from datetime import date
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management import call_command
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, override_settings
 from haystack.query import SearchQuerySet
 
 import libreosteoweb
@@ -34,7 +37,11 @@ from libreosteoweb.api.services.sauvegarde import (
 )
 from libreosteoweb.api.signals import post_reload_db
 from libreosteoweb.models import Patient
-from libreosteoweb.tests.fixtures import archive_de_restauration, sans_receivers
+from libreosteoweb.tests.fixtures import (
+    _archive_avec_document,
+    archive_de_restauration,
+    sans_receivers,
+)
 
 
 def _archive(version, dump=b"[]"):
@@ -73,6 +80,22 @@ class TestRestauration(TransactionTestCase):
             restaurer(
                 ContentFile(b"ceci n'est pas une archive"), libreosteoweb.__version__
             )
+
+    def test_une_archive_portant_un_document_en_restitue_le_fichier(self):
+        """Une restauration qui ne rendrait que `dump.json` laisserait des fiches
+        patient dont chaque piece jointe pointe un fichier absent."""
+        # Rouge si : l'extraction des documents disparait -- la base est restauree, les
+        # pieces jointes non, et le dossier patient rend des liens morts.
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                archive = _archive_avec_document("documents/ordonnance.txt", b"contenu")
+
+                restaurer(archive, libreosteoweb.__version__)
+
+                chemin = os.path.join(
+                    settings.MEDIA_ROOT, "documents", "ordonnance.txt"
+                )
+                self.assertTrue(os.path.exists(chemin))
 
 
 class TestIndexPendantLeRechargement(TransactionTestCase):

@@ -204,16 +204,18 @@ class PatientDocumentViewSet(viewsets.ModelViewSet):
             patient = self.kwargs["patient"]
         except KeyError:
             patient = self.request.query_params.get("patient")
-        if patient is not None:
-            queryset = models.PatientDocument.objects.filter(
-                patient__id=patient
-            ).order_by("document__document_date")
-            if queryset:
-                return queryset
-            else:
-                raise ParseError()
-        else:
+        if patient is None:
             return models.PatientDocument.objects.all()
+        try:
+            identifiant = int(patient)
+        except (TypeError, ValueError):
+            raise ParseError()
+        queryset = models.PatientDocument.objects.filter(
+            patient__id=identifiant
+        ).order_by("document__document_date")
+        if queryset:
+            return queryset
+        raise ParseError()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

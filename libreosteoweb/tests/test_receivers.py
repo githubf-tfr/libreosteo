@@ -39,10 +39,12 @@ from __future__ import annotations
 
 from typing import Any
 
+import haystack
 from django.dispatch import Signal
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 from libreosteoweb.api.receivers import block_disconnect_all_signal
+from libreosteoweb.api.signals import post_reload_db
 
 
 class TestBlocDeDeconnexion(SimpleTestCase):
@@ -160,3 +162,32 @@ class TestBlocDeDeconnexion(SimpleTestCase):
             self.appels,
             "Une exception levee dans le corps du bloc a laisse le recepteur debranche.",
         )
+
+
+class TestPurgeDIndexApresRechargement(TestCase):
+    """« L'echec de la purge ne defait pas la restauration » -- c'est la promesse ecrite
+    dans la docstring de `purge_index_apres_rechargement` (`receivers.py:165-167`).
+
+    ⚠️ `override_settings(HAYSTACK_CONNECTIONS=...)` n'a aucun effet ici : `haystack.
+    connections` est un singleton construit une fois au demarrage sur le dict original
+    (`ConnectionHandler.__init__`, `haystack/utils/loading.py`), jamais reconnecte a un
+    changement de reglage. La connexion reelle est donc mutee en place, puis rechargee,
+    puis restauree -- verifie sur cet arbre : un `PATH` sous `/proc` ne suffit pas non
+    plus a faire echouer `clear_index`, un chemin sous un fichier existant (non un
+    dossier) le fait.
+    """
+
+    def test_un_index_injoignable_est_journalise_et_ne_leve_pas(self) -> None:
+        # Rouge si : l'echec remonte -- une restauration reussie serait annoncee en
+        # echec au praticien, pour un cache reconstructible.
+        original = dict(haystack.connections.connections_info["default"])
+        haystack.connections.connections_info["default"]["PATH"] = (
+            "/etc/passwd/index-impossible"
+        )
+        haystack.connections.reload("default")
+        try:
+            with self.assertLogs("libreosteoweb.api.receivers", level="ERROR"):
+                post_reload_db.send(sender=None)
+        finally:
+            haystack.connections.connections_info["default"].update(original)
+            haystack.connections.reload("default")
