@@ -2500,3 +2500,6 @@ msgstr "Continuer"
 
 msgid "Saving in progress"
 msgstr "Enregistrement en cours"
+
+msgid "An export is already in progress. Try again in a moment."
+msgstr "Un export est déjà en cours. Réessayez dans un instant."

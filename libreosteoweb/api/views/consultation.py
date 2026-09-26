@@ -28,7 +28,7 @@ from libreosteoweb.api.events.consultation import redatation_event_tracer
 from libreosteoweb.api.events.settings import full_retrieve_examination_list
 from libreosteoweb.api.invoicing import generator as invoicing_generator
 
-from ..exceptions import Forbidden
+from ..exceptions import Forbidden, reponse_export_deja_en_cours
 from ..renderers import ExaminationCSVRenderer
 from ..services import facturation as services_facturation
 
@@ -157,7 +157,7 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
                 locked = True
 
             if not locked:
-                raise Exception("Operation already in progress")
+                return reponse_export_deja_en_cours()
 
             try:
                 full_retrieve_examination_list(request.user)

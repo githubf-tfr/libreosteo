@@ -29,7 +29,7 @@ from libreosteoweb import models
 from libreosteoweb.api import serializers as apiserializers
 from libreosteoweb.api.events.settings import full_retrieve_patient_list
 
-from ..exceptions import Forbidden
+from ..exceptions import Forbidden, reponse_export_deja_en_cours
 from ..permissions import IsDataAccessAllowed
 from ..renderers import PatientCSVRenderer
 
@@ -59,7 +59,7 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
                 locked = True
 
             if not locked:
-                raise Exception("Operation already in progress")
+                return reponse_export_deja_en_cours()
 
             try:
                 full_retrieve_patient_list(request.user)

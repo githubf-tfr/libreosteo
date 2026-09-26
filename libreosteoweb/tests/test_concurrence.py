@@ -218,3 +218,117 @@ class TestConcurrenceCreationPatient(APITransactionTestCase):
         self.assertCountEqual(
             codes, [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
         )
+
+
+EXPORT_EN_COURS = "Un export est déjà en cours. Réessayez dans un instant."
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _exporte_depuis_un_autre_fil(biscuits, url):
+    """Un export complet, demande depuis un second fil -- donc une seconde connexion, la
+    seule que le verrou consultatif, tenu par la session PostgreSQL, distingue de la
+    premiere. Rend `(fil, reponses)` : l'appelant asserte que le fil a rendu la main."""
+    reponses = []
+
+    def exporte():
+        client = APIClient(raise_request_exception=False)
+        client.cookies = biscuits.copy()
+        try:
+            reponses.append(client.get(url))
+        finally:
+            connection.close()
+
+    fil = threading.Thread(target=exporte)
+    fil.start()
+    fil.join(timeout=30)
+    return fil, reponses
+
+
+class TestExportsConcurrents(APITransactionTestCase):
+    """Un seul export complet a la fois (cadrage du 2026-09-26, § 3). L'export A est
+    intercepte au moment ou il ecrit son `OfficeEvent` de tracabilite -- verrou
+    consultatif deja pris --, et un export B part alors d'un second fil. Aucun test ne
+    nomme la clef du verrou : « un autre export en cours » est produit par un export. Les
+    deux exports partagent cette clef ; ce n'est pas epingle ici (constat du cadrage,
+    § 3.1). Meme montage que `TestRefusDeLaBase`."""
+
+    serialized_rollback = True
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            regle_cabinet()
+        self.client.login(username="test", password="testpw")
+
+    def _deux_exports_simultanes(self, url):
+        concurrent = []
+
+        def intercale_un_second_export(sender, instance, **kwargs):
+            # Une seule fois : on se deconnecte avant d'agir (meme motif que
+            # `_intercale_le_doublon`).
+            signals.pre_save.disconnect(intercale_un_second_export, sender=OfficeEvent)
+            concurrent.append(_exporte_depuis_un_autre_fil(self.client.cookies, url))
+
+        signals.pre_save.connect(intercale_un_second_export, sender=OfficeEvent)
+        try:
+            premier = self.client.get(url)
+        finally:
+            signals.pre_save.disconnect(intercale_un_second_export, sender=OfficeEvent)
+        self.assertEqual(len(concurrent), 1, "l'export A n'a ecrit aucun evenement")
+        fil, reponses = concurrent[0]
+        # Sans cette verification, un interblocage laisserait le fil pendu et le test
+        # finirait sur une liste vide (motif de
+        # `test_deux_creations_simultanees_ne_produisent_qu_une_ligne`).
+        self.assertFalse(fil.is_alive(), "l'export concurrent n'a pas rendu la main")
+        return premier, reponses[0]
+
+    def _refus_lisible(self, premier, second):
+        # Le type, et non un `Content-Disposition`, decide de ce que fait le navigateur :
+        # sous le type tableur, il telecharge un fichier, piece jointe declaree ou non.
+        # Mesure du 2026-09-26 : l'export nominal ne porte aucun `Content-Disposition`.
+        self.assertEqual(second.status_code, 409)
+        self.assertEqual(second["Content-Type"], "text/plain; charset=utf-8")
+        self.assertEqual(second.content.decode("utf-8"), EXPORT_EN_COURS)
+        self.assertEqual(premier.status_code, 200)
+        self.assertTrue(premier["Content-Type"].startswith(XLSX))
+
+    def _export_suivant_depuis_une_autre_connexion(self, url):
+        self.assertEqual(self.client.get(url).status_code, 200)
+        # Depuis un second fil : une session qui tient un verrou consultatif peut le
+        # reprendre, donc un export rejoue sur la premiere connexion passerait meme
+        # verrou garde.
+        fil, reponses = _exporte_depuis_un_autre_fil(self.client.cookies, url)
+        self.assertFalse(fil.is_alive(), "l'export suivant n'a pas rendu la main")
+        return reponses[0]
+
+    def test_un_export_des_patients_pendant_un_autre_est_refuse_en_409(self):
+        # Rouge si : le second export est servi pendant le premier (verrou consultatif
+        # ignore), refuse en 500, ou refuse sous le type tableur -- le navigateur
+        # telechargerait un fichier au lieu d'afficher le message au praticien.
+        self._refus_lisible(
+            *self._deux_exports_simultanes(reverse("patient-list") + ".xlsx")
+        )
+
+    def test_un_export_des_consultations_pendant_un_autre_est_refuse_en_409(self):
+        # Rouge si : le second export des consultations est servi pendant le premier,
+        # refuse en 500, ou refuse sous le type tableur.
+        self._refus_lisible(
+            *self._deux_exports_simultanes(reverse("examination-list") + ".xlsx")
+        )
+
+    def test_le_verrou_est_rendu_a_la_fin_d_un_export_des_patients(self):
+        # Rouge si : le verrou consultatif n'est pas rendu a la fin d'un export -- tout
+        # export suivant serait refuse tant que la connexion vit.
+        suivant = self._export_suivant_depuis_une_autre_connexion(
+            reverse("patient-list") + ".xlsx"
+        )
+        self.assertEqual(suivant.status_code, 200)
+
+    def test_le_verrou_est_rendu_a_la_fin_d_un_export_des_consultations(self):
+        # Rouge si : le verrou consultatif n'est pas rendu a la fin d'un export des
+        # consultations -- tout export suivant serait refuse.
+        suivant = self._export_suivant_depuis_une_autre_connexion(
+            reverse("examination-list") + ".xlsx"
+        )
+        self.assertEqual(suivant.status_code, 200)
