@@ -421,12 +421,14 @@ Tenu à la main.
   sur PostgreSQL », 2026-09-26). Procédure (spec § 5.7) : relever les comptes témoins par
   `psql` ; mettre le dépôt au commit du lot (`c8b0b45`) ; `docker compose --env-file .env -f
   Docker/deploy/pg/docker-compose.yml pull db` puis `… up -d` ; vérifier `db` sain, `exec db
-  postgres --version` en `18`, `images` au digest du compose, mêmes comptes témoins, le
+  postgres --version` en `18`, `docker inspect --format '{{.Config.Image}}'` au digest du
+  compose (`images` n'en montre que les 12 premiers caractères), mêmes comptes témoins, le
   répertoire hôte ne porte que `18/`, `PG_VERSION` lu dans le conteneur rend `18`, aucune
-  ligne `incompatible` ni `collation version mismatch`. Retour arrière : commit précédent et
-  `up -d`. Tag du parc réel à confirmer (`a0908b0` d'après `.env.example`, non vérifié). T1 a
-  mesuré les deux mineures (officielle et fork) identiques (`18.6`), sans note de version :
-  aucun geste supplémentaire connu à ce jour.
+  ligne `incompatible` ni `collation version mismatch`. Retour arrière : le commit que le parc
+  exécutait, antérieur à `120d75e`, avec le même `.env` (le tag `familletra/libreosteo-pg`
+  reste disponible sur Docker Hub) et `up -d`. Tag du parc réel à confirmer (`a0908b0` d'après
+  `.env.example`, non vérifié). T1 a mesuré les deux mineures (officielle et fork) identiques
+  (`18.6`), sans note de version : aucun geste supplémentaire connu à ce jour.
 - **Effacer les images `familletra/libreosteo-pg` de Docker Hub** — après bascule constatée
   du parc ci-dessus (chemin de retour arrière d'ici là).
 - **Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
@@ -442,6 +444,12 @@ Tenu à la main.
 - **Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
   version à chaque construction ; la suite unitaire épingle seulement son pilote de test
   (`VERSION_PSYCOPG2 = 2.9.13`).
+- **Premier run CI `quality` à constater après push** (lot « suite unitaire sur PostgreSQL »,
+  2026-09-26). Constater : la ligne `Serveur de test : démarrage` (le runner part d'un démon
+  vide), le job vert, sa durée, et que le job `functional` reste vert sur sqlite (critère 6 de
+  la spec, non constaté par ce lot). Risque : `docker inspect --format '{{.Config.Image}}'`
+  peut se normaliser différemment sur le runner que sur le bac à sable — un échec franc après
+  les 60 s d'attente, jamais un vert erroné.
 - **Routine de relève du digest de `postgres:18-alpine`** — renvoyée (2026-09-26) ; d'ici là,
   relever le digest est un commit ordinaire, vert sous `make check`.
 - **`patients.xsls`** (`PatientViewSet.filename`) — constat (2026-09-26) : extension fautive
@@ -1654,22 +1662,31 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `make check` vert, **1144 passed, 12 warnings**, couverture **99,98 %** sur **4541
   instructions** (1 manquante : I2, `dossier_patient.py:274`, garde de typage qu'impose
   mypy) ; `fail_under` inchangé à 99. Suite fonctionnelle **152 passed, 1 warning** aux trois
-  passes du contrôleur, toujours sur sqlite (hors périmètre du lot) : après T2 (531,98 s),
-  après T6 (529,5 s, aucune mention de psycopg2), après T11 (541,6 s, 0 mention psycopg2).
+  passes, toujours sur sqlite (hors périmètre du lot) : après T2 (531,98 s), après T6
+  (529,5 s, aucune mention de psycopg2), après T11 (541,6 s, 0 mention psycopg2, jouée par un
+  sous-agent).
   **Le plan est achevé et supprimé, fondu dans cette entrée et dans la spec ci-dessus**
   (`docs/superpowers/plans/2026-09-26-suite-unitaire-postgresql-plan.md`).
 
   **La bascule.** T2 (`120d75e`) sert `db` par `postgres:18-alpine`, épinglé par digest, à la
   place de l'image dédiée `familletra/libreosteo-pg` (DU3). T6 (`d1bd8b3`) fait tourner la
   suite sur ce serveur. **Les deux durées de T6 contre `BASE_SQLITE`** (T1 : 1135 passed, 12
-  warnings, 215,53 s sur sqlite) : `make check` rejoué deux fois depuis un démon vide donne
+  warnings, 215,53 s sur sqlite) : `make check` rejoué une première fois depuis un démon vide,
+  puis une seconde depuis le conteneur déjà en place (preuve d'idempotence), donne
   **252,97 s** puis **252,29 s**, 1140 passed, 12 warnings à chaque fois — écart de **+37,5 s
   (+17 %)** mesuré par T1, marge de 47 s sous le plafond de 300 s (critère 5). **Warnings et
   leur différence : aucune** — `warnings summary` identique à `BASE_SQLITE` (diff vide), 12
-  des deux côtés à chaque mesure du lot. Le plafond a ensuite débordé à 305,92 s après T7-T9
-  (enquête `rapport-duree.md` : environnement partagé du bac à sable, hachage PBKDF2 premier
-  poste CPU) ; T6b (`031d001`) ramène la suite à **86,0 s** par un hacheur MD5 en test seul
-  (`Libreosteo/settings/test.py`), la production gardant PBKDF2.
+  des deux côtés à chaque mesure du lot. Le plafond a ensuite débordé à **300,27 s** après
+  T7-T9 (`ddebea4`), puis à **305,44 s** / **305,92 s** après T10 (`e59a4e2`) — environnement
+  partagé du bac à sable, hachage PBKDF2 premier poste CPU (≈ 287 ms/appel, mesuré le
+  2026-09-26) ; T6b (`031d001`) ramène la suite à **86,0 s** par un hacheur MD5 en test seul
+  (`Libreosteo/settings/test.py`), la production gardant PBKDF2. **Arbitrage du contrôleur,
+  ratifié par l'utilisateur le 2026-09-26** : motif — critère 5 débordé, cause dominante
+  l'environnement partagé du bac à sable, PBKDF2 ≈ 287 ms/appel au premier poste CPU ; coût —
+  le hacheur de production n'est plus exercé par la suite unitaire, il l'est encore par la
+  suite fonctionnelle (sur `dev.py`) ; règle de l'utilisateur : l'objectif de durée n'est pas
+  une coupure — la seule coupure est le plafond de 600 s de l'outil — et s'il est dépassé de
+  façon normale, on le relève au lieu de bloquer.
 
   **Ce que la bascule a trouvé** (première passe T1, écarts du § 2 de la spec) :
   - E1 (SQL propre à sqlite, `PRAGMA query_only`) → T6 : forme PostgreSQL (`SET
@@ -1695,7 +1712,9 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
   **Recette** : `R-INST-09` (une base existante redémarre sur l'image officielle) et
   `R-IMP-05` (export patients/consultations, refus d'un export concurrent) — **verdict OK,
-  6/6 et 5/5**, sur le commit `c8b0b45`. Aucun KO, aucune tâche correctrice.
+  6/6 et 5/5**, sur le commit `c8b0b45`. Aucun KO, aucune tâche correctrice ; trois
+  imprécisions de fiche (`R-INST-09` e3, `R-IMP-05` e4, `R-IMP-05` e5) ont été reportées à la
+  vague finale, qui les corrige (`docs/recette.md`).
 
   **CI (critère 6)** : non constatée — ce lot n'a pas poussé.
 
