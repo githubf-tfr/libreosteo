@@ -69,7 +69,10 @@ class TestEcranInstallation(TestCase):
 
 
 class TestInstallViewMethodesAutorisees(TestCase):
-    """`^install/$` est servie **non authentifiee** (`NO_REROUTE_PATTERN_URL`).
+    """`^install/$` est servie **non authentifiee**, tant qu'aucun utilisateur n'existe en
+    base -- par la branche dediee de `LoginRequiredMiddleware`, pas par
+    `NO_REROUTE_PATTERN_URL` (elle n'y est pas : voir
+    `TestEcranInstallationSelonLEtatDeLaBase` plus bas dans ce fichier).
 
     Une 500 y est le pire endroit pour en avoir une : c'est la premiere page qu'un
     deploiement neuf expose au reseau.
