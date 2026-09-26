@@ -58,7 +58,8 @@ Dans `$SCRATCH/settings/local.py`, renseigner :
   python3 -c "import secrets; print(secrets.token_urlsafe(38))"
   ```
 
-- `password` — la même valeur que `POSTGRES_PASSWORD` du `.env` ci-dessous.
+- `password` — une valeur **jetable**, générée avec la même commande que `SECRET_KEY`
+  ci-dessus, et reportée aussi dans `POSTGRES_PASSWORD` du `.env` ci-dessous.
 
 **Clef secrète obligatoire.** Que ce soit via `settings/local.py` comme ci-dessus, ou en la
 confiant directement à `LIBREOSTEO_SECRET_KEY` dans `.env` (en complément du `settings/`
@@ -91,11 +92,16 @@ DATA=$SCRATCH/data
 SETTINGS=$SCRATCH/settings
 LIBREOSTEO_IMAGE_TAG=$TAG
 POSTGRES_USER=libreosteo
-POSTGRES_PASSWORD=recette
+POSTGRES_PASSWORD=<la valeur générée pour password ci-dessus>
 LIBREOSTEO_SECRET_KEY=<la même valeur jetable que ci-dessus, ou une autre>
 LIBREOSTEO_ALLOWED_HOSTS=localhost,127.0.0.1
 EOF
 ```
+
+PostgreSQL ne lit `POSTGRES_PASSWORD` qu'à la création du rôle, sur un volume `db/` neuf :
+un mot de passe vide y ferait sortir le service `db` en erreur (« Database is uninitialized
+and superuser password is not specified », comportement de l'image officielle) — cf.
+R-INST-10 pour le constat détaillé.
 
 **Tag d'image obligatoire.** `LIBREOSTEO_IMAGE_TAG` nomme la construction réellement faite
 à l'étape 1 ; seul le service `libreosteo` la réclame (`${LIBREOSTEO_IMAGE_TAG:?…}`),
@@ -1096,6 +1102,52 @@ la racine de l'arbre indiqué.
 **Constat** : l'image du fork n'était que l'image officielle plus une ligne sans effet ; même
 majeure, même `PGDATA`, même montage. Aucune migration de données n'est en jeu, seule la
 version mineure peut changer.
+
+### R-INST-10 — Mot de passe PostgreSQL vide sur un volume neuf
+
+- **Domaine** : Installation
+- **Couverture auto** : non — PostgreSQL ne lit `POSTGRES_PASSWORD` qu'à l'initialisation
+  du volume, geste qu'aucune suite pytest ne recrée
+- **État requis** : aucun — se joue dans un répertoire de travail dédié, distinct de
+  `$SCRATCH`, jamais reconstruit ni laissé en état pour la fiche suivante
+
+**Prérequis** : un `.env` copié sur celui de `$SCRATCH`, `POSTGRES_PASSWORD` vidé, et des
+répertoires `db/`/`data/` neufs, jamais initialisés — jamais ceux de `$SCRATCH`, dont le
+volume `db/` porte déjà un rôle avec mot de passe.
+
+**Étapes**
+
+1. Créer l'environnement dédié et démarrer le seul service `db` :
+
+   ```sh
+   VIDE=$SCRATCH/vide-mdp   # sous-répertoire jetable, distinct de $SCRATCH
+   mkdir -p "$VIDE"/{db,data}
+   sed -e "s#POSTGRES_PASSWORD=.*#POSTGRES_PASSWORD=#" \
+       -e "s#LIBREOSTEO_DB_STORAGE=.*#LIBREOSTEO_DB_STORAGE=$VIDE/db#" \
+       -e "s#DATA=.*#DATA=$VIDE/data#" \
+       "$SCRATCH/.env" > "$VIDE/.env"
+   docker compose --env-file "$VIDE/.env" -f Docker/deploy/pg/docker-compose.yml up -d db
+   docker compose --env-file "$VIDE/.env" -f Docker/deploy/pg/docker-compose.yml ps -a
+   docker compose --env-file "$VIDE/.env" -f Docker/deploy/pg/docker-compose.yml logs db
+   ```
+
+   Attendu : `db` en `Exited` avec un code de sortie non nul ; le journal montre « Database
+   is uninitialized and superuser password is not specified » ; aucune ligne « database
+   system is ready to accept connections ».
+2. Nettoyer :
+
+   ```sh
+   docker compose --env-file "$VIDE/.env" -f Docker/deploy/pg/docker-compose.yml down
+   rm -rf "$VIDE"
+   ```
+
+   Attendu : plus aucun conteneur du montage dédié ; `$SCRATCH` et les trois états nommés
+   restent inchangés.
+
+**Constat** : un `.env` copié sans renseigner `POSTGRES_PASSWORD` ne démarre pas
+silencieusement avec un mot de passe faible ou absent — l'image officielle refuse tout
+court, sur un volume neuf. Ce que `POSTGRES_PASSWORD` protège n'est jamais optionnel par
+omission.
 
 ### Authentification
 

@@ -131,7 +131,7 @@ this does not give you a usable instance. Follow the steps below instead.
     DATA=volumes/data
     SETTINGS=settings
     POSTGRES_USER=libreosteo
-    POSTGRES_PASSWORD=libreosteo
+    POSTGRES_PASSWORD=<a value you generate ; see the comment in .env.example>
     LIBREOSTEO_SECRET_KEY=<a secret value ; see the comment in .env.example to generate one>
     LIBREOSTEO_ALLOWED_HOSTS=localhost,127.0.0.1
     LIBREOSTEO_IMAGE_TAG=<the $TAG used above>
@@ -316,6 +316,22 @@ Throughout, ``$COMPOSE`` stands for
    Once the instance serves your data again, and only then, the directory set aside at
    step 3 may be removed.
 
+Changing the PostgreSQL password
+================================
+
+Editing ``POSTGRES_PASSWORD`` in ``.env`` and restarting does nothing on an existing
+installation : PostgreSQL only reads that variable when it creates the role, on an empty
+volume. Change the role's password inside the running server instead ::
+
+    $COMPOSE exec db sh -c 'psql -U "$POSTGRES_USER" -d libreosteo -c "\password"'
+
+``psql`` prompts twice and sends only the resulting hash, never the password itself. Then
+report the same value into ``.env`` (``POSTGRES_PASSWORD``) and into
+``settings/local.py`` (``PASSWORD``), so future container starts and the application keep
+agreeing with the server, and restart the application ::
+
+    $COMPOSE restart libreosteo
+
 Duplicate invoice numbers on upgrade
 ====================================
 
@@ -491,7 +507,7 @@ definition.
                'ENGINE': 'django.db.backends.postgresql_psycopg2',
                'NAME': 'libreosteo',
                'USER': 'libreosteo',
-               'PASSWORD': 'libreosteo',
+               'PASSWORD': 'PUT_YOUR_POSTGRES_PASSWORD_HERE',
                'HOST': '127.0.0.1',
                'PORT': '5432',
       }
