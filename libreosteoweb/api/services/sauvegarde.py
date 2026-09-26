@@ -37,7 +37,7 @@ from django.db.models import signals
 from haystack.apps import HaystackConfig
 
 from libreosteoweb import models
-from libreosteoweb.management.commands.backup_db import backup_db
+from libreosteoweb.management.commands.backup_db import JETONS_DE_SESSION, backup_db
 
 from ..invoicing.reprise import PlanReprise
 from ..receivers import (
@@ -204,7 +204,14 @@ def restaurer(contenu: ContentFile, version_courante: str) -> PlanReprise:
             settings.FIXTURE_DIRS = [tempfile.gettempdir()]
             # And when loading dumps, write the file into this directory with the name : load_dump.json
             logger.info("Load the fixture from path : %s " % (fixture))
-            call_command("loaddata", fixture, stdout=LoggerWriter(logger.info))
+            # `exclude=JETONS_DE_SESSION` (F18) : meme une ancienne archive, telechargee
+            # avant ce correctif et qui porte encore ces jetons, ne les recharge pas.
+            call_command(
+                "loaddata",
+                fixture,
+                exclude=JETONS_DE_SESSION,
+                stdout=LoggerWriter(logger.info),
+            )
             # Delete the fixture
             logger.info("Clearing the fixture")
             os.remove(fixture)

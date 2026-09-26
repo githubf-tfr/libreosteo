@@ -10,9 +10,16 @@ from django.core.management.base import BaseCommand, CommandError
 import libreosteoweb
 from libreosteoweb import models
 
+# F18 : la cle de `sessions.Session` est la valeur du cookie `sessionid`, et
+# `libreosteoweb.LoggedInUser.session_key` la reprend telle quelle (middleware.py,
+# `OneSessionPerUserMiddleware`) -- qui lit l'un ou l'autre dans une archive peut rejouer
+# la session d'un praticien connecte. Exclue de la sauvegarde comme de la restauration
+# (`sauvegarde.restaurer`).
+JETONS_DE_SESSION = ["sessions", "libreosteoweb.LoggedInUser"]
+
 
 def backup_db(
-    exclude=["contenttypes", "admin", "auth.Permission"],
+    exclude=["contenttypes", "admin", "auth.Permission", *JETONS_DE_SESSION],
     version=libreosteoweb.__version__,
 ):
     zip_wrapper = BytesIO()

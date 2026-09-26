@@ -22,6 +22,7 @@ import zipfile
 from datetime import date
 
 from django.conf import settings
+from django.contrib.sessions.models import Session
 from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.test import TestCase, TransactionTestCase, override_settings
@@ -36,7 +37,7 @@ from libreosteoweb.api.services.sauvegarde import (
     restaurer,
 )
 from libreosteoweb.api.signals import post_reload_db
-from libreosteoweb.models import Patient
+from libreosteoweb.models import LoggedInUser, Patient
 from libreosteoweb.tests.fixtures import (
     _archive_avec_document,
     archive_de_restauration,
@@ -96,6 +97,45 @@ class TestRestauration(TransactionTestCase):
                     settings.MEDIA_ROOT, "documents", "ordonnance.txt"
                 )
                 self.assertTrue(os.path.exists(chemin))
+
+
+class TestExclusionDesJetonsDeSession(TransactionTestCase):
+    """F18 : une restauration ne doit jamais faire revivre une session existante --
+    y compris depuis une archive ancienne, produite avant ce correctif, qui porterait
+    encore `sessions.Session` et `libreosteoweb.LoggedInUser`."""
+
+    serialized_rollback = True
+
+    def test_une_archive_portant_une_session_ne_la_recharge_pas(self):
+        # Rouge si : `restaurer()` recharge ces deux modeles -- une archive ancienne,
+        # deja telechargee avant ce correctif, redeviendrait dangereuse a restaurer.
+        dump = json.dumps(
+            [
+                {
+                    "model": "sessions.session",
+                    "pk": "0" * 32,
+                    "fields": {
+                        "session_data": "peu importe",
+                        "expire_date": "2030-01-01T00:00:00Z",
+                    },
+                },
+                {
+                    "model": "libreosteoweb.loggedinuser",
+                    # `user` ne pointe aucun praticien reel : l'exclusion doit ecarter
+                    # cet objet avant meme que `loaddata` ne resolve sa cle etrangere.
+                    "pk": 1,
+                    "fields": {"user": 999, "session_key": "0" * 32},
+                },
+            ]
+        )
+
+        sauvegarde.restaurer(
+            archive_de_restauration(libreosteoweb.__version__, contenu_dump=dump),
+            libreosteoweb.__version__,
+        )
+
+        self.assertEqual(Session.objects.count(), 0)
+        self.assertEqual(LoggedInUser.objects.count(), 0)
 
 
 class TestIndexPendantLeRechargement(TransactionTestCase):

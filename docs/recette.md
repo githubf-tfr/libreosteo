@@ -3666,7 +3666,10 @@ peut pas le déclencher par deux clics : l'étape 4 simule le second export depu
   tests/functional/test_sauvegarde.py::test_archive_obtenue_depuis_l_ecran
   (libreosteoweb/tests/test_exploitation.py::TestSauvegarde::
   test_l_archive_contient_le_dump_et_la_version teste deja le contenu de
-  l'archive au niveau API, sans creer de patient ni de document)
+  l'archive au niveau API, sans creer de patient ni de document ;
+  ::test_l_archive_ne_contient_aucun_jeton_de_session prouve, session reellement
+  ouverte, que ni `sessions.Session` ni `libreosteoweb.LoggedInUser` ni la valeur du
+  cookie `sessionid` n'y figurent -- F18)
 - **État requis** : E2
 
 **Étapes**
@@ -3685,7 +3688,10 @@ peut pas le déclencher par deux clics : l'étape 4 simule le second export depu
    `dump.json` (le contenu de la base), `meta` (le numéro de version de
    l'application) et les documents joints aux patients, sous `documents/` — un
    seul membre ici, le document joint à l'état E2, nommé par un identifiant
-   opaque suivi de `.csv` (le nom téléversé n'est plus conservé).
+   opaque suivi de `.csv` (le nom téléversé n'est plus conservé). `dump.json` ne
+   porte aucun jeton de session (ni `sessions.session`, ni
+   `libreosteoweb.loggedinuser`) : qui obtient cette archive ne peut pas rejouer la
+   session du praticien qui l'a téléchargée (F18).
 
 ### R-SAU-02 — Restauration de la sauvegarde sur une instance vierge
 
@@ -3707,7 +3713,11 @@ peut pas le déclencher par deux clics : l'étape 4 simule le second export depu
   renumérotée ; et le compte rendu **remplace le panneau entier**, formulaire compris, si
   bien qu'aucun second envoi ne peut l'effacer. Non couvert : la fidélité des documents
   joints restaurés, et le
-  parcours de purge jusqu'à l'état E0 qui précède la restauration dans cette fiche)
+  parcours de purge jusqu'à l'état E0 qui précède la restauration dans cette fiche.
+  libreosteoweb/tests/test_service_sauvegarde.py::TestExclusionDesJetonsDeSession::
+  test_une_archive_portant_une_session_ne_la_recharge_pas prouve, au niveau service, qu'une
+  archive portant encore `sessions.Session` et `libreosteoweb.LoggedInUser` — celle qu'un
+  parc a pu télécharger avant F18 — ne les recharge pas)
 - **État requis** : E2. Cette fiche part de l'état E2, purge l'instance jusqu'à
   l'état E0 (chapitre 1) en cours d'exécution, puis restaure par-dessus cette
   instance vierge l'archive obtenue à l'étape 1 : à l'issue de son exécution,
