@@ -37,9 +37,71 @@ lint:
 	$(PYTHON) -m ruff format --check .
 	$(PYTHON) -m mypy
 
-test:
+test: test-db
 	@echo "Tests unitaires et couverture"
 	$(PYTHON) -m pytest
+
+# Serveur PostgreSQL de la suite unitaire (cadrage du 2026-09-26, § 5.2). L'image est la
+# ligne `image:` du service `db` du compose de production, lue dans ce fichier : une seule
+# ligne versionnee, trois lecteurs (le compose, cette cible, et
+# tests/qualite/test_contrat_moteur_de_test.py). Aucune construction.
+# Idempotente, etat lu sur le demon (docker inspect, docker port), jamais dans un fichier :
+# un conteneur deja lance sur cette image et ce port est garde tel quel -- il evite
+# l'initdb a chaque `make check` --, sur une autre image ou un autre port il est remplace.
+# Un `docker run` qui echoue parce qu'un lancement simultane vient de creer le meme
+# conteneur n'est pas une erreur : l'etat est relu jusqu'a ce qu'il soit le bon.
+# Donnees en tmpfs et `--rm` : rien ne survit a l'arret. `trust` (decision DU1) : publie
+# sur 127.0.0.1 seulement, aucune donnee reelle, aucun secret a creer ni a passer a la CI.
+# fsync, synchronous_commit et full_page_writes ne touchent que la durabilite apres panne,
+# jamais la semantique des requetes. Sonde par TCP (-h 127.0.0.1) : le serveur temporaire
+# de l'initdb n'ecoute que la socket Unix, une sonde sans -h y repondrait « pret » trop tot
+# (le faux positif corrige par D2 dans la sonde du compose).
+# Pas de Docker, pas de suite : jamais de repli sur sqlite.
+LIBREOSTEO_TEST_DB_PORT ?= 55432
+CONTENEUR_TEST_DB := libreosteo-test-pg
+COMPOSE_PG := Docker/deploy/pg/docker-compose.yml
+
+test-db:
+	@image=$$(sed -n '/^  db:/,/^  [a-z]/s/^    image: *"\{0,1\}\([^" ]*\)"\{0,1\} *$$/\1/p' $(COMPOSE_PG)); \
+	if [ -z "$$image" ]; then \
+		echo "make test-db : aucune image lisible sous le service db de $(COMPOSE_PG)." >&2; \
+		exit 1; \
+	fi; \
+	if ! command -v docker >/dev/null 2>&1; then \
+		echo "make test-db : docker introuvable. La suite unitaire exige un serveur PostgreSQL" >&2; \
+		echo "(README.rst, Development) ; elle ne se repointe jamais sur sqlite." >&2; \
+		exit 1; \
+	fi; \
+	attendu="$$image 127.0.0.1:$(LIBREOSTEO_TEST_DB_PORT)"; \
+	etat() { \
+		echo "$$(docker inspect --format '{{.Config.Image}}' $(CONTENEUR_TEST_DB) 2>/dev/null) $$(docker port $(CONTENEUR_TEST_DB) 5432/tcp 2>/dev/null)"; \
+	}; \
+	if [ "$$(etat)" != "$$attendu" ]; then \
+		docker rm -f $(CONTENEUR_TEST_DB) >/dev/null 2>&1; \
+		echo "Serveur de test : demarrage sur $$image"; \
+		docker run -d --rm --name $(CONTENEUR_TEST_DB) \
+			-p 127.0.0.1:$(LIBREOSTEO_TEST_DB_PORT):5432 \
+			-e POSTGRES_HOST_AUTH_METHOD=trust \
+			--tmpfs /var/lib/postgresql \
+			"$$image" -c fsync=off -c synchronous_commit=off -c full_page_writes=off \
+			>/dev/null \
+		|| echo "Serveur de test : docker run a echoue ; un lancement simultane l'a peut-etre cree, on l'attend." >&2; \
+	fi; \
+	for essai in $$(seq 60); do \
+		if [ "$$(etat)" = "$$attendu" ] \
+			&& docker exec $(CONTENEUR_TEST_DB) pg_isready -q -h 127.0.0.1 -U postgres; then \
+			exit 0; \
+		fi; \
+		sleep 1; \
+	done; \
+	echo "make test-db : serveur de test injoignable apres 60 s (attendu : $$attendu ; constate : $$(etat))." >&2; \
+	docker logs --tail 30 $(CONTENEUR_TEST_DB) >&2; \
+	exit 1
+
+# Rend la memoire du serveur de test, et avec elle toute base de test qu'un lancement
+# interrompu y aurait laissee. Idempotente : `docker rm -f` d'un conteneur absent rend 0.
+test-db-arret:
+	docker rm -f $(CONTENEUR_TEST_DB)
 
 static:
 	@echo "Preparation de l'arbre statique servi"
@@ -58,13 +120,16 @@ static:
 	$(PYTHON) ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base
 	$(PYTHON) ./manage.py compress --settings=Libreosteo.settings.base
 
+# `--ds=Libreosteo.settings` : la suite fonctionnelle reste sur sqlite jusqu'a son propre
+# lot (cadrage du 2026-09-26, § 9). Sans lui, elle prendrait le reglage de pyproject.toml,
+# celui de la suite unitaire : PostgreSQL.
 test-functional: static
 	@echo "Tests fonctionnels Playwright"
 	set -o pipefail; \
 	if [ -d "$(PWD)/.tools/playwright-browsers" ]; then \
 		export PLAYWRIGHT_BROWSERS_PATH="$(PWD)/.tools/playwright-browsers"; \
 	fi; \
-	$(PYTHON) -m pytest tests/functional --no-cov \
+	$(PYTHON) -m pytest tests/functional --no-cov --ds=Libreosteo.settings \
 	  --tracing=retain-on-failure --screenshot=only-on-failure --output=test-results \
 	  2>&1 | tee pytest-functional.log
 
@@ -90,6 +155,6 @@ locale-compile:
 
 check: lint migrations-check test
 
-.PHONY: lint test test-functional migrations-check locale-compile check static
+.PHONY: lint test test-db test-db-arret test-functional migrations-check locale-compile check static
 
 .DEFAULT_GOAL := help

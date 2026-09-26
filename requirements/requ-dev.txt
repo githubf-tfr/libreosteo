@@ -5,6 +5,10 @@ django-stubs==6.1.0
 django-stubs-ext==6.1.0
 mypy==2.3.1
 mypy-extensions==1.1.0
+# Pilote PostgreSQL de la suite unitaire : le meme que la production (l'image http compile
+# `psycopg2`), livre ici en roue, epingle sur la version que porte l'image publiee, relevee
+# le 2026-09-26. L'image, elle, ne l'epingle pas : constat verse au KANBAN.
+psycopg2-binary==2.9.13
 pytest==9.1.1
 pytest-cov==7.1.0
 pytest-django==4.14.0

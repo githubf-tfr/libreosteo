@@ -24,6 +24,10 @@ jobs:
         # ce job n'a pas de .venv, tout est installe dans l'interpreteur courant.
         # `check` = `lint migrations-check test` (Makefile) = les trois anciennes
         # etapes, dans le meme ordre, via une seule cible au lieu de trois copies.
+        # `test` depend de `test-db`, qui demarre par Docker le serveur PostgreSQL de la
+        # suite : le runner ubuntu-latest l'a nativement. Ne jamais placer ce job dans un
+        # `container:` sans Docker, ni lui ajouter un bloc `services:` (image dupliquee,
+        # port dispute avec la cible).
         run: make check PYTHON=python
 
   functional:
@@ -70,10 +74,13 @@ jobs:
         # jamais mordre. Ce job vient de le construire (etape precedente) pour
         # `tests/functional` ; on y fait tourner le module ici, une seule fois, sans
         # reconstruire l'arbre ni relancer `tests/functional`.
-        run: pytest tests/qualite/test_contrat_arbre_statique.py --no-cov -rs
+        # `--ds=Libreosteo.settings` : pyproject.toml vise PostgreSQL, et ce job n'installe
+        # pas requ-dev.txt, donc aucun pilote. Il reste sur sqlite, comme la suite
+        # fonctionnelle, jusqu'au lot de celle-ci.
+        run: pytest tests/qualite/test_contrat_arbre_statique.py --no-cov -rs --ds=Libreosteo.settings
       - name: Run functional tests
         run: |
-          pytest tests/functional --no-cov \
+          pytest tests/functional --no-cov --ds=Libreosteo.settings \
             --tracing=retain-on-failure --screenshot=only-on-failure \
             --output=test-results
       - name: Archiving results

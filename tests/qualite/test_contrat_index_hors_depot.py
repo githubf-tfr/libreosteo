@@ -14,7 +14,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 """Cliquet d'isolation : la suite unitaire n'indexe pas dans le depot.
 
-**Ce que ce cliquet garde.** `libreosteoweb/tests/conftest.py` deporte la base de test
+**Ce que ce cliquet garde.** `libreosteoweb/tests/conftest.py` deportait la base de test sqlite
 hors du depot et rien d'autre : l'index Whoosh restait sur `DATA_FOLDER/whoosh_index`,
 c'est-a-dire `./data/whoosh_index`. Chaque `make test` reecrivait donc un index
 **partage entre lancements**, dans l'arbre de travail. Deux consequences, toutes deux

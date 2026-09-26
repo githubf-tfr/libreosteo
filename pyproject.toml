@@ -2,7 +2,9 @@
 # L'emballage du paquet reste décrit par setup.py et setup.cfg.
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "Libreosteo.settings"
+# PostgreSQL, le moteur de la production (cadrage du 2026-09-26) ; serveur par
+# `make test-db`. La suite fonctionnelle passe `--ds=Libreosteo.settings` (sqlite).
+DJANGO_SETTINGS_MODULE = "Libreosteo.settings.test"
 testpaths = ["libreosteoweb/tests", "outils/tests", "zipcode_lookup", "tests/qualite"]
 python_files = ["test_*.py", "tests.py"]
 addopts = "--cov --cov-report=term-missing"
@@ -112,6 +114,7 @@ files = [
     "Libreosteo/settings/demonstration.py",
     "Libreosteo/settings/dev.py",
     "Libreosteo/settings/standalone.py",
+    "Libreosteo/settings/test.py",
     "Libreosteo/standalone.py",
     "Libreosteo/urls.py",
     "Libreosteo/wsgi.py",
@@ -285,6 +288,7 @@ files = [
     "tests/qualite/test_contrat_compression.py",
     "tests/qualite/test_contrat_gabarits.py",
     "tests/qualite/test_contrat_index_hors_depot.py",
+    "tests/qualite/test_contrat_moteur_de_test.py",
     "tests/qualite/test_contrat_recette.py",
     "tests/qualite/test_contrat_styles.py",
     "tests/qualite/test_contrat_traductions.py",

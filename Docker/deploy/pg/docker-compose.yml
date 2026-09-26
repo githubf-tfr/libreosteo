@@ -5,6 +5,9 @@ services:
 # ajoutait qu'un `apk add tzdata` sans effet (l'officielle installe deja `tzdata`) : elle
 # est retiree. Relever le digest -- correctif mineur de PostgreSQL -- est un commit
 # ordinaire, qui passe donc par `make check` avant d'atteindre la production.
+# Cette ligne est lue aussi par `make test-db`, qui demarre sur elle le serveur de la suite
+# unitaire, et par tests/qualite/test_contrat_moteur_de_test.py, qui y lit la majeure
+# attendue et refuse un tag sans digest : une seule ligne, trois lecteurs.
 #
 # `libreosteo` : l'image du fork, epinglee par une variable obligatoire. Sans
 # LIBREOSTEO_IMAGE_TAG, `docker compose` refuse de demarrer avec un message, au lieu de
