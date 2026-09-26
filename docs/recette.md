@@ -3618,7 +3618,13 @@ la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par 
 - **Couverture auto** : oui — tests/functional/test_import_csv.py::test_csv_invalide_refuse_sans_import_partiel,
   ::test_analyse_en_echec_affiche_un_message (le second couvre le cas distinct du fichier
   de consultations déposé dans le champ patient, que l'application avalait en silence
-  avant D6d)
+  avant D6d). L'étape 4, ajoutée par le lot correctif du 2026-09-26 (F6), est couverte
+  côté serveur par
+  libreosteoweb/tests/test_dialecte_csv.py::TestEntreesFabriquees::test_motif_virgule_guillemet_lettre
+  (le même motif, lu en moins de 2 s ; la classe borne aussi quatre autres entrées
+  fabriquées). Que le dialecte deviné reste, pour tout fichier légitime, exactement celui
+  de `csv.Sniffer` est couvert par ::TestFichiersLegitimes et ::TestCorpusAleatoire du
+  même module, sans geste de recette possible : l'égalité ne se voit qu'en différentiel
 - **État requis** : E1
 
 **Étapes**
@@ -3644,6 +3650,19 @@ la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par 
 3. Tenter de cliquer « Importer ».
    Attendu : le bouton désactivé n'accepte pas le clic ; aucune requête d'import
    n'est envoyée et aucun patient n'est créé en base.
+4. Fabriquer un fichier d'environ 1 Mo qui répète le motif `,"a` — celui qui figeait
+   l'analyse pour tout le cabinet avant le lot correctif du 2026-09-26 (F6) :
+
+   ```sh
+   yes ',"a' | head -n 350000 | tr -d '\n' > "$SCRATCH/motif_f6.csv"
+   ```
+
+   Menu utilisateur → « Import/export », onglet « Importer d'un système externe » ;
+   choisir ce fichier comme fichier patient, cliquer « Analyser ».
+   Attendu : le panneau « Résultats d'analyse » revient en moins de dix secondes, avec
+   « Fichier patient ✗ » (croix rouge), le texte « Fichier vide » et le bouton
+   « Importer » désactivé. Avant F6, aucune réponse ne revenait avant plus d'une heure,
+   et l'application ne répondait plus à personne pendant ce temps.
 
 ### R-IMP-04 — Import dépassant la borne de trois minutes
 

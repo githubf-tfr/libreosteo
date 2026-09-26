@@ -23,6 +23,7 @@ from django.utils.translation import gettext_lazy as _
 
 from libreosteoweb.models import ExaminationStatus, ExaminationType, Patient
 
+from .dialecte_csv import RenifleurLineaire
 from .utils import _unicode, enum
 
 logger = logging.getLogger(__name__)
@@ -204,8 +205,8 @@ class FileContentAdapter(dict):
         f = open(str(self.file.file), mode="r", encoding="utf-8")
         logger.info("* Try to guess the dialect on csv")
         csv_buffer = f.read(_CSV_BUFFER_SIZE)
-        # Compatibility with python2 and python3
-        dialect = csv.Sniffer().sniff(csv_buffer)
+        # Le dialecte de `csv.Sniffer` sur le tampon entier, en temps borne (F6).
+        dialect = RenifleurLineaire().sniff(csv_buffer)
         f.seek(0)
         reader = csv.reader(f, dialect)
         return reader
