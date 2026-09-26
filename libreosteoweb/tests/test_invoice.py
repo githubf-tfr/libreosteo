@@ -277,7 +277,7 @@ class TestRegularizeNotPaidInvoice(APITestCase):
         response = self.client.post(
             reverse(
                 "examination-update-paiement",
-                kwargs={"pk": examination.invoices.latest("date").id},
+                kwargs={"pk": self.e1.pk},
             ),
             data={
                 "status": "invoiced",
@@ -325,7 +325,7 @@ class TestRegularizeNotPaidInvoice(APITestCase):
         response = self.client.post(
             reverse(
                 "examination-update-paiement",
-                kwargs={"pk": examination.invoices.latest("date").id},
+                kwargs={"pk": self.e1.pk},
             ),
             data={
                 "status": "invoiced",
@@ -370,7 +370,7 @@ class TestRegularizeNotPaidInvoice(APITestCase):
         response = self.client.post(
             reverse(
                 "examination-update-paiement",
-                kwargs={"pk": examination.invoices.latest("date").id},
+                kwargs={"pk": self.e1.pk},
             ),
             data={"status": "invoiced", "amount": 60, "check": {}},
             format="json",
@@ -411,7 +411,7 @@ class TestRegularizeNotPaidInvoice(APITestCase):
         response = self.client.post(
             reverse(
                 "examination-update-paiement",
-                kwargs={"pk": examination.invoices.latest("date").id},
+                kwargs={"pk": self.e1.pk},
             ),
             data={
                 "status": "invoiced",
