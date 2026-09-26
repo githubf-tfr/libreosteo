@@ -444,12 +444,30 @@ Tenu à la main.
 - **Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
   version à chaque construction ; la suite unitaire épingle seulement son pilote de test
   (`VERSION_PSYCOPG2 = 2.9.13`).
-- **Premier run CI `quality` à constater après push** (lot « suite unitaire sur PostgreSQL »,
+- ~~**Premier run CI `quality` à constater après push** (lot « suite unitaire sur PostgreSQL »,
   2026-09-26). Constater : la ligne `Serveur de test : démarrage` (le runner part d'un démon
   vide), le job vert, sa durée, et que le job `functional` reste vert sur sqlite (critère 6 de
   la spec, non constaté par ce lot). Risque : `docker inspect --format '{{.Config.Image}}'`
   peut se normaliser différemment sur le runner que sur le bac à sable — un échec franc après
-  les 60 s d'attente, jamais un vert erroné.
+  les 60 s d'attente, jamais un vert erroné.~~ — **constaté le 2026-09-26**, premier run après
+  le push du lot, run `36239404091`
+  (https://github.com/githubf-tfr/libreosteo/actions/runs/36239404091) : les deux jobs verts.
+  `quality` en **2 min 14 s**, ligne `Serveur de test : démarrage sur
+  postgres:18-alpine@sha256:77f5…` présente (démon vide, comme attendu), **1142 passed, 2
+  skipped, 12 warnings in 84.52s**, `TOTAL 4541 1` — coïncide exactement avec les 1144 passed
+  locaux (1142 + les 2 sautés). `functional` en **9 min 51 s**, **152 passed**, sans mention de
+  `psycopg2` — reste sur sqlite comme prévu (critère 6 désormais constaté).
+
+  **Les 2 skipped** : `test_contrat_arbre_statique.py::test_aucun_residu_sous_static_components`
+  et `::test_static_components_ne_porte_que_les_trois_fichiers_servis`, tous deux par
+  `pytest.skip("arbre statique non construit...")` — `static/` n'existe pas dans le job
+  `quality`, qui ne lance que `make check` (`lint migrations-check test`, sans `static`).
+  Documenté dans le docstring du module et dans le commentaire de
+  `.github/workflows/main.yml:71-79` : le job `functional` construit l'arbre (`make static`)
+  puis rejoue ce même module seul (étape « Verify the static tree contract ») et y obtient
+  **8 passed, 0 skipped** — vérifié sur ce run. **Verdict : sauts sains et attendus**, prévus
+  par construction, pas un trou de couverture CI — le contrat de l'arbre statique est bien
+  vérifié, seulement dans le job qui a l'arbre pour le vérifier.
 - **Routine de relève du digest de `postgres:18-alpine`** — renvoyée (2026-09-26) ; d'ici là,
   relever le digest est un commit ordinaire, vert sous `make check`.
 - **`patients.xsls`** (`PatientViewSet.filename`) — constat (2026-09-26) : extension fautive
@@ -1716,7 +1734,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   imprécisions de fiche (`R-INST-09` e3, `R-IMP-05` e4, `R-IMP-05` e5) ont été reportées à la
   vague finale, qui les corrige (`docs/recette.md`).
 
-  **CI (critère 6)** : non constatée — ce lot n'a pas poussé.
+  **CI (critère 6)** : constatée le 2026-09-26 sur le premier run après le push, run
+  `36239404091` — `quality` vert en 2 min 14 s (1142 passed, 2 skipped, sauts sains : arbre
+  statique non construit dans ce job, cf. « À faire » ci-dessus), `functional` vert en 9 min
+  51 s (152 passed, sur sqlite, sans psycopg2).
 
 - **2026-09-26 — Lot « couverture 100 % » clos : 23 suppressions, 145 instructions
   couvertes, neuf défauts corrigés, plancher relevé à 99** (54 commits, `064e94d`..`5016f3a`).
