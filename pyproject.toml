@@ -58,7 +58,13 @@ exclude_lines = ['if __name__ == "__main__":']
 # 2026-09-19 : `outils/` entre dans le denominateur a la cloture de D10. `diagnostic_archive.py`
 # decide d'une reprise de donnees reelles et etait hors du plancher (`source = ["libreosteoweb"]`).
 # Couverture constatee avec le nouveau denominateur : 95,09 %. Le plancher n'a pas bouge.
-fail_under = 94
+# 2026-09-26 : releve a 99 a la cloture du lot « couverture 100 % », couverture constatee
+# 99,80 % sur 4544 instructions. Les seules lignes non couvertes sont les 9 du § 4 du cadrage,
+# chacune avec son motif : 8 pour les verrous consultatifs PostgreSQL (la suite unitaire
+# tourne sur sqlite), 1 pour la garde de typage de dossier_patient.py:274 qu'impose le
+# cliquet mypy. La marge laissee est d'environ 36 instructions -- de quoi absorber un module
+# neuf partiellement couvert sans faire rougir un commit honnete.
+fail_under = 99
 
 [tool.ruff]
 # Reste volontairement en retrait du plancher d'execution, qui est 3.14 (cf.
