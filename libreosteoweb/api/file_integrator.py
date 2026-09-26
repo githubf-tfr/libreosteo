@@ -201,8 +201,6 @@ class FileContentAdapter(dict):
         return self
 
     def _get_reader(self):
-        if not bool(self.file):
-            return None
         f = open(str(self.file.file), mode="r", encoding="utf-8")
         logger.info("* Try to guess the dialect on csv")
         csv_buffer = f.read(_CSV_BUFFER_SIZE)
