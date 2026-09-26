@@ -216,18 +216,6 @@ class FileContentAdapter(dict):
         return line
 
 
-class DecodeCsvReader(object):
-    def __init__(self, underlying_instance, decode_filter):
-        self.reader_instance = underlying_instance
-        self.filter = decode_filter
-
-    def __next__(self):
-        return self.filter(next(self.reader_instance))
-
-    def __iter__(self):
-        return self
-
-
 class FileContentKey(object):
     def __init__(self, ourfile, line_filter):
         self.file = ourfile
