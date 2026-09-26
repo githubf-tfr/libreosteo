@@ -1410,6 +1410,11 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
    dans les deux champs, cliquer « Valider ».
    Attendu : la fenêtre reste ouverte, un message indique que ce nom d'utilisateur existe
    déjà ; aucun utilisateur n'est créé.
+6 bis. Remplacer le nom d'utilisateur par `crusher beverly` (avec un espace), cliquer
+   « Valider ».
+   Attendu : la fenêtre reste ouverte, message « Votre login ne doit pas contenir
+   d'espace » ; aucun utilisateur n'est créé. **Avant ce lot, un nom d'utilisateur portant
+   un espace était accepté alors que ce message promettait le contraire.**
 7. Remplacer le nom d'utilisateur par `crusher`, cliquer « Valider ».
    Attendu : la fenêtre se ferme ; le tableau porte désormais deux lignes, `crusher` et
    `test`, dans cet ordre alphabétique ; un message de confirmation s'affiche. Cliquer
@@ -3621,6 +3626,20 @@ donnée de santé ne doit transiter par une session d'assistance.
    le lien « obtenir l'archive » si l'écran avait pu la servir.
    Attendu : `$SCRATCH/archive.db` existe, non vide, et contient `dump.json`, `meta` et
    `documents/` — un parc qui porte encore le doublon `(cabinet, numéro)`.
+1 bis. Éprouver un chemin de sauvegarde non inscriptible : relancer la même commande en
+   remplaçant `/tmp/archive.db` par un chemin dont le répertoire n'existe pas, par exemple
+   `/tmp/dossier-absent/archive.db`.
+
+   ```sh
+   docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml \
+     run --rm --entrypoint sh libreosteo -c \
+     "python3 ./manage.py backup_db /tmp/dossier-absent/archive.db --settings=Libreosteo.settings.container"
+   ```
+
+   Attendu : un message d'erreur lisible, de la forme `Erreur: Impossible d'ecrire
+   l'archive dans /tmp/dossier-absent/archive.db : ...`, et un code de sortie non nul —
+   **jamais de trace Python.** Avant ce lot, un chemin non inscriptible faisait remonter une
+   trace complète au lieu de ce message.
 2. Lancer l'outil sur ce fichier, avec l'interpréteur système et sans aucune installation :
 
    ```sh

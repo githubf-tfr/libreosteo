@@ -395,76 +395,6 @@ Tenu à la main.
   `card-header`) : l'écart réel est de **20 px**, conforme à l'attendu — 0 px avant le lot.
   R-VIS-12 ne change pas sur ce point.
 
-## ⏸️ Reprise du lot « couverture 100 % » — interrompu le 2026-09-25
-
-**Une session neuve reprend ici.** Le lot est en cours, l'arbre est propre et poussé.
-
-**Plan** : `docs/superpowers/plans/2026-09-24-couverture-100-plan.md` (48 tâches).
-**Spec** : `docs/superpowers/specs/2026-09-24-couverture-100-design.md`.
-**Ledger détaillé** : `.superpowers/sdd/2026-09-24-couverture-100-plan/progress.md` — **non
-versionné, mais présent sur le disque**. Il porte le détail de chaque tâche faite, les écarts
-mesurés contre les briefs, et les règles de conduite apprises. **Le lire avant de reprendre.**
-
-### Fait, et poussé
-
-| Tâche | Commit | Résultat |
-|---|---|---|
-| S1 — `InstallView.post` | `54c6061` | ferme **DF5**, une 500 sur route non authentifiée |
-| C1 — `installation.py` | `6f49cdd` | **51 % → 100 %**, la surface publique a sa preuve |
-| S6 — `Singleton` | `36f0f46` | métaclasse Python 2 |
-| S9 — quatre `raise Http404()` | `1b9d63a` | redondantes avec `IsAuthenticated`, contre-exemple vérifié |
-| S10 — `request.tenant` | `bc4ad5c` | `django-tenants` absent des dépendances |
-| S3 — quatre `__unicode__` | `a5e224a` | résidus Python 2 |
-| S4 — `Invoice.clean` | `7ff3be7` | sans appelant |
-| S5 — `Document.set_request` | `292c27b` | sans appelant, attribut jamais lu |
-
-**Couverture : 95,87 %** au dernier relevé (départ de la nuit : 94,96 %). `fail_under` **reste à 94** — il se relève en **Z2
-seulement**, à la fin du lot, à la partie entière de la couverture constatée (valeur attendue :
-**99**). Ne pas le relever avant.
-
-### Rien n'est en vol
-
-Le dernier agent a rendu avant l'arrêt. **Arbre propre, tout est poussé.** La reprise n'a
-aucun travail à récupérer, seulement à enchaîner.
-
-### Ce qui reste, dans l'ordre du plan
-
-`S7,S8 → S15,S16,S17 → S11 → S12,S13,S14 → S2 → D1-D4 → C2…C14 → F1…F9 → Z1,Z2,Z3`
-
-⚠️ **Deux dépendances d'ordre que la spec ne dit pas** : **S2 avant Z1** (Z1 pose
-`exclude_lines` sur `__main__` ; passer avant cacherait les vingt lignes de logique de
-`rupture_bs5` au lieu de les supprimer). **S1 avant C1** est déjà honorée.
-
-**Le plus gros trou restant est `file_integrator.py`** — 365 instructions dont 47 non
-couvertes, bloc F. Il porte **DF6** : `POST /api/file-import/<pk>/integrate/` rend **500** sur
-un dépôt refusé, là où la vue de page rend 409.
-
-### ⚠️ Quatre règles de conduite, apprises au prix fort — les tenir
-
-1. **La suite fonctionnelle complète revient au contrôleur, jamais à un implémenteur.** Elle
-   dure 480-900 s, au-delà du plafond maximal de 600 s du paramètre `timeout` de l'outil :
-   elle bascule en arrière-plan et bloque l'agent. **Sept agents s'y sont fait prendre.**
-   La passer après toute tâche touchant un gabarit, un réglage ou un fichier statique.
-2. **Une revue qui ne mesure que ce que la tâche mesure est aveugle aux mêmes endroits.**
-   Leçon de `f0cb705` : motifs justes, cliquet juste, `make check` vert, revue ayant simulé
-   `fnmatch` — et 151 tests fonctionnels à terre pendant sept commits.
-3. **Commiter avec des chemins explicites** (`git commit -m "..." -- <chemins>`) tant qu'un
-   agent travaille : un `git commit` sans chemins emporte son index. Payé une fois.
-4. **Avant toute suppression : chercher le consommateur, jamais le seul nom.** Et distinguer
-   « personne ne l'appelle » de « personne ne l'utilise » — Django appelle `clean()` par
-   `full_clean()`, un attribut posé peut être lu par `getattr` ailleurs.
-
-⚠️ **Les briefs de ce chantier se sont trompés neuf fois.** Dire aux agents de mesurer et de
-suivre la mesure, pas le brief.
-
-### Deux dettes ouvertes, à solder en Z3
-
-- **La spec et le plan décrivent faux** `^install/$` : elle **n'est pas** dans
-  `NO_REROUTE_PATTERN_URL`, elle n'est publique que par la branche « aucun utilisateur en
-  base » du middleware.
-- **Le critère du middleware (aucun utilisateur) n'est pas celui de la vue (aucun `is_staff`)**
-  — sans danger, le middleware étant le plus strict, mais non testé et arbitré nulle part.
-
 ## À faire
 
 > 🌙 **Relevé de décision de la nuit du 2026-09-24 au 2026-09-25.** L'utilisateur a confié
@@ -1241,6 +1171,74 @@ soldées ou tenues** :
   le ménage est une clause de sortie de D6g, tâche T16. Le chiffre qui comptera est celui
   d'après.
 
+### Constats versés par le lot « couverture 100 % » (2026-09-26), non corrigés
+
+Chacun avec son motif de non-correction — détail dans
+`.superpowers/sdd/2026-09-24-couverture-100-plan/` (rapports et ledger, non versionnés).
+
+- **Neuf fichiers de test manquent à `[tool.mypy] files`** (mesuré le 2026-09-26) :
+  `test_actif_initial_onglets_pages.py`, `test_appariement_alpine_serveur.py`,
+  `test_fin_edition_attend_le_fragment.py`, `test_migration_montants.py`,
+  `test_page_import_export.py`, `test_serializer_consultation.py`,
+  `tests/functional/test_autofocus_fragments.py`, `tests/qualite/test_contrat_commentaires.py`,
+  `tests/qualite/test_contrat_response_handling.py` — le dixième cité par un brief de ce
+  lot, `tests/qualite/test_contrat_arbre_statique.py`, y figure déjà, ajouté par le lot
+  « solde du backlog ». Écart de cliquet antérieur à ce lot ; les ajouter au passage aurait
+  pu faire rougir `mypy` sur du code que ce lot ne touche pas.
+- **`Patient.set_request` / `Patient.request`** (`libreosteoweb/models.py:129-131`) : rien
+  ne lit jamais l'attribut posé, comme pour `Document.set_request` (retiré au chantier S5)
+  — mais ces lignes sont **couvertes**, donc hors des 236 instructions de l'audit de
+  cadrage. Les retirer aurait élargi le mandat.
+- **`libreosteoweb/api/views/pages/documents.py:474`** (`getattr(request, "tenant", None)`) :
+  même vestige que la branche `request.tenant` retirée par S10, mais couvert par son
+  court-circuit.
+- **`libreosteoweb/admin.py`** : les quatre `admin.site.register` sont sans effet,
+  `admin.site.urls` n'étant dans aucun `urlpatterns`. Aucune de ses lignes n'est dans les
+  236 : le module s'importe, donc il se couvre.
+- **`libreosteoweb/api/utils.py:22`** : `logging.getLogger(__file__)` — nom de journal égal
+  à un chemin de fichier, hors de la hiérarchie `libreosteoweb.*`. Déjà écarté par le lot
+  correctif du 2026-09-23, pour le même motif.
+- **`libreosteoweb/apps.py` : `logger.warn`**, méthode dépréciée, conservée telle quelle par
+  la tâche C3 pour ne pas glisser un geste non demandé dans un commit d'extraction.
+- **Le msgid `"Cannot read the content file. Check the encoding."`**
+  (`locale/fr/LC_MESSAGES/django.po:69`) est devenu orphelin avec la suppression F1. Aucun
+  cliquet ne le voit (`test_contrat_traductions.py` mesure code → catalogue, jamais
+  l'inverse), et un `makemessages` réécrirait tout le fichier pour une ligne.
+- **`IntegratorExamination.integrate` teste `file_additional is None`**, or le service passe
+  un `FieldFile` vide qui n'est pas `None` (constat de la tâche F8). Sans portée aujourd'hui,
+  le dépôt étant refusé à l'analyse avant d'atteindre l'intégrateur. À ne pas « réparer »
+  sans arbitrage.
+- **Un statut de facturation inconnu rend 200 au corps vide** (constat de la tâche C14), là
+  où 400 serait plus juste ; et **`generator.py:261` (`return {}`) sur ce même statut
+  inconnu ferait lever `KeyError`** dans l'annulation par facture corrective, préexistant et
+  indépendant de la suppression S19. `status` est un `CharField` libre hérité de l'amont,
+  aucun geste d'écran ne l'atteint, et le durcissement appartiendrait à
+  `ExaminationInvoicingSerializer.validate`.
+- **Le renforcement du `raise Exception("Operation already in progress")`** des verrous
+  consultatifs (`patient.py:63`, `consultation.py:164`) en une réponse 409 : la ligne est
+  **impossible à éprouver** tant que I1 tient (huit instructions, verrous PostgreSQL
+  inatteignables sur la suite unitaire, qui tourne sur sqlite — cf. arbitrage Q1), et
+  corriger sans preuve est exactement ce que le dépôt s'interdit. À rouvrir avec la bascule
+  PostgreSQL.
+- **Le critère du middleware (aucun utilisateur en base) n'est pas celui de la vue (aucun
+  `is_staff`)** sur la route `/install/` — sans danger, le middleware étant le plus strict,
+  mais non testé et arbitré nulle part. Dette ouverte par la reprise du 2026-09-25.
+- **`override_settings(HAYSTACK_CONNECTIONS=...)` est sans effet** (le singleton
+  `haystack.connections` est figé à l'import) : les tâches C5 et C12 ont dû muter le
+  singleton en place, restauré par `addCleanup`/`finally`. La preuve du test préexistant
+  `TestReconstructionIndex` en est affaiblie — il croit changer de moteur de recherche et
+  ne le fait pas. Non corrigé : hors mandat de ce lot.
+- **Le message « 3 char length maximum » de `valider_prefixe_de_sequence`**
+  (`libreosteoweb/api/services/facturation.py:112`) **n'est atteignable par aucune voie
+  produit** : le `max_length=3` du modèle intercepte avant. Seul l'appel direct du service
+  l'atteint. Garde de défense en profondeur, conservée telle quelle.
+- **`RuntimeWarning: Accessing the database during app initialization`** (issu
+  d'`AppConfig.ready()`) préexiste au lot, non traité. Le compte de warnings de `make check`
+  n'a pas été tracé un par un depuis les 13 initiaux (constants depuis la tâche S7) ; compte
+  final mesuré au dernier `make check` de ce lot : **17 warnings**, en hausse de trois par
+  rapport aux 14 relevés à mi-lot par la tâche C5 — non identifiés individuellement, non
+  bloquants (`make check` reste vert).
+
 ### Dette technique (constat, pas action)
 
 - ~~**Bootstrap 3 vendorisé, en fin de support et sans correctifs de sécurité.**~~ —
@@ -1553,6 +1551,108 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-26 — Lot « couverture 100 % » clos : 23 suppressions, 145 instructions
+  couvertes, neuf défauts corrigés, plancher relevé à 99** (54 commits, `064e94d`..`5016f3a`).
+  Spec : `docs/superpowers/specs/2026-09-24-couverture-100-design.md`. `make check` vert,
+  **1 135 passed, 17 warnings**, couverture **99,80 %** sur **4 544 instructions** (9
+  manquantes, les deux impossibilités ci-dessous) ; suite fonctionnelle **152 passed**
+  (dernier relevé, à `7d4fdfc` et `2a480db` — non rejouée par ce commit, qui ne touche ni
+  gabarit ni réglage). Le plan est achevé et supprimé, fondu dans cette entrée et dans la
+  spec ci-dessus (`docs/superpowers/plans/2026-09-24-couverture-100-plan.md`, 6 431 lignes).
+
+  **Ce que le lot a fait.** Mandat : 100 % de couverture, par suppression de code mort ou
+  par test, sauf impossibilité justifiée. **23 suppressions de code mort, chacune en commit
+  isolé et révocable**, retirant **81 instructions mortes** (le brief en annonçait 80) ;
+  **145 instructions couvertes par des tests de comportement** (le brief en annonçait 140).
+  **Neuf défauts corrigés** : DF1 et DF2 (un double `save()` faute d'un `return`, sur les
+  réglages du cabinet et sur les consultations sans thérapeute, doublant `post_save` et
+  l'indexation) ; DF3 (le geste mort `request.path = ""` de la branche `web-view` du
+  middleware, cf. arbitrage Q2) ; DF4 (un `<a href="">` actif et sans libellé au tableau de
+  bord) ; DF5 (`POST /install/` rendait 500, ferme désormais en 405) ; DF6
+  (`POST /api/file-import/<pk>/integrate/` rendait 500 sur un dépôt refusé, ferme désormais
+  en 409, même message que la vue de page) ; et trois de plus, trouvés en cours de lot : un
+  nom d'utilisateur portant un espace était accepté à l'écran cabinet alors que le message
+  de refus promettait le contraire ; `backup_db` sur un chemin non inscriptible rendait une
+  trace Python au lieu d'une `CommandError` lisible ; `GET /api/patient-documents/?patient=abc`
+  rendait 500 au lieu de 400. Plancher `fail_under` relevé de **94 à 99** (commentaire daté
+  dans `pyproject.toml`), à la partie entière de la couverture constatée.
+
+  **Les deux arbitrages rendus, et leur motif :**
+
+  - **Q1 — les huit instructions de verrou consultatif PostgreSQL restent une
+    impossibilité motivée (I1).** La suite unitaire tourne sur sqlite
+    (`pyproject.toml` → `settings/dev.py` → `settings/base.py`), `connection.vendor` y vaut
+    `"sqlite"`, et `connection` n'est pas injectable dans les vues concernées
+    (`patient.py:56-57,62,69`, `consultation.py:154-155,160,167`). **La bascule de la suite
+    unitaire sur PostgreSQL n'était pas dans ce lot** : changement d'infrastructure de test à
+    risque réel (CI, fixtures, durée), sans rapport avec l'objectif de couverture. ⚠️ **Elle
+    reste justifiée par ailleurs, et c'est un lot à ouvrir** : `CLAUDE.md` § Déploiement a
+    sorti sqlite des cibles au cadrage S4 du 2026-09-01, et la suite unitaire tourne sur un
+    moteur qui n'en est plus une. Les huit instructions en seront un bénéfice, jamais le
+    motif. Une neuvième instruction impossible, de nature différente (I2, une garde de
+    typage qu'impose `mypy`, `dossier_patient.py:274`), reste elle aussi non couverte, sans
+    lien avec la bascule.
+  - **Q2 — le geste mort `request.path = ""` de la branche `web-view` du middleware a été
+    corrigé (DF3), pas laissé en l'état.** L'entrée de ce journal le marquait « décision
+    explicite, hors périmètre, pas un oubli » : c'était du **travail différé**, pas un choix
+    de conception — la décision d'alors portait sur le périmètre du portage `bde1f53`, et
+    l'entrée reconnaissait elle-même que la branche sœur « porte exactement le même défaut ».
+    Le jumeau `logout` avait déjà été retiré par ce même commit.
+
+  **Deux dettes ouvertes par la reprise du 2026-09-25, soldées ici :** la spec et le plan
+  décrivaient faux `^install/$` (elle n'est **pas** dans `NO_REROUTE_PATTERN_URL`, elle n'est
+  publique que par la branche « aucun utilisateur en base » du middleware) — démenti mesuré,
+  ci-dessous ; et **le critère du middleware (aucun utilisateur) n'est pas celui de la vue
+  (aucun `is_staff`)**, versé en constat non corrigé ci-dessous, sans danger le middleware
+  étant le plus strict.
+
+  **Cinq leçons de méthode, apprises au prix fort pendant ce lot** (les quatre de la reprise
+  du 2026-09-25, plus une neuve) :
+
+  1. La suite fonctionnelle complète revient au contrôleur, jamais à un implémenteur — elle
+     dépasse le plafond de 600 s de l'outil et bascule en arrière-plan sinon. Sept agents
+     s'y sont fait prendre pendant ce lot.
+  2. Une revue qui ne mesure que ce que la tâche mesure est aveugle aux mêmes endroits
+     qu'elle (leçon du lot précédent, `f0cb705`).
+  3. Commiter avec des chemins explicites tant qu'un agent travaille : un `git commit` sans
+     chemins emporte son index.
+  4. Avant toute suppression, chercher le consommateur, jamais le seul nom — et distinguer
+     « personne ne l'appelle » de « personne ne l'utilise ».
+  5. **Un `# Rouge si :` doit être prouvé par la mutation qu'il nomme** ; « le test passe
+     d'emblée » n'est pas un défaut sur du code correct — trois tours de correction (S14, C7,
+     D1) ont dû rouvrir un commentaire qui promettait une preuve que la mesure ne tenait pas.
+
+  ⚠️ **Les briefs de ce lot se sont trompés bien plus que les neuf fois relevées à la
+  reprise** : au moins 47 écarts brief/mesure relevés dans les sections dédiées des rapports
+  d'exécution, par familles — numéros de ligne périmés, aides ou classes de test inexistantes
+  ou en collision avec une classe déjà présente, jeux de données qui ne traversaient pas la
+  ligne visée, messages comparés à l'anglais alors que `fr` est actif en test, et le défaut
+  de preuve par mutation ci-dessus (trois fois). Mesurer et suivre la mesure, pas le brief.
+
+  **Les dix démentis mesurés**, pour que la prochaine passe ne reparte pas d'une prévision :
+  `file_integrator.py` était le plus gros trou du dépôt (47 instructions non couvertes) et
+  l'extrait fourni au cadrage ne le listait pas ; `^install/$` n'est pas dans
+  `NO_REROUTE_PATTERN_URL`, contrairement à ce que décrivaient la spec et le plan ;
+  `WithPkMixin` était hérité par **neuf** sérialiseurs, pas dix ; aucune fiche `R-TDB-*`
+  n'existe, le journal du tableau de bord est recetté par `R-AGE-02` ; le formulaire de
+  création d'administrateur **ne conserve pas** le nom d'utilisateur saisi au refus ;
+  `attrs["check"] is None` n'était atteignable par aucune charge HTTP ; `SocleDuJournal`
+  n'est pas une classe collectée, c'est une base héritée par trois sous-classes ;
+  `Invoice.paiments_list` est une property en lecture seule ; `Document.internal_date` est
+  `NOT NULL` sans défaut ; et `TestIsStaffOrTargetUser` existait déjà dans `test_acces.py` —
+  le nom proposé par un brief l'aurait écrasée et fait disparaître quatre tests de la
+  collecte.
+
+  **Cahier de recette** : deux attendus ajoutés aux fiches existantes (mise à jour du cahier
+  actée comme faisant partie de la demande, `CLAUDE.md` chapeau) — `R-CAB-05` (étape 6 bis :
+  un nom d'utilisateur portant un espace est refusé, message « Votre login ne doit pas
+  contenir d'espace ») et `R-SAU-03` (étape 1 bis : `backup_db` sur un chemin non
+  inscriptible rend un message lisible et un code de sortie non nul, jamais de trace
+  Python). Aucune ligne « Couverture auto » touchée, aucune fiche créée ; le troisième
+  attendu du lot (`R-AGE-02`, étape 5) avait déjà été ajouté par la tâche D4.
+
+  **Suivi amont** : rien de repris d'amont dans ce lot.
 
 - **2026-09-25 — Lot « solde du backlog » clos : neuf tâches, trois correctifs, une
   régression trouvée par bissection** (vingt-trois commits, `7ed7634`..`309b0c2`). Spec :
