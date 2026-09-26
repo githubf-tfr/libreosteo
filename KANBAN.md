@@ -838,7 +838,7 @@ sur les quatre entrées.
   Tranchés par l'utilisateur le 2026-09-26 :
   - **Écartés, risque accepté** : F1, F5, F28, F29 — voir « Décisions actées ».
   - **Corrigés selon sa décision** : F12, F18, F9 — voir « Terminé ».
-  - **Sans décision, nouvel essai à faire** : F6, F30.
+  - **Corrigés au second essai** : F6, F30 — voir « Terminé ».
 
 - ~~Données de santé stockées dans un SQLite non chiffré par défaut.~~ — **sans objet**,
   vérifié le 2026-09-19 : le déploiement cible est conteneur + PostgreSQL, rien d'autre
@@ -1693,6 +1693,18 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-26 — Lot correctif de sécurité, fin : F6 et F30 corrigés au second essai**
+  (`9cd24d7`, `b6746fb`). `make check` vert, **1219 passed**, couverture **99,98 %** ;
+  suite fonctionnelle **152 passed** (574 s).
+  - **F6** — la détection du format d'un fichier CSV importé se fait en temps linéaire
+    (`api/dialecte_csv.py`, `RenifleurLineaire`) avec un résultat identique à
+    `csv.Sniffer` sur le tampon entier, prouvé en différentiel ; un fichier fabriqué ne
+    fige plus l'unique worker.
+  - **F30** — plus de mot de passe PostgreSQL d'exemple dans `.env.example` ni dans la
+    doc ; procédure de changement ajoutée au `README.rst`.
+
+  **Recette** : `R-IMP-03` (étape 4), `R-INST-10`.
 
 - **2026-09-26 — Lot correctif de sécurité, suite : F12, F18, F9 corrigés selon la décision
   de l'utilisateur** (`1816306`, `ca696df`, `49389c6`). `make check` vert, **1195 passed**,
