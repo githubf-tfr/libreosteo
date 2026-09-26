@@ -172,6 +172,8 @@ class TestFacturation(APITestCase):
     def test_un_paiement_par_cheque_sans_information_est_refuse(self):
         """Ce test tranche le sort de `attrs["check"] is None` : si DRF refuse la
         charge **avant** d'appeler `validate`, la ligne est morte."""
+        # Rouge si : "check" redevient nullable (CheckSerializer required=False,
+        # allow_null=True) -- le refus disparait.
         reponse = self.client.post(
             reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
             data=dict(facturation(paiment_mode="check"), check=None),
