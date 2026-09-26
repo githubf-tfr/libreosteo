@@ -429,7 +429,7 @@ def test_un_montant_illisible_est_compte_hors_capacite(
         capsys,
     )
 
-    assert "hors capacite" in sortie.lower()
+    assert "Montants hors capacite (>= 10^8)  : 1" in sortie
     assert code != 0
 
 
