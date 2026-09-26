@@ -14,6 +14,7 @@
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 """Trois contrats portes par les modeles eux-memes, hors de toute vue."""
 
+import shutil
 import tempfile
 from datetime import timedelta
 
@@ -28,9 +29,12 @@ from .fixtures import cree_praticien, sans_receivers
 
 class TestIdentifiantDeCabinetVide(TestCase):
     def test_un_identifiant_vide_est_enregistre_comme_absent(self):
-        """« » et `None` doivent etre la meme absence : sans quoi deux cabinets sans
-        identifiant ne se comparent pas, et la contrainte d'unicite du numero de facture
-        les traite differemment."""
+        """« » et `None` doivent etre la meme absence : `InvoiceGenerator.generate_invoice`
+        (`api/invoicing/generator.py:88-89`) n'ecrase l'identifiant du cabinet par celui du
+        praticien que si ce dernier `is not None`. Une chaine vide non convertie passerait
+        ce test et blanchirait silencieusement l'identifiant du cabinet sur chaque facture
+        d'un praticien qui n'a renseigne aucun identifiant personnel. `office_identifier`
+        n'entre dans aucune contrainte d'unicite."""
         # Rouge si : la chaine vide est ecrite telle quelle en base.
         reglages = TherapeutSettings.objects.create(office_identifier="")
 
@@ -46,8 +50,16 @@ class TestIdentifiantDeCabinetVide(TestCase):
         self.assertIsNone(reglages.invoice_footer)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="libreosteo-test-modeles-"))
 class TestDateInterneDeDocument(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.repertoire_media = tempfile.mkdtemp(prefix="libreosteo-test-modeles-")
+        cls.addClassCleanup(shutil.rmtree, cls.repertoire_media, ignore_errors=True)
+        remplacement = override_settings(MEDIA_ROOT=cls.repertoire_media)
+        remplacement.enable()
+        cls.addClassCleanup(remplacement.disable)
+
     def test_un_document_sans_date_interne_en_recoit_une(self):
         """La date interne est celle du versement au dossier ; le dossier patient la
         trie avec, et un `None` la ferait disparaitre de la chronologie."""
