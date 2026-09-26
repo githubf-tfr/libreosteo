@@ -119,15 +119,6 @@ class AnalyzeReport(object):
         self.is_valid = is_valid
         self.type = internal_type
 
-    def is_empty(self):
-        return self.is_empty
-
-    def is_valid(self):
-        return self.is_valid
-
-    def type(self):
-        return self.type
-
 
 class Analyzer(object):
     """
