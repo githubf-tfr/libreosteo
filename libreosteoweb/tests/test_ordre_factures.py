@@ -21,10 +21,12 @@ facture corrective porteront alors la date de la séance, à la microseconde pr�
 Les dates sont donc posées identiques à la main ici, pour figer la règle avant
 que le produit ne la déclenche.
 
-Mesure du 2026-09-07 : sur des clefs de tri égales, SQLite — moteur de la suite
-unitaire — rend les lignes dans l'ordre des `rowid` croissants, y compris pour un
-`ORDER BY … DESC`. C'est ce qui rend ces trois assertions rouges avant le
-correctif et vertes après, de façon reproductible.
+Mesure du 2026-09-07, sur SQLite, alors moteur de la suite unitaire : sur des clefs de tri
+égales, SQLite rendait les lignes dans l'ordre des `rowid` croissants, y compris pour un
+`ORDER BY … DESC`. C'est ce qui rendait ces trois assertions rouges avant le correctif et
+vertes après, de façon reproductible. Sous PostgreSQL, l'ordre à clefs égales n'est pas
+garanti du tout : ces tests tiennent parce que le correctif départage, jamais par l'ordre
+du moteur.
 """
 
 from decimal import Decimal
