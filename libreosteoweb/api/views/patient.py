@@ -51,22 +51,18 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
 
     def list(self, request, *args, **kwargs):
         with connection.cursor() as cursor:
-            # Try to acquire a lock (non-blocking)
-            if connection.vendor == "postgresql":
-                cursor.execute("SELECT pg_try_advisory_lock(1);")
-                locked = cursor.fetchone()[0]
-            else:
-                locked = True
-
-            if not locked:
+            # Verrou consultatif non bloquant : un seul export complet a la fois. Il est
+            # tenu par la session PostgreSQL, non par le processus, et protege donc un
+            # deploiement a plusieurs workers. PostgreSQL seul (decision DU2 du
+            # 2026-09-26) : sur le serveur de developpement sqlite, l'export rend 500.
+            cursor.execute("SELECT pg_try_advisory_lock(1);")
+            if not cursor.fetchone()[0]:
                 return reponse_export_deja_en_cours()
-
             try:
                 full_retrieve_patient_list(request.user)
                 response_list = super().list(request, args, kwargs)
             finally:
-                if connection.vendor == "postgresql":
-                    cursor.execute("SELECT pg_advisory_unlock(1);")
+                cursor.execute("SELECT pg_advisory_unlock(1);")
         return response_list
 
     @action(detail=True, methods=["get"])

@@ -149,20 +149,14 @@ class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
 
     def list(self, request, *args, **kwargs):
         with connection.cursor() as cursor:
-            # Try to acquire a lock (non-blocking)
-            if connection.vendor == "postgresql":
-                cursor.execute("SELECT pg_try_advisory_lock(1);")
-                locked = cursor.fetchone()[0]
-            else:
-                locked = True
-
-            if not locked:
+            # Meme verrou consultatif que l'export des patients, meme clef : un export
+            # complet a la fois, tous exports confondus. PostgreSQL seul (decision DU2).
+            cursor.execute("SELECT pg_try_advisory_lock(1);")
+            if not cursor.fetchone()[0]:
                 return reponse_export_deja_en_cours()
-
             try:
                 full_retrieve_examination_list(request.user)
                 response_list = super().list(request, args, kwargs)
             finally:
-                if connection.vendor == "postgresql":
-                    cursor.execute("SELECT pg_advisory_unlock(1);")
+                cursor.execute("SELECT pg_advisory_unlock(1);")
         return response_list
