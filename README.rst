@@ -115,11 +115,14 @@ this does not give you a usable instance. Follow the steps below instead.
 
 - Copy this repository in your local environment.
 - Ensure you have docker installed on your machine.
-- Build both images, tagged with the current commit ::
+- Build the application image, tagged with the current commit ::
 
     TAG=$(git rev-parse --short HEAD)
-    docker build -t familletra/libreosteo-pg:$TAG   -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
     docker build -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
+
+  The database needs no build: the ``db`` service runs the official ``postgres`` image,
+  unmodified, pinned by digest in ``Docker/deploy/pg/docker-compose.yml``, and ``docker
+  compose`` pulls it.
 
 - Copy ``Docker/deploy/pg/.env.example`` to ``.env`` and fill in these values ::
 
@@ -191,7 +194,7 @@ encrypt, restore. Plan it as such.
 Note that self-hosting your own patients' records is not third-party hosting: the French
 HDS certification addresses hosts entrusted with someone else's health data. Your own
 obligations still apply, but they are not the same ones.
-- LIBREOSTEO_IMAGE_TAG selects which build of the two images above the compose file runs ; the container refuses to start without it
+- LIBREOSTEO_IMAGE_TAG selects which build of the application image the compose file runs ; the container refuses to start without it. The ``db`` image does not depend on it: it is the ``image:`` line of the compose file, so the commit you deploy says which PostgreSQL runs
 
 The sqlite and standalone (CherryPy) modes described further below still exist in the
 code, but are no longer a deployment target : they are not maintained or tested, and this
@@ -227,8 +230,9 @@ Throughout, ``$COMPOSE`` stands for
 ``docker compose --env-file .env -f Docker/deploy/pg/docker-compose.yml``.
 
 1. **Stop the application, keep the old engine running.** No write may happen while the
-   dump is taken. The ``db`` service must still run the image you are upgrading *from*,
-   so do not rebuild anything yet::
+   dump is taken. The ``db`` service must still run the image you are upgrading *from*:
+   that image is the ``image:`` line of the compose file, so keep your checkout on the
+   commit you run today — do not update it, and do not rebuild anything yet::
 
        $COMPOSE stop libreosteo
        $COMPOSE up -d db
@@ -254,21 +258,22 @@ Throughout, ``$COMPOSE`` stands for
        $COMPOSE down
        mv /path/to/db /path/to/db.pg13
 
-4. **Empty out ``LIBREOSTEO_DB_STORAGE`` (or point it at a new directory), rebuild both
-   images under the current commit, and carry that tag into ``.env`` before starting the
-   engine alone.** The PostgreSQL 18 entrypoint creates ``18/docker`` under the mount
-   point, then creates the role and the database from ``POSTGRES_USER``,
-   ``POSTGRES_PASSWORD`` and ``POSTGRES_DB``. ``$COMPOSE`` reads its image tag from
-   ``LIBREOSTEO_IMAGE_TAG`` in ``.env`` (see ``Docker/deploy/pg/.env.example``): skipping
-   the last line below leaves that variable pointing at the old tag, so ``$COMPOSE up -d
-   db`` would silently restart the PostgreSQL 13 image against the fresh directory
-   instead of the PostgreSQL 18 one just built::
+4. **Empty out ``LIBREOSTEO_DB_STORAGE`` (or point it at a new directory), move your
+   checkout to the commit that carries the new major, rebuild the application image under
+   that commit, and carry its tag into ``.env`` before starting the engine alone.** The
+   ``db`` image is the ``image:`` line of the compose file of that commit, pinned by
+   digest, and ``pull db`` fetches it. The PostgreSQL 18 entrypoint creates ``18/docker``
+   under the mount point, then creates the role and the database from ``POSTGRES_USER``,
+   ``POSTGRES_PASSWORD`` and ``POSTGRES_DB``. Skipping the checkout leaves the compose file
+   naming the old major, so ``$COMPOSE up -d db`` would silently restart the PostgreSQL 13
+   engine against the fresh directory::
 
        mkdir -p /path/to/db
+       git checkout <commit carrying the new major>
        TAG=$(git rev-parse --short HEAD)
-       docker build -t familletra/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
        docker build -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
        sed -i "s/^LIBREOSTEO_IMAGE_TAG=.*/LIBREOSTEO_IMAGE_TAG=$TAG/" .env
+       $COMPOSE pull db
        $COMPOSE up -d db
 
 5. **Reload the dump.** Copy ``dumpall.sql`` into the new ``LIBREOSTEO_BAK_STORAGE``

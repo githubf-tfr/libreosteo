@@ -27,22 +27,20 @@ Claude, le scratchpad de session convient (`.../scratchpad/recette/`).
 ```sh
 SCRATCH=/chemin/de/travail/jetable   # à adapter, hors du dépôt
 mkdir -p "$SCRATCH"/{db,bak,data,settings}
-TAG=$(git rev-parse --short HEAD)   # tag des deux images : le commit effectivement bâti
+TAG=$(git rev-parse --short HEAD)   # tag de l'image HTTP : le commit effectivement bâti
 ```
 
-**Étape 1 — image PostgreSQL :**
-
-```sh
-docker build -t familletra/libreosteo-pg:$TAG -f Docker/build/postgresql/Dockerfile Docker/build/postgresql/
-```
-
-**Étape 2 — image HTTP** (contexte = racine du dépôt) :
+**Étape 1 — image HTTP** (contexte = racine du dépôt) :
 
 ```sh
 docker build -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
 ```
 
-**Étape 3 — environnement compose.** Les deux fichiers de réglages sont fournis par le
+L'image de `db` ne se bâtit pas : c'est l'image officielle `postgres`, sans
+modification, épinglée par digest dans `Docker/deploy/pg/docker-compose.yml`, que
+`docker compose` tire au premier `up`.
+
+**Étape 2 — environnement compose.** Les deux fichiers de réglages sont fournis par le
 dépôt sous forme d'exemples : les copier, puis renseigner les deux emplacements vides.
 Rien n'est à récrire à la main.
 
@@ -100,10 +98,11 @@ EOF
 ```
 
 **Tag d'image obligatoire.** `LIBREOSTEO_IMAGE_TAG` nomme la construction réellement faite
-aux étapes 1 et 2 ; les deux services la réclament (`${LIBREOSTEO_IMAGE_TAG:?…}`). Absente
-ou vide, `docker compose` refuse toute commande et ne démarre
-rien : `error while interpolating services.db.image: required variable LIBREOSTEO_IMAGE_TAG
-is missing a value: renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example`.
+à l'étape 1 ; seul le service `libreosteo` la réclame (`${LIBREOSTEO_IMAGE_TAG:?…}`),
+l'image de `db` étant écrite en dur dans le compose. Absente ou vide, `docker compose`
+refuse toute commande et ne démarre rien : `error while interpolating
+services.libreosteo.image: required variable LIBREOSTEO_IMAGE_TAG is missing a value:
+renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example`.
 Renseignée avec un tag qu'aucune image locale ne porte, `docker compose` tente le tirage
 depuis `familletra/` — le namespace du fork, et non `libreosteo/`, qui est celui d'amont.
 Un tag jamais poussé échoue alors sur `manifest unknown`.
@@ -117,7 +116,7 @@ refuse tout moteur autre que PostgreSQL : un montage sans `settings/` retomberai
 sqlite de `base.py` et sortirait en `ImproperlyConfigured`. Le volume `settings/` est
 obligatoire.
 
-**Étape 4 — démarrage :**
+**Étape 3 — démarrage :**
 
 ```sh
 docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml up -d
@@ -137,7 +136,7 @@ démarrage et **dépend du réseau sortant** : quand il aboutit, le journal mont
 journal le dit explicitement. Les deux issues sont normales et non bloquantes — la recette
 ne dépend pas des codes postaux.
 
-**Étape 5 — vérification externe :**
+**Étape 4 — vérification externe :**
 
 ```sh
 curl -sD - -o /dev/null http://localhost:8085/
@@ -383,8 +382,8 @@ Bloc modèle, à recopier pour chaque fiche des chapitres de domaine :
   La valeur peut être suivie d'une phrase qui dit ce que la fiche **laisse** derrière elle,
   et l'état à remonter avant la fiche suivante.
 - `Prérequis` : facultatif, après les trois champs et avant les étapes. Ce qu'il faut
-  réunir **hors** de l'état nommé pour que la fiche soit jouable — des images bâties sur
-  une majeure antérieure (`R-INST-06`), deux passes à deux dates distinctes (`R-INST-07`).
+  réunir **hors** de l'état nommé pour que la fiche soit jouable — une image de la majeure
+  antérieure (`R-INST-06`), deux passes à deux dates distinctes (`R-INST-07`).
   Ce qui se construit par des gestes du produit reste dans l'état nommé ou dans une étape ;
   ce bloc ne sert qu'à ce qui n'en relève pas.
 - `Constat` : facultatif, en toute fin de fiche. Il dit **ce que la fiche établit** — la
@@ -711,11 +710,11 @@ que personne ne la découvre en production.
   C'est une répétition de mise à jour, sur le précédent de `R-INST-05` — jouée avant que
   quiconque ne la découvre en production.
 
-**Prérequis** : disposer d'images du fork bâties sur l'ancienne majeure (`db` doit
-démarrer sur PostgreSQL 13) et du dépôt au commit qui porte PostgreSQL 18. La procédure
-suivie est celle de `README.rst`, section « Upgrading PostgreSQL to a new major version »,
-**sans y ajouter un geste** : les étapes ci-dessous en constatent le résultat, elles ne la
-paraphrasent pas.
+**Prérequis** : pour `db`, l'image officielle de l'ancienne majeure, nommée par le compose
+de l'arbre de départ (`db` doit démarrer sur PostgreSQL 13), et le dépôt au commit qui
+porte PostgreSQL 18. La procédure suivie est celle de `README.rst`, section « Upgrading
+PostgreSQL to a new major version », **sans y ajouter un geste** : les étapes ci-dessous en
+constatent le résultat, elles ne la paraphrasent pas.
 
 **Étapes**
 
@@ -732,7 +731,8 @@ paraphrasent pas.
 3. Suivre l'étape 3 (arrêt complet, ancien répertoire de données **mis de côté**).
    Attendu : `docker compose ... ps -a` ne liste plus aucun conteneur du montage ;
    l'ancien répertoire existe toujours sous son nouveau nom.
-4. Suivre l'étape 4 (répertoire hôte neuf, images reconstruites, `db` seul démarré).
+4. Suivre l'étape 4 (répertoire hôte neuf, dépôt au commit visé, image HTTP reconstruite,
+   image de `db` tirée, `db` seul démarré).
    Attendu : `db` en `Up (healthy)` ; `ls -la` du répertoire hôte, par un conteneur
    jetable, montre `18/` appartenant à root, contenant `18/docker` appartenant à l'uid
    70 en mode `0700`.
@@ -1053,6 +1053,44 @@ au-dessus, la reprise continue la numérotation existante sans y sauter (cf.
 `README.rst`, « Duplicate invoice numbers on upgrade ») ; et un parc sans
 doublon n'est pas touché du tout — aucune ligne `renumérotée` n'apparaît alors
 au journal.
+
+### R-INST-09 — Une base existante redémarre sur l'image PostgreSQL officielle
+
+- **Domaine** : Installation
+- **Couverture auto** : non — aucune suite pytest ne démarre le montage compose
+- **État requis** : E2, servi par l'image `familletra/libreosteo-pg` du commit antérieur au
+  lot. La fiche laisse E2 servi par l'image officielle, données intactes.
+
+**Prérequis** : un arbre `git worktree add` sur le dernier commit antérieur au lot, pour
+monter E2 avec l'ancien compose ; le même `$SCRATCH`, donc le même `.env` et les mêmes
+répertoires hôtes, pour les deux arbres. `$COMPOSE` y désigne
+`docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml`, lancé à
+la racine de l'arbre indiqué.
+
+**Étapes**
+
+1. Depuis l'arbre antérieur : `$COMPOSE images db`, puis
+   `$COMPOSE exec db sh -c 'psql -U "$POSTGRES_USER" -d libreosteo -tAc "SELECT (SELECT count(*) FROM libreosteoweb_patient), (SELECT count(*) FROM libreosteoweb_examination), (SELECT count(*) FROM libreosteoweb_invoice)"'`.
+   Attendu : image `familletra/libreosteo-pg` ; trois nombres, notés.
+2. Depuis l'arbre antérieur : `$COMPOSE down` (sans `-v`).
+   Attendu : `$COMPOSE ps -a` ne liste plus aucun conteneur du montage.
+3. Depuis l'arbre du lot : `$COMPOSE pull db`, puis `$COMPOSE up -d`.
+   Attendu : `$COMPOSE ps` montre `db` `healthy` et `libreosteo` `Up` ; `$COMPOSE images db`
+   montre `postgres`, au digest écrit dans le compose ; `$COMPOSE exec db postgres --version`
+   rend `postgres (PostgreSQL) 18.` suivi de la mineure.
+4. `$COMPOSE logs db`.
+   Attendu : la ligne « PostgreSQL Database directory appears to contain a database;
+   Skipping initialization » ; aucune ligne contenant `incompatible` ni
+   `collation version mismatch`.
+5. Rejouer la requête de l'étape 1, et `$COMPOSE exec db cat /var/lib/postgresql/18/docker/PG_VERSION`.
+   Attendu : les trois nombres de l'étape 1 ; `18`.
+6. Dans le navigateur, se connecter avec le compte de E1 et ouvrir le dossier d'un patient
+   de E2.
+   Attendu : le dossier s'affiche avec ses consultations.
+
+**Constat** : l'image du fork n'était que l'image officielle plus une ligne sans effet ; même
+majeure, même `PGDATA`, même montage. Aucune migration de données n'est en jeu, seule la
+version mineure peut changer.
 
 ### Authentification
 
