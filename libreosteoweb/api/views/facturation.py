@@ -132,10 +132,8 @@ class InvoiceViewSet(XLSXFileMixin, viewsets.ReadOnlyModelViewSet):
                         ),
                         self.get_object(),
                     )
-                    if "errors" in result:
-                        return Response(
-                            result["errors"], status=status.HTTP_400_BAD_REQUEST
-                        )
+                    # Le sous-serialiseur `corrective_invoice` a deja ete valide par
+                    # `serializer.is_valid()`, sur les memes donnees.
                     corrective_invoice = models.Invoice.objects.get(
                         id=result["invoiced"]
                     )
