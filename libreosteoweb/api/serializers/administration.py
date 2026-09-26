@@ -96,30 +96,33 @@ class OfficeSettingsSerializer(serializers.ModelSerializer):
     selected = serializers.SerializerMethodField()
 
     def validate(self, data):
-        try:
+        # Cle absente (PATCH partiel qui ne porte pas `invoice_start_sequence`) :
+        # court-circuit complet, `data` n'est pas touche et la cle reste absente de
+        # `validated_data` -- `OfficeSettingsView.perform_update` doit alors sauter tout
+        # le chemin de la sequence (correctif du 2026-09-26, brief-suites-arbitrages B).
+        # Une cle presente et vide garde son comportement d'avant ce lot.
+        if "invoice_start_sequence" in data:
             input_invoice_start_seq = data["invoice_start_sequence"]
-        except KeyError:
-            input_invoice_start_seq = None
+            if input_invoice_start_seq is None or len(input_invoice_start_seq) <= 0:
+                # Seuls la forme et le defaut relevent de cette etape (D6d, T9) : la borne
+                # reste au seul soin de `OfficeSettingsView.perform_update`, qui appelle la
+                # meme regle extraite sur la valeur finale. L'appeler ici aussi ferait
+                # basculer un refus de borne de `PermissionDenied` (403, garde par
+                # `TestMaximumDeSequenceSurLesTroisSurfaces::
+                # test_une_sequence_sous_un_numero_deja_emis_est_refusee`) en
+                # `ValidationError` (400) : deux etapes historiques, une seule regle, mais pas
+                # un seul point d'appel.
+                data["invoice_start_sequence"] = (
+                    services_facturation.sequence_par_defaut(self.instance.id)
+                )
+            elif not input_invoice_start_seq.isnumeric():
+                raise serializers.ValidationError(
+                    _("Invoice start sequence should only contain digits")
+                )
         try:
             input_invoice_prefix_seq = data["invoice_prefix_sequence"]
         except KeyError:
             input_invoice_prefix_seq = None
-        if input_invoice_start_seq is None or len(input_invoice_start_seq) <= 0:
-            # Seuls la forme et le defaut relevent de cette etape (D6d, T9) : la borne
-            # reste au seul soin de `OfficeSettingsView.perform_update`, qui appelle la
-            # meme regle extraite sur la valeur finale. L'appeler ici aussi ferait
-            # basculer un refus de borne de `PermissionDenied` (403, garde par
-            # `TestMaximumDeSequenceSurLesTroisSurfaces::
-            # test_une_sequence_sous_un_numero_deja_emis_est_refusee`) en
-            # `ValidationError` (400) : deux etapes historiques, une seule regle, mais pas
-            # un seul point d'appel.
-            data["invoice_start_sequence"] = services_facturation.sequence_par_defaut(
-                self.instance.id
-            )
-        elif not input_invoice_start_seq.isnumeric():
-            raise serializers.ValidationError(
-                _("Invoice start sequence should only contain digits")
-            )
         if input_invoice_prefix_seq is not None:
             try:
                 data["invoice_prefix_sequence"] = (

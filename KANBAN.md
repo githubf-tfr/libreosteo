@@ -1209,9 +1209,10 @@ Chacun avec son motif de non-correction — détail dans
   lui-même (chaque correctif y était nommé comme faisant partie de la tâche de test qui
   l'a trouvé), donc défaut du plan, pas de l'exécution. Historique non réécrit — les
   commits restent groupés comme joués.
-- **`libreosteoweb/apps.py:55` et `file_integrator.py:265` : `logger.warn`**, méthode
+- ~~**`libreosteoweb/apps.py:55` et `file_integrator.py:265` : `logger.warn`**, méthode
   dépréciée, conservée telle quelle par la tâche C3 (et par F7 pour la seconde occurrence)
-  pour ne pas glisser un geste non demandé dans un commit d'extraction ou de test.
+  pour ne pas glisser un geste non demandé dans un commit d'extraction ou de test.~~ —
+  **corrigé le 2026-09-26 par `8b68c4c`**, `logger.warning` aux deux occurrences.
 - **Le msgid `"Cannot read the content file. Check the encoding."`**
   (`locale/fr/LC_MESSAGES/django.po:69`) est devenu orphelin avec la suppression F1. Aucun
   cliquet ne le voit (`test_contrat_traductions.py` mesure code → catalogue, jamais
@@ -1252,7 +1253,11 @@ Chacun avec son motif de non-correction — détail dans
   `logger.warn("No Analyzer found")` (test F7, +2) ; `loaddata` « No fixture data found for
   'dump' » (+1, `test_exploitation`/`test_service_sauvegarde`). Aucun `ResourceWarning`,
   aucune socket parmi les tests neufs. Non bloquants (`make check` reste vert).
-- **`PATCH /api/officesettings/<pk>` avec la seule charge `office_name`, sur un cabinet
+  **Mise à jour du 2026-09-26** : les deux `logger.warn` corrigés (`8b68c4c`) retirent
+  5 warnings (les 4 occurrences de test qui traversaient `file_integrator.py:265`, plus
+  l'occurrence `apps.py:55`) — compte mesuré **12 warnings**, tous préexistants
+  (`RuntimeWarning` d'`AppConfig.ready()` et `loaddata`).
+- ~~**`PATCH /api/officesettings/<pk>` avec la seule charge `office_name`, sur un cabinet
   réglé à 20000 et sans facture, réécrit `invoice_start_sequence` à 10000** et journalise
   « Invoice sequence updated from 20000 to 10000 » (mesure de la vague finale, T2 a)) :
   `OfficeSettingsSerializer.validate` remplace toute sequence absente de la charge par
@@ -1262,7 +1267,18 @@ Chacun avec son motif de non-correction — détail dans
   seulement). Le troisième test de l'ex-`TestSequenceNonNumeriqueConservee` (C5) n'en était
   pas la preuve : il ne tenait que le code de réponse (l'`except KeyError` mort de
   `perform_update`), jamais la valeur écrite en base — un filet, pas une garantie
-  d'intégrité.
+  d'intégrité.~~ — **corrigé le 2026-09-26**, tranché par l'utilisateur (brief
+  `brief-suites-arbitrages.md`, correctif B) : la cle absente court-circuite tout le
+  chemin de la sequence dans `perform_update` (aucune borne, aucun événement,
+  `serializer.save()` seul), preuve par
+  `TestSequenceOmiseInchangeeSequenceVideParDefaut` (`test_exploitation.py`), y compris
+  le piège (des factures émises au-delà de la sequence en base ne rendent plus 403). Un
+  second test figeait le même défaut, hors du repérage du brief :
+  `test_serializer_administration.py::TestSerialiseurDuCabinet::
+  test_une_charge_sans_sequence_retombe_sur_la_sequence_par_defaut` asserte sur
+  `validated_data` (rouage, pas comportement) que la cle absente est toujours remplacée —
+  corrigé au même commit, renommé
+  `test_une_charge_sans_sequence_ne_pose_pas_la_cle_dans_validated_data`.
 
 ### Dette technique (constat, pas action)
 

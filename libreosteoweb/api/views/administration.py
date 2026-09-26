@@ -198,10 +198,19 @@ class OfficeSettingsView(viewsets.ModelViewSet):
         # controler ici (D6d, T9) — la forme et le defaut sont deja tranches par
         # `OfficeSettingsSerializer.validate`, qui a produit `validated_data`. Une seule
         # regle, `services_facturation.valider_sequence_de_depart`, porte desormais la
-        # comparaison (C4). La cle est toujours presente : `validate` l'ecrit sur les
-        # deux branches de son premier `try`.
-        # `validate` rend toujours une chaine de chiffres (defaut calcule si vide, refus
-        # sinon) : aucune garde n'est necessaire ici.
+        # comparaison (C4). La cle n'est plus toujours presente (correctif du
+        # 2026-09-26) : une charge qui omet `invoice_start_sequence` ne la pose pas dans
+        # `validated_data`, et ce chemin doit alors etre court-circuite en entier --
+        # aucune borne, aucun evenement, `serializer.save()` seul. Ecrire ici la valeur
+        # deja en base au lieu de sauter le chemin exposerait a `valider_sequence_de_depart`
+        # sur une sequence de depart presque toujours sous le maximum deja emis, et
+        # renommer le cabinet deviendrait un 403.
+        # Quand la cle est presente, `validate` rend toujours une chaine de chiffres
+        # (defaut calcule si vide, refus sinon) : aucune garde de forme n'est necessaire
+        # ici.
+        if "invoice_start_sequence" not in serializer.validated_data:
+            serializer.save()
+            return
         asked_value = serializer.validated_data["invoice_start_sequence"]
         try:
             services_facturation.valider_sequence_de_depart(

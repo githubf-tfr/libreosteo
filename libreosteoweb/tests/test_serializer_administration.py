@@ -66,13 +66,17 @@ class TestSerialiseurDuCabinet(TestCase):
             context={"request": self.requete},
         )
 
-    def test_une_charge_sans_sequence_retombe_sur_la_sequence_par_defaut(self):
+    def test_une_charge_sans_sequence_ne_pose_pas_la_cle_dans_validated_data(self):
+        """Corrige par ce lot : la cle absente n'est plus remplacee par
+        `sequence_par_defaut` -- elle reste absente de `validated_data`, et c'est ce
+        court-circuit que lit `OfficeSettingsView.perform_update`."""
         # Rouge si : l'omission devient un refus -- enregistrer l'adresse du cabinet
-        # exigerait de ressaisir la sequence de facturation.
+        # exigerait de ressaisir la sequence de facturation -- ou repose une valeur
+        # calculee dans la cle absente.
         serialiseur = self._serialiseur({"office_name": "Cabinet du port"})
 
         self.assertTrue(serialiseur.is_valid(), serialiseur.errors)
-        self.assertIsNotNone(serialiseur.validated_data["invoice_start_sequence"])
+        self.assertNotIn("invoice_start_sequence", serialiseur.validated_data)
 
     def test_un_prefixe_non_alphabetique_est_refuse(self):
         """Le champ modele (`OfficeSettings.invoice_prefix_sequence`) porte deja
