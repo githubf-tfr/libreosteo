@@ -6,7 +6,8 @@ le collectent : il ne se lance qu'en le nommant explicitement sur la ligne de co
 `pytest` collectant toujours un fichier qu'on lui designe.
 
     PLAYWRIGHT_BROWSERS_PATH="$PWD/.tools/playwright-browsers" \\
-      .venv/bin/python -m pytest tests/functional/capture_socle_visuel.py --no-cov -q
+      .venv/bin/python -m pytest tests/functional/capture_socle_visuel.py --no-cov -q \\
+      --ds=Libreosteo.settings
 
 Il vit sous `tests/functional/` pour une seule raison : le `conftest.py` de la suite, qui
 monte le serveur, la base, l'arbre statique servi et le drapeau Alpine. Un script pose

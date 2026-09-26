@@ -43,8 +43,7 @@ atexit.register(shutil.rmtree, _dossier_index_de_test, ignore_errors=True)
 # Mutation **en place** du sous-dictionnaire, jamais un remplacement : `haystack`
 # construit son `ConnectionHandler` a l'import (`haystack/__init__.py`) en gardant une
 # reference sur la structure de reglages. Remplacer `settings.HAYSTACK_CONNECTIONS` par un
-# dictionnaire neuf laisserait le handler sur l'ancien -- meme motif, a la lettre, que la
-# mise a jour en place du sous-dictionnaire `TEST` ci-dessus.
+# dictionnaire neuf laisserait le handler sur l'ancien.
 cast("dict[str, Any]", reglages_django.HAYSTACK_CONNECTIONS["default"])["PATH"] = (
     os.path.join(_dossier_index_de_test, "whoosh_index")
 )
