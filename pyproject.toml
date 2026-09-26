@@ -21,6 +21,22 @@ omit = [
 ]
 
 [tool.coverage.report]
+# Un module importe par pytest n'a jamais `__name__ == "__main__"` : la ligne de garde et
+# son corps ne sont pas testables, et un `# pragma: no cover` disperse serait un cliquet
+# qu'on desserre un peu partout sans jamais l'assumer. Une seule exclusion, ici, avec sa
+# regle a cote -- et cette regle devient une regle du depot :
+#
+#   ⚠️ TOUT bloc `if __name__ == "__main__":` est une delegation d'UNE ligne vers une
+#   fonction testee. Jamais de logique dedans.
+#
+# Elle n'est pas decorative : le `__main__` de `outils/rupture_bs5.py` portait vingt lignes
+# de logique, et c'est precisement pourquoi il a ete supprime (2026-09-24) plutot
+# qu'exclu. Poser cette exclusion sans ce prealable aurait cache ces vingt lignes.
+# `exclude_lines` remplace la liste par defaut de `coverage` (qui contient `# pragma: no
+# cover`) : aucun pragma n'existe dans le code mesure aujourd'hui, coherent avec la regle
+# ci-dessus.
+exclude_lines = ['if __name__ == "__main__":']
+
 # Plancher à cliquet : cette valeur ne descend jamais. Quand la couverture
 # progresse durablement, on relève le plancher dans le commit qui l'a fait monter.
 # Descendu de 62 à 61 une seule fois, en activant ruff : la suppression des imports
