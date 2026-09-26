@@ -32,7 +32,7 @@ from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.core.serializers.base import DeserializationError
-from django.db import DatabaseError, IntegrityError, connection, transaction
+from django.db import DatabaseError, DataError, IntegrityError, connection, transaction
 from django.db.models import signals
 from haystack.apps import HaystackConfig
 
@@ -230,9 +230,13 @@ def restaurer(contenu: ContentFile, version_courante: str) -> PlanReprise:
         # contrainte violée par les objets de l'archive — PK dupliquée, FK rompue — est
         # un défaut de l'archive, pas de la base.
         IntegrityError,
-        # Un montant qui ne rentre plus dans `numeric(10,2)` (migration 0058) leve cette
-        # exception au rechargement, sous PostgreSQL, sans heriter de `DatabaseError` :
-        # le defaut est dans l'archive rechargee, pas dans le moteur.
+        # Une valeur que la base refuse pour sa forme -- un montant qui ne rentre plus
+        # dans `numeric(10,2)` (migration 0058), une chaine trop longue : `DataError`, qui
+        # herite de `DatabaseError` et tombait sinon en panne moteur (500). Le defaut est
+        # dans l'archive rechargee, pas dans le moteur (mesure du 2026-09-26, E2).
+        DataError,
+        # Gardee par prudence, sans producteur connu : sous Django 5.2,
+        # `adapt_decimalfield_value` ne quantifie plus et ne la leve pas. Retrait renvoye.
         decimal.InvalidOperation,
     ) as erreur:
         # La journalisation de l'échec appartient à l'appelant, qui seul sait ce qu'il en
