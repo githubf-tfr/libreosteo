@@ -180,6 +180,7 @@ files = [
     "libreosteoweb/tests/test_graphiques.py",
     "libreosteoweb/tests/test_import_fichiers.py",
     "libreosteoweb/tests/test_invoice.py",
+    "libreosteoweb/tests/test_modeles.py",
     "libreosteoweb/tests/test_notifications.py",
     "libreosteoweb/tests/test_ordre_factures.py",
     "libreosteoweb/tests/test_page_cabinet.py",
