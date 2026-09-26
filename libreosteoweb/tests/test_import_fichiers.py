@@ -271,6 +271,24 @@ class TestAnalyseImport(APITestCase):
         # L'analyse échoue explicitement : un motif est remonté, ce n'est pas un silence.
         self.assertTrue(reponse.data["analyze"]["patient"][3])
 
+    def test_integrer_un_depot_refuse_a_l_analyse_rend_409_et_non_500(self):
+        """La vue de page rend deja 409 dans ce cas
+        (`test_page_import.py::test_l_integration_d_un_couple_non_valide_est_refusee_en_409`) ;
+        la route DRF, elle, n'avait aucune garde."""
+        # Rouge si : la route rend 500 -- un praticien authentifie recoit une trace
+        # Python sur un geste que l'ecran propose.
+        reponse = self.depose(
+            csv_televerse("inconnu.csv", ["colonne a", "colonne b"], [["v", "w"]])
+        )
+        depot = FileImport.objects.get(id=reponse.data["id"])
+        self.assertEqual(0, depot.status)
+
+        reponse = self.client.post(
+            reverse("fileimport-integrate", kwargs={"pk": depot.pk})
+        )
+
+        self.assertEqual(status.HTTP_409_CONFLICT, reponse.status_code)
+
 
 class TestIntegrationPatients(APITestCase):
     @classmethod
