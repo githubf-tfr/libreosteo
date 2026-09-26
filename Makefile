@@ -48,6 +48,8 @@ test: test-db
 # Idempotente, etat lu sur le demon (docker inspect, docker port), jamais dans un fichier :
 # un conteneur deja lance sur cette image et ce port est garde tel quel -- il evite
 # l'initdb a chaque `make check` --, sur une autre image ou un autre port il est remplace.
+# Un conteneur garde garde aussi ses options `docker run` (fsync, tmpfs, authentification) :
+# apres un changement d'option, `make test-db-arret`.
 # Un `docker run` qui echoue parce qu'un lancement simultane vient de creer le meme
 # conteneur n'est pas une erreur : l'etat est relu jusqu'a ce qu'il soit le bon.
 # Donnees en tmpfs et `--rm` : rien ne survit a l'arret. `trust` (decision DU1) : publie
@@ -72,6 +74,10 @@ test-db:
 		echo "(README.rst, Development) ; elle ne se repointe jamais sur sqlite." >&2; \
 		exit 1; \
 	fi; \
+	if ! docker info >/dev/null 2>&1; then \
+		echo "make test-db : demon Docker injoignable (docker info a echoue)." >&2; \
+		exit 1; \
+	fi; \
 	attendu="$$image 127.0.0.1:$(LIBREOSTEO_TEST_DB_PORT)"; \
 	etat() { \
 		echo "$$(docker inspect --format '{{.Config.Image}}' $(CONTENEUR_TEST_DB) 2>/dev/null) $$(docker port $(CONTENEUR_TEST_DB) 5432/tcp 2>/dev/null)"; \
@@ -85,7 +91,7 @@ test-db:
 			--tmpfs /var/lib/postgresql \
 			"$$image" -c fsync=off -c synchronous_commit=off -c full_page_writes=off \
 			>/dev/null \
-		|| echo "Serveur de test : docker run a echoue ; un lancement simultane l'a peut-etre cree, on l'attend." >&2; \
+		|| echo "Serveur de test : docker run a echoue -- port $(LIBREOSTEO_TEST_DB_PORT) deja pris, demon a court de ressources, ou lancement simultane qui a deja cree $(CONTENEUR_TEST_DB) (on l'attend)." >&2; \
 	fi; \
 	for essai in $$(seq 60); do \
 		if [ "$$(etat)" = "$$attendu" ] \
