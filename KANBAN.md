@@ -837,10 +837,7 @@ sur les quatre entrées.
   versionné `CLAUDE-SECURITY-20260926-120331/` (`.gitignore` local, dépôt public).
   Tranchés par l'utilisateur le 2026-09-26 :
   - **Écartés, risque accepté** : F1, F5, F28, F29 — voir « Décisions actées ».
-  - **À corriger selon sa décision** : F9 (ancien mot de passe exigé pour changer le
-    sien, pas pour un tiers), F18 (sessions retirées des sauvegardes, purge unique des
-    sessions à la mise à jour), F12 (import réservé au personnel administrateur côté
-    serveur).
+  - **Corrigés selon sa décision** : F12, F18, F9 — voir « Terminé ».
   - **Sans décision, nouvel essai à faire** : F6, F30.
 
 - ~~Données de santé stockées dans un SQLite non chiffré par défaut.~~ — **sans objet**,
@@ -1696,6 +1693,24 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-26 — Lot correctif de sécurité, suite : F12, F18, F9 corrigés selon la décision
+  de l'utilisateur** (`1816306`, `ca696df`, `49389c6`). `make check` vert, **1195 passed**,
+  couverture **99,98 %** ; suite fonctionnelle **152 passed** (582 s).
+  - **F12** — l'analyse et l'intégration d'un import sont réservées au personnel
+    administrateur côté serveur (403 sinon), page et `FileImportViewSet` ; l'écran ne
+    change pas.
+  - **F18** — les sauvegardes n'embarquent plus aucun jeton de session
+    (`sessions`, `LoggedInUser`), la restauration n'en recharge aucun, et la migration
+    `0061_purge_sessions_existantes` vide `django_session` une fois : **tout le monde se
+    reconnecte une fois à la mise à jour**, ce qui rend inoffensives les archives déjà
+    téléchargées.
+  - **F9** — changer son propre mot de passe exige le mot de passe actuel (profil, et
+    tableau des utilisateurs quand la cible est soi-même) ; un administrateur réinitialise
+    toujours le mot de passe d'un autre compte sans rien de plus (décision de
+    l'utilisateur : « pour soi seul »).
+
+  **Recette** : `R-IMP-01` (étape 6), `R-SAU-01`, `R-SAU-02`, `R-AUTH-05`.
 
 - **2026-09-26 — Lot correctif de sécurité : 12 constats du scan Claude Security du
   2026-09-26 corrigés** (commit `196cbe2`). Chaque patch a été écrit puis vérifié par un
