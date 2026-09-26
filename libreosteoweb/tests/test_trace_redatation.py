@@ -107,8 +107,10 @@ class TestUnSeulEnregistrementParRedatation(APITestCase):
     """Une consultation sans therapeute s'attache au demandeur -- **une fois**.
 
     Meme contrat que pour les reglages (D1) : ce que voit un receveur `post_save`.
-    Ici l'enjeu est direct -- `receiver_examination` et le tracage de redatation sont
-    branches sur cette surface.
+    Le tracage de redatation, lui, n'ecoute aucun signal -- `redatation_event_tracer`
+    est appele une fois, explicitement, dans `perform_update`
+    (`api/views/consultation.py`), quel que soit le nombre de `post_save` emis par
+    le(s) `save()` du geste.
     """
 
     def setUp(self):
@@ -146,8 +148,10 @@ class TestUnSeulEnregistrementParRedatation(APITestCase):
         self.assertEqual([self.consultation.pk], self.enregistrements)
 
     def test_une_redatation_ne_trace_qu_un_evenement(self):
-        # Rouge si : un second enregistrement fait passer deux fois par les receveurs
-        # et produit une trace de redatation en double au journal.
+        # Filet : `redatation_event_tracer` est appele une fois, hors signal, dans
+        # `perform_update` -- un second `post_save` ne le ferait pas s'executer une
+        # deuxieme fois aujourd'hui (mesure D2 : vert avant tout correctif). Garde ce
+        # contrat pour le jour ou le tracage deviendrait lui-meme un abonne `post_save`.
         nouvelle = self.consultation.date - timedelta(days=3)
 
         self.client.patch(self.url, data={"date": nouvelle.isoformat()}, format="json")
