@@ -52,7 +52,7 @@ def initialiser_le_cabinet_par_defaut():
             default = models.OfficeSettings()
             default.save()
     except Exception:
-        logger.warn("No database ready to initialize office settings")
+        logger.warning("No database ready to initialize office settings")
 
 
 class LibreosteoConfig(AppConfig):

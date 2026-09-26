@@ -262,7 +262,7 @@ class AnalyzerHandler(object):
             instance = analyzer(content)
             if instance.is_instance():
                 return instance.get_report()
-        logger.warn("No Analyzer found")
+        logger.warning("No Analyzer found")
         return AnalyzeReport(False, False, None)
 
     def get_content(self, ourfile):
