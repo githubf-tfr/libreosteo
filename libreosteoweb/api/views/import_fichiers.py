@@ -15,7 +15,7 @@
 import logging
 
 from django.utils.translation import gettext as _
-from rest_framework import status, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -31,9 +31,19 @@ logger = logging.getLogger(__name__)
 
 
 class FileImportViewSet(viewsets.ModelViewSet):
+    """Depot et integration d'un couple de fichiers CSV.
+
+    **Reserve au personnel administrateur** (F12, decision utilisateur du 2026-09-26) :
+    l'ecran ne proposait deja l'onglet d'import qu'au personnel, mais rien ne l'imposait
+    ici, sur la route que l'ecran appelle. `IsAdminUser` refuse toute action (creation,
+    lecture, `integrate`) a un compte connecte qui n'est pas `is_staff`, avant tout acces
+    au depot.
+    """
+
     model = models.FileImport
     serializer_class = apiserializers.FileImportSerializer
     queryset = models.FileImport.objects.all()
+    permission_classes = [permissions.IsAdminUser]
 
     def perform_create(self, serializer):
         instance = serializer.save()

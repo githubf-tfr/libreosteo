@@ -677,3 +677,54 @@ class TestCacheDeContenu(APITestCase):
         extracteur.get_content(self.depot.file_patient)
         IntegratorHandler().post_processing(files=[self.depot.file_patient])
         self.assertEqual(FileContentProxy.file_content, {})
+
+
+class TestAccesReserveAuPersonnel(APITestCase):
+    """F12 : `FileImportViewSet` acceptait tout compte connecte -- reserve desormais au
+    personnel administrateur, avant toute lecture de fichier ou ecriture (decision
+    utilisateur du 2026-09-26)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        repertoire_media_temp = tempfile.mkdtemp()
+        cls.addClassCleanup(shutil.rmtree, repertoire_media_temp, ignore_errors=True)
+        remplacement_media_root = override_settings(MEDIA_ROOT=repertoire_media_temp)
+        remplacement_media_root.enable()
+        cls.addClassCleanup(remplacement_media_root.disable)
+
+    def setUp(self):
+        FileContentProxy.file_content = {}
+        with sans_receivers():
+            cree_praticien(is_staff=False)
+        self.client.login(username="test", password="testpw")
+
+    def test_un_non_administrateur_ne_cree_aucun_depot(self):
+        reponse = self.client.post(
+            reverse("fileimport-list"),
+            data={
+                "file_patient": csv_televerse(
+                    "patients.csv", ENTETE_PATIENT, [ligne_patient(1)]
+                )
+            },
+            format="multipart",
+        )
+        self.assertEqual(status.HTTP_403_FORBIDDEN, reponse.status_code)
+        self.assertEqual(0, FileImport.objects.count())
+
+    def test_un_non_administrateur_ne_lit_pas_la_liste(self):
+        reponse = self.client.get(reverse("fileimport-list"))
+        self.assertEqual(status.HTTP_403_FORBIDDEN, reponse.status_code)
+
+    def test_un_non_administrateur_n_integre_pas(self):
+        depot = FileImport.objects.create(
+            file_patient=csv_televerse(
+                "patients.csv", ENTETE_PATIENT, [ligne_patient(1)]
+            ),
+            status=1,
+        )
+        reponse = self.client.post(
+            reverse("fileimport-integrate", kwargs={"pk": depot.pk})
+        )
+        self.assertEqual(status.HTTP_403_FORBIDDEN, reponse.status_code)
+        self.assertEqual(0, Patient.objects.count())

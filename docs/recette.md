@@ -3426,10 +3426,24 @@ deux dates.
   la même garde, posée sur l'action DRF équivalente (non empruntée par cet écran), est
   couverte par
   libreosteoweb/tests/test_import_fichiers.py::TestIntegrationPatients::test_un_get_n_integre_rien_et_rend_405,
-  sans geste de recette possible pour cette seconde voie
+  sans geste de recette possible pour cette seconde voie. L'étape 6, ajoutée par le même
+  lot (F12), est couverte côté page par
+  libreosteoweb/tests/test_page_import.py::TestAccesReserveAuPersonnel::test_un_non_administrateur_ne_peut_pas_analyser
+  et ::test_un_non_administrateur_ne_peut_pas_integrer (l'analyse et l'intégration,
+  chacune refusée en 403 avant toute lecture de fichier ou écriture) ; la même garde,
+  posée sur `FileImportViewSet` (création, lecture, action `integrate`), est couverte par
+  libreosteoweb/tests/test_import_fichiers.py::TestAccesReserveAuPersonnel, sans geste de
+  recette possible pour cette seconde voie — aucun écran n'appelle cette route
+  directement, et le refus sur l'URL d'intégration reste masqué par la garde `POST` de
+  l'étape 5 (une navigation y reçoit 405 avant même d'atteindre le nouveau contrôle, quel
+  que soit le compte)
 - **État requis** : E1. Cette fiche importe durablement 100 patients depuis
   `tests/functional/resources/patients_1.csv` : remonter l'état E1 (chapitre 1)
   avant de jouer une autre fiche qui en dépend.
+
+**Prérequis** : un second compte du cabinet, non administrateur (`is_staff` à faux) —
+par exemple celui que crée `R-CAB-05` (`crusher` / `nouveaumdp`), ou tout autre créé par
+« Ajouter un utilisateur ».
 
 **Étapes**
 
@@ -3472,6 +3486,13 @@ deux dates.
    le code **405** ; revenir sur l'onglet « Import/export » : le dépôt reste marqué
    intégré et aucun patient de plus n'apparaît (toujours 100 au total) — une navigation
    ne rejoue plus l'import (F7).
+6. Se déconnecter, s'identifier avec le compte non administrateur du prérequis, puis
+   saisir dans la barre d'adresse du navigateur
+   `http://localhost:8085/office/import-file/analyze` et valider.
+   Attendu : une notification d'erreur « Vous n'avez pas la permission d'effectuer cette
+   action. » s'affiche ; aucun panneau d'analyse n'apparaît (l'entrée « Import/export »
+   ne figure d'ailleurs pas dans le menu utilisateur de ce compte). Se reconnecter avec
+   `test` / `test` avant de poursuivre (F12).
 
 **Constat.** ⚠️ **Au-delà d'environ 1 200 patients, l'écran peut mentir sur l'échec.**
 Relevé au passage lors de la constitution des lots synthétiques de `R-SAU-04` : un

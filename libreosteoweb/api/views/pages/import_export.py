@@ -25,6 +25,7 @@ from django.views.decorators.http import require_POST
 
 from libreosteoweb import models
 from libreosteoweb.api.file_integrator import Extractor
+from libreosteoweb.api.notifications import reponse_avec_notification
 from libreosteoweb.api.services import import_fichiers as services_import
 
 
@@ -94,7 +95,20 @@ def analyser(request: HttpRequest) -> HttpResponse:
 
     `FileImport.analyze` n'est **pas** un champ de base : le fragment est rendu ici, dans
     la requete qui analyse, jamais relu plus tard.
+
+    **Reserve au personnel administrateur** (F12, decision utilisateur du 2026-09-26) :
+    l'onglet n'etait deja propose qu'au personnel (`_onglets`), mais rien cote serveur ne
+    l'empechait d'etre atteint par tout compte connecte. Le controle passe avant toute
+    lecture du depot.
     """
+    if not request.user.is_staff:
+        return reponse_avec_notification(
+            request,
+            "",
+            "erreur",
+            _("You do not have permission to perform this action."),
+            status=403,
+        )
     instance = models.FileImport(
         file_patient=request.FILES.get("patientFile"),
         file_examination=request.FILES.get("examinationFile"),
@@ -171,7 +185,18 @@ def _erreurs_lisibles(brutes: list) -> list[dict]:
 # simple page tierce rejouerait l'import et doublerait chaque consultation importee.
 @require_POST
 def integrer(request: HttpRequest, identifiant: int) -> HttpResponse:
-    """Integre un couple deja analyse, et rend le panneau de resultat choisi par la vue."""
+    """Integre un couple deja analyse, et rend le panneau de resultat choisi par la vue.
+
+    **Reserve au personnel administrateur**, meme motif que `analyser` (F12).
+    """
+    if not request.user.is_staff:
+        return reponse_avec_notification(
+            request,
+            "",
+            "erreur",
+            _("You do not have permission to perform this action."),
+            status=403,
+        )
     instance = get_object_or_404(models.FileImport, pk=identifiant)
     if instance.status != 1:
         return render(

@@ -291,3 +291,45 @@ class TestIntegrer(BaseImport):
         self.assertIn(
             "<li>Il y a un problème lors de la lecture de la ligne.</li>", corps
         )
+
+
+class TestAccesReserveAuPersonnel(BaseImport):
+    """F12 : le serveur acceptait l'import de tout compte connecte, l'ecran seul le
+    reservait au personnel (`_onglets`, `request.user.is_staff`). Reserve desormais cote
+    serveur, avant toute lecture de fichier ou ecriture (decision utilisateur du
+    2026-09-26)."""
+
+    def setUp(self):
+        FileContentProxy.file_content = {}
+        with sans_receivers():
+            cree_praticien(username="stagiaire", is_staff=False)
+        self.client.login(username="stagiaire", password="testpw")
+
+    def test_un_non_administrateur_ne_peut_pas_analyser(self):
+        reponse = self.client.post(
+            reverse("import-analyse"),
+            data={
+                "patientFile": csv_televerse(
+                    "patients.csv", ENTETE_PATIENT, [ligne_patient(1)]
+                )
+            },
+        )
+        self.assertEqual(403, reponse.status_code)
+        self.assertIn(
+            "Vous n&#x27;avez pas la permission d&#x27;effectuer cette action.",
+            reponse.content.decode("utf-8"),
+        )
+        self.assertEqual(0, models.FileImport.objects.count())
+
+    def test_un_non_administrateur_ne_peut_pas_integrer(self):
+        depot = models.FileImport.objects.create(
+            file_patient=csv_televerse(
+                "patients.csv", ENTETE_PATIENT, [ligne_patient(1)]
+            ),
+            status=1,
+        )
+        reponse = self.client.post(
+            reverse("import-integration", kwargs={"identifiant": depot.pk})
+        )
+        self.assertEqual(403, reponse.status_code)
+        self.assertEqual(0, models.Patient.objects.count())
