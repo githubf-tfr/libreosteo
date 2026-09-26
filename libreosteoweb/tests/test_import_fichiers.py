@@ -519,6 +519,41 @@ class TestIntegrationConsultations(APITestCase):
         self.assertEqual(consultation.patient.family_name, "Picard")
         self.assertEqual(consultation.conclusion, "Amélioration")
 
+    def test_une_consultation_refusee_par_le_serialiseur_est_une_erreur_de_ligne(self):
+        """Le caractere NUL est refuse par `ProhibitNullCharactersValidator`, pose par
+        DRF sur tout `CharField` : c'est le seul refus de champ atteignable ici, tous
+        les champs d'`Examination` etant des `TextField` sans longueur maximale."""
+        # Rouge si : une ligne fautive fait echouer tout l'import -- le praticien
+        # perdrait les 300 consultations valides a cause d'une seule.
+        reponse = self.depose_et_integre(
+            [ligne_patient(1)],
+            [ligne_consultation(1), ligne_consultation(1, conclusion="RAS\x00")],
+        )
+
+        self.assertEqual(1, reponse.data["examination"]["imported"])
+        erreurs = reponse.data["examination"]["errors"]
+        self.assertEqual(1, len(erreurs))
+        self.assertEqual(3, erreurs[0][0])
+        self.assertIn("conclusion", erreurs[0][1])
+
+    def test_une_ligne_patient_illisible_est_sautee_sans_arreter_l_import(self):
+        """`int(c[0])` leve sur un numero de fichier non numerique : la ligne sort de
+        la table de correspondance, les autres restent."""
+        # Rouge si : l'import s'arrete sur la premiere ligne patient mal formee --
+        # une reprise de parc entiere echouerait sur une saisie manuelle ancienne.
+        with self.assertLogs("libreosteoweb.api.file_integrator", level="ERROR"):
+            reponse = self.depose_et_integre(
+                [
+                    ligne_patient(1),
+                    ligne_patient(
+                        "X", nom="Crusher", prenom="Beverly", naissance="13/10/1924"
+                    ),
+                ],
+                [ligne_consultation(1)],
+            )
+
+        self.assertEqual(1, reponse.data["examination"]["imported"])
+
 
 class TestConversions(unittest.TestCase):
     def setUp(self):
