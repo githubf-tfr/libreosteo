@@ -1,16 +1,23 @@
 services:
-# Images du fork, epinglees par une variable obligatoire : sans LIBREOSTEO_IMAGE_TAG,
-# `docker compose` refuse de demarrer avec un message, au lieu de retomber sur :latest.
-# Le namespace est `familletra/`, celui du fork, et non `libreosteo/`, qui est celui du
-# depot Docker Hub AMONT. C'est ce changement de nom qui a permis de retirer le
-# `pull_policy: never` d'origine : il n'etait la que parce que les deux noms se
-# confondaient et qu'un tirage aurait descendu le binaire d'amont sous le nom du fork.
-# Le tirage est desormais legitime — une machine qui n'a pas bati les images recupere
-# celles que ce depot a poussees.
-# Convention : batir les deux images sous le commit court du depot,
-# `git rev-parse --short HEAD` — c'est ce qui rend « quelle image tourne » repondable.
+# `db` : l'image officielle `postgres`, sans modification, epinglee par DIGEST (decision
+# DU3 du cadrage du 2026-09-26). Le tag dit la majeure et la variante, le digest dit les
+# octets ; Docker ne retient que le digest. L'image dediee `familletra/libreosteo-pg` n'y
+# ajoutait qu'un `apk add tzdata` sans effet (l'officielle installe deja `tzdata`) : elle
+# est retiree. Relever le digest -- correctif mineur de PostgreSQL -- est un commit
+# ordinaire, qui passe donc par `make check` avant d'atteindre la production.
+#
+# `libreosteo` : l'image du fork, epinglee par une variable obligatoire. Sans
+# LIBREOSTEO_IMAGE_TAG, `docker compose` refuse de demarrer avec un message, au lieu de
+# retomber sur :latest. Le namespace est `familletra/`, celui du fork, et non
+# `libreosteo/`, qui est celui du depot Docker Hub AMONT. C'est ce changement de nom qui a
+# permis de retirer le `pull_policy: never` d'origine : il n'etait la que parce que les
+# deux noms se confondaient et qu'un tirage aurait descendu le binaire d'amont sous le nom
+# du fork. Le tirage est desormais legitime — une machine qui n'a pas bati l'image recupere
+# celle que ce depot a poussee.
+# Convention : batir l'image sous le commit court du depot, `git rev-parse --short HEAD`
+# — c'est ce qui rend « quelle image tourne » repondable.
   db:
-    image: "familletra/libreosteo-pg:${LIBREOSTEO_IMAGE_TAG:?renseigner LIBREOSTEO_IMAGE_TAG, cf. Docker/deploy/pg/.env.example}"
+    image: "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"
     hostname: pg_1
     volumes:
       # Monte sur /var/lib/postgresql, et non sur .../data : depuis PostgreSQL 18,
