@@ -289,6 +289,29 @@ def test_la_liste_de_renumerotation_ne_porte_aucune_donnee_de_sante(
     assert "radio-epaule" not in sortie
 
 
+def test_une_facture_sans_pk_est_ignoree_sans_faire_echouer_l_analyse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """L'outil ne rend pas un verdict plus severe que la restauration : une entree de
+    dump sans identifiant n'est pas un obstacle, c'est une entree qu'on saute."""
+    # Rouge si : l'analyse leve -- le diagnostic d'une archive reelle s'arreterait a la
+    # premiere entree mal formee, sans verdict.
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _objet("invoice", 1, number="10005", officesettings_id=1, amount=55.0),
+            {
+                "model": "libreosteoweb.invoice",
+                "fields": {"number": "10006", "officesettings_id": 1},
+            },
+        ],
+        capsys,
+    )
+
+    assert "Objets dans le dump               : 2" in sortie
+    assert code == 0
+
+
 def test_le_rapport_nomme_la_version_du_produit_qu_il_suppose(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -383,6 +406,31 @@ def test_un_montant_non_fini_est_compte_hors_capacite(
     )
     assert "Montants hors capacite (>= 10^8)  : 1" in sortie
     assert code == 1
+
+
+def test_un_montant_illisible_est_compte_hors_capacite(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Un montant qui ne se convertit pas en `Decimal` ne rentre dans aucune colonne
+    `numeric(10, 2)` : c'est un obstacle nomme, pas une exception."""
+    # Rouge si : l'outil leve au lieu de compter -- l'exploitant n'aurait aucun verdict
+    # sur une archive dont un seul montant est corrompu.
+    code, sortie = _diagnostiquer(
+        tmp_path,
+        [
+            _objet(
+                "invoice",
+                1,
+                number="10005",
+                officesettings_id=1,
+                amount="pas un nombre",
+            )
+        ],
+        capsys,
+    )
+
+    assert "hors capacite" in sortie.lower()
+    assert code != 0
 
 
 def test_un_montant_absent_n_est_pas_compte(
