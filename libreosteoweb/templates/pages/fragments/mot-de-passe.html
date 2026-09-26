@@ -9,6 +9,13 @@
   {% if erreur %}
   <div class="alert alert-danger" role="alert" data-testid="erreur-mot-de-passe">{{ erreur }}</div>
   {% endif %}
+  {% if mot_de_passe_actuel_requis %}
+  <div class="mb-3">
+    <label for="old_password">{% trans 'Current password' %}</label>
+    <input type="password" class="form-control" required name="old_password" id="old_password"
+           autocomplete="current-password" placeholder="{% trans 'Current password' %}">
+  </div>
+  {% endif %}
   <div class="mb-3">
     <label for="password1">{% trans 'Password' %}</label>
     <input type="password" class="form-control" required name="password1" id="password1"

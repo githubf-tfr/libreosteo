@@ -1187,6 +1187,12 @@ msgstr "Suivant"
 msgid "Change password"
 msgstr "Modifier le mot de passe"
 
+msgid "Current password"
+msgstr "Mot de passe actuel"
+
+msgid "The current password is incorrect."
+msgstr "Le mot de passe actuel est incorrect."
+
 msgid "Start an examination"
 msgstr "Démarrer une consultation"
 

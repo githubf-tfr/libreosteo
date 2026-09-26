@@ -634,6 +634,68 @@ class TestOngletUtilisateurs(TestCase):
         cible.refresh_from_db()
         self.assertFalse(cible.check_password("un-mot-de-passe"))
 
+    def test_la_modale_de_mot_de_passe_porte_l_ancien_pour_soi_meme(self):
+        """Le champ « Mot de passe actuel » n'apparait que quand la cible est le compte
+        connecte -- pas quand l'administrateur change le mot de passe d'un tiers
+        (`test_la_modale_de_mot_de_passe_d_un_tiers_ne_porte_pas_l_ancien`)."""
+        reponse = self.client.get(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[self.praticien.pk])
+        )
+        self.assertEqual(200, reponse.status_code)
+        self.assertIn('name="old_password"', reponse.content.decode("utf-8"))
+
+    def test_la_modale_de_mot_de_passe_d_un_tiers_ne_porte_pas_l_ancien(self):
+        with sans_receivers():
+            cible = cree_praticien(username="cible", is_staff=False)
+        reponse = self.client.get(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[cible.pk])
+        )
+        self.assertEqual(200, reponse.status_code)
+        self.assertNotIn('name="old_password"', reponse.content.decode("utf-8"))
+
+    def test_un_administrateur_change_son_propre_mot_de_passe_avec_l_ancien(self):
+        """F9 : a la difference d'un tiers (`test_changer_le_mot_de_passe_d_un_tiers`),
+        l'administrateur qui change son propre mot de passe par ce chemin doit
+        desormais fournir l'ancien -- meme regle que le profil
+        (`profil.py::_changer_mot_de_passe`)."""
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[self.praticien.pk]),
+            data={
+                "old_password": "testpw",
+                "password1": "nouveaumdp",
+                "password2": "nouveaumdp",
+            },
+        )
+        self.assertEqual(200, reponse.status_code)
+        self.praticien.refresh_from_db()
+        self.assertTrue(self.praticien.check_password("nouveaumdp"))
+
+    def test_un_administrateur_ne_change_pas_son_propre_mot_de_passe_sans_l_ancien(
+        self,
+    ):
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[self.praticien.pk]),
+            data={"password1": "nouveaumdp", "password2": "nouveaumdp"},
+        )
+        self.assertEqual(422, reponse.status_code)
+        self.praticien.refresh_from_db()
+        self.assertTrue(self.praticien.check_password("testpw"))
+
+    def test_un_administrateur_ne_change_pas_son_propre_mot_de_passe_avec_un_ancien_faux(
+        self,
+    ):
+        reponse = self.client.post(
+            reverse("cabinet-utilisateur-mot-de-passe", args=[self.praticien.pk]),
+            data={
+                "old_password": "cenestpaslebon",
+                "password1": "nouveaumdp",
+                "password2": "nouveaumdp",
+            },
+        )
+        self.assertEqual(422, reponse.status_code)
+        self.praticien.refresh_from_db()
+        self.assertTrue(self.praticien.check_password("testpw"))
+
 
 class TestCreationUtilisateur(TestCase):
     """`utilisateur_nouveau` : la seule voie du produit pour ajouter un praticien."""
@@ -813,4 +875,6 @@ class TestCreationUtilisateurParUnNonAdministrateur(TestCase):
         )
 
         self.assertEqual(200, reponse.status_code)
-        self.assertIn('id="form-mot-de-passe"', reponse.content.decode("utf-8"))
+        corps = reponse.content.decode("utf-8")
+        self.assertIn('id="form-mot-de-passe"', corps)
+        self.assertNotIn('name="old_password"', corps)

@@ -221,6 +221,7 @@ def _modale_mot_de_passe(request: HttpRequest) -> HttpResponse:
             "libelle_annuler": _("Cancel"),
             "formulaire_confirmer": "form-mot-de-passe",
             "action": reverse("profil-mot-de-passe"),
+            "mot_de_passe_actuel_requis": True,
         },
     )
 
@@ -235,9 +236,18 @@ def _changer_mot_de_passe(request: HttpRequest) -> HttpResponse:
     **son propre** mot de passe, sans proteger personne d'autre. Meme regle que
     `IsStaffOrReadOnlyTargetUser.has_object_permission` : le personnel garde ses
     prerogatives, et chacun reste maitre de son propre mot de passe.
+
+    **F9** : changer **son propre** mot de passe exige en plus l'ancien -- verifie apres
+    la confirmation, jamais avant : l'ordre des refus existants ne change pas.
     """
     mot_de_passe = request.POST.get("password2", "")
     if not mot_de_passe or mot_de_passe != request.POST.get("password1", ""):
+        erreur = _("The two passwords do not match.")
+    elif not request.user.check_password(request.POST.get("old_password", "")):
+        erreur = _("The current password is incorrect.")
+    else:
+        erreur = None
+    if erreur is not None:
         corps = render_to_string(
             "partials/modale.html",
             {
@@ -247,7 +257,8 @@ def _changer_mot_de_passe(request: HttpRequest) -> HttpResponse:
                 "libelle_annuler": _("Cancel"),
                 "formulaire_confirmer": "form-mot-de-passe",
                 "action": reverse("profil-mot-de-passe"),
-                "erreur": _("The two passwords do not match."),
+                "erreur": erreur,
+                "mot_de_passe_actuel_requis": True,
             },
             request=request,
         )

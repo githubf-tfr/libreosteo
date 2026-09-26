@@ -1219,7 +1219,10 @@ version mineure peut changer.
   le bouton — couvert par
   libreosteoweb/tests/test_page_profil.py::TestPageProfil::test_en_demonstration_le_mot_de_passe_ne_change_pas ;
   le mode démonstration n'étant jamais celui du montage de ce cahier (chapitre 0),
-  aucun geste de recette ne le joue
+  aucun geste de recette ne le joue. Depuis le lot correctif du 2026-09-26 (F9), changer
+  son propre mot de passe exige l'ancien (étape 4 ci-dessous) — couvert par
+  libreosteoweb/tests/test_page_profil.py::TestPageProfil::test_le_changement_est_refuse_sans_l_ancien_mot_de_passe,
+  ::test_le_changement_est_refuse_avec_un_ancien_mot_de_passe_faux
 - **État requis** : E1. Cette fiche modifie durablement le nom et le mot de passe du
   compte `test` du socle E1 : à l'issue de son exécution, remonter l'état E1
   (chapitre 1) avant de jouer une autre fiche qui en dépend.
@@ -1238,16 +1241,22 @@ version mineure peut changer.
    casse délibérée et ne la normalise pas.
 3. Cliquer le bouton « Modifier le mot de passe ».
    Attendu : une fenêtre modale s'ouvre, titre « Modifier le mot de passe » ; champs
-   « Mot de passe » et « Confirmation du mot de passe » ; boutons « Valider » et
-   « Annuler ».
-4. Saisir `nouveaumdp` dans les deux champs, cliquer « Valider ».
+   « Mot de passe actuel », « Mot de passe » et « Confirmation du mot de passe » ;
+   boutons « Valider » et « Annuler ».
+4. Saisir `paslebon` dans « Mot de passe actuel », `nouveaumdp` dans les deux autres
+   champs, cliquer « Valider ». **F9** : changer son propre mot de passe exige
+   désormais l'ancien.
+   Attendu : la modale reste ouverte, message d'erreur affiché « Le mot de passe
+   actuel est incorrect. » ; le mot de passe du compte `test` n'a pas changé.
+5. Remplacer « Mot de passe actuel » par `test` (le mot de passe réel du socle E1),
+   garder `nouveaumdp` dans les deux autres champs, cliquer « Valider ».
    Attendu : la modale se ferme ; message affiché « Le mot de passe a été modifié. ».
-5. Cliquer sur le nom d'utilisateur en haut à droite → « Déconnexion », puis tenter de
+6. Cliquer sur le nom d'utilisateur en haut à droite → « Déconnexion », puis tenter de
    s'identifier avec `test` / `test` (l'ancien mot de passe).
    Attendu : reste sur la page de connexion ; message d'erreur affiché « Votre nom
    d'utilisateur et mot de passe ne correspondent pas. Veuillez réessayer s'il vous
    plaît. ».
-6. S'identifier avec `test` / `nouveaumdp`.
+7. S'identifier avec `test` / `nouveaumdp`.
    Attendu : titre de page « LibreOsteo » ; connexion acceptée.
 
 ### R-AUTH-06 — Session expirée pendant une navigation

@@ -151,6 +151,12 @@ class TestPageProfil(TestCase):
         self.assertFalse(self.profil.last_events_enabled)
         self.assertFalse(self.profil.zipcode_completion_enabled)
 
+    def test_la_modale_de_mot_de_passe_porte_le_champ_ancien_mot_de_passe(self):
+        """F9 : le profil change toujours son propre mot de passe (A22) -- le champ est
+        donc systematiquement affiche ici, a la difference du cabinet."""
+        corps = self.client.get(reverse("profil-mot-de-passe")).content.decode("utf-8")
+        self.assertIn('name="old_password"', corps)
+
     def test_la_modale_de_mot_de_passe_soumet_par_le_bouton_de_confirmation(self):
         """L'extension `formulaire_confirmer` (E9), prouvee sur son premier usage reel :
         sans elle, `#modal-btn-ok` reste un `type="button"` inerte et la modale ne poste
@@ -170,6 +176,31 @@ class TestPageProfil(TestCase):
         self.praticien.refresh_from_db()
         self.assertTrue(self.praticien.check_password("testpw"))
 
+    def test_le_changement_est_refuse_sans_l_ancien_mot_de_passe(self):
+        """F9 : changer son propre mot de passe exige desormais l'ancien. Absent du
+        corps poste, le refus est le meme 422 que les deux mots de passe differents, et
+        rien n'est ecrit."""
+        reponse = self.client.post(
+            reverse("profil-mot-de-passe"),
+            data={"password1": "nouveaumdp", "password2": "nouveaumdp"},
+        )
+        self.assertEqual(422, reponse.status_code)
+        self.praticien.refresh_from_db()
+        self.assertTrue(self.praticien.check_password("testpw"))
+
+    def test_le_changement_est_refuse_avec_un_ancien_mot_de_passe_faux(self):
+        reponse = self.client.post(
+            reverse("profil-mot-de-passe"),
+            data={
+                "old_password": "cenestpaslebon",
+                "password1": "nouveaumdp",
+                "password2": "nouveaumdp",
+            },
+        )
+        self.assertEqual(422, reponse.status_code)
+        self.praticien.refresh_from_db()
+        self.assertTrue(self.praticien.check_password("testpw"))
+
     def test_un_non_administrateur_change_son_propre_mot_de_passe(self):
         """A22, tranche : cette page ne recoit jamais d'identifiant de cible, elle agit
         toujours sur `request.user`. Le refus reserve au personnel etait donc un refus
@@ -181,7 +212,11 @@ class TestPageProfil(TestCase):
         self.client.login(username="simple", password="testpw")
         reponse = self.client.post(
             reverse("profil-mot-de-passe"),
-            data={"password1": "nouveaumdp", "password2": "nouveaumdp"},
+            data={
+                "old_password": "testpw",
+                "password1": "nouveaumdp",
+                "password2": "nouveaumdp",
+            },
         )
         self.assertEqual(200, reponse.status_code)
         self.assertIn('data-severite="succes"', reponse.content.decode("utf-8"))
@@ -202,6 +237,7 @@ class TestPageProfil(TestCase):
         reponse = self.client.post(
             reverse("profil-mot-de-passe"),
             data={
+                "old_password": "testpw",
                 "password1": "nouveaumdp",
                 "password2": "nouveaumdp",
                 "identifiant": victime.pk,
@@ -219,7 +255,11 @@ class TestPageProfil(TestCase):
         apres — le correctif retire un refus, il n'en ajoute aucun."""
         reponse = self.client.post(
             reverse("profil-mot-de-passe"),
-            data={"password1": "nouveaumdp", "password2": "nouveaumdp"},
+            data={
+                "old_password": "testpw",
+                "password1": "nouveaumdp",
+                "password2": "nouveaumdp",
+            },
         )
         self.assertEqual(200, reponse.status_code)
         self.assertIn('data-severite="succes"', reponse.content.decode("utf-8"))

@@ -526,8 +526,13 @@ def mot_de_passe_utilisateur(request: HttpRequest, identifiant: int) -> HttpResp
 
     Meme corps de modale que le profil (`pages/fragments/mot-de-passe.html`, D6d T7) : un
     seul gabarit pour les deux, la seule difference etant l'URL d'action.
+
+    **F9** : quand la cible est le compte connecte (l'administrateur qui change son propre
+    mot de passe par ce chemin), l'ancien est exige, comme au profil. Sur un tiers, rien ne
+    change -- l'administrateur n'a jamais eu a prouver le mot de passe d'un autre compte.
     """
     utilisateur = get_object_or_404(get_user_model(), pk=identifiant)
+    cible_est_soi_meme = utilisateur.pk == request.user.pk
     contexte = {
         "titre": _("Change password"),
         "gabarit_corps": "pages/fragments/mot-de-passe.html",
@@ -535,6 +540,7 @@ def mot_de_passe_utilisateur(request: HttpRequest, identifiant: int) -> HttpResp
         "libelle_annuler": _("Cancel"),
         "formulaire_confirmer": "form-mot-de-passe",
         "action": reverse("cabinet-utilisateur-mot-de-passe", args=[identifiant]),
+        "mot_de_passe_actuel_requis": cible_est_soi_meme,
     }
     # Seul `POST` ecrit (`HEAD` & co. passent `CsrfViewMiddleware` sans jeton).
     if request.method != "POST":
@@ -553,6 +559,12 @@ def mot_de_passe_utilisateur(request: HttpRequest, identifiant: int) -> HttpResp
     mot_de_passe = request.POST.get("password2", "")
     if not mot_de_passe or mot_de_passe != request.POST.get("password1", ""):
         contexte["erreur"] = _("The two passwords do not match.")
+        corps = render_to_string("partials/modale.html", contexte, request=request)
+        return HttpResponse(corps, status=422)
+    if cible_est_soi_meme and not request.user.check_password(
+        request.POST.get("old_password", "")
+    ):
+        contexte["erreur"] = _("The current password is incorrect.")
         corps = render_to_string("partials/modale.html", contexte, request=request)
         return HttpResponse(corps, status=422)
     utilisateur.set_password(mot_de_passe)
