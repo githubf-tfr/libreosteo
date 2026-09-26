@@ -62,6 +62,13 @@ class TestFilter(TestCase):
         text = "de Moustier"
         self.assertEqual("De Moustier", filter_chain.filter(text))
 
+    def test_une_double_espace_ne_perd_ni_mot_ni_espace(self):
+        """`split(" ")` produit un segment vide entre deux espaces : `_capitalize_word`
+        doit le rendre tel quel, sinon `word[0]` leve."""
+        # Rouge si : la garde disparait -- un nom saisi avec une double espace ferait
+        # rendre 500 a l'enregistrement du patient.
+        self.assertEqual("Dupont  Martin", get_name_filters().filter("dupont  martin"))
+
 
 class TestCasseDeliberee(TestCase):
     """Une majuscule interne à un mot est une intention de saisie, pas un accident."""

@@ -16,6 +16,7 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -24,7 +25,11 @@ from rest_framework.response import Response
 from rest_framework.test import APITestCase
 
 from libreosteoweb.api import serializers as apiserializers
-from libreosteoweb.api.invoicing.generator import ExaminationInvoiceHelper, Generator
+from libreosteoweb.api.invoicing.generator import (
+    ExaminationInvoiceHelper,
+    Generator,
+    _convertir_si_numero_deja_emis,
+)
 from libreosteoweb.models import (
     ExaminationStatus,
     Invoice,
@@ -175,6 +180,17 @@ class TestFacturation(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Invoice.objects.count(), 0)
 
+    def test_un_statut_de_facturation_inconnu_ne_cree_aucune_facture(self):
+        """`status` est un `CharField` libre herite de l'amont : `validate` ne contraint
+        que « notinvoiced » et « invoiced »."""
+        # Rouge si : un statut inconnu cree une facture ou change l'etat de la seance --
+        # une valeur qu'aucun bouton de l'ecran ne produit ne doit rien ecrire.
+        reponse = self.facture(status="autre")
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
+
 
 class TestRefusDuNumeroDejaEmis(APITestCase):
     """Le numero que la sequence va attribuer est deja pris : la contrainte
@@ -224,6 +240,22 @@ class TestRefusDuNumeroDejaEmis(APITestCase):
             str(reponse.data),
         )
         self.assertEqual(Invoice.objects.filter(number="10000").count(), 1)
+
+
+class TestErreurDIntegriteEtrangere(TestCase):
+    """Le complement que `test_page_consultation.py:1234-1236` declare laisser passer :
+    « une autre violation d'integrite, que le generateur re-leve telle quelle »."""
+
+    def test_une_erreur_d_integrite_etrangere_remonte_intacte(self):
+        # Rouge si : toute IntegrityError est deguisee en « numero deja utilise » --
+        # le praticien recevrait un message faux sur une panne qui n'a rien a voir.
+        facture = Invoice(number="10000", officesettings_id=1)
+        origine = IntegrityError("colonne obligatoire absente")
+
+        with self.assertRaises(IntegrityError) as leve:
+            _convertir_si_numero_deja_emis(facture, origine, "numero deja utilise")
+
+        self.assertIs(origine, leve.exception)
 
 
 class TestNumerotationFacture(APITestCase):
