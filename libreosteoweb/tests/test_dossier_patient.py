@@ -53,7 +53,6 @@ from libreosteoweb.tests.fixtures import (
     regle_cabinet,
     sans_receivers,
 )
-from libreosteoweb.tests.test_concurrence import sans_atomic_requests
 
 PATIENT_MINIMAL = {
     "family_name": "Picard",
@@ -324,8 +323,8 @@ class TestConcurrenceMiseAJourPatient(APITransactionTestCase):
     (defaut trouve en revue finale de D3) : deux renommages concurrents vers le meme
     triplet doivent rendre une 400 propre, jamais une 500. Meme montage que
     `TestRefusDeLaBase` de `test_concurrence.py` — `APITransactionTestCase` pour la
-    visibilite reelle entre connexions, `sans_atomic_requests()` pour que SQLite ne fige
-    pas son instantane avant l'interception (cf. docstring de ce module)."""
+    visibilite reelle entre connexions, sous `ATOMIC_REQUESTS`, le regime de la
+    production : la garde y est prouvee avec son point de sauvegarde."""
 
     serialized_rollback = True
 
@@ -380,12 +379,14 @@ class TestConcurrenceMiseAJourPatient(APITransactionTestCase):
         with sans_receivers():
             signals.pre_save.connect(intercale_le_renommage_concurrent, sender=Patient)
             try:
-                with sans_atomic_requests():
-                    reponse = self.client.patch(
-                        reverse("patient-detail", kwargs={"pk": patient_a_renommer.id}),
-                        data=donnees,
-                        format="json",
-                    )
+                # Rouge si : le point de sauvegarde de perform_update disparait -- sous
+                # ATOMIC_REQUESTS, l'IntegrityError romprait la transaction de requete, et
+                # la conversion du doublon en refus 400 echouerait en 500.
+                reponse = self.client.patch(
+                    reverse("patient-detail", kwargs={"pk": patient_a_renommer.id}),
+                    data=donnees,
+                    format="json",
+                )
             finally:
                 signals.pre_save.disconnect(
                     intercale_le_renommage_concurrent, sender=Patient

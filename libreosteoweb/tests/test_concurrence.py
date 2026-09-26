@@ -24,13 +24,16 @@ perdant y recevait `database is locked` et jamais la violation d'unicite, parce 
 fige son instantane de lecture a la premiere instruction de la transaction. Le code du
 perdant de `test_deux_creations_simultanees_ne_produisent_qu_une_ligne` n'etait donc pas
 asserte ; il l'est depuis le passage de la suite sur PostgreSQL (2026-09-26).
+
+De meme, `sans_atomic_requests()` ecartait le regime de production pour que SQLite ne
+fige pas son instantane avant l'interception : retiree le meme jour, les preuves se font
+sous `ATOMIC_REQUESTS`.
 """
 
 import threading
-from contextlib import contextmanager
 from datetime import date
 
-from django.db import connection, connections
+from django.db import connection
 from django.db.models import signals
 from django.urls import reverse
 from django.utils import timezone
@@ -51,25 +54,6 @@ PATIENT = {
     "birth_date": "1935-07-13",
     "consent_check": True,
 }
-
-
-@contextmanager
-def sans_atomic_requests():
-    """Ecarte ATOMIC_REQUESTS pour la duree du bloc, sur la connexion par defaut.
-
-    C'est un reglage qu'on ecarte, pas un rouage qu'on observe : sous SQLite, une
-    transaction ouverte des le debut de la requete — donc avant la validation du
-    serialiseur — fait ressortir le perdant en erreur de verrou, et la branche a couvrir
-    devient inatteignable. `BaseHandler.make_view_atomic` lit `connections.settings` a
-    chaque requete : muter ce dictionnaire suffit, et `override_settings` ne suffirait pas.
-    """
-    reglages = connections.settings["default"]
-    ancien = reglages["ATOMIC_REQUESTS"]
-    reglages["ATOMIC_REQUESTS"] = False
-    try:
-        yield
-    finally:
-        reglages["ATOMIC_REQUESTS"] = ancien
 
 
 def _cree_le_doublon_sur_une_autre_connexion():
@@ -140,10 +124,12 @@ class TestRefusDeLaBase(APITransactionTestCase):
         with sans_receivers():
             signals.pre_save.connect(_intercale_le_doublon, sender=Patient)
             try:
-                with sans_atomic_requests():
-                    reponse = self.client.post(
-                        reverse("patient-list"), data=PATIENT, format="json"
-                    )
+                # Rouge si : le point de sauvegarde de perform_create disparait -- sous
+                # ATOMIC_REQUESTS, l'IntegrityError romprait la transaction de requete, et
+                # la conversion du doublon en refus 400 echouerait en 500.
+                reponse = self.client.post(
+                    reverse("patient-list"), data=PATIENT, format="json"
+                )
             finally:
                 signals.pre_save.disconnect(_intercale_le_doublon, sender=Patient)
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
