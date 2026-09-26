@@ -12,15 +12,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Libreosteo.  If not, see <http://www.gnu.org/licenses/>.
-"""Les deux moities du critere d'arret de D3, prouvees par deux tests distincts.
+"""Concurrence d'ecriture entre deux connexions reelles, sur PostgreSQL.
 
-La mesure du 2026-09-05 (spec du lot, § « Ce que le lot a etabli au cadrage ») etablit
-qu'un seul test ne peut pas les porter toutes les deux sous SQLite : sous
-`ATOMIC_REQUESTS`, le perdant d'une course d'insertion y recoit `database is locked` et
-jamais la violation d'unicite, parce que SQLite fige son instantane de lecture a la
-premiere instruction de la transaction. PostgreSQL, en `READ COMMITTED`, relit a chaque
-instruction, bloque sur l'index et rend la violation. C'est le milieu de test qui est en
-defaut, pas le produit : la cible n'est que PostgreSQL.
+Le moteur est celui de la production, en `READ COMMITTED` : il relit a chaque
+instruction ; le perdant d'une course d'insertion bloque sur l'index d'unicite puis rend
+la violation, que `perform_create` convertit en refus 400.
+
+Historique. Tant que la suite tournait sur SQLite, un seul test ne pouvait pas porter les
+deux moities du critere d'arret de D3 (mesure du 2026-09-05) : sous `ATOMIC_REQUESTS`, le
+perdant y recevait `database is locked` et jamais la violation d'unicite, parce que SQLite
+fige son instantane de lecture a la premiere instruction de la transaction. Le code du
+perdant de `test_deux_creations_simultanees_ne_produisent_qu_une_ligne` n'etait donc pas
+asserte ; il l'est depuis le passage de la suite sur PostgreSQL (2026-09-26).
 """
 
 import threading
@@ -184,13 +187,9 @@ class TestConcurrenceCreationPatient(APITransactionTestCase):
             regle_cabinet()
 
     def test_deux_creations_simultanees_ne_produisent_qu_une_ligne(self):
-        """Deux POST identiques emis par deux fils synchronises par une barriere.
-
-        Le code du perdant n'est pas asserte, et c'est deliberé : il vaut 400 sur
-        PostgreSQL et 500 sur SQLite, pour la raison mesuree en tete de module. Ce test
-        prouve qu'aucune seconde ligne n'apparait jamais et qu'une seule creation aboutit ;
-        c'est la moitie du critere d'arret que ce milieu sait porter, et il n'en promet
-        pas plus. La session est ouverte une fois dans le fil principal et ses biscuits
+        """Deux POST identiques emis par deux fils synchronises par une barriere : une
+        creation aboutit (201), l'autre est refusee (400), et une seule ligne existe.
+        La session est ouverte une fois dans le fil principal et ses biscuits
         sont partages : ouvrir deux sessions ferait courir les deux fils sur l'ecriture de
         session avant meme d'atteindre la creation du patient.
         """
@@ -211,9 +210,8 @@ class TestConcurrenceCreationPatient(APITransactionTestCase):
                 with verrou:
                     codes.append(reponse.status_code)
             except Exception as erreur:
-                # Le perdant peut ressortir en exception plutot qu'en reponse selon le
-                # moteur : on l'enregistre sans l'asserter, pour que le diagnostic soit
-                # lisible si le nombre de 201 n'etait pas celui attendu.
+                # Une exception est enregistree telle quelle : l'assertion finale la
+                # montre au lieu de la perdre dans le fil.
                 with verrou:
                     codes.append("EXC:%s" % type(erreur).__name__)
             finally:
@@ -229,4 +227,8 @@ class TestConcurrenceCreationPatient(APITransactionTestCase):
                 # passerait quand meme : une seule ligne, un seul 201, et un fil fuite.
                 self.assertFalse(fil.is_alive(), "un fil n'a pas termine sa requete")
         self.assertEqual(Patient.objects.count(), 1)
-        self.assertEqual(codes.count(status.HTTP_201_CREATED), 1, codes)
+        # Rouge si : le perdant ressort en 500 -- la violation d'unicite que la base
+        # oppose n'est plus convertie en refus -- ou en exception.
+        self.assertCountEqual(
+            codes, [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
+        )
