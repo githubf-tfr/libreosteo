@@ -4,12 +4,13 @@ La table est construite a la main, jeton par jeton, contre la documentation de m
 Bootstrap 4 puis 5. Chaque jeton porte son remplacant, ou `None` si la classe disparait
 sans equivalent (le style doit alors etre repris ailleurs).
 
-    ./.venv/bin/python outils/rupture_bs5.py
-
-Rend le total d'occurrences, la ventilation par jeton et la ventilation par gabarit.
-C'est la mesure d'entree (clause d'arret 1) et la mesure de sortie (clause d'arret 4) du
-lot D6g : toutes les taches T2-T16 la consomment, d'ou son sejour dans le depot et non
-dans /tmp.
+Le module s'utilise en bibliotheque, par `occurrences(racine)` : rend (jetons ->
+occurrences, gabarit -> occurrences) pour les classes qui ne survivent pas, sur tout
+`*.html` sous `racine`. Le bloc `__main__` qui l'exposait en ligne de commande a ete
+retire (S2, plus aucun appelant) : ni cible `Makefile`, ni fiche de recette, ni script ne
+le relancait. Le sejour dans le depot et non dans `/tmp` tient a `RUPTURE` elle-meme,
+verrouillee par `outils/tests/test_rupture_bs5.py` -- son cliquet sur le nombre de
+gabarits et d'occurrences que les sept jetons ajoutes par D6g T1 pesent.
 """
 
 import collections
