@@ -8,10 +8,11 @@
 sur PostgreSQL, le moteur de la production, en servant les tests et la production par une
 seule et même image : l'officielle `postgres:18-alpine`, épinglée par digest dans le compose.
 
-**Architecture:** Quatorze tâches, douze commits. **T1** mesure sans rien commiter
-(digest, mineures, pilote, liste des échecs sous PostgreSQL) et peut amender le plan.
+**Architecture:** Quinze tâches, treize commits. **T1** mesure sans rien commiter
+(digest, mineures, pilote, liste des échecs sous PostgreSQL) et peut amender le plan —
+fait le 2026-09-26 (E5 élargie, **T4b** ajoutée pour E11).
 **T2-T3** servent `db` par l'image officielle et retirent l'image du fork (DU3), puis
-documentent. **T4-T5** corrigent ce qui est neutre. **T6** bascule : réglages de test,
+documentent. **T4, T4b, T5** corrigent ce qui est neutre. **T6** bascule : réglages de test,
 `make test-db`, pilote, CI, cliquet de moteur, E1, E10. **T7-T9** rétablissent les preuves
 que sqlite avait affaiblies (E2, E3, E4). **T10-T11** changent le `raise Exception` des
 verrous consultatifs en 409 lisible, puis retirent leurs branches sqlite (DU2). **T12**
@@ -238,9 +239,9 @@ Mesuré (aucune suite lancée, aucun conteneur gardé) :
 ## L'ordre, et son motif
 
 ```
-T1                 mesure, rien de commité — BLOQUANTE ; peut amender le plan
+T1                 mesure, rien de commité — BLOQUANTE ; a amendé le plan (2026-09-26)
 T2 → T3            image officielle (DU3), puis ses documents — commit suivant, jamais plus loin
-T4, T5             corrections neutres (E5, E6), + celles que T1 aura classées N
+T4 → T4b, T5       corrections neutres (E5, E11, E6) — T4b au même fichier que T4, commit distinct
 T6                 bascule
 T7 → T8 → T9       renforcements E2, E3, E4
 T10 → T11          409, puis retrait des branches sqlite (DU2)
@@ -255,6 +256,8 @@ T14                journal, suppression du plan
 | **T2 avant T6** | `make test-db` et le cliquet lisent la ligne `image:` du service `db`. Avant T2, cette ligne vaut `familletra/libreosteo-pg:${LIBREOSTEO_IMAGE_TAG:?…}` : `sed` n'en extrait rien et la cible s'arrête. |
 | **T3 juste après T2** | Spec § 8 : la documentation du déploiement dans le commit suivant, jamais plus loin. |
 | **T4 avant T6** | E5 échoue vraisemblablement sous PostgreSQL (séquences non transactionnelles) : le commit de bascule ne serait pas vert. Même règle pour toute tâche N ou D ajoutée par T1. |
+| **T4 avant T4b** | Même fichier `libreosteoweb/tests/test_invoice.py` (classes différentes, aucune ligne commune) : commits distincts, dans l'ordre où le contrôleur les a écrits. |
+| **T4b avant T6** | E11 (classe N, amendement du 2026-09-26) échoue sous PostgreSQL pour la même raison qu'E5 (séquences non transactionnelles) : le commit de bascule ne serait pas vert. |
 | **T6 avant T7-T11** | Leurs preuves n'existent que sous PostgreSQL. |
 | **T8 → T9 → T10** | Même fichier, `test_concurrence.py` : docstring de module (T8, T9), retrait de `sans_atomic_requests` (T9), nouvelle classe (T10). |
 | **T10 avant T11** | Mêmes lignes des deux vues ; le retrait DU2 ne se révoque seul que s'il vient après (démenti 5). |
@@ -283,6 +286,7 @@ Un rouge arrête le lot : le contrôleur le rapproche de la tâche en cause, qui
 |---|---|
 | § 2 — E1 / E2 / E3 / E4 / E5 / E6 | T6 / T7 / T8 / T9 / T4 / T5 |
 | § 2 — E7, E8, E9 (inventaire) | T1, puis tâches ajoutées par amendement |
+| § 2 — E11 (amendement du 2026-09-26) | T1 (constat), T4b (correction) |
 | § 2 — E10 | T6 |
 | § 3.2.1 (409, traduction) et § 3.3 (preuve) | T10 |
 | § 3.2.2 (DU2) | T11 |
@@ -292,7 +296,7 @@ Un rouge arrête le lot : le contrôleur le rapproche de la tâche en cause, qui
 | § 5.7 | T1 (mineures), T2, T3, T14 (procédure du parc) |
 | § 6 — critères 1, 2, 5 / 3 / 4 / 6 / 7 / 8 | T6 / T11 / T9 / T14 / T13 / T3 et T14 |
 | § 7 — chapitre 0, `R-INST-06`, `R-INST-09` / `R-IMP-05` | T3 / T12 |
-| § 8 — tâches 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8 | T1 / T2-T3 / T4-T5 / T6 / T7-T9 / T10-T11 / T12, T14 / T13 |
+| § 8 — tâches 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8 | T1 / T2-T3 / T4, T4b, T5 / T6 / T7-T9 / T10-T11 / T12, T14 / T13 |
 | § 9 (renvois), § 3.1 (constats) | T14 |
 
 ---
@@ -598,6 +602,12 @@ warnings propres à PostgreSQL), et la durée.
   qui ne se prouve que sous PostgreSQL : dans **T6** (le test existant, rouge, l'exige).
 - **Jamais** de `skip`, de `xfail` ni de marqueur pour faire passer la bascule.
 
+**Amendé le 2026-09-26** (rapport T1, six échecs classés) : **E5** élargie dans **T4**
+existante (session **et** relecture, pas la seule seconde) ; **E11** (N, quatre échecs
+neufs, même famille qu'E5 — identifiant de la facture confondu avec celui de la
+consultation) ouvre **T4b**, tâche propre entre T4 et T5 ; **E1** (P) reste à l'étape 11 de
+T6, inchangée.
+
 **Arrêts** (rendre au contrôleur, sans rien corriger) : durée de la passe **> 300 s**
 (critère 5, qui ne se desserre pas) ; un échec dont la trace n'établit pas la cause.
 
@@ -630,10 +640,12 @@ Tâche 2 du § 8, premier commit. Spec § 5.7.
 - Delete: `Docker/build/postgresql/Dockerfile` (et le répertoire)
 
 **Interfaces:**
-- Consumes: `DIGEST_PG` (T1).
+- Consumes: `DIGEST_PG` = `sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873`
+  (mesuré par T1).
 - Produces: sous `  db:`, la ligne exacte
-  `    image: "postgres:18-alpine@DIGEST_PG"` — lue par la recette `test-db` (T6, `sed`)
-  et par `image_du_service_db()` (T6, cliquet). Guillemets doubles, quatre espaces.
+  `    image: "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"`
+  — lue par la recette `test-db` (T6, `sed`) et par `image_du_service_db()` (T6, cliquet).
+  Guillemets doubles, quatre espaces.
 
 - [ ] **Step 1 : Chercher les consommateurs**
 
@@ -683,10 +695,10 @@ Remplace les lignes 2 à 13 de `Docker/deploy/pg/docker-compose.yml` (de
 # Convention : batir l'image sous le commit court du depot, `git rev-parse --short HEAD`
 # — c'est ce qui rend « quelle image tourne » repondable.
   db:
-    image: "postgres:18-alpine@DIGEST_PG"
+    image: "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"
 ```
 
-(`DIGEST_PG` remplacé par sa valeur, `sha256:` compris.) Le reste du fichier ne change pas.
+Le reste du fichier ne change pas.
 
 - [ ] **Step 3 : `.env.example`**
 
@@ -739,16 +751,17 @@ Attendu : la seconde commande n'imprime rien.
 ```bash
 docker compose --env-file Docker/deploy/pg/.env.example -f Docker/deploy/pg/docker-compose.yml config --images
 docker compose -f Docker/deploy/pg/docker-compose.yml config 2>&1 | grep -v 'level=warning'
-docker buildx imagetools inspect "postgres:18-alpine@DIGEST_PG" | head -3
+docker buildx imagetools inspect "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873" | head -3
 git grep -n -E 'libreosteo-pg|build/postgresql|build-postgres|\)-pg\b' -- . ':!KANBAN.md' ':!docs/superpowers/'
 ```
 
 Attendu :
-1. deux lignes, `familletra/libreosteo-http:a0908b0` et `postgres:18-alpine@DIGEST_PG` ;
+1. deux lignes, `familletra/libreosteo-http:a0908b0` et
+   `postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873` ;
 2. **une seule** ligne d'erreur, qui nomme `services.libreosteo.image` (mesuré :
    `Error while interpolating services.libreosteo.image: required variable
    LIBREOSTEO_IMAGE_TAG is missing a value: …`) — `db` ne réclame plus la variable ;
-3. `Digest:` égal à `DIGEST_PG` ;
+3. `Digest:` égal à `sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873` ;
 4. il ne reste que `README.rst:121`, `README.rst:269`, `docs/recette.md:36` (T3).
 
 - [ ] **Step 6 : `make check` (sqlite), puis commit**
@@ -996,7 +1009,11 @@ Tâche 3 du § 8. Correction neutre : verte sur sqlite comme sur PostgreSQL.
 **Le constat.** Sous PostgreSQL, les séquences ne sont pas transactionnelles : les tests
 précédents consomment celle de `OfficeSettings` même quand leur transaction est annulée.
 Le second cabinet de `setUp` n'a donc aucune raison de recevoir l'identifiant 2 — et le
-test le suppose deux fois : dans la session (`:481`) et à la relecture (`:509`).
+test le suppose deux fois : dans la session (`:481`) et à la relecture (`:509`). Corriger
+la seule relecture laisserait la session fausse : `OfficeSettingsMiddleware` ne trouverait
+pas le cabinet et redirigerait avant même d'atteindre l'assertion. Preuve rouge (rapport
+T1, `.superpowers/sdd/2026-09-26-premiere-passe-pg.log` l. 307) :
+`AssertionError: 302 != 200`.
 
 - [ ] **Step 1 : Rendre l'hypothèse visible sous sqlite (mutation du test, temporaire)**
 
@@ -1048,6 +1065,117 @@ testInvoiceOnOffice2 supposait que le second cabinet recevait l'identifiant 2,
 dans la session et a la relecture. Sous PostgreSQL les sequences ne sont pas
 transactionnelles : les tests precedents la consomment. Hypothese rendue
 visible sous sqlite en consommant un identifiant avant la creation.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- libreosteoweb/tests/test_invoice.py
+```
+
+---
+
+### T4b : E11 — passer l'identifiant de la consultation à `update_paiement`, jamais celui de la facture
+
+Tâche neuve (E11), ajoutée par l'amendement du 2026-09-26 (rapport T1), hors numérotation
+du § 8. Correction neutre : verte sur sqlite comme sur PostgreSQL. Même fichier que T4,
+classes différentes : commit distinct, après T4.
+
+**Files:**
+- Modify: `libreosteoweb/tests/test_invoice.py:280, 328, 373, 414` (`TestRegularizeNotPaidInvoice`)
+
+**Interfaces:** aucune.
+
+**Le constat.** Les quatre tests de `TestRegularizeNotPaidInvoice` passent l'identifiant de
+la **facture** (`examination.invoices.latest("date").id`) à la route
+`examination-update-paiement`, une action `detail=True` de `ExaminationViewSet`
+(`get_object()`, `libreosteoweb/api/views/consultation.py:78`) qui attend celui de la
+**consultation** (`Examination`). Sous sqlite, `self.e1.pk` et la facture émise valent
+tous deux 1 : le test passe par coïncidence. Sous PostgreSQL les séquences ne reculent pas
+entre les tests, les deux identifiants divergent, et la route rend 404. Aucun défaut
+produit : `test_facturation.py:470` (`TestEncaissement.encaisse`) appelle déjà la même
+route avec `self.consultation.id`, et passe sur les deux moteurs — vérifié par lecture de
+la vue et de son seul autre appelant testé.
+
+Preuve rouge (rapport T1, `.superpowers/sdd/2026-09-26-premiere-passe-pg.log`) :
+
+| test | exception | ligne du journal |
+|---|---|---|
+| `testRegularizeAlreadyPaidInvoice` | `AssertionError: 404 != 400` | 140 |
+| `testRegularizeInvoiceNotPaid_Nominal` | `AssertionError: 404 != 200` | 187 |
+| `testRegularizeInvoiceNotPaid_NotPaid` | `AssertionError: 404 != 200` | 234 |
+| `testRegularizeInvoiceNotPaid_invalid` | `AssertionError: 404 != 400` | 276 |
+
+(stderr capturé : `POST /api/examinations/81/close` puis
+`POST /api/examinations/72/update_paiement`.)
+
+- [ ] **Step 1 : Rendre la coïncidence visible sous sqlite (mutation temporaire)**
+
+Dans `TestRegularizeNotPaidInvoice.setUp`, juste avant `self.e1 = Examination.objects.create(`
+(ligne 253), ajoute temporairement :
+
+```python
+Invoice.objects.create(
+    date=timezone.now(),
+    amount=0,
+    currency="EUR",
+    paiment_mode="cash",
+    therapeut_name="",
+    therapeut_first_name="",
+    professional_id="",
+    location="",
+    number="decalage",
+    patient_family_name="",
+).delete()
+```
+
+Cette facture jetable consomme un identifiant d'`Invoice` sans toucher à celui
+d'`Examination` (`invoices` est un `ManyToManyField`, pas une clef étrangère : la supprimer
+ne touche `self.e1` d'aucune façon). Sous sqlite, `AUTOINCREMENT` ne réutilise pas
+l'identifiant consommé : la facture que chaque test émet ensuite reçoit donc un `id`
+différent de `self.e1.pk`, comme sous PostgreSQL.
+
+```bash
+./.venv/bin/python -m pytest libreosteoweb/tests/test_invoice.py -k TestRegularizeNotPaidInvoice --no-cov -q
+```
+
+Attendu : **4 failed** (404) — la coïncidence sqlite, rendue visible sans PostgreSQL, avec
+les mêmes exceptions que la table ci-dessus.
+
+- [ ] **Step 2 : Passer l'identifiant de la consultation**
+
+Aux quatre appels à `reverse("examination-update-paiement", …)` (lignes 280, 328, 373, 414) :
+
+```diff
+-                kwargs={"pk": examination.invoices.latest("date").id},
++                kwargs={"pk": self.e1.pk},
+```
+
+Les autres occurrences de `examination.invoices.latest("date").id` (lignes 294, 342, 382,
+428 : filtrage de la facture elle-même, pas de la route) ne changent pas.
+
+Relance la commande de l'étape 1 : **4 passed** (le décalage est toujours là : le
+correctif tient quand les deux identifiants diffèrent).
+
+- [ ] **Step 3 : Retirer le décalage, relancer**
+
+Retire le bloc `Invoice.objects.create(...).delete()` de l'étape 1, relance : **4 passed**.
+`git diff libreosteoweb/tests/test_invoice.py` ne montre que les quatre changements de
+l'étape 2.
+
+- [ ] **Step 4 : `make check`, commit**
+
+`timeout: 600000`.
+
+```bash
+set -o pipefail; make check 2>&1 | tee .superpowers/sdd/T4b-check.log | tail -40
+git commit -m "test(facturation): passer l'identifiant de la consultation a update_paiement (E11)
+
+Les quatre tests de TestRegularizeNotPaidInvoice passaient l'identifiant de
+la facture a examination-update-paiement, une action detail=True de
+ExaminationViewSet qui attend celui de la consultation
+(views/consultation.py:78). Sous sqlite les deux valent 1 par coincidence ;
+sous PostgreSQL les sequences ne reculent pas, la route rend 404 (rapport
+T1, journal l. 140, 187, 234, 276). test_facturation.py:470 appelle deja
+la meme route avec self.consultation.id : aucun defaut produit. Coincidence
+rendue visible sous sqlite en consommant un identifiant de facture avant
+la creation de la consultation.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- libreosteoweb/tests/test_invoice.py
 ```
@@ -1115,7 +1243,7 @@ ne se commite qu'une suite verte sur PostgreSQL. Spec § 5.1 à § 5.4, E1, E10.
 - Modify: tout fichier que l'amendement de T1 range en classe P
 
 **Interfaces:**
-- Consumes: la ligne `image:` de `db` (T2) ; `VERSION_PSYCOPG2` (T1).
+- Consumes: la ligne `image:` de `db` (T2) ; `VERSION_PSYCOPG2` = `2.9.13` (mesuré par T1).
 - Produces:
   - `make test-db` (idempotente), `make test-db-arret` ; `make test` dépend de `test-db`.
   - Réglage `Libreosteo.settings.test` ; variables `LIBREOSTEO_TEST_DB_HOST` (défaut
@@ -1149,7 +1277,7 @@ mypy-extensions==1.1.0
 # Pilote PostgreSQL de la suite unitaire : le meme que la production (l'image http compile
 # `psycopg2`), livre ici en roue, epingle sur la version que porte l'image publiee, relevee
 # le 2026-09-26. L'image, elle, ne l'epingle pas : constat verse au KANBAN.
-psycopg2-binary==VERSION_PSYCOPG2
+psycopg2-binary==2.9.13
 pytest==9.1.1
 pytest-cov==7.1.0
 pytest-django==4.14.0
