@@ -429,6 +429,63 @@ class TestTraceDesOperationsSuspectes(APITestCase):
         self.assertIn("mechant.example", journal.output[0])
 
 
+class TestLoginExemptUrls(APITestCase):
+    """`LOGIN_EXEMPT_URLS` est un point d'extension **documente** : la docstring du
+    middleware le nomme (`middleware.py:100`). Aucun reglage livre ne le pose ; il se
+    prouve donc par `@override_settings`."""
+
+    @override_settings(LOGIN_EXEMPT_URLS=[r"^sante$"])
+    def test_une_url_exemptee_n_est_pas_renvoyee_a_la_connexion(self):
+        # Rouge si : le point d'extension cesse d'etre lu -- une instance qui expose
+        # une sonde de sante la verrait rediriger vers le formulaire de connexion.
+        with sans_receivers():
+            cree_praticien()
+
+        reponse = self.client.get("/sante")
+
+        self.assertNotEqual(302, reponse.status_code)
+
+    def test_sans_exemption_la_meme_url_est_renvoyee_a_la_connexion(self):
+        """Le jumeau du precedent : sans lui, le test ci-dessus passerait aussi bien
+        sur une URL que le middleware n'aurait jamais regardee."""
+        # Rouge si : le middleware cesse de proteger les URL non exemptees.
+        with sans_receivers():
+            cree_praticien()
+
+        reponse = self.client.get("/sante")
+
+        self.assertEqual(302, reponse.status_code)
+        self.assertEqual(reverse("login") + "?next=/sante", reponse.url)
+
+
+class TestReentranceDuMiddlewareDeCabinet(TestCase):
+    """Le cabinet deja pose sur la requete n'est pas remplace.
+
+    Ecart avec le brief : avec un seul `OfficeSettings` en base, le repli de la
+    branche « cabinet unique » (`OfficeSettings.objects.first()`) rend cette
+    meme instance -- la garde peut sauter sans que rien ne rougisse. Deux
+    cabinets sont donc crees, et la session designe explicitement l'autre :
+    sans la garde, c'est lui qui remplacerait celui deja pose sur la requete.
+    """
+
+    def test_un_cabinet_deja_pose_sur_la_requete_est_conserve(self):
+        # Rouge si : la garde saute -- un second passage du middleware ecraserait le
+        # cabinet choisi en session par celui de la base, et le praticien basculerait
+        # de cabinet au milieu de sa navigation.
+        with sans_receivers():
+            praticien = cree_praticien()
+            premier = OfficeSettings.objects.create(office_name="Premier cabinet")
+            autre = OfficeSettings.objects.create(office_name="Second cabinet")
+        requete = APIRequestFactory().get("/")
+        requete.user = praticien
+        requete.session = {"officesettings": premier.id}
+        requete.officesettings = autre
+
+        OfficeSettingsMiddleware(lambda r: None).process_request(requete)
+
+        self.assertEqual(autre, requete.officesettings)
+
+
 class TestOfficeSettingsMiddleware(TestCase):
     def setUp(self):
         self.fabrique = RequestFactory()
