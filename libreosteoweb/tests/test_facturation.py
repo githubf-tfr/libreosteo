@@ -31,6 +31,7 @@ from libreosteoweb.models import (
     InvoiceStatus,
     OfficeSettings,
     Paiment,
+    PaimentMean,
 )
 from libreosteoweb.templatetags.invoice_extras import templatize
 from libreosteoweb.tests.fixtures import (
@@ -162,6 +163,17 @@ class TestFacturation(APITestCase):
         liste = self.client.get(reverse("invoice-list"))
         self.assertEqual(liste.status_code, status.HTTP_200_OK)
         self.assertIn(b'"amount":55.55', liste.content)
+
+    def test_un_paiement_par_cheque_sans_information_est_refuse(self):
+        """Ce test tranche le sort de `attrs["check"] is None` : si DRF refuse la
+        charge **avant** d'appeler `validate`, la ligne est morte."""
+        reponse = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=dict(facturation(paiment_mode="check"), check=None),
+            format="json",
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Invoice.objects.count(), 0)
 
 
 class TestRefusDuNumeroDejaEmis(APITestCase):
@@ -542,6 +554,53 @@ class TestAnnulationFacture(APITestCase):
         self.assertEqual(self.annule().status_code, status.HTTP_400_BAD_REQUEST)
 
 
+class TestAnnulationParFactureCorrectiveInvalide(APITestCase):
+    """Cabinet regle en « facture corrective » : la confirmation doit porter une
+    charge de facturation valide, sinon rien ne bouge."""
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet()
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+        creation = self.client.post(
+            reverse("examination-invoice", kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+        self.facture = Invoice.objects.get(id=creation.data["invoiced"])
+
+    def test_une_facture_corrective_invalide_rend_400_sans_annuler_l_originale(self):
+        # Rouge si : la facture d'origine est annulee alors que son remplacement a ete
+        # refuse -- la seance se retrouverait sans aucune facture valide.
+        regle_cabinet(cancel_invoice_credit_note=False)
+        consultation = self.client.get(
+            reverse("examination-detail", kwargs={"pk": self.consultation.id})
+        ).data
+
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": self.facture.pk}),
+            data={
+                "examination": consultation,
+                "corrective_invoice": {
+                    "status": "invoiced",
+                    "amount": "0.00",
+                    "paiment_mode": "cash",
+                    "reason": None,
+                    "check": {},
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, reponse.status_code)
+        self.facture.refresh_from_db()
+        self.assertNotEqual(InvoiceStatus.CANCELED, self.facture.status)
+
+
 class TestRefusDuNumeroDejaEmisAAnnulation(APITestCase):
     """Meme collision que TestRefusDuNumeroDejaEmis, mais sur le chemin de
     l'avoir : `Generator.cancel_invoice` tire son numero de la meme sequence
@@ -721,6 +780,59 @@ class TestRenduFacture(APITestCase):
         )
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         self.assertContains(reponse, "Non réglée en date de facture")
+
+    def test_chaque_encaissement_rend_son_moyen_traduit_en_minuscules(self):
+        """`invoice/invoice-result.html` imprime la liste des encaissements : leur
+        moyen doit y etre lisible, pas un code."""
+        # Rouge si : le code brut (« cash ») s'imprime sur la facture papier a la
+        # place du libelle. La facture est laissee « non payee » au premier niveau
+        # -- son propre libelle affiche alors « Non regle » -- pour que « especes »
+        # ne puisse venir que de la liste des encaissements.
+        with sans_receivers():
+            autre = cree_consultation(self.patient, therapeut=self.user)
+        impayee = Invoice.objects.get(
+            id=self.client.post(
+                reverse("examination-invoice", kwargs={"pk": autre.id}),
+                data=facturation(paiment_mode="notpaid"),
+                format="json",
+            ).data["invoiced"]
+        )
+        paiement = Paiment.objects.create(
+            amount=Decimal("50.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            date=timezone.now().date(),
+        )
+        impayee.paiment_set.add(paiement)
+
+        reponse = self.client.get(
+            reverse("invoice_view", kwargs={"invoiceid": impayee.id})
+        )
+
+        corps = reponse.content.decode("utf-8")
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertIn(PaimentMean.objects.get(code="cash").text.lower(), corps)
+
+
+class TestMoyenDePaiementParDictionnaire(TestCase):
+    """`PaimentModeSerializer` est alimente tantot par un objet, tantot par un
+    dictionnaire (charge de facturation) : les deux doivent rendre le meme libelle."""
+
+    def test_un_dictionnaire_rend_le_meme_libelle_qu_un_objet(self):
+        # Rouge si : la branche dictionnaire disparait -- la modale de facturation
+        # afficherait « n/a » a la place du moyen choisi.
+        attendu = PaimentMean.objects.get(code="cash").text
+
+        rendu = apiserializers.PaimentModeSerializer({"paiment_mode": "cash"}).data
+
+        self.assertEqual(attendu, rendu["paiment_mode_text"])
+
+    def test_un_code_inconnu_rend_n_a(self):
+        # Rouge si : un code retire du catalogue fait rendre 500 au lieu d'un libelle
+        # de repli.
+        rendu = apiserializers.PaimentModeSerializer({"paiment_mode": "inconnu"}).data
+
+        self.assertEqual("n/a", rendu["paiment_mode_text"])
 
 
 class TestTemplatize(TestCase):

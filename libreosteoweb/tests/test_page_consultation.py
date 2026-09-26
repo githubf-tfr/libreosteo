@@ -1020,6 +1020,71 @@ class TestModaleDeFacturation(_VoletRendu):
         self.assertIn("reportValidity()", gestionnaire)
 
 
+class TestFacturationCorrectiveRefusee(TestCase):
+    """`facturer_en_remplacement`, chemin `consultation-annulation-facture` avec un
+    cabinet regle en « facture corrective »."""
+
+    def setUp(self) -> None:
+        with sans_receivers():
+            self.praticien = cree_praticien()
+            self.reglages = cree_reglages_praticien(self.praticien)
+            self.cabinet = regle_cabinet(
+                amount=55,
+                cancel_invoice_credit_note=False,
+                invoice_start_sequence="10001",
+            )
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=ExaminationStatus.INVOICED_PAID,
+            )
+        self.facture = Invoice.objects.create(
+            date=self.consultation.date,
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number="10000",
+            patient_family_name="Picard",
+            officesettings_id=self.cabinet.id,
+            status=InvoiceStatus.INVOICED_PAID,
+        )
+        self.consultation.invoices.add(self.facture)
+        # Le numero que la facture corrective va reserver (la sequence courante,
+        # 10001) est deja pris : c'est la collision qui fait echouer la sauvegarde.
+        Invoice.objects.create(
+            date=self.consultation.date,
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number="10001",
+            patient_family_name="Picard",
+            officesettings_id=self.cabinet.id,
+        )
+        self.client.force_login(self.praticien)
+
+    def test_une_facturation_refusee_re_rend_la_modale_en_422(self) -> None:
+        """`facturer_en_remplacement` rattrape la `ValidationError` de DRF : le praticien
+        doit revoir sa modale avec le message, pas une page d'erreur."""
+        # Rouge si : le refus remonte en 500 -- la modale disparaitrait et la saisie
+        # serait perdue.
+        reponse = self.client.post(
+            reverse("consultation-annulation-facture", args=[self.consultation.id]),
+            data={"amount": "60", "paiment_mode": "cash"},
+        )
+
+        self.assertEqual(422, reponse.status_code)
+        self.assertIn("modale", reponse.content.decode("utf-8"))
+
+
 class TestModaleDeClotureDepuisLEdition(_VoletRendu):
     """Le defaut mesure : `#reason` de la modale de facturation et
     `Examination.reason` (le motif clinique de la consultation) portent le meme nom.

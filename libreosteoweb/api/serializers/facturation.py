@@ -98,17 +98,11 @@ class ExaminationInvoicingSerializer(serializers.Serializer):
                     raise serializers.ValidationError(
                         _("Paiment mode is mandatory when the examination is invoiced")
                     )
-                if attrs["paiment_mode"] == "check":
-                    if attrs["check"] is None:
-                        raise serializers.ValidationError(
-                            _("Check information is missing")
-                        )
-                # if attrs['check']['bank'] is None or len(attrs['check']['bank'].strip()) == 0:
-                #    raise serializers.ValidationError(_("Bank information is missing about the check paiment"))
-                # if attrs['check']['payer'] is None or len(attrs['check']['payer'].strip()) == 0:
-                #    raise serializers.ValidationError(_("Payer information is missing about the check paiment"))
-                # if attrs['check']['number'] is None or len(attrs['check']['number'].strip()) == 0:
-                #    raise serializers.ValidationError(_("Number information is missing about the check paiment"))
+                # Les informations de cheque ne sont plus validees ici : `check` est un
+                # sous-serialiseur **obligatoire et non nullable**
+                # (`CheckSerializer()`, plus haut), donc `attrs["check"]` existe
+                # toujours. Les controles de banque, de payeur et de numero etaient
+                # deja desactives par l'amont ; ils ne reviennent pas par cette porte.
             return attrs
         except KeyError:
             raise serializers.ValidationError(_("Missing data to continue"))
