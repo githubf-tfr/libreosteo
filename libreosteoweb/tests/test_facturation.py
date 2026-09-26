@@ -245,8 +245,11 @@ class TestRefusDuNumeroDejaEmis(APITestCase):
 
 
 class TestErreurDIntegriteEtrangere(TestCase):
-    """Le complement que `test_page_consultation.py:1234-1236` declare laisser passer :
-    « une autre violation d'integrite, que le generateur re-leve telle quelle »."""
+    """Le complement que
+    `test_page_consultation.py::
+    test_un_numero_de_facture_deja_emis_est_refuse_sans_lire_le_message_du_sgbd`
+    declare laisser passer : « une autre violation d'integrite, que le generateur
+    re-leve telle quelle »."""
 
     def test_une_erreur_d_integrite_etrangere_remonte_intacte(self):
         # Rouge si : toute IntegrityError est deguisee en « numero deja utilise » --

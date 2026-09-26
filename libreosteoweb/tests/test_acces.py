@@ -430,8 +430,8 @@ class TestTraceDesOperationsSuspectes(APITestCase):
 
 
 class TestLoginExemptUrls(APITestCase):
-    """`LOGIN_EXEMPT_URLS` est un point d'extension **documente** : la docstring du
-    middleware le nomme (`middleware.py:100`). Aucun reglage livre ne le pose ; il se
+    """`LOGIN_EXEMPT_URLS` est un point d'extension **documente** : la docstring de la
+    classe `LoginRequiredMiddleware` le nomme. Aucun reglage livre ne le pose ; il se
     prouve donc par `@override_settings`."""
 
     @override_settings(LOGIN_EXEMPT_URLS=[r"^sante$"])

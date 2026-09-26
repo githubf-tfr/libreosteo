@@ -147,10 +147,10 @@ class TestMoyenDePaiementAffiche(TestCase):
     """Les quatre conditions de `moyen_affiche`, reprises de `invoice-list.html:64-67`.
 
     Deviation du brief : `paiments_list` (`models.py:387`) est un `property` sans
-    `fset`, adosse a `paiment_set` -- le related_name du ManyToMany `Paiment.invoice`
-    (`models.py:379-384`). Poser `facture.paiments_list = [...]` leve `AttributeError`
-    avant meme d'atteindre `moyen_affiche` ; la preuve passe donc par de vrais
-    `Paiment` lies en base, jamais par un attribut monte a la main.
+    `fset`, adosse a `paiment_set` -- le related_name du ManyToMany `Paiment.invoice`.
+    Poser `facture.paiments_list = [...]` leve `AttributeError` avant meme d'atteindre
+    `moyen_affiche` ; la preuve passe donc par de vrais `Paiment` lies en base, jamais
+    par un attribut monte a la main.
     """
 
     def _paiment(self, mode: str) -> models.Paiment:
