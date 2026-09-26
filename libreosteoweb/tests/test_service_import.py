@@ -18,9 +18,10 @@ import shutil
 import tempfile
 
 from django.test import TestCase, override_settings
+from django.utils.translation import gettext_lazy as _
 
 from libreosteoweb import models
-from libreosteoweb.api.file_integrator import FileContentProxy
+from libreosteoweb.api.file_integrator import FileContentProxy, IntegratorHandler
 from libreosteoweb.api.services.import_fichiers import (
     FichierPatientManquant,
     analyser,
@@ -60,6 +61,13 @@ class BaseImport(TestCase):
             )
         )
 
+    def _depot_consultations_seules(self):
+        return models.FileImport.objects.create(
+            file_examination=csv_televerse(
+                "consultations.csv", ENTETE_CONSULTATION, [ligne_consultation(1)]
+            )
+        )
+
 
 class TestAnalyse(BaseImport):
     def test_un_fichier_patient_valide_passe_l_import_en_statut_1(self):
@@ -88,3 +96,23 @@ class TestIntegration(BaseImport):
         self.assertEqual(rapport["patient"]["errors"], [])
         self.assertEqual(rapport["examination"], {"imported": 0, "errors": []})
         self.assertTrue(models.Patient.objects.filter(first_name="Jean-Luc").exists())
+
+    def test_integrer_des_consultations_sans_fichier_patient_n_importe_rien(self):
+        """Une consultation se rattache a un patient par son numero de fichier : sans
+        la table de correspondance, aucune ne peut l'etre."""
+        # Rouge si : l'integration part sans fichier patient -- elle leverait sur la
+        # premiere ligne au lieu de rendre un refus nomme.
+        depot = self._depot_consultations_seules()
+
+        importees, erreurs = IntegratorHandler().integrate(depot.file_examination)
+
+        self.assertEqual(0, importees)
+        # Comparaison a la meme traduction que celle produite par file_integrator.py
+        # (LANGUAGE_CODE="fr" est actif dans les tests, et cette chaine est traduite
+        # dans locale/fr/LC_MESSAGES/django.po) : un litteral anglais ne survivrait
+        # pas a la mesure.
+        self.assertEqual(
+            [str(_("Missing patient file to integrate it."))],
+            [str(e) for e in erreurs],
+        )
+        self.assertEqual(0, models.Examination.objects.count())
