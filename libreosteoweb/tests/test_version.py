@@ -66,10 +66,24 @@ class TestControleDeVersion(SimpleTestCase):
             self.assertEqual((False, None), module_version.ask_for_new_version())
 
     def test_une_version_plus_ancienne_n_annonce_rien(self):
-        # Rouge si : la comparaison se fait sur du texte -- « 0.9 » passerait pour plus
-        # recente que « 0.10 ».
+        # Rouge si : la comparaison change de sens -- une version anterieure serait
+        # annoncee comme une mise a jour.
         with _service_qui_repond(json.dumps({"version": "0.0.1"})):
             self.assertEqual((False, None), module_version.ask_for_new_version())
+
+    def test_une_version_lexicalement_anterieure_mais_semantiquement_plus_recente_est_annoncee(
+        self,
+    ):
+        """`"0.10.0"` est lexicalement anterieure a `libreosteoweb.__version__`
+        (`"0.6.9.dev0"` : `"1" < "6"` au second groupe) mais semantiquement posterieure
+        (`10 > 6`). Seule `packaging.version.parse` tranche dans le bon sens."""
+        # Rouge si : la comparaison se fait sur du texte et non sur le numero de version
+        # -- une version reellement plus recente ne serait jamais annoncee.
+        with _service_qui_repond(json.dumps({"version": "0.10.0"})):
+            disponible, numero = module_version.ask_for_new_version()
+
+        self.assertTrue(disponible)
+        self.assertEqual("0.10.0", numero)
 
     def test_une_charge_illisible_n_annonce_rien_et_ne_leve_pas(self):
         # Rouge si : une reponse cassee du service fait rendre 500 au tableau de bord.
