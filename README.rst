@@ -186,7 +186,7 @@ Two things are worth knowing before you choose:
   PostgreSQL, however, it is limited to the ``tde_heap_basic`` access method: **indexes are
   not encrypted**, and patient names live in those indexes. Full coverage requires two
   patches to PostgreSQL itself, shipped only in Percona's distribution — a different base
-  image than the one this repository builds. Volume encryption avoids that trade entirely.
+  image than the one this repository pins. Volume encryption avoids that trade entirely.
 
 Encrypting a disk that is already in service is a migration, not a setting: back up,
 encrypt, restore. Plan it as such.

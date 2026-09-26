@@ -452,7 +452,12 @@ version PostgreSQL entre cette mineure et celle du digest retenu : une note qui 
    test prouve qu'un usage est encore requis sous PostgreSQL, motif écrit à côté).
 5. Durée de `make test` ≤ **300 s** sur le bac à sable (≈ +40 % sur 215 s), mesurée deux fois
    et consignée. Au-delà, le lot s'arrête et rend la mesure : le critère ne se desserre pas en
-   silence.
+   silence. **Règle de l'utilisateur, ratifiée le 2026-09-26** : cet objectif n'est pas une
+   coupure — la seule coupure est le plafond de 600 s de l'outil — et s'il est dépassé de
+   façon normale, il se relève au lieu de bloquer. **Décision T6b, ratifiée le 2026-09-26** :
+   devant un dépassement à 305 s (PBKDF2 ≈ 287 ms/appel, premier poste CPU, environnement
+   partagé du bac à sable), un hacheur MD5 en test seul (`Libreosteo/settings/test.py`)
+   ramène la suite à 86,0 s ; la production garde PBKDF2.
 6. CI : job `quality` vert sur PostgreSQL ; job `functional` vert, inchangé, sur sqlite.
 7. Les deux fiches de recette du § 7 passent sur une instance conteneur : `R-INST-09` (une
    base existante redémarre sur l'image officielle, mêmes comptes, aucune réinitialisation)

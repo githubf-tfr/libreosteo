@@ -51,8 +51,8 @@ DATABASES = {
     }
 }
 
-# Hacheur rapide : le PBKDF2 par defaut de Django coute environ 287 ms par appel (mesure
-# rapport-duree.md, 2026-09-26), premier poste CPU de la suite et cause dominante du
+# Hacheur rapide : le PBKDF2 par defaut de Django coute environ 287 ms par appel (mesure du
+# 2026-09-26), premier poste CPU de la suite et cause dominante du
 # depassement du critere 5 (make check <= 300 s, constate a 305 s sur e59a4e2). Limite : le
 # hacheur de production (PBKDF2, non reconfigure ailleurs dans le depot) n'est plus exerce
 # par la suite unitaire ; la robustesse du hachage n'est pas son role.

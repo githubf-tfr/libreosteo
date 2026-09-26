@@ -66,6 +66,10 @@ exclude_lines = ['if __name__ == "__main__":']
 # tourne sur sqlite), 1 pour la garde de typage de dossier_patient.py:274 qu'impose le
 # cliquet mypy. La marge laissee est d'environ 36 instructions -- de quoi absorber un module
 # neuf partiellement couvert sans faire rougir un commit honnete.
+# 2026-09-26 : lot « suite unitaire sur PostgreSQL » cloture, couverture constatee 99,98 % sur
+# 4541 instructions -- les verrous consultatifs retires (DU2) ne comptent plus au
+# denominateur ; seule I2 (garde de typage de dossier_patient.py:274) reste non couverte. Le
+# plancher n'a pas bouge.
 fail_under = 99
 
 [tool.ruff]
