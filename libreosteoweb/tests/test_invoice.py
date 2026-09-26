@@ -457,7 +457,7 @@ class TestInvoiceWithOfficeSettings(APITestCase):
             setting.amount = 50
             setting.save()
 
-            OfficeSettings.objects.create(
+            self.cabinet2 = OfficeSettings.objects.create(
                 office_identifier="98765",
                 currency="EUR",
                 amount=65,
@@ -478,7 +478,7 @@ class TestInvoiceWithOfficeSettings(APITestCase):
     def testInvoiceOnOffice2(self):
         # Given
         session = self.client.session
-        session.update({"officesettings": 2})
+        session.update({"officesettings": self.cabinet2.id})
         session.save()
         # When
         response = self.client.post(
@@ -506,6 +506,6 @@ class TestInvoiceWithOfficeSettings(APITestCase):
         self.assertEqual(invoice.status, InvoiceStatus.INVOICED_PAID)
         self.assertEqual(invoice.number, "WAD1000000")
         setting1 = OfficeSettings.objects.get(id=1)
-        setting2 = OfficeSettings.objects.get(id=2)
+        setting2 = OfficeSettings.objects.get(id=self.cabinet2.id)
         self.assertEqual(setting1.invoice_start_sequence, "")
         self.assertEqual(setting2.invoice_start_sequence, "1000001")
