@@ -3503,6 +3503,33 @@ plus qu'un import a eu lieu. Le fermer demande soit de persister le rapport, soi
 l'import de la requête — écartés de ce lot (cadrage § 11.3), et l'un des deux reste au
 journal.
 
+### R-IMP-05 — Export des patients et des consultations, et refus d'un export concurrent
+
+- **Domaine** : Import CSV
+- **Couverture auto** : non
+- **État requis** : E2
+
+**Étapes**
+
+1. Menu utilisateur → « Import/export », onglet « Exporter vers un système externe ».
+   Attendu : liens « Fichier patients » et « Fichier des consultations ».
+2. Cliquer « Fichier patients ».
+   Attendu : le navigateur télécharge un fichier ; ouvert dans un tableur, il liste les
+   patients de E2, un par ligne.
+3. Cliquer « Fichier des consultations ».
+   Attendu : idem, une ligne par consultation de E2.
+4. Dans un terminal, à la racine du dépôt :
+   `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml exec db sh -c 'psql -U "$POSTGRES_USER" -d libreosteo -c "SELECT pg_advisory_lock(1), pg_sleep(60);"'`
+   puis, dans les 60 secondes, cliquer « Fichier patients ».
+   Attendu : aucun fichier téléchargé ; la page affiche « Un export est déjà en cours.
+   Réessayez dans un instant. »
+5. La commande du terminal rendue, cliquer de nouveau « Fichier patients ».
+   Attendu : le fichier est téléchargé, comme à l'étape 2.
+
+**Constat** : le verrou est tenu par la base, pas par le processus ; il protège un
+déploiement à plusieurs workers. L'instance de référence (un seul worker, un seul fil) ne
+peut pas le déclencher par deux clics : l'étape 4 simule le second export depuis la base.
+
 ### Sauvegarde/restauration
 
 ### R-SAU-01 — Sauvegarde de l'instance (obtenir l'archive)

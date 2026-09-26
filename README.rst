@@ -608,10 +608,26 @@ dependencies in your virtualenv ::
     pip install -r requirements/requirements.txt
     pip install -r requirements/requ-dev.txt
 
+The unit suite runs on PostgreSQL, the production engine, and never on sqlite: a guard
+test fails the suite if it is pointed elsewhere. ``make test`` first runs ``make
+test-db``, which needs Docker: it starts a throwaway PostgreSQL container,
+``libreosteo-test-pg``, on the very image the production compose file pins (``image:``
+of the ``db`` service in ``Docker/deploy/pg/docker-compose.yml``), with its data in
+memory, published on ``127.0.0.1`` only, with ``trust`` authentication. The container is
+left running between two runs; ``make test-db-arret`` removes it, and with it the memory
+it holds, including a test database left behind by an interrupted run. Each run creates
+its own test database, so two runs can share the server. To use a server of your own
+instead, set these variables and run ``python -m pytest`` directly ::
+
+    LIBREOSTEO_TEST_DB_HOST      # default 127.0.0.1
+    LIBREOSTEO_TEST_DB_PORT      # default 55432, also the port make test-db publishes
+    LIBREOSTEO_TEST_DB_USER      # default postgres
+    LIBREOSTEO_TEST_DB_PASSWORD  # default empty
+
 Three targets are available, all of them expecting the virtualenv in ``.venv`` ::
 
     make lint    # ruff check, ruff format --check, mypy
-    make test    # pytest, unit tests and coverage floor
+    make test    # PostgreSQL test server, then pytest, unit tests and coverage floor
     make check   # both, to be run before any commit
 
 ``make check`` reproduces exactly the ``quality`` job of the continuous
@@ -632,6 +648,9 @@ Chromium once ::
 itself lands in ``~/.cache/ms-playwright``.) Then run the suite ::
 
     make test-functional
+
+It still runs on sqlite: ``make test-functional`` passes ``--ds=Libreosteo.settings``,
+which a bare ``pytest tests/functional`` would not.
 
 Reproducible frontend build
 ===========================

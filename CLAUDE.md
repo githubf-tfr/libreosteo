@@ -27,8 +27,9 @@ entretenir, ne pas les recetter.
 
 ## Tests et qualité
 
-`make check` avant tout commit — c'est exactement le job `quality` de la CI. Trois
-cliquets, qui ne se desserrent jamais :
+`make check` avant tout commit — c'est exactement le job `quality` de la CI. La suite
+unitaire tourne sur PostgreSQL (`make test-db`, Docker) : ne jamais la repointer sur sqlite.
+Trois cliquets, qui ne se desserrent jamais :
 
 - le plancher de couverture (`fail_under`) ne descend pas ;
 - le périmètre `mypy` (`files`) ne rétrécit pas — **tout module `.py` créé y est ajouté
@@ -37,9 +38,8 @@ cliquets, qui ne se desserrent jamais :
 
 Un cliquet se relève dans le commit qui l'a mérité, jamais pour faire passer un commit.
 
-**Suite fonctionnelle** : un lancement = un appel d'outil en avant-plan, jamais de boucle
-shell, jamais deux en parallèle (RAM). Le plafond se règle par le paramètre `timeout` de
-l'outil, pas par la commande shell `timeout`, qui fait basculer le lancement en arrière-plan.
+**Suite fonctionnelle** : un appel d'outil en avant-plan, plafonné par son paramètre
+`timeout` (jamais la commande shell `timeout`) ; ni boucle shell, ni deux en parallèle (RAM).
 
 **L'arbre servi ment.** `collectstatic` n'enlève jamais : `static/` garde ce qu'une
 dépendance sortie y a laissé, et la suite passe alors sur du code que l'image ne contient
