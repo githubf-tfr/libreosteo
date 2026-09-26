@@ -415,6 +415,19 @@ Tenu à la main.
     dédiée (`apk add tzdata`) est sans effet sur l'officielle, et elle coûtait une
     construction et une publication par commit.
 
+- (2026-09-26) **Écartés du scan de sécurité du 2026-09-26, risque accepté par
+  l'utilisateur** : le HTML des champs texte riche et du pied de facture reste rendu tel
+  quel, sans assainissement (F1, F5 — tous les comptes sont des praticiens de confiance du
+  cabinet ; l'assainissement du texte riche était déjà écarté par D6e) ; la première
+  installation reste sans secret d'amorçage (F28, F29 — installation sur réseau de
+  confiance, compte administrateur créé aussitôt). Ne pas « réparer » sans nouvelle
+  décision.
+
+- (2026-09-26) **Patients, séances et documents partagés entre tous les praticiens du
+  cabinet — voulu.** Rappelé par l'utilisateur à la clôture du lot correctif de sécurité
+  du même jour : l'absence de contrôle d'appartenance par praticien n'est pas un défaut
+  d'autorisation à corriger.
+
 ## À faire
 
 - **Bascule du parc sur l'image officielle — geste de l'utilisateur** (lot « suite unitaire
@@ -818,6 +831,17 @@ décision d'affordance, ils ont été **rétablis** le 2026-09-18 (`98439de`, cf
 sur les quatre entrées.
 
 ### Sécurité
+
+- (2026-09-26) **Constats du scan Claude Security du 2026-09-26 non corrigés par
+  `196cbe2`.** Détail (nature, route, gravité) uniquement dans le rapport local non
+  versionné `CLAUDE-SECURITY-20260926-120331/` (`.gitignore` local, dépôt public).
+  Tranchés par l'utilisateur le 2026-09-26 :
+  - **Écartés, risque accepté** : F1, F5, F28, F29 — voir « Décisions actées ».
+  - **À corriger selon sa décision** : F9 (ancien mot de passe exigé pour changer le
+    sien, pas pour un tiers), F18 (sessions retirées des sauvegardes, purge unique des
+    sessions à la mise à jour), F12 (import réservé au personnel administrateur côté
+    serveur).
+  - **Sans décision, nouvel essai à faire** : F6, F30.
 
 - ~~Données de santé stockées dans un SQLite non chiffré par défaut.~~ — **sans objet**,
   vérifié le 2026-09-19 : le déploiement cible est conteneur + PostgreSQL, rien d'autre
@@ -1672,6 +1696,49 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-26 — Lot correctif de sécurité : 12 constats du scan Claude Security du
+  2026-09-26 corrigés** (commit `196cbe2`). Chaque patch a été écrit puis vérifié par un
+  vérificateur, contre-expertisé par un second agent, avant application. `make check`
+  vert, **1179 passed**, couverture **99,98 %** ; suite fonctionnelle **152 passed**
+  (716 s).
+
+  - **F2** — `DELETE /api/patients` exige désormais `is_staff`, même règle que la
+    suppression de dossier : un compte non administrateur ne purge plus un patient par
+    l'API, et plus seulement par le bouton masqué côté écran.
+  - **F4** — le surligneur de recherche échappe `<` et `>` de l'extrait rendu, fenêtre
+    et occurrences identiques à haystack : un balisage saisi dans un champ ne s'affiche
+    plus tel quel depuis un résultat de recherche.
+  - **F7** — l'intégration d'un import n'accepte plus que `POST` (page et action DRF) :
+    une navigation ne rejoue plus un import déjà fait.
+  - **F8** — `ExaminationSerializer` refuse en 400 tout changement client de `status`,
+    `status_reason`, `invoices`, `office` ou `patient` ; l'écriture est bornée par
+    `update_fields` ; une consultation créée par l'API naît toujours « en cours », sans
+    facture.
+  - **F10** — le consentement RGPD ne se recueille plus que sur `POST`.
+  - **F11** — `POST /api/profiles` refuse (403) à un praticien non administrateur de
+    créer le profil de facturation d'un confrère.
+  - **F14** — la liste et les cellules d'édition des utilisateurs du cabinet sont
+    réservées au personnel administrateur, côté serveur et plus seulement côté onglet
+    masqué.
+  - **F15** — une nouvelle consultation ne se crée plus que sur `POST`.
+  - **F20** — l'annulation de facture et les vues sœurs du cabinet (cellule d'un
+    utilisateur, mot de passe d'un tiers) n'écrivent plus que sur `POST` ; `HEAD`,
+    `OPTIONS` et `TRACE` ne font plus que lire.
+  - **F21** — le mode démonstration refuse le changement de mot de passe côté serveur,
+    et plus seulement en masquant le bouton du gabarit.
+  - **F22** — les caractères non imprimables du chemin et de la méthode sont échappés
+    avant écriture dans le journal applicatif ; la forme d'une ligne pour un chemin
+    légitime ne change pas.
+  - **F27** — la reconstruction de l'index n'accepte plus que `POST`.
+
+  **Recette** : `docs/recette.md` mis à jour sur `R-DOC-04`, `R-RCH-01`, `R-IMP-01`,
+  `R-IMP-02`, `R-CON-06`, `R-PAT-01`, `R-THE-01`, `R-CAB-05`, `R-CON-01`, `R-FAC-07`,
+  `R-AUTH-05` et `R-DOC-05` (F27 avait déjà mis à jour `R-RCH-02` dans le commit lui-même).
+
+  **Origine** : scan Claude Security du 2026-09-26, patchs vérifiés par un vérificateur
+  puis une contre-expertise avant application ; rapport local non versionné
+  `CLAUDE-SECURITY-20260926-120331/` (`.gitignore` local : `*`).
 
 - **2026-09-26 — Lot « suite unitaire sur PostgreSQL » clos : bascule de la suite unitaire de
   sqlite vers PostgreSQL, image officielle épinglée par digest, verrous consultatifs

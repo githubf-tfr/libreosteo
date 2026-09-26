@@ -1213,7 +1213,13 @@ version mineure peut changer.
 
 - **Domaine** : Authentification
 - **Couverture auto** : oui — tests/functional/test_therapeute.py::test_reglage_du_therapeute
-  (modification du profil ; le changement de mot de passe n'a pas d'équivalent automatisé)
+  (modification du profil ; le changement de mot de passe n'a pas d'équivalent
+  automatisé). Depuis le lot correctif du 2026-09-26 (F21), une instance montée en mode
+  démonstration refuse ce même changement côté serveur, et plus seulement en masquant
+  le bouton — couvert par
+  libreosteoweb/tests/test_page_profil.py::TestPageProfil::test_en_demonstration_le_mot_de_passe_ne_change_pas ;
+  le mode démonstration n'étant jamais celui du montage de ce cahier (chapitre 0),
+  aucun geste de recette ne le joue
 - **État requis** : E1. Cette fiche modifie durablement le nom et le mot de passe du
   compte `test` du socle E1 : à l'issue de son exécution, remonter l'état E1
   (chapitre 1) avant de jouer une autre fiche qui en dépend.
@@ -1421,7 +1427,19 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
   (couvre le focus posé à l'étape 2 : le champ de saisie, inséré par
   `hx-swap="outerHTML"`, n'est plus focalisé par l'attribut natif `autofocus` — repris de
   façon non fiable par le navigateur sur un fragment injecté après le chargement du
-  document — mais par `x-init="$el.focus()"`, exécuté par Alpine à l'insertion)
+  document — mais par `x-init="$el.focus()"`, exécuté par Alpine à l'insertion).
+  Les étapes 10 et 11 ci-dessous, ajoutées par le lot correctif du 2026-09-26 (F14),
+  sont couvertes par
+  libreosteoweb/tests/test_page_cabinet.py::TestOngletUtilisateurs::test_un_non_administrateur_ne_lit_pas_la_liste_des_comptes,
+  ::test_un_non_administrateur_ne_lit_pas_une_cellule et
+  ::test_le_refus_d_ecriture_ne_rend_pas_la_cible. Le même lot pose deux gardes sans
+  geste de recette possible, l'une comme l'autre exigeant une méthode HTTP
+  (`HEAD`/`OPTIONS`/`TRACE`) que la barre d'adresse ne peut poser : l'édition d'une
+  cellule n'écrit plus que sur `POST` (F20,
+  ::test_seul_post_ecrit_une_cellule), et le changement du mot de passe d'un tiers par
+  un administrateur est refusé quand l'instance tourne en mode démonstration (F21,
+  ::test_en_demonstration_le_personnel_ne_change_pas_le_mot_de_passe) — mode que le
+  montage de ce cahier ne met jamais en œuvre (chapitre 0)
 - **État requis** : E1. Cette fiche crée durablement un utilisateur et modifie le nom du
   compte `test` : à l'issue de son exécution, remonter l'état E1 (chapitre 1) avant de
   jouer une autre fiche qui en dépend.
@@ -1468,6 +1486,15 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
 9. Se déconnecter, s'identifier avec `crusher` / `nouveaumdp`.
    Attendu : connexion acceptée ; le menu utilisateur affiche `crusher`, et **l'entrée
    « Import/export » n'y figure pas** — l'utilisateur créé n'est pas administrateur.
+10. Toujours connecté avec `crusher`, saisir dans la barre d'adresse
+    `http://localhost:8085/office/settings/users` et valider.
+    Attendu : une notification d'erreur « Vous n'avez pas la permission d'effectuer
+    cette action. » s'affiche ; aucun nom de compte, aucune ligne de tableau n'apparaît
+    (F14).
+11. Saisir dans la barre d'adresse `http://localhost:8085/office/settings/users/1/edit/first_name`
+    (l'identifiant `1` est celui du compte `test`, premier créé) et valider.
+    Attendu : le même refus s'affiche, sans afficher ni le nom de connexion ni la
+    valeur du champ visé (F14).
 
 ### R-CAB-06 — Outil de diagnostic du texte riche
 
@@ -1528,7 +1555,12 @@ lisent ce maximum : la borne exposée au navigateur (étape 5), le refus serveur
 - **Domaine** : Thérapeute
 - **Couverture auto** : oui — tests/functional/test_therapeute.py::test_reglage_du_therapeute
   (identifiant professionnel et qualité ; l'identifiant de structure et le pied de page de
-  facture propres au thérapeute n'ont pas d'équivalent automatisé)
+  facture propres au thérapeute n'ont pas d'équivalent automatisé). Depuis le lot
+  correctif du 2026-09-26 (F11), `POST /api/profiles` refuse (403) à un praticien non
+  administrateur de poser ce même profil pour un confrère — couvert par
+  libreosteoweb/tests/test_profil_therapeute.py::TestCreationDuProfilParUnTiers ;
+  aucun geste de recette ne joue cette voie, cet écran n'écrivant jamais le profil d'un
+  tiers
 - **État requis** : E1. Cette fiche modifie durablement le profil thérapeute
   (identifiant professionnel, identifiant de structure, qualité, pied de page de
   facture) : à l'issue de son exécution, remonter l'état E1 (chapitre 1) avant de
@@ -1655,7 +1687,9 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
 - **Couverture auto** : oui — tests/functional/test_patient.py::test_creation_patient_et_refus_du_doublon,
   ::test_le_bouton_reste_desactive_tant_que_le_formulaire_est_invalide (l'état `disabled`
   du bouton avant et après remplissage — ni le message de validation natif, ni la
-  couleur d'un champ)
+  couleur d'un champ). L'étape 4 ci-dessous, ajoutée par le lot correctif du
+  2026-09-26 (F10), est couverte par
+  libreosteoweb/tests/test_page_dossier_patient.py::TestConsentement::test_un_get_ne_recueille_pas_le_consentement
 - **État requis** : E1. Cette fiche crée durablement le patient Jean-Luc Picard :
   remonter l'état E1 (chapitre 1) avant de jouer une autre fiche qui en dépend.
 
@@ -1675,6 +1709,12 @@ couvert par rien — ce n'était pas un oubli, c'était un piège.
    Attendu : la fiche du nouveau patient s'ouvre, URL de la forme
    `.../patient/<id>` ; le titre de page affiche « Picard Jean-Luc » suivi de l'âge
    calculé (variable selon la date du jour).
+4. Relever l'identifiant du patient dans l'URL de sa fiche (`.../patient/<id>`), puis
+   saisir dans la barre d'adresse du navigateur `http://localhost:8085/patient/<id>/consent`
+   et valider.
+   Attendu : la page reste blanche ; l'onglet « Réseau » des outils de développement
+   (touche F12) donne à cette requête le code **405** — le consentement ne se recueille plus
+   par une simple navigation (F10).
 
 ### R-PAT-02 — Éditer une fiche patient
 
@@ -2431,7 +2471,14 @@ fermée.
   libreosteoweb/tests/test_page_dossier_patient.py::TestSuppressionRgpd::
   test_la_suppression_est_refusee_sans_le_droit (la barrière serveur) et
   ::test_sans_le_droit_le_dossier_ne_porte_aucun_bouton_de_suppression (l'affordance) ;
-  **aucun test d'écran ne la joue**, d'où sa présence ici
+  **aucun test d'écran ne la joue**, d'où sa présence ici. Depuis le lot correctif du
+  2026-09-26 (F2), la même règle est posée côté API et plus seulement côté bouton :
+  `DELETE /api/patients/<id>?gdpr=true` est refusé (403) à un compte non
+  administrateur — couvert par
+  libreosteoweb/tests/test_dossier_patient.py::TestSuppressionPatient::
+  test_un_compte_non_administrateur_ne_purge_pas_par_l_api ; cette voie ne
+  correspond à aucun geste de recette (appel direct à l'API, qu'aucun écran
+  n'émet)
 - **État requis** : E2. Fiche destructive par nature : elle supprime le patient
   Picard et l'intégralité de son dossier, **et l'étape 2 crée durablement un second
   utilisateur** — reconstruire l'état E2 (chapitre 1) avant de jouer une autre fiche
@@ -2475,7 +2522,17 @@ fermée.
   test_un_anonyme_n_obtient_pas_le_document existe et n'est pas supprimé, mais ne vaut
   pas couverture d'écran : il n'exerce **pas** le montage conteneur — ni uwsgi ni ses
   `--static-map`, qui sont précisément ce que cette fiche met à l'épreuve — ni la
-  configuration des journaux, que seule l'étape 3 constate
+  configuration des journaux, que seule l'étape 3 constate. Depuis le lot correctif du
+  2026-09-26 (F22), la ligne de journal de l'étape 3 échappe tout caractère non
+  imprimable du chemin et de la méthode avant de l'écrire ; sa forme pour un chemin
+  légitime — celle que l'étape 3 attend — reste inchangée à l'octet, prouvé par
+  libreosteoweb/tests/test_acces.py::TestLoginRequiredMiddleware::test_un_chemin_legitime_est_journalise_tel_quel.
+  Le forçage lui-même (un chemin ou une méthode portant un saut de ligne) n'a aucun
+  geste de recette : aucune navigation ne le pose, seul un appel forgé le peut ;
+  couvert par les trois tests voisins de la même classe
+  (test_un_saut_de_ligne_dans_le_chemin_ne_forge_pas_de_ligne_de_journal,
+  test_un_saut_de_ligne_dans_la_methode_ne_forge_pas_de_ligne_de_journal,
+  test_l_echec_de_l_authentificateur_ne_journalise_pas_de_saut_de_ligne)
 - **État requis** : E2
 
 **Étapes**
@@ -2514,7 +2571,10 @@ fermée.
   à l'étape 1, que la pastille du type ne déborde de son en-tête ni par le haut ni par le
   bas — elle compare la pastille à son propre en-tête, jamais à des pixels, pour survivre
   à un changement de police ou de thème ; ne regarde **ni** la largeur de la pastille,
-  **ni** la lisibilité du sélecteur qu'elle contient, qui restent de l'œil du recetteur)
+  **ni** la lisibilité du sélecteur qu'elle contient, qui restent de l'œil du recetteur).
+  L'étape 6 ci-dessous, ajoutée par le lot correctif du 2026-09-26 (F15), est couverte
+  par
+  libreosteoweb/tests/test_page_dossier_patient.py::TestConsultations::test_un_get_n_ouvre_aucune_consultation
 - **État requis** : E2. Cette fiche crée durablement une troisième consultation (non
   facturée) chez le patient Picard : remonter l'état E2 (chapitre 1) avant de jouer
   une autre fiche qui en dépend.
@@ -2558,6 +2618,13 @@ fermée.
    « TEST » et **ne chevauche pas** le texte du commentaire qui la suit.
    **C'est le seul moyen de voir le chevauchement de 11 px** : un test de rendu lit un
    texte, pas un pixel. Reposer ensuite le nom et le prénom du praticien (état E1).
+6. Rechercher `Picard`, ouvrir sa fiche, relever son identifiant dans l'URL
+   (`.../patient/<id>`), puis saisir dans la barre d'adresse du navigateur
+   `http://localhost:8085/patient/<id>/examination/new` et valider.
+   Attendu : la page reste blanche ; l'onglet « Réseau » des outils de développement
+   (touche F12) donne à cette requête le code **405** ; revenir sur la fiche et recharger,
+   onglet « Consultations » : toujours trois séances, aucune n'a été créée par cette
+   navigation (F15).
 
 ### R-CON-02 — Éditer une consultation existante
 
@@ -2746,7 +2813,14 @@ cachait laissait le praticien **capable de clôturer, mais plus de saisir**.
   bouton sur « Comptes rendus médicaux » et sur une séance déjà clôturée, ni la persistance
   après rechargement — les étapes 2, 3 et 7 ci-dessous. Le refus opposé par le serveur à la
   suppression d'une séance clôturée est couvert en unitaire par
-  libreosteoweb/tests/test_page_dossier_patient.py::TestSuppressionDeConsultation
+  libreosteoweb/tests/test_page_dossier_patient.py::TestSuppressionDeConsultation.
+  Depuis le lot correctif du 2026-09-26 (F8), ce même refus tient même si le statut,
+  les factures, le cabinet ou le patient de la consultation ont d'abord été réécrits
+  par une requête directe à `/api/examinations/<id>` — écriture que
+  `/api/examinations` refuse désormais (400) pour ces champs, propres à la clôture et
+  à la facturation — couvert par
+  libreosteoweb/tests/test_facturation.py::TestChampsGouvernesDeLaConsultation ;
+  aucun geste de recette ne joue cette voie, qu'aucun écran n'emprunte
 - **État requis** : E2. Fiche **non destructive** : elle crée une consultation et la
   supprime ; l'état E2 est retrouvé à la fin, les deux consultations d'origine de `Picard`
   étant intactes (étape 7 le vérifie).
@@ -3155,7 +3229,13 @@ deux dates.
   ::test_changement_de_plage_rafraichit_les_dates_et_l_export (la période par défaut, la
   période vide, la saisie de deux dates, l'exactitude du total, et — pour la seule plage
   de l'année précédente — la cohérence des trois surfaces après le clic : tableau, champs
-  de date et lien d'export)
+  de date et lien d'export). Depuis le lot correctif du 2026-09-26 (F20), l'annulation
+  de facture de l'étape 6 n'écrit plus que sur `POST` — une méthode qu'un
+  `CsrfViewMiddleware` laisse passer sans jeton (`HEAD`, `OPTIONS`, `TRACE`)
+  n'annule plus rien — couvert par
+  libreosteoweb/tests/test_page_comptabilite.py::TestPageComptabilite::test_seul_post_annule_la_facture ;
+  aucun geste de recette ne joue cette garde, qui exige une méthode HTTP que la barre
+  d'adresse ne peut poser
 - **État requis** : E1, complété par un patient et trois factures émises le jour du passage
   (étape 1). E1 ne porte aucun patient : créer d'abord celui de l'état E2 (chapitre 1,
   point E2.1 — `Picard` / `Jean-Luc` / `13`/`07`/`1935`, case de consentement cochée).
@@ -3340,7 +3420,13 @@ deux dates.
 - **Couverture auto** : oui — tests/functional/test_import_csv.py::test_import_des_patients,
   ::test_l_indicateur_d_attente_s_affiche_pendant_l_import (la fenêtre d'attente pendant le
   `POST …/integrate`, mesurée sur l'opacité calculée de `#import-en-cours` : l'écran dit
-  qu'il travaille)
+  qu'il travaille). L'étape 5 ci-dessous, ajoutée par le lot correctif du 2026-09-26 (F7),
+  est couverte côté serveur par
+  libreosteoweb/tests/test_page_import.py::TestIntegrer::test_un_get_n_integre_rien_et_rend_405 ;
+  la même garde, posée sur l'action DRF équivalente (non empruntée par cet écran), est
+  couverte par
+  libreosteoweb/tests/test_import_fichiers.py::TestIntegrationPatients::test_un_get_n_integre_rien_et_rend_405,
+  sans geste de recette possible pour cette seconde voie
 - **État requis** : E1. Cette fiche importe durablement 100 patients depuis
   `tests/functional/resources/patients_1.csv` : remonter l'état E1 (chapitre 1)
   avant de jouer une autre fiche qui en dépend.
@@ -3376,7 +3462,16 @@ deux dates.
 4. Cliquer « Importer ».
    Attendu : panneau « Importation réussie » ; texte « 100 lignes importées du
    fichier patient ». Le traitement peut dépasser la minute (100 lignes, chacune
-   réindexée).
+   réindexée). Avant de cliquer, ouvrir les outils de développement (touche F12), onglet
+   « Réseau », pour l'étape suivante.
+5. Dans l'onglet « Réseau », repérer la requête `POST` déclenchée par l'étape 4, vers
+   une adresse de la forme `.../office/import-file/<id>/integrate` ; clic droit sur
+   cette ligne → « Copier l'adresse du lien », puis coller cette adresse dans la barre
+   d'adresse du navigateur et valider.
+   Attendu : la page reste blanche ; l'onglet « Réseau » donne à cette nouvelle requête
+   le code **405** ; revenir sur l'onglet « Import/export » : le dépôt reste marqué
+   intégré et aucun patient de plus n'apparaît (toujours 100 au total) — une navigation
+   ne rejoue plus l'import (F7).
 
 **Constat.** ⚠️ **Au-delà d'environ 1 200 patients, l'écran peut mentir sur l'échec.**
 Relevé au passage lors de la constitution des lots synthétiques de `R-SAU-04` : un
@@ -3400,7 +3495,9 @@ la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par 
   ::test_le_titre_d_erreur_des_consultations_reste_masque_sans_erreur (mêmes deux
   imports que l'étape 3 — patients déjà connus en erreur, consultations sans erreur —
   et constate seulement que le titre « Erreurs lors de l'importation des
-  consultations » reste masqué)
+  consultations » reste masqué). La même garde POST seul que `R-IMP-01` (lot correctif
+  du 2026-09-26, F7) protège aussi cette intégration ; le geste qui la met à l'épreuve
+  est celui de `R-IMP-01`, étape 5, commun aux deux imports
 - **État requis** : E1. Cette fiche importe durablement 100 patients puis 50
   consultations depuis `tests/functional/resources/patients_1.csv` et
   `examinations_1.csv` : remonter l'état E1 (chapitre 1) avant de jouer une autre
@@ -3897,7 +3994,13 @@ déjà les migrations et vide la base. Cette fiche est ce qui transforme ce juge
   résultat ; le deuxième couvre l'étape 4, terme absent — titre rendu, aucun résultat,
   message « Aucun résultat trouvé. » ; le troisième couvre la pagination, seule partie
   non-serveur de cet écran, sur douze patients semés. Non couvert : la recherche par
-  seul prénom, étape 2)
+  seul prénom, étape 2). Depuis le lot correctif du 2026-09-26 (F4), l'extrait
+  surligné échappe `<` et `>` au lieu de les émettre tels quels — couvert par
+  libreosteoweb/tests/test_recherche.py::TestExtraitDeRecherche et
+  ::TestSurligneur (fenêtre et occurrences identiques à celles d'avant le lot,
+  chevrons neutralisés). Cela ne correspond à aucun geste de recette : le
+  reproduire demanderait de saisir dans un champ du dossier un balisage qui n'est
+  pas une mise en forme légitime, ce qu'aucune fiche ne fait faire
 - **État requis** : E2
 
 **Étapes**
@@ -3974,7 +4077,7 @@ déjà les migrations et vide la base. Cette fiche est ce qui transforme ce juge
 
    Jouer alors « Réindexer » (étapes 1 et 2), puis rechercher `Picard` de nouveau.
    Attendu : le résultat `Picard Jean-Luc` est de retour.
-5. Toujours connecté, ouvrir les outils de développement (F12), onglet « Réseau », puis
+5. Toujours connecté, ouvrir les outils de développement (touche F12), onglet « Réseau », puis
    saisir `http://localhost:8085/internal/rebuild_index` dans la barre d'adresse et
    valider.
    Attendu : la réponse est immédiate, la page reste blanche, et l'onglet « Réseau »
