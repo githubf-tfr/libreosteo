@@ -106,3 +106,32 @@ class TestFileIntegrator(TestCase):
 
     def tearDown(self):
         self.patcher.stop()
+
+
+class TestAnalyseSansContenu(TestCase):
+    """Trois replis de l'analyse, tous atteignables par appel direct, sans fichier."""
+
+    def test_un_analyseur_sans_contenu_ne_reconnait_aucun_fichier(self):
+        # Rouge si : un analyseur construit sans contenu se dit compatible -- le
+        # produit choisirait un integrateur pour un fichier qu'il n'a pas lu.
+        self.assertFalse(file_integrator.AnalyzerPatientFile().is_instance())
+
+    def test_deux_cles_de_cache_portant_des_fichiers_differents_sont_differentes(self):
+        """Extension naturelle de `test_filecontentkey`, qui n'exerce que `==`."""
+        # Rouge si : `__ne__` cesse d'etre la negation de `__eq__` -- le cache de
+        # contenu rendrait le fichier d'un import pour celui d'un autre.
+        une = file_integrator.FileContentKey("patients.csv", None)
+        meme = file_integrator.FileContentKey("patients.csv", None)
+        autre = file_integrator.FileContentKey("consultations.csv", None)
+
+        self.assertFalse(une != meme)
+        self.assertTrue(une != autre)
+
+    def test_analyser_un_depot_sans_fichier_rend_un_rapport_vide_et_invalide(self):
+        # Rouge si : l'absence de fichier leve -- deposer un seul des deux fichiers
+        # ferait rendre 500 a l'ecran d'import au lieu d'un rapport « rien a lire ».
+        rapport = file_integrator.AnalyzerHandler().analyze(None)
+
+        self.assertFalse(rapport.is_valid)
+        self.assertFalse(rapport.is_empty)
+        self.assertIsNone(rapport.type)
