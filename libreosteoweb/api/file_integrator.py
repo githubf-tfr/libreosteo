@@ -389,8 +389,8 @@ class FilePatientFactory(object):
 
 
 class AbstractIntegrator(object):
-    def integrate(self, file, file_additional=None, user=None):
-        pass
+    """Base commune des deux integrateurs. Elle ne porte aucun comportement : chaque
+    sous-classe definit son propre `integrate`, sans jamais appeler `super()`."""
 
 
 class IntegratorPatient(AbstractIntegrator):
