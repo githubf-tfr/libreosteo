@@ -91,7 +91,7 @@ class Extractor(object):
             return {}
         result = {}
         try:
-            content = FileContentProxy().get_content(internal_file, line_filter=filter)
+            content = FileContentProxy().get_content(internal_file)
             nb_row = content["nb_row"] - 1
             if nb_row > 0:
                 idx = sorted(random.sample(range(1, nb_row + 1), min(5, nb_row)))
@@ -104,32 +104,10 @@ class Extractor(object):
         return result
 
     def get_content(self, internal_file):
-        return FileContentProxy().get_content(internal_file, line_filter=filter)
+        return FileContentProxy().get_content(internal_file)
 
     def unproxy(self, internal_file):
-        FileContentProxy().unproxy(internal_file, line_filter=filter)
-
-
-def filter(line):
-    logger.debug("filtering ...")
-    if not hasattr(line, "decode"):
-        logger.debug("no decode available")
-        return line
-    result_line = None
-    try:
-        logger.debug("Try to decode against utf-8")
-        result_line = line.decode("utf-8")
-    except UnicodeDecodeError:
-        logger.debug("Fail to decode against utf-8")
-        pass
-    if result_line is None:
-        try:
-            logger.debug("Try to decode against iso-8859-1")
-            result_line = line.decode("iso-8859-1")
-        except UnicodeDecodeError:
-            logger.info("Fail to decode against iso-8859-1")
-            result_line = _("Cannot read the content file. Check the encoding.")
-    return result_line
+        FileContentProxy().unproxy(internal_file)
 
 
 FileCsvType = enum("FileCsvType", "PATIENT", "EXAMINATION")
@@ -311,20 +289,7 @@ class AnalyzerHandler(object):
         return AnalyzeReport(False, False, None)
 
     def get_content(self, ourfile):
-        return FileContentProxy().get_content(ourfile, line_filter=filter)
-
-    def filter(self, line):
-        result_line = None
-        try:
-            result_line = line.decode("utf-8")
-        except UnicodeDecodeError:
-            pass
-        if result_line is None:
-            try:
-                result_line = line.decode("iso-8859-1")
-            except UnicodeDecodeError:
-                result_line = _("Cannot read the content file. Check the encoding.")
-        return result_line
+        return FileContentProxy().get_content(ourfile)
 
 
 class InvalidIntegrationFile(Exception):
