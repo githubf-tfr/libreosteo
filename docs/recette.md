@@ -3636,10 +3636,12 @@ donnée de santé ne doit transiter par une session d'assistance.
      "python3 ./manage.py backup_db /tmp/dossier-absent/archive.db --settings=Libreosteo.settings.container"
    ```
 
-   Attendu : un message d'erreur lisible, de la forme `Erreur: Impossible d'ecrire
-   l'archive dans /tmp/dossier-absent/archive.db : ...`, et un code de sortie non nul —
-   **jamais de trace Python.** Avant ce lot, un chemin non inscriptible faisait remonter une
-   trace complète au lieu de ce message.
+   Attendu : un message d'erreur lisible, de la forme `CommandError: Impossible d'ecrire
+   l'archive dans /tmp/dossier-absent/archive.db : [Errno 2] No such file or directory:
+   '/tmp/dossier-absent/archive.db'` (mesuré : `run_from_argv` de Django préfixe toujours
+   par le nom de la classe d'exception), et un code de sortie non nul — **jamais de trace
+   Python.** Avant ce lot, un chemin non inscriptible faisait remonter une trace complète
+   au lieu de ce message.
 2. Lancer l'outil sur ce fichier, avec l'interpréteur système et sans aucune installation :
 
    ```sh
