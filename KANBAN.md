@@ -419,20 +419,26 @@ Tenu à la main.
 > ⚠️ **Six défauts trouvés par les deux audits de la nuit, dont deux sur des routes
 > d'API.** Aucun n'était connu avant. Par ordre d'enjeu :
 >
-> - **`POST /api/file-import/<pk>/integrate/` rend 500 sur un dépôt refusé**, là où la vue
+> - ~~**`POST /api/file-import/<pk>/integrate/` rend 500 sur un dépôt refusé**~~, là où la vue
 >   de page rend 409 pour le même refus. Trouvé dans `file_integrator.py` — **365
 >   instructions dont 47 non couvertes, et jamais auditées** : c'est le plus gros trou du
 >   dépôt, plus gros qu'`installation.py`, et l'extrait de couverture qui avait servi au
->   premier audit ne le listait pas.
-> - **`POST /install/` lève une `AttributeError`, soit 500 sur une route non
->   authentifiée.** Fermé par une suppression : rien ne poste vers `/install/`, le gabarit
->   n'a aucun `<form>`.
-> - **Deux `save()` doublés** — `TherapeutSettingsViewSet.perform_update` et le chemin des
+>   premier audit ne le listait pas. — **clos le 2026-09-26 par `c94eea4`** (DF6) : rend
+>   désormais 409, même message que la vue de page.
+> - ~~**`POST /install/` lève une `AttributeError`, soit 500 sur une route non
+>   authentifiée.**~~ Fermé une première fois par une suppression : rien ne poste vers
+>   `/install/`, le gabarit n'a aucun `<form>`. — **clos le 2026-09-25 par `54c6061`** (DF5) :
+>   la route elle-même rend désormais 405 sur `POST`, garde-fou qui ne dépend plus de
+>   l'absence de formulaire.
+> - ~~**Deux `save()` doublés** — `TherapeutSettingsViewSet.perform_update` et le chemin des
 >   consultations enregistrent deux fois faute d'un `return`, donc doublent le `post_save`
->   et l'indexation.
-> - **Les événements `clazz="OfficeSettings"` rendent `<a href="">`** au tableau de bord :
->   un lien actif, sans libellé, qui ne mène nulle part.
-> - Le geste mort du middleware, arbitré ci-dessous.
+>   et l'indexation.~~ — **clos le 2026-09-25 par `8734365`** (DF1, réglages du praticien)
+>   **et `e70b7c4`** (DF2, consultations sans thérapeute).
+> - ~~**Les événements `clazz="OfficeSettings"` rendent `<a href="">`** au tableau de bord :
+>   un lien actif, sans libellé, qui ne mène nulle part.~~ — **clos le 2026-09-25 par
+>   `7d4fdfc`** (DF4).
+> - ~~Le geste mort du middleware, arbitré ci-dessous.~~ — **clos le 2026-09-25 par
+>   `3bf6ca4`** (DF3), cf. Ruling qui suit.
 >
 > **Ruling — le geste mort de la branche `web-view` du middleware est corrigé.** `middleware.py:165`
 > pose `request.path = ""`, jumeau exact de celui que `bde1f53` a retiré pour `logout`, et qui
@@ -1185,7 +1191,7 @@ Chacun avec son motif de non-correction — détail dans
   lot, `tests/qualite/test_contrat_arbre_statique.py`, y figure déjà, ajouté par le lot
   « solde du backlog ». Écart de cliquet antérieur à ce lot ; les ajouter au passage aurait
   pu faire rougir `mypy` sur du code que ce lot ne touche pas.
-- **`Patient.set_request` / `Patient.request`** (`libreosteoweb/models.py:129-131`) : rien
+- **`Patient.set_request` / `Patient.request`** (`libreosteoweb/models.py:119-121`) : rien
   ne lit jamais l'attribut posé, comme pour `Document.set_request` (retiré au chantier S5)
   — mais ces lignes sont **couvertes**, donc hors des 236 instructions de l'audit de
   cadrage. Les retirer aurait élargi le mandat.
@@ -1195,11 +1201,17 @@ Chacun avec son motif de non-correction — détail dans
 - **`libreosteoweb/admin.py`** : les quatre `admin.site.register` sont sans effet,
   `admin.site.urls` n'étant dans aucun `urlpatterns`. Aucune de ses lignes n'est dans les
   236 : le module s'importe, donc il se couvre.
-- **`libreosteoweb/api/utils.py:22`** : `logging.getLogger(__file__)` — nom de journal égal
+- **`libreosteoweb/api/utils.py:23`** : `logging.getLogger(__file__)` — nom de journal égal
   à un chemin de fichier, hors de la hiérarchie `libreosteoweb.*`. Déjà écarté par le lot
   correctif du 2026-09-23, pour le même motif.
-- **`libreosteoweb/apps.py` : `logger.warn`**, méthode dépréciée, conservée telle quelle par
-  la tâche C3 pour ne pas glisser un geste non demandé dans un commit d'extraction.
+- **Quatre commits `test(...)` de ce lot portent en réalité un correctif de production ou
+  une suppression** (`d93f204`, `65e5837`, `09ea93d`, `b591944`) : prescrit par le plan
+  lui-même (chaque correctif y était nommé comme faisant partie de la tâche de test qui
+  l'a trouvé), donc défaut du plan, pas de l'exécution. Historique non réécrit — les
+  commits restent groupés comme joués.
+- **`libreosteoweb/apps.py:55` et `file_integrator.py:265` : `logger.warn`**, méthode
+  dépréciée, conservée telle quelle par la tâche C3 (et par F7 pour la seconde occurrence)
+  pour ne pas glisser un geste non demandé dans un commit d'extraction ou de test.
 - **Le msgid `"Cannot read the content file. Check the encoding."`**
   (`locale/fr/LC_MESSAGES/django.po:69`) est devenu orphelin avec la suppression F1. Aucun
   cliquet ne le voit (`test_contrat_traductions.py` mesure code → catalogue, jamais
@@ -1233,11 +1245,24 @@ Chacun avec son motif de non-correction — détail dans
   produit** : le `max_length=3` du modèle intercepte avant. Seul l'appel direct du service
   l'atteint. Garde de défense en profondeur, conservée telle quelle.
 - **`RuntimeWarning: Accessing the database during app initialization`** (issu
-  d'`AppConfig.ready()`) préexiste au lot, non traité. Le compte de warnings de `make check`
-  n'a pas été tracé un par un depuis les 13 initiaux (constants depuis la tâche S7) ; compte
-  final mesuré au dernier `make check` de ce lot : **17 warnings**, en hausse de trois par
-  rapport aux 14 relevés à mi-lot par la tâche C5 — non identifiés individuellement, non
-  bloquants (`make check` reste vert).
+  d'`AppConfig.ready()`) préexiste au lot, non traité. Compte final mesuré au dernier
+  `make check` de ce lot : **17 warnings**, identifiés — **13 préexistants, constants
+  depuis la tâche S7**, plus **4 neufs, tous par des tests neufs qui traversent du code
+  préexistant** : `apps.py:55` `logger.warn` (test C3, +1) ; `file_integrator.py:265`
+  `logger.warn("No Analyzer found")` (test F7, +2) ; `loaddata` « No fixture data found for
+  'dump' » (+1, `test_exploitation`/`test_service_sauvegarde`). Aucun `ResourceWarning`,
+  aucune socket parmi les tests neufs. Non bloquants (`make check` reste vert).
+- **`PATCH /api/officesettings/<pk>` avec la seule charge `office_name`, sur un cabinet
+  réglé à 20000 et sans facture, réécrit `invoice_start_sequence` à 10000** et journalise
+  « Invoice sequence updated from 20000 to 10000 » (mesure de la vague finale, T2 a)) :
+  `OfficeSettingsSerializer.validate` remplace toute sequence absente de la charge par
+  `services_facturation.sequence_par_defaut`, que ce soit ou non l'intention de l'appelant.
+  Préexistant, limité à l'API — l'écran Cabinet poste toujours le formulaire complet,
+  jamais une charge partielle. Non corrigé : hors mandat de ce lot (docs et tests
+  seulement). Le troisième test de l'ex-`TestSequenceNonNumeriqueConservee` (C5) n'en était
+  pas la preuve : il ne tenait que le code de réponse (l'`except KeyError` mort de
+  `perform_update`), jamais la valeur écrite en base — un filet, pas une garantie
+  d'intégrité.
 
 ### Dette technique (constat, pas action)
 
@@ -1564,10 +1589,15 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   **Ce que le lot a fait.** Mandat : 100 % de couverture, par suppression de code mort ou
   par test, sauf impossibilité justifiée. **23 suppressions de code mort, chacune en commit
   isolé et révocable**, retirant **81 instructions mortes** (le brief en annonçait 80) ;
-  **145 instructions couvertes par des tests de comportement** (le brief en annonçait 140).
+  **226 instructions résolues au total** (le brief en annonçait 220), dont ces 81 par
+  suppression dédiée et le reste par test ou correctif — pas seulement « couvertes par des
+  tests de comportement » comme le disait la première rédaction : une partie de ce reste a
+  elle aussi été **retirée**, hors des 23 commits de suppression dédiée — la suppression du
+  `post`/`get_context_data` mort d'`installation.py` (S1, avec `54c6061`, DF5) et
+  l'`except KeyError`/`ParseError` retiré dans `b591944`, un commit `test(...)`.
   **Neuf défauts corrigés** : DF1 et DF2 (un double `save()` faute d'un `return`, sur les
-  réglages du cabinet et sur les consultations sans thérapeute, doublant `post_save` et
-  l'indexation) ; DF3 (le geste mort `request.path = ""` de la branche `web-view` du
+  réglages du praticien et sur les consultations sans thérapeute) ; DF3 (le geste mort
+  `request.path = ""` de la branche `web-view` du
   middleware, cf. arbitrage Q2) ; DF4 (un `<a href="">` actif et sans libellé au tableau de
   bord) ; DF5 (`POST /install/` rendait 500, ferme désormais en 405) ; DF6
   (`POST /api/file-import/<pk>/integrate/` rendait 500 sur un dépôt refusé, ferme désormais
