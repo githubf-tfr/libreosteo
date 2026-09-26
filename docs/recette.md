@@ -710,9 +710,12 @@ que personne ne la découvre en production.
   C'est une répétition de mise à jour, sur le précédent de `R-INST-05` — jouée avant que
   quiconque ne la découvre en production.
 
-**Prérequis** : pour `db`, l'image officielle de l'ancienne majeure, nommée par le compose
-de l'arbre de départ (`db` doit démarrer sur PostgreSQL 13), et le dépôt au commit qui
-porte PostgreSQL 18. La procédure suivie est celle de `README.rst`, section « Upgrading
+**Prérequis** : pour `db`, l'image du fork au tag de l'arbre de départ — bâtie par l'étape 1
+du chapitre 0 de cet arbre (`docker build ... Docker/build/postgresql/Dockerfile`), sur un
+commit antérieur à `ef53d50` (le Dockerfile y pointe encore `postgres:13-alpine`, ce qui fait
+démarrer `db` sur PostgreSQL 13 ; aucun arbre du dépôt ne nomme directement une image
+officielle dans son compose, seulement celle du fork) — et le dépôt au commit qui porte
+PostgreSQL 18. La procédure suivie est celle de `README.rst`, section « Upgrading
 PostgreSQL to a new major version », **sans y ajouter un geste** : les étapes ci-dessous en
 constatent le résultat, elles ne la paraphrasent pas.
 
@@ -1075,9 +1078,11 @@ la racine de l'arbre indiqué.
 2. Depuis l'arbre antérieur : `$COMPOSE down` (sans `-v`).
    Attendu : `$COMPOSE ps -a` ne liste plus aucun conteneur du montage.
 3. Depuis l'arbre du lot : `$COMPOSE pull db`, puis `$COMPOSE up -d`.
-   Attendu : `$COMPOSE ps` montre `db` `healthy` et `libreosteo` `Up` ; `$COMPOSE images db`
-   montre `postgres`, au digest écrit dans le compose ; `$COMPOSE exec db postgres --version`
-   rend `postgres (PostgreSQL) 18.` suivi de la mineure.
+   Attendu : `$COMPOSE ps` montre `db` `healthy` et `libreosteo` `Up`, la colonne image de
+   `db` au digest écrit dans le compose (`$COMPOSE images db` n'en montre que les 12 premiers
+   caractères ; le digest complet se lit par
+   `docker inspect $($COMPOSE ps -q db) --format '{{.Config.Image}}'`) ;
+   `$COMPOSE exec db postgres --version` rend `postgres (PostgreSQL) 18.` suivi de la mineure.
 4. `$COMPOSE logs db`.
    Attendu : la ligne « PostgreSQL Database directory appears to contain a database;
    Skipping initialization » ; aucune ligne contenant `incompatible` ni
@@ -3506,7 +3511,8 @@ journal.
 ### R-IMP-05 — Export des patients et des consultations, et refus d'un export concurrent
 
 - **Domaine** : Import CSV
-- **Couverture auto** : non
+- **Couverture auto** : non — `libreosteoweb/tests/test_concurrence.py::TestExportsConcurrents`
+  couvre le 409 au niveau API, sans navigateur
 - **État requis** : E2
 
 **Étapes**
@@ -3522,8 +3528,11 @@ journal.
    `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml exec db sh -c 'psql -U "$POSTGRES_USER" -d libreosteo -c "SELECT pg_advisory_lock(1), pg_sleep(60);"'`
    puis, dans les 60 secondes, cliquer « Fichier patients ».
    Attendu : aucun fichier téléchargé ; la page affiche « Un export est déjà en cours.
-   Réessayez dans un instant. »
-5. La commande du terminal rendue, cliquer de nouveau « Fichier patients ».
+   Réessayez dans un instant. » : le refus remplace l'écran de l'application par une page de
+   texte brut, sans menu.
+5. La commande du terminal rendue, revenir à l'écran d'import/export (retour arrière du
+   navigateur, ou par le menu ; rouvrir l'onglet « Exporter vers un système externe » si
+   besoin), puis cliquer de nouveau « Fichier patients ».
    Attendu : le fichier est téléchargé, comme à l'étape 2.
 
 **Constat** : le verrou est tenu par la base, pas par le processus ; il protège un
