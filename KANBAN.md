@@ -1694,6 +1694,14 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-27 — Import : un CSV au dialecte inutilisable ne rend plus d'erreur 500**
+  (`0df8cbe`). Défaut préexistant, relevé pendant F6. Sur certains fichiers mal formés
+  (que des `"`, lignes `"a"x`), `csv.Sniffer` devine le même caractère comme séparateur et
+  comme guillemet, et `csv.reader` lève `ValueError`. `_get_reader` la convertit en
+  `csv.Error` : l'analyse affiche « Fichier vide » au lieu d'une erreur serveur.
+  `make check` vert, **1220 passed**, couverture **99,98 %** ; suite fonctionnelle
+  **152 passed** (608 s). **Recette** : `R-IMP-03` (étape 5).
+
 - **2026-09-26 — Lot correctif de sécurité, fin : F6 et F30 corrigés au second essai**
   (`9cd24d7`, `b6746fb`, `d8416ff`). `make check` vert, **1219 passed**, couverture
   **99,98 %** ; suite fonctionnelle **152 passed** (798 s).
