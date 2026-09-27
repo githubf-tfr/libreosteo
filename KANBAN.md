@@ -456,8 +456,9 @@ Tenu à la main.
 - ~~**Déployer `familletra/libreosteo-http:df1e658-arm64` sur le parc** — geste de
   l'utilisateur. Le parc tourne encore sur `6c1b23b`, image locale jamais poussée.~~ —
   **fait le 2026-09-27**, fonctionnel d'après l'utilisateur.
-- **Effacer les images `familletra/libreosteo-pg` de Docker Hub** — geste de l'utilisateur,
-  possible depuis la bascule du 2026-09-27 (le retour arrière par cette image tombe avec).
+- ~~**Effacer les images `familletra/libreosteo-pg` de Docker Hub** — geste de l'utilisateur,
+  possible depuis la bascule du 2026-09-27 (le retour arrière par cette image tombe avec).~~
+  — **fait le 2026-09-27** par l'utilisateur.
 - **Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
   décision de l'utilisateur du 2026-09-26) — (1) suite fonctionnelle Playwright et serveur de
   développement sur PostgreSQL : retire le monkeypatch `BEGIN IMMEDIATE` de
@@ -759,11 +760,13 @@ avait vécu depuis.
 
 **Un point neuf depuis le 2026-09-08, à vérifier pendant la passe :**
 
-- **Les documents médicaux antérieurs au fork.** `0056` change l'`upload_to` de
+- ~~**Les documents médicaux antérieurs au fork.** `0056` change l'`upload_to` de
   `Document.document_file` sans déplacer aucun fichier : les chemins déjà en base restent
   ceux de l'amont. Un document ancien doit donc encore être servi après reprise — non
-  éprouvé, la première passe n'a pas regardé ce point.
-- ⚠️ **Une vérification de reprise de données est due, et elle porte sur une donnée
+  éprouvé, la première passe n'a pas regardé ce point.~~ — **vérifié le 2026-09-27 sur le
+  parc** : un seul document en base, son fichier présent au chemin enregistré
+  (`storage.exists`, exécuté par l'utilisateur dans `osteo_web`).
+- ~~⚠️ **Une vérification de reprise de données est due, et elle porte sur une donnée
   clinique écrite à tort** (ouverte le 2026-09-18 par D9, correctif `d1123e5`). La clôture
   d'une consultation **depuis le volet en édition** préremplissait la **raison de
   non-facturation** avec le **motif clinique de la consultation** — `Examination.reason` et
@@ -776,7 +779,9 @@ avait vécu depuis.
   non-facturation est **égale** à `reason`, et leur liste d'identifiants. La donnée de santé
   ne transite ni par la session ni par ses sous-agents. Une reprise éventuelle est un
   effacement de champ, pas une conversion : ⚠️ **elle ne se décide pas sans l'utilisateur**,
-  une raison légitimement identique au motif étant possible.
+  une raison légitimement identique au motif étant possible.~~ — **faite le 2026-09-27 sur
+  le parc**, requête en lecture seule exécutée par l'utilisateur (`status_reason = reason`,
+  non vide) : **0 consultation**. Rien à reprendre.
 
 ### ~~Passe de comparaison avec l'ancienne version~~ — **abandonnée le 2026-09-24**
 
