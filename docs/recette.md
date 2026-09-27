@@ -3661,8 +3661,8 @@ la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par 
    choisir ce fichier comme fichier patient, cliquer « Analyser ».
    Attendu : le panneau « Résultats d'analyse » revient en moins de dix secondes, avec
    « Fichier patient ✗ » (croix rouge), le texte « Fichier vide » et le bouton
-   « Importer » désactivé. Avant F6, aucune réponse ne revenait avant plus d'une heure,
-   et l'application ne répondait plus à personne pendant ce temps.
+   « Importer » désactivé. Avant F6, sous Python 3.14.2, aucune réponse ne revenait
+   avant plus d'une heure, et l'application ne répondait plus à personne pendant ce temps.
 
 ### R-IMP-04 — Import dépassant la borne de trois minutes
 

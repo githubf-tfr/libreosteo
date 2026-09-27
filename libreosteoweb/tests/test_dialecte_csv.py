@@ -20,10 +20,11 @@ Deux proprietes, chacune avec sa preuve :
   meme dialecte que `csv.Sniffer().sniff(texte)` -- ou la meme exception. Deux essais
   precedents ont ete refuses pour avoir lu autrement des fichiers legitimes (separateur
   devine sur l'en-tete ; echantillon borne a 4 Ko) : le corpus rejoue leurs cas.
-- **Temps borne** : les entrees fabriquees qui figeaient l'unique worker (regex
-  quadratiques du Sniffer, test du guillemet double en ~n^4, repli par frequences a
-  127 tours de boucle Python par ligne) passent par `FileContentAdapter.get_content` sur
-  un vrai fichier.
+- **Temps borne** : les entrees fabriquees qui figeaient l'unique worker passent par
+  `FileContentAdapter.get_content` sur un vrai fichier. Jusqu'a Python 3.14.2, regex
+  quadratiques et test du guillemet double en ~n^4 : ces etapes, heritees, sont
+  lineaires depuis 3.14.7, et ces tests rougissent si une version les rend lentes. Le
+  repli par frequences, 127 tours de boucle Python par ligne, reste refait.
 """
 
 import csv
@@ -44,8 +45,8 @@ from libreosteoweb.api.dialecte_csv import RenifleurLineaire
 from libreosteoweb.api.file_integrator import FileContentAdapter
 
 # Mesure locale de l'ordre du dixieme de seconde par entree fabriquee (1 Mo) ; la borne
-# laisse un facteur de marge pour une CI lente. Le Sniffer d'origine y passait des
-# minutes (repli par frequences) a des heures (motif `,"a`).
+# laisse un facteur de marge pour une CI lente. Le Sniffer de Python 3.14.2 y passait
+# des minutes (repli par frequences) a des heures (motif `,"a`).
 BORNE_SECONDES = 2.0
 
 _ATTRIBUTS = (
@@ -389,28 +390,30 @@ class TestEntreesFabriquees(unittest.TestCase):
                     return FileContentAdapter(depot).get_content()
 
     def test_motif_virgule_guillemet_lettre(self) -> None:
-        # Rouge si : les regex du Sniffer tournent sur le tampon entier -- quadratique,
-        # des heures pour ce motif.
+        # Rouge si : l'etape des guillemets heritee redevient quadratique -- des heures
+        # pour ce motif sous Python 3.14.2.
         contenu = self._lit(',"a' * 350_000)
         self.assertEqual(contenu["nb_row"], 1)
 
     def test_longue_suite_de_guillemets(self) -> None:
-        # Rouge si : le test du guillemet double reste une regex -- ~n^4 ici. Le dialecte
-        # trouve, la lecture bute ensuite sur un champ d'un million de caracteres :
-        # `csv.Error`, que l'analyse rend en « Analyze failed on this file ».
+        # Rouge si : le test du guillemet double herite redevient polynomial -- ~n^4 ici
+        # sous Python 3.14.2. Le dialecte trouve, la lecture bute ensuite sur un champ
+        # d'un million de caracteres : `csv.Error`, que l'analyse rend en « Analyze
+        # failed on this file ».
         with self.assertRaisesRegex(csv.Error, "field larger than field limit"):
             self._lit('nom,"prenom",ville\n,' + '"' * 1_000_000 + "x\n")
 
     def test_guillemets_en_debut_de_ligne_jamais_fermes(self) -> None:
-        # Rouge si : les motifs 2 et 4 du Sniffer tournent en regex -- chaque debut de
-        # ligne y relance une recherche jusqu'a la fin du texte.
+        # Rouge si : les motifs en debut de ligne herites redeviennent quadratiques
+        # (sous Python 3.14.2, chaque debut de ligne relancait une recherche jusqu'a la
+        # fin du texte), ou si le repli par frequences, ou ce texte aboutit, refait
+        # 127 tours de boucle par ligne.
         contenu = self._lit('"a"x,b\n' * 150_000)
         self.assertEqual(contenu["nb_row"], 150_000)
 
     def test_long_troncon_a_deux_guillemets(self) -> None:
-        # Garde de la reecriture : rouge si la recherche des troncons du guillemet double
-        # n'est plus ancree sur leur debut -- chaque position d'un troncon rate y
-        # rebalaierait le troncon.
+        # Rouge si : le test du guillemet double herite n'est plus lineaire sur un long
+        # champ entre guillemets.
         contenu = self._lit('nom,"prenom",ville\n' + ('"' + "x" * 100_000 + '"\n') * 10)
         self.assertEqual(contenu["nb_row"], 11)
 
