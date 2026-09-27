@@ -37,8 +37,8 @@ docker build -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Docke
 ```
 
 L'image de `db` ne se bâtit pas : c'est l'image officielle `postgres`, sans
-modification, épinglée par digest dans `Docker/deploy/pg/docker-compose.yml`, que
-`docker compose` tire au premier `up`.
+modification, sur son tag `18-alpine`, sans digest, dans
+`Docker/deploy/pg/docker-compose.yml`, que `docker compose` tire au premier `up`.
 
 **Étape 2 — environnement compose.** Les deux fichiers de réglages sont fournis par le
 dépôt sous forme d'exemples : les copier, puis renseigner les deux emplacements vides.
@@ -1084,10 +1084,9 @@ la racine de l'arbre indiqué.
 2. Depuis l'arbre antérieur : `$COMPOSE down` (sans `-v`).
    Attendu : `$COMPOSE ps -a` ne liste plus aucun conteneur du montage.
 3. Depuis l'arbre du lot : `$COMPOSE pull db`, puis `$COMPOSE up -d`.
-   Attendu : `$COMPOSE ps` montre `db` `healthy` et `libreosteo` `Up`, la colonne image de
-   `db` au digest écrit dans le compose (`$COMPOSE images db` n'en montre que les 12 premiers
-   caractères ; le digest complet se lit par
-   `docker inspect $($COMPOSE ps -q db) --format '{{.Config.Image}}'`) ;
+   Attendu : `$COMPOSE ps` montre `db` `healthy` et `libreosteo` `Up`, l'image de `db`
+   au tag `postgres:18-alpine` écrit dans le compose (`docker inspect $($COMPOSE ps -q db)
+   --format '{{.Config.Image}}'`) ;
    `$COMPOSE exec db postgres --version` rend `postgres (PostgreSQL) 18.` suivi de la mineure.
 4. `$COMPOSE logs db`.
    Attendu : la ligne « PostgreSQL Database directory appears to contain a database;

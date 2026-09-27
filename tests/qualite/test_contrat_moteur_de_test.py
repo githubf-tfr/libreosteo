@@ -21,19 +21,17 @@ La suite passerait alors en silence, sur un moteur que la production n'execute p
 (`CLAUDE.md` § Deploiement), et le plancher de couverture mesurerait ce moteur-la. Avec ce
 module, elle rougit en nommant la cause.
 
-Il garde aussi l'epinglage de l'image PostgreSQL (decision DU3 du 2026-09-26) : la ligne
-`image:` du service `db` de `Docker/deploy/pg/docker-compose.yml` est la source unique de
-l'image. Le compose de production la tire, `make test-db` demarre le serveur de test
-dessus, et ce module en lit la majeure attendue. Elle doit etre l'officielle, epinglee par
-digest : un tag flottant rendrait « quelle image tourne » sans reponse, et la suite
-pourrait eprouver une autre mineure que la production.
+Il garde aussi la source de l'image PostgreSQL : la ligne `image:` du service `db` de
+`Docker/deploy/pg/docker-compose.yml` est la source unique. Le compose de production la
+tire, `make test-db` demarre le serveur de test dessus, et ce module en lit la majeure
+attendue. Elle doit etre l'officielle, variante alpine, tag flottant `<majeure>-alpine`
+sans digest (decision du 2026-09-27, qui renverse l'epinglage par digest DU3 du
+2026-09-26) : la mineure et la base Alpine peuvent donc bouger a chaque tirage.
 
 **Ce que ce cliquet ne voit pas, et c'est dit :**
 
-- le digest du serveur de test : un processus pytest ne voit pas Docker et n'a pas a le
-  voir (aucun test ne requiert de privilege). Il compare la **majeure** ; que le conteneur
-  tourne sur le digest du compose, c'est `make test-db` qui le garantit, en lisant cette
-  meme ligne ;
+- le detail de mineure du serveur de test : un processus pytest ne voit pas Docker et n'a
+  pas a le voir (aucun test ne requiert de privilege). Il compare la **majeure** ;
 - une base externe (variables `LIBREOSTEO_TEST_DB_*`) de meme majeure mais d'une autre
   distribution : elle passe. La majeure fixe le format et le SQL, c'est ce qui compte ici.
 """
@@ -49,8 +47,8 @@ from django.db import connection
 
 RACINE = Path(__file__).resolve().parents[2]
 COMPOSE = RACINE / "Docker" / "deploy" / "pg" / "docker-compose.yml"
-# L'officielle, variante alpine, epinglee par le digest de son index multi-architecture.
-IMAGE_EPINGLEE = re.compile(r"postgres:(?P<majeure>\d+)-alpine@sha256:[0-9a-f]{64}")
+# L'officielle, variante alpine, tag flottant -- decision du 2026-09-27, sans digest.
+IMAGE_ATTENDUE = re.compile(r"postgres:(?P<majeure>\d+)-alpine")
 
 
 def image_du_service_db(texte: str) -> str:
@@ -92,13 +90,13 @@ def test_le_lecteur_prend_l_image_du_service_db_et_d_aucun_autre() -> None:
     assert image_du_service_db(texte) == epinglee
 
 
-def test_l_image_de_db_est_l_officielle_epinglee_par_digest() -> None:
+def test_l_image_de_db_est_l_officielle_variante_alpine_sans_digest() -> None:
     image = _image_de_production()
-    # Rouge si : le compose retombe sur un tag flottant (`postgres:18-alpine`), sur une
-    # image derivee (`familletra/libreosteo-pg`), ou sur une autre variante.
-    assert IMAGE_EPINGLEE.fullmatch(image), (
+    # Rouge si : le compose retombe sur une image derivee (`familletra/libreosteo-pg`),
+    # sur une autre variante, ou reporte un digest -- decision du 2026-09-27.
+    assert IMAGE_ATTENDUE.fullmatch(image), (
         f"{COMPOSE} : l'image du service db est {image!r} ; attendu "
-        "postgres:<majeure>-alpine@sha256:<64 hex>, l'officielle epinglee par digest."
+        "postgres:<majeure>-alpine, l'officielle en variante alpine, sans digest."
     )
 
 
@@ -115,8 +113,8 @@ def test_la_suite_tourne_sur_postgresql() -> None:
 
 @pytest.mark.django_db
 def test_le_serveur_de_test_porte_la_majeure_de_la_production() -> None:
-    attendu = IMAGE_EPINGLEE.fullmatch(_image_de_production())
-    assert attendu, f"{COMPOSE} : image du service db non epinglee"
+    attendu = IMAGE_ATTENDUE.fullmatch(_image_de_production())
+    assert attendu, f"{COMPOSE} : image du service db inattendue"
     assert connection.vendor == "postgresql"
     with connection.cursor() as curseur:
         curseur.execute("SHOW server_version_num")

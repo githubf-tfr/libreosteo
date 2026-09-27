@@ -414,6 +414,11 @@ Tenu à la main.
     l'utilisateur (cf. « À faire » ci-dessous). Motif : la seule instruction propre à l'image
     dédiée (`apk add tzdata`) est sans effet sur l'officielle, et elle coûtait une
     construction et une publication par commit.
+    **Épinglage par digest renversé le 2026-09-27 par l'utilisateur** : le compose sert
+    `postgres:18-alpine`, sans digest, comme la production. Risque accepté : la mineure et
+    la base Alpine peuvent bouger à chaque tirage, et la production n'est plus figée sur ce
+    que la suite éprouve (seule la majeure reste gardée par
+    `tests/qualite/test_contrat_moteur_de_test.py`).
 
 - (2026-09-26) **Écartés du scan de sécurité du 2026-09-26, risque accepté par
   l'utilisateur** : le HTML des champs texte riche et du pied de facture reste rendu tel
@@ -430,7 +435,7 @@ Tenu à la main.
 
 ## À faire
 
-- **Bascule du parc sur l'image officielle — geste de l'utilisateur** (lot « suite unitaire
+- ~~**Bascule du parc sur l'image officielle — geste de l'utilisateur** (lot « suite unitaire
   sur PostgreSQL », 2026-09-26). Procédure (spec § 5.7) : relever les comptes témoins par
   `psql` ; mettre le dépôt au commit du lot (`c8b0b45`) ; `docker compose --env-file .env -f
   Docker/deploy/pg/docker-compose.yml pull db` puis `… up -d` ; vérifier `db` sain, `exec db
@@ -441,9 +446,15 @@ Tenu à la main.
   exécutait, antérieur à `120d75e`, avec le même `.env` (le tag `familletra/libreosteo-pg`
   reste disponible sur Docker Hub) et `up -d`. Tag du parc réel à confirmer (`a0908b0` d'après
   `.env.example`, non vérifié). T1 a mesuré les deux mineures (officielle et fork) identiques
-  (`18.6`), sans note de version : aucun geste supplémentaire connu à ce jour.
-- **Effacer les images `familletra/libreosteo-pg` de Docker Hub** — après bascule constatée
-  du parc ci-dessus (chemin de retour arrière d'ici là).
+  (`18.6`), sans note de version : aucun geste supplémentaire connu à ce jour.~~ — **faite le
+  2026-09-27**, constatée saine par l'utilisateur, sur `postgres:18-alpine` sans digest.
+  Sauvegarde préalable : `/docker/osteo/bak/avant-bascule.dump` sur l'hôte. Le compose
+  réel diffère de l'exemple (service `pg`, conteneur `osteo_pg`) ; seule sa ligne `image`
+  a changé. Piège : l'image `web` du parc (`familletra/libreosteo-http:6c1b23b`) n'existe
+  que sur l'hôte, jamais poussée — un tirage de toute la pile échoue, et l'hôte ne peut
+  pas la retrouver s'il la perd.
+- **Effacer les images `familletra/libreosteo-pg` de Docker Hub** — geste de l'utilisateur,
+  possible depuis la bascule du 2026-09-27 (le retour arrière par cette image tombe avec).
 - **Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
   décision de l'utilisateur du 2026-09-26) — (1) suite fonctionnelle Playwright et serveur de
   développement sur PostgreSQL : retire le monkeypatch `BEGIN IMMEDIATE` de
@@ -481,8 +492,9 @@ Tenu à la main.
   **8 passed, 0 skipped** — vérifié sur ce run. **Verdict : sauts sains et attendus**, prévus
   par construction, pas un trou de couverture CI — le contrat de l'arbre statique est bien
   vérifié, seulement dans le job qui a l'arbre pour le vérifier.
-- **Routine de relève du digest de `postgres:18-alpine`** — renvoyée (2026-09-26) ; d'ici là,
-  relever le digest est un commit ordinaire, vert sous `make check`.
+- ~~**Routine de relève du digest de `postgres:18-alpine`** — renvoyée (2026-09-26) ; d'ici là,
+  relever le digest est un commit ordinaire, vert sous `make check`.~~ — **sans objet le
+  2026-09-27** : plus de digest (DU3 renversé, cf. « Décisions actées »).
 - **`patients.xsls`** (`PatientViewSet.filename`) — constat (2026-09-26) : extension fautive
   et de toute façon morte, `XLSXFileMixin` venant après `ModelViewSet` dans les bases de
   `PatientViewSet`/`ExaminationViewSet`, son `finalize_response` ne s'exécute jamais.
@@ -1693,6 +1705,13 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-27 — Parc basculé sur `postgres:18-alpine`, compose d'exemple sans digest.**
+  Décision de l'utilisateur, qui renverse l'épinglage de DU3. Compose, `README.rst`,
+  `docs/recette.md` et le cliquet de moteur (`test_contrat_moteur_de_test.py` : attend
+  `postgres:<majeure>-alpine`, sans digest) alignés. `make test-db` idempotent sur le tag
+  (deux lancements, le second ne relance rien). `make check` vert, **1220 passed**,
+  couverture **99,98 %**.
 
 - **2026-09-27 — Import : un CSV au dialecte inutilisable ne rend plus d'erreur 500**
   (`0df8cbe`). Défaut préexistant, relevé pendant F6. Sur certains fichiers mal formés

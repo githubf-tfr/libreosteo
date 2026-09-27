@@ -121,8 +121,8 @@ this does not give you a usable instance. Follow the steps below instead.
     docker build -t familletra/libreosteo-http:$TAG -f Docker/build/http-ready/Dockerfile .
 
   The database needs no build: the ``db`` service runs the official ``postgres`` image,
-  unmodified, pinned by digest in ``Docker/deploy/pg/docker-compose.yml``, and ``docker
-  compose`` pulls it.
+  unmodified, on its ``18-alpine`` tag with no digest in
+  ``Docker/deploy/pg/docker-compose.yml``, and ``docker compose`` pulls it.
 
 - Copy ``Docker/deploy/pg/.env.example`` to ``.env`` and fill in these values ::
 
@@ -261,8 +261,8 @@ Throughout, ``$COMPOSE`` stands for
 4. **Empty out ``LIBREOSTEO_DB_STORAGE`` (or point it at a new directory), move your
    checkout to the commit that carries the new major, rebuild the application image under
    that commit, and carry its tag into ``.env`` before starting the engine alone.** The
-   ``db`` image is the ``image:`` line of the compose file of that commit, pinned by
-   digest, and ``pull db`` fetches it. The PostgreSQL 18 entrypoint creates ``18/docker``
+   ``db`` image is the ``image:`` line of the compose file of that commit, and ``pull db``
+   fetches it. The PostgreSQL 18 entrypoint creates ``18/docker``
    under the mount point, then creates the role and the database from ``POSTGRES_USER``,
    ``POSTGRES_PASSWORD`` and ``POSTGRES_DB``. Skipping the checkout leaves the compose file
    naming the old major, so ``$COMPOSE up -d db`` would silently restart the PostgreSQL 13

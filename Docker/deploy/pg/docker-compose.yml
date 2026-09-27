@@ -1,13 +1,12 @@
 services:
-# `db` : l'image officielle `postgres`, sans modification, epinglee par DIGEST (decision
-# DU3 du cadrage du 2026-09-26). Le tag dit la majeure et la variante, le digest dit les
-# octets ; Docker ne retient que le digest. L'image dediee `familletra/libreosteo-pg` n'y
-# ajoutait qu'un `apk add tzdata` sans effet (l'officielle installe deja `tzdata`) : elle
-# est retiree. Relever le digest -- correctif mineur de PostgreSQL -- est un commit
-# ordinaire, qui passe donc par `make check` avant d'atteindre la production.
+# `db` : l'image officielle `postgres`, sans modification, sous son tag `18-alpine`, SANS
+# DIGEST, par decision de l'utilisateur du 2026-09-27 -- renverse l'epinglage par digest de
+# DU3 (2026-09-26). Risque accepte : la mineure et la base Alpine peuvent bouger a chaque
+# tirage. L'image dediee `familletra/libreosteo-pg` n'y ajoutait qu'un `apk add tzdata` sans
+# effet (l'officielle installe deja `tzdata`) : elle est retiree.
 # Cette ligne est lue aussi par `make test-db`, qui demarre sur elle le serveur de la suite
 # unitaire, et par tests/qualite/test_contrat_moteur_de_test.py, qui y lit la majeure
-# attendue et refuse un tag sans digest : une seule ligne, trois lecteurs.
+# attendue : une seule ligne, trois lecteurs.
 #
 # `libreosteo` : l'image du fork, epinglee par une variable obligatoire. Sans
 # LIBREOSTEO_IMAGE_TAG, `docker compose` refuse de demarrer avec un message, au lieu de
@@ -20,7 +19,7 @@ services:
 # Convention : batir l'image sous le commit court du depot, `git rev-parse --short HEAD`
 # — c'est ce qui rend « quelle image tourne » repondable.
   db:
-    image: "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"
+    image: "postgres:18-alpine"
     hostname: pg_1
     volumes:
       # Monte sur /var/lib/postgresql, et non sur .../data : depuis PostgreSQL 18,
