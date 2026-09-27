@@ -1695,12 +1695,15 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 ## Terminé
 
 - **2026-09-26 — Lot correctif de sécurité, fin : F6 et F30 corrigés au second essai**
-  (`9cd24d7`, `b6746fb`). `make check` vert, **1219 passed**, couverture **99,98 %** ;
-  suite fonctionnelle **152 passed** (574 s).
+  (`9cd24d7`, `b6746fb`, `d8416ff`). `make check` vert, **1219 passed**, couverture
+  **99,98 %** ; suite fonctionnelle **152 passed** (798 s).
   - **F6** — la détection du format d'un fichier CSV importé se fait en temps linéaire
     (`api/dialecte_csv.py`, `RenifleurLineaire`) avec un résultat identique à
     `csv.Sniffer` sur le tampon entier, prouvé en différentiel ; un fichier fabriqué ne
-    fige plus l'unique worker.
+    fige plus l'unique worker. `b6746fb` imitait le `Sniffer` de Python 3.14.2 : CI
+    rouge sous 3.14.7, qui a changé ce `Sniffer`. `d8416ff` s'aligne sur 3.14.7 (décision de
+    l'utilisateur) : n'est plus refait que le repli par fréquences, seule étape encore
+    lente en natif ; le reste est hérité. Venv local passé en 3.14.7.
   - **F30** — plus de mot de passe PostgreSQL d'exemple dans `.env.example` ni dans la
     doc ; procédure de changement ajoutée au `README.rst`.
 
@@ -6257,6 +6260,14 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   - **Trois défauts avérés corrigés**, cf. « Pièges rencontrés ».
 
 ## Pièges rencontrés
+
+- **2026-09-27 — Le venv local doit suivre la version corrective de Python de la CI.**
+  `csv.Sniffer` a changé entre 3.14.2 (venv local) et 3.14.7 (CI, image
+  `python:3.14-alpine`) : `make check` vert en local, CI rouge. Un module qui imite la
+  bibliothèque standard (`api/dialecte_csv.py`) casse à chaque changement de celle-ci ;
+  ses tests différentiels sont le garde-fou. Le `uv` système (0.9.26) ne connaît pas
+  3.14.7 : `uv tool run --from 'uv>=0.11' uv python install 3.14.7` avec
+  `UV_PYTHON_INSTALL_DIR=$PWD/.uv-python`, puis recréer `.venv` depuis un `uv pip freeze`.
 
 - **2026-09-26 (lot « suite unitaire sur PostgreSQL »)** — constats versés, non corrigés,
   chacun avec son motif :
