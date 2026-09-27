@@ -453,10 +453,9 @@ Tenu à la main.
   a changé. Piège : l'image `web` du parc (`familletra/libreosteo-http:6c1b23b`) n'existe
   que sur l'hôte, jamais poussée — un tirage de toute la pile échoue, et l'hôte ne peut
   pas la retrouver s'il la perd.
-- **Déployer `familletra/libreosteo-http:df1e658-arm64` sur le parc** — geste de
-  l'utilisateur. Le parc tourne encore sur `6c1b23b`, image locale jamais poussée. Au
-  déploiement : la migration `0061` déconnecte tout le monde une fois (F18) ; changer le mot
-  de passe PostgreSQL s'il vient de l'ancien exemple (`README.rst`, F30).
+- ~~**Déployer `familletra/libreosteo-http:df1e658-arm64` sur le parc** — geste de
+  l'utilisateur. Le parc tourne encore sur `6c1b23b`, image locale jamais poussée.~~ —
+  **fait le 2026-09-27**, fonctionnel d'après l'utilisateur.
 - **Effacer les images `familletra/libreosteo-pg` de Docker Hub** — geste de l'utilisateur,
   possible depuis la bascule du 2026-09-27 (le retour arrière par cette image tombe avec).
 - **Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
