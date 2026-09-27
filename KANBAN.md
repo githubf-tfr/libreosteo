@@ -453,6 +453,10 @@ Tenu à la main.
   a changé. Piège : l'image `web` du parc (`familletra/libreosteo-http:6c1b23b`) n'existe
   que sur l'hôte, jamais poussée — un tirage de toute la pile échoue, et l'hôte ne peut
   pas la retrouver s'il la perd.
+- **Déployer `familletra/libreosteo-http:df1e658-arm64` sur le parc** — geste de
+  l'utilisateur. Le parc tourne encore sur `6c1b23b`, image locale jamais poussée. Au
+  déploiement : la migration `0061` déconnecte tout le monde une fois (F18) ; changer le mot
+  de passe PostgreSQL s'il vient de l'ancien exemple (`README.rst`, F30).
 - **Effacer les images `familletra/libreosteo-pg` de Docker Hub** — geste de l'utilisateur,
   possible depuis la bascule du 2026-09-27 (le retour arrière par cette image tombe avec).
 - **Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
@@ -1705,6 +1709,14 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-27 — Première image arm64 publiée : `familletra/libreosteo-http:df1e658-arm64`.**
+  Bâtie sur l'hôte par l'utilisateur (`docker buildx build --platform=linux/arm64 … --load`,
+  émulation QEMU), architecture constatée `arm64`, puis étiquetée et poussée seule, sans
+  `amd64` ni étiquette commune (hors `make build-http-ready`). Deux avertissements du build,
+  voulus et commentés dans le Dockerfile : `SecretsUsedInArgOrEnv` (fausse clé de l'étage
+  `build`, absente de l'image finale), `JSONArgsRecommended` (`exec uwsgi` rend déjà les
+  signaux à uwsgi).
 
 - **2026-09-27 — Parc basculé sur `postgres:18-alpine`, compose d'exemple sans digest.**
   Décision de l'utilisateur, qui renverse l'épinglage de DU3. Compose, `README.rst`,
@@ -6287,6 +6299,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   - **Trois défauts avérés corrigés**, cf. « Pièges rencontrés ».
 
 ## Pièges rencontrés
+
+- **2026-09-27 — Une image arm64 ne se bâtit pas dans le bac à sable.** Son noyau n'a pas
+  `binfmt_misc` (`cannot mount binfmt_misc filesystem … no such device`) et son démon Docker
+  ne voit pas l'émulation de l'hôte. Bâtir sur l'hôte : `tonistiigi/binfmt --install arm64`
+  (ou `qemu-user-static`) et le greffon `buildx`.
 
 - **2026-09-27 — Le venv local doit suivre la version corrective de Python de la CI.**
   `csv.Sniffer` a changé entre 3.14.2 (venv local) et 3.14.7 (CI, image
