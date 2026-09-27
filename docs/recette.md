@@ -3624,7 +3624,9 @@ la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par 
   (le même motif, lu en moins de 2 s ; la classe borne aussi quatre autres entrées
   fabriquées). Que le dialecte deviné reste, pour tout fichier légitime, exactement celui
   de `csv.Sniffer` est couvert par ::TestFichiersLegitimes et ::TestCorpusAleatoire du
-  même module, sans geste de recette possible : l'égalité ne se voit qu'en différentiel
+  même module, sans geste de recette possible : l'égalité ne se voit qu'en différentiel.
+  L'étape 5, ajoutée par le lot correctif du 2026-09-27, est couverte côté serveur par
+  libreosteoweb/tests/test_service_import.py::TestAnalyse::test_un_dialecte_devine_ou_separateur_et_guillemet_se_confondent_est_refuse
 - **État requis** : E1
 
 **Étapes**
@@ -3663,6 +3665,21 @@ la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par 
    « Fichier patient ✗ » (croix rouge), le texte « Fichier vide » et le bouton
    « Importer » désactivé. Avant F6, sous Python 3.14.2, aucune réponse ne revenait
    avant plus d'une heure, et l'application ne répondait plus à personne pendant ce temps.
+5. Fabriquer un fichier fait uniquement du caractère `"` — le dialecte que `csv.Sniffer`
+   y devine porte le même caractère comme séparateur et comme guillemet, ce que
+   `csv.reader` refuse :
+
+   ```sh
+   yes '"' | head -n 5000 | tr -d '\n' > "$SCRATCH/guillemets_seuls.csv"
+   ```
+
+   Menu utilisateur → « Import/export », onglet « Importer d'un système externe » ;
+   choisir ce fichier comme fichier patient, cliquer « Analyser ».
+   Attendu : le panneau « Résultats d'analyse » revient, avec « Fichier patient ✗ »
+   (croix rouge) et le texte « Fichier vide » — même rendu que l'étape 4, le panneau
+   n'affichant aucun message distinct pour cette voie. Avant le lot correctif du
+   2026-09-27, la requête d'analyse échouait en erreur serveur (500) au lieu de ce
+   panneau.
 
 ### R-IMP-04 — Import dépassant la borne de trois minutes
 

@@ -208,7 +208,15 @@ class FileContentAdapter(dict):
         # Le dialecte de `csv.Sniffer` sur le tampon entier, en temps borne (F6).
         dialect = RenifleurLineaire().sniff(csv_buffer)
         f.seek(0)
-        reader = csv.reader(f, dialect)
+        try:
+            reader = csv.reader(f, dialect)
+        except ValueError as erreur:
+            # Un dialecte devine ou le meme caractere sert de separateur et de
+            # guillemet (fichier fait uniquement de `"`, lignes `"a"x`, ...) fait lever
+            # `csv.reader` un `ValueError` que seul `csv.Error` est rattrape en aval
+            # (`analyze_file`, `extract_file`) : meme refus qu'un dialecte indecis.
+            f.close()
+            raise csv.Error(str(erreur)) from erreur
         return reader
 
     def passthrough(self, line):

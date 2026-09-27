@@ -17,6 +17,7 @@
 import shutil
 import tempfile
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils.translation import gettext_lazy as _
 
@@ -76,6 +77,26 @@ class TestAnalyse(BaseImport):
         instance.refresh_from_db()
         self.assertEqual(instance.status, 1)
         self.assertEqual(instance.analyze["patient"][0], "patient")
+
+    def test_un_dialecte_devine_ou_separateur_et_guillemet_se_confondent_est_refuse(
+        self,
+    ):
+        # Rouge si : `_get_reader` laisse passer le `ValueError` de `csv.reader`
+        # (« bad delimiter or quotechar value ») quand `csv.Sniffer` devine le meme
+        # caractere comme separateur et comme guillemet -- un fichier fait uniquement
+        # de `"` en est un exemple reel, verifie sous Python 3.14.7. `analyze_file`
+        # ne rattrape que `OSError`, `UnicodeDecodeError` et `csv.Error` : ce fichier
+        # faisait lever `analyser` (500) au lieu du refus attendu.
+        instance = models.FileImport.objects.create(
+            file_patient=SimpleUploadedFile("patients.csv", b'"' * 5000, "text/csv")
+        )
+        analyser(instance)
+        instance.refresh_from_db()
+        self.assertEqual(instance.status, 0)
+        self.assertEqual(
+            [str(m) for m in instance.analyze["patient"][3]],
+            [str(_("Analyze failed on this file"))],
+        )
 
     def test_un_fichier_de_consultations_depose_seul_est_refuse(self):
         instance = models.FileImport.objects.create(
