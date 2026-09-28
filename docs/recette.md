@@ -1356,7 +1356,8 @@ omission.
 - **Couverture auto** : oui — tests/functional/test_cabinet.py::test_reglage_du_cabinet
   (vérifie en base les nouvelles valeurs enregistrées ; ni les valeurs initiales du
   socle, ni le message de confirmation, ni leur réaffichage après rechargement ne
-  sont vérifiés automatiquement)
+  sont vérifiés automatiquement) ; étape 4,
+  ::test_un_montant_a_trois_decimales_est_refuse_par_le_navigateur
 - **État requis** : E1. Cette fiche modifie durablement l'adresse, le téléphone et
   l'entête de facture du cabinet : à l'issue de son exécution, remonter l'état E1
   (chapitre 1) avant de jouer une autre fiche qui en dépend.
@@ -1378,6 +1379,10 @@ omission.
    `9 place du Marché`, Code postal `75002`, Ville `Paris`, Téléphone
    `01 02 03 04 05`, Entête de facture `Cabinet Recette` — preuve d'une persistance
    réelle, pas seulement de l'affichage optimiste qui suit l'enregistrement.
+4. Remplacer Montant par `55.555`, cliquer « Mettre à jour ».
+   Attendu : le navigateur signale lui-même le champ Montant comme invalide
+   (info-bulle native, le curseur y revient) ; aucun message « Les paramètres ont été
+   mis à jour » ; après rechargement, Montant affiche toujours la valeur d'avant.
 
 ### R-CAB-02 — Séquence de départ de facturation
 

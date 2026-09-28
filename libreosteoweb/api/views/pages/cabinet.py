@@ -136,10 +136,12 @@ class FormulaireCabinet(forms.ModelForm):
                 # deviendrait modifiable pour tout le monde, en silence. La vue sait qui
                 # demande ; elle rend les champs `disabled` et n'accepte pas l'ecriture.
                 champ.widget.attrs["disabled"] = True
-        # `pattern` **actif** : le formulaire n'a plus de `novalidate`, qui n'existait que
-        # parce qu'Angular validait a sa place (C4). Les deux valeurs sont celles
-        # d'aujourd'hui, a l'octet : `#amount` gardait deja ce `pattern`, inerte (E13).
-        self.fields["amount"].widget.attrs["pattern"] = "[1-9][0-9,.]*"
+        # `#amount` est un `NumberInput` au pas de 0,01 (`DecimalField`, deux decimales) :
+        # c'est le pas qui borne les decimales dans le navigateur, qui rapporte lui-meme le
+        # refus (bouton de soumission dans le formulaire). Un `pattern` est sans effet sur
+        # `type="number"` (lot 6, constat 1.4 faux, corrige).
+        # `pattern` **actif** sur `invoice_start_sequence` : le formulaire n'a plus de
+        # `novalidate`, qui n'existait que parce qu'Angular validait a sa place (C4).
         self.fields["invoice_start_sequence"].widget.attrs["pattern"] = "[0-9]*"
         self.fields["invoice_start_sequence"].widget.attrs["title"] = _(
             "The start sequence must have composed only with numbers"

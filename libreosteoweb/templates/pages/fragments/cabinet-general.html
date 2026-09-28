@@ -19,7 +19,9 @@
     </div>
     <div class="clearfix">
       {# Pas de `novalidate` : il n'existait que parce qu'Angular validait a sa place, et #}
-      {# c'est lui qui rendait inerte le `pattern` d'`#amount` (C4, E13). #}
+      {# c'est lui qui rend actif le `pattern` d'`invoice_start_sequence` (C4). `#amount` #}
+      {# est borne par son pas de 0,01 (`type="number"`) ; un `pattern` y serait sans effet #}
+      {# (lot 6, constat 1.4 faux, corrige). #}
       {# L'etat Alpine reproduit les deux affordances que `R-CAB-03` etape 2 et `R-CAB-04` #}
       {# etape 6 assertent, et que deux tests de `test_facturation.py` verifient : champ #}
       {# rouge et bouton desactive. **Ce n'est pas une autorite de validation** — le refus #}

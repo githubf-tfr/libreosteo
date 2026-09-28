@@ -12,6 +12,7 @@ from tests.functional.helpers import (
     connexion,
     enregistrer_formulaire,
     notifications_d_erreur,
+    notifications_de_succes,
     ouvrir_reglages_cabinet,
 )
 
@@ -76,6 +77,30 @@ def test_reglage_du_cabinet(page: Page, live_server: LiveServer, socle: Socle) -
     assert cabinet.invoice_office_header == "Cabinet Central"
     assert cabinet.invoice_content == "Facture <amount> <currency> emise"
     assert cabinet.invoice_footer == "Merci de votre visite"
+
+
+def test_un_montant_a_trois_decimales_est_refuse_par_le_navigateur(
+    page: Page, live_server: LiveServer, socle: Socle
+) -> None:
+    """Constat lot 6 (1.4) : faux. `#amount` est `type="number" step="0.01"` -- le pas
+
+    refuse deja la 3e decimale, le `pattern` (retire par ce lot) etait sans effet sur un
+    champ numerique. Le bouton « Mettre à jour » est `type="submit"` dans le formulaire :
+    le navigateur valide avant `submit` et rapporte lui-meme le champ fautif, sans le
+    moindre appel serveur.
+    """
+    connexion(page, live_server)
+    ouvrir_reglages_cabinet(page)
+
+    page.fill("#amount", "55.555")
+    # Le focus quitte `#amount` avant le clic, comme un remplissage reel de formulaire.
+    page.fill("#currency", "EUR")
+    page.get_by_role("button", name="Mettre à jour").click()
+
+    expect(page.locator("#amount")).to_be_focused()
+    expect(page.locator("#amount:invalid")).to_have_count(1)
+    expect(notifications_de_succes(page)).to_have_count(0)
+    assert OfficeSettings.objects.get(id=1).amount == 55
 
 
 def ouvrir_onglet_utilisateurs(page: Page) -> None:

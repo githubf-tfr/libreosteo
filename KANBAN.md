@@ -413,11 +413,6 @@ Aucun.
 - (2026-09-28) **Suivi amont : le commit amont `560d734` (2026-09-26) n'est pas examiné**
   (« fix(load dump): due to haystack massive data raw to import does not work well… ») ;
   « Suivi amont » s'arrête à `33753e0`.
-- (2026-09-28) **Le montant du cabinet ne borne pas les décimales côté navigateur** :
-  `#amount` (`api/views/pages/cabinet.py`) porte `pattern="[1-9][0-9,.]*"`, une troisième
-  décimale n'y est refusée que par le serveur, contrairement à la modale de facturation
-  (`pattern="[0-9]+([.][0-9]{1,2})?"`). Résidu du point en suspens du 2026-09-05 sur les
-  trois décimales, clos.
 - (2026-09-26) **2026-09-26 (lot « suite unitaire sur PostgreSQL »)** — constats versés, non corrigés,
   chacun avec son motif :
   - Le verrou consultatif d'export ne peut pas être disputé dans le déploiement de référence
@@ -484,6 +479,11 @@ Chacun avec son motif de non-correction — détail dans
 
 ## Terminé
 
+- (2026-09-28) Lot 6, T4 : constat « le montant du cabinet ne borne pas les décimales côté
+  navigateur » clos, **faux** — `pattern` retiré (inerte sur `#amount`, `type="number"`), le
+  pas de 0,01 bornait déjà — spec
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T3 : test fonctionnel intermittent `test_annulation_et_refacturation`
   clos, cause établie (course du test) — spec
   `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;

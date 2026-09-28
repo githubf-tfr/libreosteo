@@ -85,9 +85,11 @@
         {# `value > 0` etait faux : « 55,55 » rendait donc le bouton mort, **sans un mot**. #}
         {# Hors Angular, le bouton « Valider » vit dans `partials/modale.html` et n'est pas #}
         {# atteignable depuis ce corps : la contrainte est donc portee par le `pattern` #}
-        {# HTML5, comme D6d l'a fait pour le `#amount` du cabinet (E13). La virgule reste #}
-        {# refusee ; le refus, lui, se voit desormais. Le motif porte aussi la borne des #}
-        {# **deux decimales**, que D6d avait mesuree cote serveur sans contrepartie cliente. #}
+        {# HTML5 -- actif ici (`type="text"`), a la difference du `pattern` du cabinet sur #}
+        {# `#amount` (`type="number"`), inerte : c'est son pas de 0,01 qui le borne (lot 6, #}
+        {# constat 1.4 faux, corrige). La virgule reste refusee ; le refus, lui, se voit #}
+        {# desormais. Le motif porte aussi la borne des **deux decimales**, que D6d avait #}
+        {# mesuree cote serveur sans contrepartie cliente. #}
         {# Meme `disabled` que `#reason`, et pour la meme raison — ici elle mord vraiment : #}
         {# ce champ porte un `pattern`, et une valeur hors motif laissee dans un bloc #}
         {# masque rendrait la soumission muette. #}
