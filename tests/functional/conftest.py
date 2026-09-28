@@ -7,7 +7,7 @@ import threading
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator, cast
 
 import pytest
 from django.conf import settings as reglages_django
@@ -90,12 +90,16 @@ class Socle:
 def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
     """Sort les medias et l'index Whoosh du depot, pour chaque test."""
     settings.MEDIA_ROOT = str(tmp_path / "media")
-    settings.HAYSTACK_CONNECTIONS = {
-        "default": {
-            "ENGINE": "libreosteoweb.api.folding_whoosh_backend.FoldingWhooshEngine",
-            "PATH": str(tmp_path / "whoosh_index"),
-        },
-    }
+    # Mutation en place du sous-dictionnaire "default", jamais un remplacement de
+    # `settings.HAYSTACK_CONNECTIONS` : `haystack.connections.connections_info` fige sa
+    # reference au premier import et choisit l'ENGINE dessus -- un remplacement
+    # laisserait le handler sur l'ancien moteur (meme raisonnement que
+    # `libreosteoweb/tests/conftest.py:43-49`).
+    configuration = cast("dict[str, Any]", settings.HAYSTACK_CONNECTIONS["default"])
+    configuration["ENGINE"] = (
+        "libreosteoweb.api.folding_whoosh_backend.FoldingWhooshEngine"
+    )
+    configuration["PATH"] = str(tmp_path / "whoosh_index")
     connexions_recherche.reload("default")
     yield
     connexions_recherche.reload("default")

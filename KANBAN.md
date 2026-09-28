@@ -1310,12 +1310,14 @@ soldées ou tenues** :
   sur le retour de `Signal.disconnect` fermerait la classe entière. ⚠️ **L'aide est partagée
   avec `sans_receivers` et du code applicatif** : l'élargissement se décide, il ne s'improvise
   pas.
-- **`tests/functional/conftest.py` remplace `settings.HAYSTACK_CONNECTIONS` par un
+- ~~**`tests/functional/conftest.py` remplace `settings.HAYSTACK_CONNECTIONS` par un
   dictionnaire neuf**, là où `libreosteoweb/tests/conftest.py` documente qu'il faut **muter en
   place**. Mesuré : cela fonctionne aujourd'hui parce que `BaseEngine.__init__` relit
   `settings`, mais `haystack.connections.connections_info` reste figé sur `data/whoosh_index`
   et sert encore à choisir le moteur. **Isolation correcte par accident, pas par
-  construction.**
+  construction.**~~ — **corrigé** : `environnement_isole` mute désormais le sous-dictionnaire
+  `"default"` en place, même idiome que `libreosteoweb/tests/conftest.py` (voir aussi le
+  constat de la section « couverture 100 % » plus bas, même commit).
 
 - ~~**Le cliquet d'arbre statique ne couvre pas le contenu des paquets.**
   `tests/qualite/test_contrat_arbre_statique.py` garde le **jeu de paquets** servis sous
@@ -1417,10 +1419,10 @@ Chacun avec son motif de non-correction — détail dans
   `haystack.connections` est figé à l'import) : les tâches C5 et C12 ont dû muter le
   singleton en place, restauré par `addCleanup`/`finally`. La preuve du test préexistant
   `TestReconstructionIndex` en est affaiblie — il croit changer de moteur de recherche et
-  ne le fait pas.~~ — **corrigé côté unitaire** : `TestReconstructionIndex.setUpClass` mute
-  `haystack_connections.connections_info[DEFAULT_ALIAS]` en place, comme
-  `TestEchecDeReindexation`. Reste `tests/functional/conftest.py::environnement_isole`,
-  même défaut, même correctif à venir (tâche 8 du lot hygiène de code).
+  ne le fait pas.~~ — **corrigé** : `TestReconstructionIndex.setUpClass` (unitaire) et
+  `environnement_isole` (`tests/functional/conftest.py`, fonctionnel) mutent tous deux le
+  sous-dictionnaire `"default"` en place, jamais un remplacement. Même idiome partout dans
+  le dépôt.
 - **Le message « 3 char length maximum » de `valider_prefixe_de_sequence`**
   (`libreosteoweb/api/services/facturation.py:112`) **n'est atteignable par aucune voie
   produit** : le `max_length=3` du modèle intercepte avant. Seul l'appel direct du service
