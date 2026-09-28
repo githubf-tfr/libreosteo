@@ -119,7 +119,6 @@ files = [
     "Libreosteo/urls.py",
     "Libreosteo/wsgi.py",
     "Libreosteo/zip_loader.py",
-    "application.py",
     "libreosteoweb/__init__.py",
     "libreosteoweb/admin.py",
     "libreosteoweb/api/__init__.py",
