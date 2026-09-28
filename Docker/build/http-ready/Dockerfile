@@ -171,10 +171,19 @@ EXPOSE 8085
 # applicatif : --processes 1 --threads 1 reste le garde-fou de serialisation. La cause etant
 # traitee, l'offload reste pour son benefice propre : liberer l'unique worker pendant un
 # transfert.
-# --processes 1 --threads 1 : garde-fou de serialisation, et non un reglage de performance.
-# Jusqu'a D3 c'etait lui, et lui seul, qui tenait l'integrite au silence — aucune contrainte
-# d'unicite en base, aucune transaction. Depuis D3 l'integrite ne repose plus dessus : c'est
-# redevenu un choix de capacite, qu'un lot ulterieur pourra lever avec sa propre preuve.
+# --processes 1 --threads 1 : limitation assumee (decision de l'utilisateur du 2026-09-28,
+# KANBAN « Decisions actees »), pas un reglage oublie. Origine amont : 3 processus ramenes
+# a 1 en 2022 (e9e8453, cb5cf31) pour la concurrence de sqlite, raison morte depuis que le
+# conteneur ne sert que PostgreSQL. Depuis D3, l'integrite de la base n'en depend plus. Il
+# serialise encore deux choses :
+# - la garde « aucun utilisateur » (maintenance_available) de la restauration et de la
+#   creation du premier administrateur n'est pas atomique : a deux workers, un second envoi
+#   la passe et rejoue vidage et chargement derriere le premier ;
+# - l'index Whoosh : une suppression n'attend pas le verrou d'ecriture (LockError avalee,
+#   l'entree reste dans l'index), et rebuild_index efface l'index sous les autres workers.
+# Prix accepte : une reindexation, un import ou un chargement d'archive fige l'instance pour
+# tous. Se rouvre si un praticien signale une attente due a l'operation d'un autre en usage
+# courant, ou si une instance sert plus d'un cabinet -- et alors ces deux points d'abord.
 # --die-on-term : sans elle, la reaction par defaut d'uwsgi a SIGTERM est un rechargement
 # (« binary reloading uWSGI »), pas une extinction : `docker compose stop` attend alors le
 # delai de grace complet avant de forcer un SIGKILL. Mesure sur instance reelle sans cette

@@ -446,6 +446,19 @@ Tenu à la main.
     `_en_demonstration` retirée. Motif : pas d'instance publique ; retrait minimal.
     Écartée : retirer tout le mode (drapeau, sérialiseur, gabarits, six tests).
 
+- (2026-09-28) **`--processes 1 --threads 1` : limitation assumée, décision de
+  l'utilisateur** (lot 5, spec `docs/superpowers/specs/2026-09-28-lot5-instruction-design.md`).
+  Origine amont morte (2022, `e9e8453`/`cb5cf31`, concurrence sqlite) ; depuis D3,
+  l'intégrité de la base n'en dépend plus. Il sérialise encore deux choses, nommées au-dessus
+  du `CMD` du `Dockerfile` : la garde « aucun utilisateur » de la restauration et de la
+  création du premier administrateur (non atomique) ; l'index Whoosh (suppression sans
+  attente du verrou d'écriture, `rebuild_index` qui efface l'index sous les autres
+  workers). Prix accepté : une réindexation, un import CSV ou un chargement d'archive fige
+  l'instance pour tous. **Se rouvre si, et seulement si**, un praticien signale une attente
+  due à l'opération d'un autre en usage courant, ou si une instance sert plus d'un cabinet ;
+  rouvert, le lot traite ces deux dépendances avant d'ajouter un worker, avec sa preuve de
+  charge et la mémoire mesurée sur arm64. Ne pas « réparer » hors de ces conditions.
+
 ## À faire
 
 - ~~**Bascule du parc sur l'image officielle — geste de l'utilisateur** (lot « suite unitaire
@@ -1664,7 +1677,8 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 ### Renvoyé par D4 (2026-09-06)
 
-- **`--processes 1 --threads 1` n'est pas levé.** Ce n'est plus un garde-fou
+- ~~**`--processes 1 --threads 1` n'est pas levé.**~~ — **clos le 2026-09-28, limitation
+  assumée** (lot 5) : cf. « Décisions actées ». Ce n'est plus un garde-fou
   d'intégrité depuis D3 — `Docker/build/http-ready/Dockerfile:169-171` le dit dans ces
   termes mêmes —, c'est un **choix de capacité**, et sa levée demande une preuve de
   charge que ni la recette ni la suite Playwright ne portent. Candidat à un lot
