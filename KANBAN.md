@@ -1369,9 +1369,12 @@ Chacun avec son motif de non-correction — détail dans
 - ~~**`libreosteoweb/api/views/pages/documents.py:474`** (`getattr(request, "tenant", None)`) :
   même vestige que la branche `request.tenant` retirée par S10, mais couvert par son
   court-circuit.~~ — **retiré le 2026-09-28 par `b8a1df8`** (décision Q2 a).
-- **`libreosteoweb/admin.py`** : les quatre `admin.site.register` sont sans effet,
+- ~~**`libreosteoweb/admin.py`** : les quatre `admin.site.register` sont sans effet,
   `admin.site.urls` n'étant dans aucun `urlpatterns`. Aucune de ses lignes n'est dans les
-  236 : le module s'importe, donc il se couvre.
+  236 : le module s'importe, donc il se couvre.~~ — **corrigé** : fichier supprimé,
+  `admin.autodiscover()` et son import retirés de `Libreosteo/urls.py`, entrée `mypy
+  files` retirée dans le même commit (suppression de module, pas rétrécissement du
+  périmètre vérifié). `INSTALLED_APPS` inchangé (hors périmètre du constat).
 - **`libreosteoweb/api/utils.py:23`** : `logging.getLogger(__file__)` — nom de journal égal
   à un chemin de fichier, hors de la hiérarchie `libreosteoweb.*`. Déjà écarté par le lot
   correctif du 2026-09-23, pour le même motif.

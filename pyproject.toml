@@ -118,7 +118,6 @@ files = [
     "Libreosteo/urls.py",
     "Libreosteo/wsgi.py",
     "libreosteoweb/__init__.py",
-    "libreosteoweb/admin.py",
     "libreosteoweb/api/__init__.py",
     "libreosteoweb/api/demonstration.py",
     "libreosteoweb/api/dialecte_csv.py",
