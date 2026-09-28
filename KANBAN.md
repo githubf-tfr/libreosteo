@@ -1413,11 +1413,14 @@ Chacun avec son motif de non-correction — détail dans
 - **Le critère du middleware (aucun utilisateur en base) n'est pas celui de la vue (aucun
   `is_staff`)** sur la route `/install/` — sans danger, le middleware étant le plus strict,
   mais non testé et arbitré nulle part. Dette ouverte par la reprise du 2026-09-25.
-- **`override_settings(HAYSTACK_CONNECTIONS=...)` est sans effet** (le singleton
+- ~~**`override_settings(HAYSTACK_CONNECTIONS=...)` est sans effet** (le singleton
   `haystack.connections` est figé à l'import) : les tâches C5 et C12 ont dû muter le
   singleton en place, restauré par `addCleanup`/`finally`. La preuve du test préexistant
   `TestReconstructionIndex` en est affaiblie — il croit changer de moteur de recherche et
-  ne le fait pas. Non corrigé : hors mandat de ce lot.
+  ne le fait pas.~~ — **corrigé côté unitaire** : `TestReconstructionIndex.setUpClass` mute
+  `haystack_connections.connections_info[DEFAULT_ALIAS]` en place, comme
+  `TestEchecDeReindexation`. Reste `tests/functional/conftest.py::environnement_isole`,
+  même défaut, même correctif à venir (tâche 8 du lot hygiène de code).
 - **Le message « 3 char length maximum » de `valider_prefixe_de_sequence`**
   (`libreosteoweb/api/services/facturation.py:112`) **n'est atteignable par aucune voie
   produit** : le `max_length=3` du modèle intercepte avant. Seul l'appel direct du service
