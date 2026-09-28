@@ -259,7 +259,6 @@ def page_nouveau_patient(request: HttpRequest) -> HttpResponse:
     # M8).
     patient.consent = timezone.localdate()
     patient.set_user_operation(request.user)
-    patient.set_request(request)
     try:
         with transaction.atomic():
             patient.full_clean(validate_constraints=False)

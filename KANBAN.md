@@ -1359,10 +1359,13 @@ Chacun avec son motif de non-correction — détail dans
   (`test_actif_initial_onglets_pages.py:96`, attribut `officesettings` posé dynamiquement
   par `OfficeSettingsMiddleware.process_request`), close par `# type:
   ignore[attr-defined]`, même idiome que `tests/functional/conftest.py:54,129`.
-- **`Patient.set_request` / `Patient.request`** (`libreosteoweb/models.py:119-121`) : rien
+- ~~**`Patient.set_request` / `Patient.request`** (`libreosteoweb/models.py:119-121`) : rien
   ne lit jamais l'attribut posé, comme pour `Document.set_request` (retiré au chantier S5)
   — mais ces lignes sont **couvertes**, donc hors des 236 instructions de l'audit de
-  cadrage. Les retirer aurait élargi le mandat.
+  cadrage. Les retirer aurait élargi le mandat.~~ — **corrigé** : retiré (`models.py`) et
+  ses cinq appelants (`api/views/patient.py`, `api/views/pages/nouveau_patient.py`,
+  `api/views/pages/dossier_patient.py`), sur le modèle de `292c27b`
+  (`Document.set_request`).
 - ~~**`libreosteoweb/api/views/pages/documents.py:474`** (`getattr(request, "tenant", None)`) :
   même vestige que la branche `request.tenant` retirée par S10, mais couvert par son
   court-circuit.~~ — **retiré le 2026-09-28 par `b8a1df8`** (décision Q2 a).

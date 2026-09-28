@@ -116,10 +116,6 @@ class Patient(models.Model):
         Not mapped in DB only for the runtime"""
         self.current_user_operation = user
 
-    def set_request(self, request):
-        """Use this setter to transit the request on the instance"""
-        self.request = request
-
     TYPE_NEW_PATIENT = 1
     TYPE_UPDATE_PATIENT = 2
 

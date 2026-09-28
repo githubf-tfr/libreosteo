@@ -134,7 +134,6 @@ class PatientViewSet(XLSXFileMixin, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         instance = models.Patient(**serializer.validated_data)
         instance.set_user_operation(self.request.user)
-        instance.set_request(self.request)
         # `validate_constraints=False` : le validateur du serialiseur porte deja la regle
         # d'unicite (meme clef, meme insensibilite a la casse) et la base la garantit. Une
         # troisieme verification ici ne fermerait rien de plus — ce serait un troisieme
@@ -155,7 +154,6 @@ class PatientViewSet(XLSXFileMixin, viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.instance.set_user_operation(self.request.user)
-        serializer.instance.set_request(self.request)
         try:
             # Meme garde qu'a la creation, et pour la meme raison (`ATOMIC_REQUESTS`) :
             # deux PATCH concurrents renommant deux patients existants vers le meme
@@ -187,7 +185,6 @@ class PatientViewSet(XLSXFileMixin, viewsets.ModelViewSet):
         ).delete()
         models.Examination.objects.filter(patient=instance.id).delete()
         models.PatientDocument.objects.filter(patient=instance.id).delete()
-        instance.set_request(self.request)
         return super(PatientViewSet, self).perform_destroy(instance)
 
 
