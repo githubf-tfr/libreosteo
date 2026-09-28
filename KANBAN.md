@@ -435,15 +435,6 @@ Aucun.
     `loaddata` sans données) ; aucun n'est propre à PostgreSQL (diff nul avec la mesure
     sqlite de T1).
 
-### Premier retour d'usage sur données réelles, et les deux lots qu'il ouvre (2026-09-20)
-
-- (2026-09-20) Attention : **L'archive JSON porte des dates sans fuseau.** Le journal du conteneur rend des
-  `RuntimeWarning: DateTimeField OfficeEvent.date received a naive datetime … while time zone
-  support is active`, également sur `Document.internal_date`. Django les accepte et les
-  interprète dans le fuseau par défaut ; le décalage éventuel ne se voit pas à la relecture.
-  **Non instruit** : personne n'a vérifié si les heures relues correspondent aux heures
-  d'origine. À faire avant de considérer une reprise comme fidèle.
-
 ### Constat versé par le lot 4 (2026-09-28), non instruit
 
 - (2026-09-28) **`R-CON-01` étape 5 paraît injouable par son chemin.** Elle demande de vider le nom
@@ -479,6 +470,11 @@ Chacun avec son motif de non-correction — détail dans
 
 ## Terminé
 
+- (2026-09-28) Lot 6, T5 : constat « l'archive JSON porte des dates sans fuseau » clos,
+  verdict mixte — faux pour l'archive du fork (test de fidélité), non tranchable pour
+  l'archive héritée (limitation assumée) — spec
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T4 : constat « le montant du cabinet ne borne pas les décimales côté
   navigateur » clos, **faux** — `pattern` retiré (inerte sur `#amount`, `type="number"`), le
   pas de 0,01 bornait déjà — spec
@@ -1177,6 +1173,34 @@ Chacun avec son motif de non-correction — détail dans
   Récit : `docs/journal/2026-09.md`, « À faire — entrées retirées »,
   « Dette technique (constat, pas action) »,
   « Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit ».
+- (2026-09-28) **Heures des événements repris de l'ancienne version, non vérifiées** :
+  les événements du tableau de bord (`OfficeEvent.date`) chargés depuis l'archive héritée
+  à la reprise du 2026-09-23, et le seul document repris (`Document.internal_date`),
+  peuvent afficher une heure décalée de −1 h (hiver) ou −2 h (été), si l'ancienne version
+  les écrivait en UTC : l'archive les portait sans fuseau et le chargement les a lus en
+  heure de Paris. Ni les séances, ni les factures, ni les commentaires : absents des
+  avertissements du 2026-09-20. Une archive du fork se recharge à l'heure exacte (test de
+  fidélité). Motif : décision de l'utilisateur (2026-09-28), la requête n'est pas lancée.
+  Pour trancher un jour, sans extraire de donnée, jouée par `psql` dans le conteneur
+  PostgreSQL du parc :
+
+  ```sql
+  SELECT e.date < '2026-09-23' AS avant_reprise,
+         round(extract(epoch FROM e.date - x.date) / 3600) AS ecart_h,
+         count(*)
+  FROM libreosteoweb_officeevent e
+  JOIN libreosteoweb_examination x ON x.id = e.reference
+  WHERE e.clazz = 'Examination'
+  GROUP BY 1, 2 ORDER BY 1, 3 DESC;
+  ```
+
+  Elle ne rend que des comptes par écart en heures. Lecture : sur les lignes
+  `avant_reprise = t`, un écart dominant `0` → pas de décalage ; `-1`/`-2` → l'ancienne
+  version écrivait en UTC, les heures reprises sont décalées d'autant. **Se rouvre si** un
+  praticien signale une heure fausse sur un événement ancien ; une correction des lignes
+  serait alors une migration de données, à poser en question. Récit :
+  `docs/journal/2026-09.md`, « À faire — entrées retirées », « Premier retour d'usage sur
+  données réelles, et les deux lots qu'il ouvre (2026-09-20) ».
 
 ### Limitation assumée par D6g, à ne pas « réparer » sans la comprendre (2026-09-20)
 

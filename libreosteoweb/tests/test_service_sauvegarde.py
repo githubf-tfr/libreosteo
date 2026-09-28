@@ -18,8 +18,10 @@ import io
 import json
 import os
 import tempfile
+import warnings
 import zipfile
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.sessions.models import Session
@@ -37,10 +39,11 @@ from libreosteoweb.api.services.sauvegarde import (
     restaurer,
 )
 from libreosteoweb.api.signals import post_reload_db
-from libreosteoweb.models import LoggedInUser, Patient
+from libreosteoweb.models import LoggedInUser, OfficeEvent, Patient
 from libreosteoweb.tests.fixtures import (
     _archive_avec_document,
     archive_de_restauration,
+    cree_praticien,
     sans_receivers,
 )
 
@@ -345,3 +348,44 @@ class TestIndexationTempsReelApresRechargement(TransactionTestCase):
             1,
             "L'indexation temps reel ne survit pas a une restauration.",
         )
+
+
+class TestFideliteDesHeures(TransactionTestCase):
+    """Sonde 5 (spec lot 6, § 1.5) : une archive produite par le fork (`construire_archive`,
+    donc `TIME_ZONE = "Europe/Paris"`, `USE_TZ = True`) porte le fuseau et se recharge a
+    l'heure d'origine, ete comme hiver. Voir `TestRestauration` pour la raison de
+    `TransactionTestCase` et de `serialized_rollback`."""
+
+    serialized_rollback = True
+
+    def test_une_reprise_par_archive_du_fork_rend_les_heures_d_origine(self):
+        # A la seconde, pas a la microseconde : `DjangoJSONEncoder` tronque a la
+        # milliseconde, sans effet visible sur des dates posees a la seconde (spec, § 7) --
+        # hors du perimetre de ce test.
+        ete = datetime(2026, 7, 15, 14, 30, 5, tzinfo=ZoneInfo("Europe/Paris"))
+        hiver = datetime(2026, 1, 15, 14, 30, 5, tzinfo=ZoneInfo("Europe/Paris"))
+        praticien = cree_praticien()
+        evenement_ete = OfficeEvent.objects.create(
+            date=ete, clazz="Examination", type=1, reference=1, user=praticien
+        )
+        evenement_hiver = OfficeEvent.objects.create(
+            date=hiver, clazz="Examination", type=1, reference=2, user=praticien
+        )
+
+        with warnings.catch_warnings(record=True) as captures:
+            warnings.simplefilter("always")
+            restaurer(ContentFile(construire_archive()), libreosteoweb.__version__)
+
+        avertissements_naive = [
+            avertissement
+            for avertissement in captures
+            if issubclass(avertissement.category, RuntimeWarning)
+            and "naive datetime" in str(avertissement.message)
+        ]
+        self.assertEqual(
+            avertissements_naive,
+            [],
+            "Une reprise par archive du fork ne doit jamais relire de date naive.",
+        )
+        self.assertEqual(OfficeEvent.objects.get(pk=evenement_ete.pk).date, ete)
+        self.assertEqual(OfficeEvent.objects.get(pk=evenement_hiver.pk).date, hiver)
