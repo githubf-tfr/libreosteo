@@ -266,7 +266,7 @@ Tenu à la main.
     chargé qu'en deux points, `install.html:64` (que D6c emporte) et `index.html:170` (que D6f
     emporte). Le *JavaScript* de Bootstrap 3 meurt avec, puisqu'il l'exige (`bootstrap.js:7`).
     **D6g se réduit au socle visuel** — feuille de style et classes de balisage. 27 des 28
-    paquets sortent de `package.json` à la clôture de D6f. ⚠️ **Chiffre périmé, corrigé le
+    paquets sortent de `package.json` à la clôture de D6f. Attention : **Chiffre périmé, corrigé le
     2026-09-13 par le cadrage de D6f (F1) : ce sont quatorze paquets sur seize, D6e en ayant
     emporté douze depuis. À la clôture, `package.json` porte deux dépendances, `htmx` et
     `alpinejs`.**
@@ -288,7 +288,7 @@ Tenu à la main.
   - **La visite guidée est conservée et réécrite**, pas supprimée. Elle ne peut pas rester en
     l'état, plus aucun document ne chargera jQuery dont `bootstrap-tour` dépend. La retirer serait
     un changement de produit non demandé. **Forme arbitrée le 2026-09-13 (D6f, AR2) : parité
-    ancrée, avec un repli centré écrit d'avance pour la cible absente.** ⚠️ **Le cadrage a
+    ancrée, avec un repli centré écrit d'avance pour la cible absente.** Attention : **Le cadrage a
     mesuré que l'`orphan: true` de `bootstrap-tour` est inerte : les encarts sont bel et bien
     **ancrés** à leur élément aujourd'hui, et non centrés comme le dépôt le laissait croire.**
   - **Le corpus de preuve du texte riche de D6e sera conservateur** — préservation octet pour
@@ -376,20 +376,20 @@ Tenu à la main.
 
 ### Gestes dus par l'utilisateur
 
-- **Construire l'image http et la recetter** — geste de l'utilisateur à la prochaine
+- (2026-09-28) **Construire l'image http et la recetter** — geste de l'utilisateur à la prochaine
   publication : construction (`docker build`, étage `build` sur `settings.statique`, sans
   `server.py`), mêmes sept bundles `output.<hash>` que `make static`,
   `/Libreosteo/django/conf/locale` absent, `R-INST-04` jouée sur l'image.
 
 ### Autres entrées ouvertes
 
-- **[2026-09-28] `POST /api/invoices/<pk>/cancel` sur une facture rectificative non facturée
+- (2026-09-28) **[2026-09-28] `POST /api/invoices/<pk>/cancel` sur une facture rectificative non facturée
   rend 500** : `corrective_invoice.status="notinvoiced"` avec une raison passe la
   validation ; `invoice_examination` rend alors `{"invoiced": None}`, puis
   `Invoice.objects.get(id=None)` lève — rollback, aucune écriture. Atteignable par l'API
   seule (l'écran fige `"invoiced"` en dur). Cousin du `KeyError` fermé par le lot 2 (défauts
   produit). Antérieur à la branche, non corrigé.
-- **[2026-09-28] Test fonctionnel intermittent, cause non instruite** :
+- (2026-09-28) **[2026-09-28] Test fonctionnel intermittent, cause non instruite** :
   `tests/functional/test_facturation.py::test_annulation_et_refacturation` a échoué une fois
   sur la passe complète finale du 2026-09-28 (badge « Annulée » résolu mais `hidden` pendant
   15 s, sous la charge de la suite complète) ; vert sur toutes les autres passes du jour, et
@@ -418,7 +418,7 @@ Tenu à la main.
   décimale n'y est refusée que par le serveur, contrairement à la modale de facturation
   (`pattern="[0-9]+([.][0-9]{1,2})?"`). Résidu du point en suspens du 2026-09-05 sur les
   trois décimales, clos.
-- **2026-09-26 (lot « suite unitaire sur PostgreSQL »)** — constats versés, non corrigés,
+- (2026-09-26) **2026-09-26 (lot « suite unitaire sur PostgreSQL »)** — constats versés, non corrigés,
   chacun avec son motif :
   - Le verrou consultatif d'export ne peut pas être disputé dans le déploiement de référence
     (`uwsgi --processes 1 --threads 1`, un seul worker) : les deux exports (patients,
@@ -442,7 +442,7 @@ Tenu à la main.
 
 ### Premier retour d'usage sur données réelles, et les deux lots qu'il ouvre (2026-09-20)
 
-- ⚠️ **L'archive JSON porte des dates sans fuseau.** Le journal du conteneur rend des
+- (2026-09-20) Attention : **L'archive JSON porte des dates sans fuseau.** Le journal du conteneur rend des
   `RuntimeWarning: DateTimeField OfficeEvent.date received a naive datetime … while time zone
   support is active`, également sur `Document.internal_date`. Django les accepte et les
   interprète dans le fuseau par défaut ; le décalage éventuel ne se voit pas à la relecture.
@@ -451,7 +451,7 @@ Tenu à la main.
 
 ### Constat versé par le lot 4 (2026-09-28), non instruit
 
-- **`R-CON-01` étape 5 paraît injouable par son chemin.** Elle demande de vider le nom
+- (2026-09-28) **`R-CON-01` étape 5 paraît injouable par son chemin.** Elle demande de vider le nom
   **et** le prénom depuis « Profil » ; or `FormulaireIdentite` (`pages/profil.py`) exige le
   nom. À vérifier à la prochaine passe de recette : si l'étape est bien injouable, le seul
   chemin vers un praticien sans nom est un compte ajouté par « Ajouter un utilisateur » qui
@@ -462,7 +462,7 @@ Tenu à la main.
 Chacun avec son motif de non-correction — détail dans
 `.superpowers/sdd/2026-09-24-couverture-100-plan/` (rapports et ledger, non versionnés).
 
-- **`RuntimeWarning: Accessing the database during app initialization`** (issu
+- (2026-09-26) **`RuntimeWarning: Accessing the database during app initialization`** (issu
   d'`AppConfig.ready()`) préexiste au lot, non traité. Compte final mesuré au dernier
   `make check` de ce lot : **17 warnings**, identifiés — **13 préexistants, constants
   depuis la tâche S7**, plus **4 neufs, tous par des tests neufs qui traversent du code
@@ -655,12 +655,12 @@ Chacun avec son motif de non-correction — détail dans
 
 ## Pièges rencontrés
 
-- **2026-09-27 — Une image arm64 ne se bâtit pas dans le bac à sable.** Son noyau n'a pas
+- (2026-09-27) **2026-09-27 — Une image arm64 ne se bâtit pas dans le bac à sable.** Son noyau n'a pas
   `binfmt_misc` (`cannot mount binfmt_misc filesystem … no such device`) et son démon Docker
   ne voit pas l'émulation de l'hôte. Bâtir sur l'hôte : `tonistiigi/binfmt --install arm64`
   (ou `qemu-user-static`) et le greffon `buildx`.
 
-- **2026-09-27 — Le venv local doit suivre la version corrective de Python de la CI.**
+- (2026-09-27) **2026-09-27 — Le venv local doit suivre la version corrective de Python de la CI.**
   `csv.Sniffer` a changé entre 3.14.2 (venv local) et 3.14.7 (CI, image
   `python:3.14-alpine`) : `make check` vert en local, CI rouge. Un module qui imite la
   bibliothèque standard (`api/dialecte_csv.py`) casse à chaque changement de celle-ci ;
@@ -735,7 +735,7 @@ Chacun avec son motif de non-correction — détail dans
   Récit : `docs/journal/2026-09.md`, « Terminé »,
   « D9 : une saisie clinique en cours survit au rafraîchissement du dossier patient ».
 
-- **2026-09-18 (D9, T3)** — **`detail.elt` n'est pas fiable dans un gestionnaire htmx ;
+- (2026-09-18) **2026-09-18 (D9, T3)** — **`detail.elt` n'est pas fiable dans un gestionnaire htmx ;
   `detail.requestConfig.elt` l'est.** Dès que la réponse remplace la **racine même** de
   l'élément déclencheur, ou le détruit par un `hx-swap-oob` distinct, htmx **réécrit
   `detail.elt`** sur un élément de secours arbitraire (`htmx.js:4581-4595`) — un ancêtre qui
@@ -748,7 +748,7 @@ Chacun avec son motif de non-correction — détail dans
   ou `htmx:before-request` qui remonte l'arbre depuis le déclencheur est concerné. Le fait
   est écrit sur place, en commentaire de `pages/dossier-patient.html`.
 
-- **2026-09-18 (D9, T5)** — **Rien ne doit modifier l'arbre pendant une campagne de
+- (2026-09-18) **2026-09-18 (D9, T5)** — **Rien ne doit modifier l'arbre pendant une campagne de
   stabilité.** Une première campagne de vingt répétitions a dû être **jetée à la troisième
   verte** parce qu'un agent parallèle modifiait un gabarit pendant qu'elle tournait : les
   exécutions ne portaient plus sur le même arbre, et aucune des trois ne prouvait quoi que
@@ -781,7 +781,7 @@ Chacun avec son motif de non-correction — détail dans
   « Lot correctif 2 clos : quatre écrans cessent de se taire » ;
   « Lot « couverture 100 % » clos ».
 
-- **2026-09-08 (recette conteneur)** — **La restauration d'une archive est une transaction
+- (2026-09-08) **2026-09-08 (recette conteneur)** — **La restauration d'une archive est une transaction
   unique, et son annulation laisse des artefacts qui font croire au succès.** Une première
   ingestion, lancée le 2026-09-07 à 23:11, a été tuée par l'extinction de la machine ;
   PostgreSQL s'est arrêté proprement et **tout a été annulé** — base à zéro ligne. Mais
@@ -790,7 +790,7 @@ Chacun avec son motif de non-correction — détail dans
   vide. **L'état se constate sur la base, jamais sur les fichiers** — un `count(*)` par
   table, pas un `ls`.
 
-- **2026-09-08 (recette conteneur)** — **Pendant la restauration, la base ne se laisse pas
+- (2026-09-08) **2026-09-08 (recette conteneur)** — **Pendant la restauration, la base ne se laisse pas
   interroger et la page rend la main avant la fin.** `restaurer()` fait un
   `TRUNCATE ... RESTART IDENTITY` sur 27 tables et garde l'`ACCESS EXCLUSIVE` jusqu'au
   commit : **tout `select count(*)` sur ces tables bloque**, y compris derrière un
@@ -805,7 +805,7 @@ Chacun avec son motif de non-correction — détail dans
   chargement en cours. Ordre de grandeur pour dimensionner l'attente : **44 766 objets en
   21 minutes**, de 17:28:12 à 17:49:18.
 
-- **2026-09-07 (D7, T5 puis T10)** — **Un message utilisateur neuf peut être « conforme à
+- (2026-09-07) **2026-09-07 (D7, T5 puis T10)** — **Un message utilisateur neuf peut être « conforme à
   la convention i18n » et sortir en anglais.** Le refus 400 d'un numéro de facture déjà
   émis a été livré par T5 (`877839f`) avec un `_( ... )` correctement écrit, et la revue
   de la tâche a validé la convention — **sans vérifier que le msgid existait au
@@ -829,7 +829,7 @@ Chacun avec son motif de non-correction — détail dans
   « D8 Perte de saisie en édition du dossier patient fermée » ;
   « Lot « couverture 100 % » clos ».
 
-- **2026-09-01 (S3, tâche 7)** — La suite fonctionnelle reprend `libreosteoweb.tests.
+- (2026-09-01) **2026-09-01 (S3, tâche 7)** — La suite fonctionnelle reprend `libreosteoweb.tests.
   fixtures.sans_receivers` (outillage des tests unitaires) pour ses arrangements par
   l'ORM, plutôt que d'en écrire une version propre. `receiver_newpatient` et
   `receiver_examination` (`libreosteoweb/api/receivers.py`) lisent
@@ -844,7 +844,7 @@ Chacun avec son motif de non-correction — détail dans
   `fixtures.py` ne liste que `Examination` et `Patient`) — les deux `save()` de
   `deplace_dates` sont des mises à jour, `sans_receivers()` n'y changerait rien.
 
-- **2026-08-31 (S3, tâche 5)** — Trois tests unitaires échouent de façon déterministe
+- (2026-08-31) **2026-08-31 (S3, tâche 5)** — Trois tests unitaires échouent de façon déterministe
   entre 22h et minuit UTC (heure d'été), tous les jours : `test_dossier_patient.py::
   TestValidationPatient::test_date_de_naissance_future_est_refusee`,
   `test_exploitation.py::TestStatistiques::test_les_donnees_du_jour_sont_comptees`,
@@ -888,7 +888,7 @@ Chacun avec son motif de non-correction — détail dans
   Preuve rouge/vert constatée à l'exécution : les trois tests rouges dans la fenêtre
   avant correctif, verts après, dans la même fenêtre.
 
-- **2026-08-31 (S2, L5T5)** — La restauration « à l'ancienne » (fichier posté
+- (2026-08-31) **2026-08-31 (S2, L5T5)** — La restauration « à l'ancienne » (fichier posté
   non zippé, juste `dump.json`) de `LoadDump.post` n'a jamais pu fonctionner :
   deux défauts indépendants s'y enchaînaient. D'abord `tmpdir`
   (`os.path.join(tempfile.gettempdir(), str(uuid.uuid4()))`) n'était jamais créé
@@ -902,7 +902,7 @@ Chacun avec son motif de non-correction — détail dans
   posté de payload non zippé sur ce endpoint ; les deux causes trouvées et
   corrigées par les tests de L5T5 (`open(fixture, "wb")`). Le chemin est
   maintenant exercé par `test_archive_non_zippee_valide_est_rechargee`.
-- **2026-08-31 (S2, L5T5)** — Piège d'outillage : `libreosteoweb/api/views.py`
+- (2026-08-31) **2026-08-31 (S2, L5T5)** — Piège d'outillage : `libreosteoweb/api/views.py`
   est en fins de ligne CRLF (`\r\n`), contrairement au reste du dépôt. Un script
   d'édition Python qui ouvre puis réécrit le fichier en mode texte normalise
   silencieusement les `\r\n` en `\n` — un changement de 5 lignes est devenu un
@@ -913,7 +913,7 @@ Chacun avec son motif de non-correction — détail dans
   en binaire pour préserver les `\r\n`. **À vérifier systématiquement sur ce
   fichier** : après toute édition, `git diff --stat` doit annoncer un nombre de
   lignes proche de l'intention, jamais le fichier entier.
-- **2026-08-30 (S2, L4T1)** — `test_file_integrator.py::TestFileIntegrator.setUp`
+- (2026-08-30) **2026-08-30 (S2, L4T1)** — `test_file_integrator.py::TestFileIntegrator.setUp`
   démarre `patch("libreosteoweb.api.file_integrator.open", mock_open(), create=True)`
   mais son `tearDown` était un `pass` : le patch n'était jamais arrêté. Le mock fuyait
   dans toute la suite exécutée après cette classe — `file_integrator.open` restait un
@@ -925,13 +925,13 @@ Chacun avec son motif de non-correction — détail dans
   lire de vrais CSV) — l'échec n'apparaissait qu'en suite complète, jamais en
   isolation, et aurait cassé les sept tâches suivantes du lot de façon
   incompréhensible. Correction : `tearDown` appelle `self.patcher.stop()`.
-- **2026-08-30 (S2, L3T5)** — Suppression en cascade du `PatientDocument` levait une
+- (2026-08-30) **2026-08-30 (S2, L3T5)** — Suppression en cascade du `PatientDocument` levait une
   exception `RelatedObjectDoesNotExist`. Le receiver `delete_document` (ligne 104 de
   `api/receivers.py`) supprime déjà le Document associé ; la méthode `delete()` du modèle
   `PatientDocument` (ligne 626 de `models.py`) tentait de le supprimer une seconde fois.
   Correction : retrait de la méthode entière — elle ne faisait que déléguer au parent,
   et le receiver suffit à nettoyer le Document.
-- **2026-08-30 (S1)** — `ruff` a trouvé trois `F821` qui étaient de vrais défauts, pas du
+- (2026-08-30) **2026-08-30 (S1)** — `ruff` a trouvé trois `F821` qui étaient de vrais défauts, pas du
   bruit ; tous les trois vivaient derrière un `except:` nu, ce qui explique qu'aucun ne se
   soit jamais vu :
   - `convert_to_long` appelait `long()`, disparu en Python 3. Le `NameError` était rattrapé
@@ -943,7 +943,7 @@ Chacun avec son motif de non-correction — détail dans
   - Effet de bord à connaître : `ruff` avait retiré l'import `wspbus` comme mort,
     précisément parce que le défaut le rendait inutilisé. Un lint qui nettoie autour d'un
     bug peut effacer la trace du bug.
-- **2026-08-31 (S2, L4T7)** — **Fichier ISO-8859-1 importé comme valide, corrigé.** Deux
+- (2026-08-31) **2026-08-31 (S2, L4T7)** — **Fichier ISO-8859-1 importé comme valide, corrigé.** Deux
   défaillances en série, toutes deux nécessaires pour reproduire puis corriger le
   symptôme (status=1 au lieu de 0 sur un fichier CSV encodé en ISO-8859-1) :
   1. `file_integrator.py:76` — `except:` nu avalait l'`UnicodeDecodeError` levée par
@@ -960,7 +960,7 @@ Chacun avec son motif de non-correction — détail dans
   `test_encodage_non_supporte_produit_une_erreur_explicite`, marqué `expectedFailure`
   depuis L4T2, serait resté rouge indéfiniment sans jamais lever d'« unexpected success ».
   Les deux corrigées, la décoration est retirée et le test passe sur ses propres mérites.
-- **2026-08-31 (S2, L4T7)** — `csv.Sniffer().sniff()` ne devine pas le délimiteur d'un CSV
+- (2026-08-31) **2026-08-31 (S2, L4T7)** — `csv.Sniffer().sniff()` ne devine pas le délimiteur d'un CSV
   aux lignes de longueur irrégulière : une ligne plus courte que les autres change son
   nombre de virgules, et le caractère au décompte le plus stable sur l'ensemble du fichier
   devient alors le retour chariot du terminateur de ligne, pas la virgule. Reproduit hors
@@ -973,7 +973,7 @@ Chacun avec son motif de non-correction — détail dans
   ce CSV avec `quoting=csv.QUOTE_ALL` (nouveau paramètre optionnel de `csv_televerse`), qui
   laisse au Sniffer un motif guillemet-virgule-guillemet stable indépendant du nombre de
   colonnes. N'a pas nécessité de découpage de `file_integrator.py`.
-- **2026-08-31 (S2, L5T1)** — Le plan supposait qu'un `invoice_start_sequence` nul laissait la
+- (2026-08-31) **2026-08-31 (S2, L5T1)** — Le plan supposait qu'un `invoice_start_sequence` nul laissait la
   séquence de facturation inchangée avec un 200. En réalité DRF refuse le `null` explicite avec
   un 400 : le champ modèle est un `TextField(blank=True)` sans `null=True`
   (`models.py:457`). La branche `is None` de `OfficeSettingsSerializer.validate` ne sert donc
@@ -1164,11 +1164,11 @@ Chacun avec son motif de non-correction — détail dans
 
 ### Limitation assumée par D6g, à ne pas « réparer » sans la comprendre (2026-09-20)
 
-- ⚠️ **Sept sites Bootstrap 3 survivent, posés depuis Python**, et c'est **assumé** :
+- (2026-09-20) Attention : **Sept sites Bootstrap 3 survivent, posés depuis Python**, et c'est **assumé** :
   `api/views/pages/consultation.py:238,302` et `api/views/pages/dossier_patient.py:225,231,232,242,314`
   posent `input-sm` dans des `widget.attrs`. Le jeton n'existe pas en Bootstrap 5.3.8
   (`grep -c` sur la feuille servie : **0**) et n'est pas défini dans `libreosteo.css` : ces sept
-  champs rendent une **classe morte**. ⚠️ **Et `libreosteoweb/tests/test_page_dossier_patient.py:224`
+  champs rendent une **classe morte**. Attention : **Et `libreosteoweb/tests/test_page_dossier_patient.py:224`
   l'EXIGE** — `class="form-control input-sm"` sur dix champs : la classe morte y est un
   **attendu**, pas un oubli. Qui la retirerait sans regarder ferait rougir la suite sans
   comprendre pourquoi.
@@ -1181,7 +1181,7 @@ Chacun avec son motif de non-correction — détail dans
 
 Commits amont examinés et décision prise à leur sujet (repris / adapté / écarté).
 
-- **2026-09-18 — ligne de base posée** (`git fetch upstream`, remote inchangé). Gel du fork
+- (2026-09-18) **2026-09-18 — ligne de base posée** (`git fetch upstream`, remote inchangé). Gel du fork
   au commit `8e9e0e77d70` (2026-08-30). `upstream/master` est maintenant à `33753e0e1da7`
   (2026-09-09), **un commit d'écart** : « fix: remove documents indexation, not usefull, and
   corrupted with the multi accent support, fix issue when token sent by browser is corrupted,
@@ -1189,7 +1189,7 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
   `libreosteoweb/middleware.py`, `libreosteoweb/search_indexes.py`. Non examiné, non porté :
   décision remise au prochain lot qui touchera ces fichiers.
 
-- **2026-09-19 — le commit amont est examiné, décomposé, et il porte un défaut réel.** C'est
+- (2026-09-19) **2026-09-19 — le commit amont est examiné, décomposé, et il porte un défaut réel.** C'est
   un commit-valise, un message pour trois sujets ; le classement se fait sujet par sujet.
   **Les douze autres branches amont n'ont aucun commit postérieur à la ligne de base** —
   vérifié par date, pas seulement par `merge-base`. Seule `dependabot/pip/…drf-3.17.2`
@@ -1199,7 +1199,7 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
     le fork a neutralisé le symptôme autrement, la vue filtre sur `Patient`
     (`test_recherche.py::test_seuls_les_patients_remontent`). Signal conservé pour qui
     rouvrirait un jour la recherche documentaire.
-  - ⚠️ **`accounts/logout` absent de `NO_REROUTE_PATTERN_URL`** → **à porter, défaut réel et
+  - Attention : **`accounts/logout` absent de `NO_REROUTE_PATTERN_URL`** → **à porter, défaut réel et
     atteignable en production.** Vérifié dans l'arbre : `middleware.py:146-151` calcule
     `path = request.path.lstrip("/")`, puis, pour l'URL de déconnexion, écrit
     `request.path = ""` — **il mute l'attribut de la requête, pas la variable locale `path`**,
@@ -1207,14 +1207,14 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
     Le motif ne matche pas, et la requête est redirigée vers `login?next=` **sans jamais
     atteindre `LogoutView`**. Chemin réel : une session qui expire pendant qu'un praticien
     clique sur « déconnexion ». Le même geste mort frappe la branche `"web-view" in path`.
-  - ⚠️ **Le portage littéral casserait le fork.** L'amont redirige vers `get_logout_url()` ;
+  - Attention : **Le portage littéral casserait le fork.** L'amont redirige vers `get_logout_url()` ;
     or `LogoutView` est restreinte à POST/OPTIONS depuis Django 5.2, ce que le fork a déjà
     corrigé (`c1e6dd6`, 2026-09-06). Une redirection **GET** vers cette URL rend **405**. Le
     portage appelle donc `logout(request)` — déjà importé `middleware.py:20` — et redirige
     vers `login` comme aujourd'hui.
   - **Échec de l'authentificateur externe sans vidage de session** → **à porter, en second.**
     Le point d'extension `LIBREOSTEO_AUTHENTICATOR` existe et est testé, mais **n'est
-    configuré dans aucun réglage livré** : dormant. ⚠️ Les deux tests qui figent le
+    configuré dans aucun réglage livré** : dormant. Attention : Les deux tests qui figent le
     comportement actuel (`test_echec_de_l_authentificateur_renvoie_a_la_connexion` et sa
     variante htmx) viennent de commits de **couverture** (S2, D6c), pas d'une décision de
     conception : c'est une préservation **accidentelle** du défaut amont, et non une
@@ -1222,9 +1222,9 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
 
 ### Portages amont dus (2026-09-19) — **faits le jour même**
 
-- ~~**`accounts/logout` doit entrer dans `NO_REROUTE_PATTERN_URL`**~~ — **fait** (`bde1f53`).
+- (2026-09-19) ~~**`accounts/logout` doit entrer dans `NO_REROUTE_PATTERN_URL`**~~ — **fait** (`bde1f53`).
   Le test discrimine par la clef `title` du contexte, posée par `LogoutView.get_context_data`
-  et absente de `LoginView` : un simple 302 aurait été rendu par les deux chemins. ⚠️ **Le
+  et absente de `LoginView` : un simple 302 aurait été rendu par les deux chemins. Attention : **Le
   geste mort `request.path = ""` est retiré pour la branche logout, et laissé tel quel pour la
   branche sœur `"web-view" in path`, qui porte exactement le même défaut** — décision
   explicite, hors périmètre, pas un oubli. Effet de bord assumé : `get_logout_url()`
@@ -1232,13 +1232,13 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
   (référence d'origine : `Libreosteo/settings/base.py:254-259`).
   Défaut vérifié dans l'arbre, cf. § « Suivi amont » du 2026-09-19 pour le mécanisme exact.
   **Preuve attendue** : un test qui POSTe vers `/accounts/logout/` sans session valide et
-  vérifie que la réponse vient bien de `LogoutView` — ⚠️ **un test qui se contenterait du code
+  vérifie que la réponse vient bien de `LogoutView` — Attention : **un test qui se contenterait du code
   302 ne prouve rien**, les deux chemins y mènent.
-- ~~**La branche `except` de `LoginRequiredMiddleware.process_request` doit appeler
+- (2026-09-19) ~~**La branche `except` de `LoginRequiredMiddleware.process_request` doit appeler
   `logout(request)`** avant de rediriger.~~ — **fait** (`bf40ed1`). Les deux tests existants
   sont **étendus, pas affaiblis** : ils prouvent la redirection inchangée vers `login` **et**
   l'absence de `SESSION_KEY` après coup. Rouge reproduit d'abord
-  (`AssertionError: '_auth_user_id' unexpectedly found`). ⚠️ **Ne pas rediriger vers `get_logout_url()`** :
+  (`AssertionError: '_auth_user_id' unexpectedly found`). Attention : **Ne pas rediriger vers `get_logout_url()`** :
   405 garanti. **Preuve attendue** : après l'échec, `SESSION_KEY` n'est plus dans la session.
   La cible de redirection ne change pas ; seul l'effet de bord est neuf, et c'est lui qui doit
   être prouvé.
@@ -1247,7 +1247,7 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
 
 ### Ouvert par le chantier « dette technique »
 
-- **2026-09-06 — `R-INST-05` étape 3 rend l'ordre `Applying …` / `CommandError`
+- (2026-09-06) **2026-09-06 — `R-INST-05` étape 3 rend l'ordre `Applying …` / `CommandError`
   inversé dans le journal Docker, et ce n'est pas corrigé.** Constaté deux fois sous
   D4, avec deux manifestations différentes : à la clôture de l'incrément PostgreSQL,
   la ligne `Applying libreosteoweb.0057_patient_unique_patient_nom_prenom_naissance...`
@@ -1264,7 +1264,7 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
   corriger »). L'attendu de la fiche n'est pas assoupli sur une preuve retirée : le
   KO reste consigné tel quel. Ce qui manque pour trancher : une reproduction
   contrôlée en mode attaché, consignée au moment où elle se produit.
-- **2026-09-05 — l'index Whoosh n'est pas transactionnel.** `RealtimeSignalProcessor`
+- (2026-09-05) **2026-09-05 — l'index Whoosh n'est pas transactionnel.** `RealtimeSignalProcessor`
   (`Libreosteo/settings/base.py`) écrit l'index à chaque `save()`, hors de toute
   transaction : sous `ATOMIC_REQUESTS` (D3), une requête annulée peut laisser dans
   l'index une entrée sans ligne en base. Le remède existe déjà et est recetté —
@@ -1273,7 +1273,7 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
 
 ### Comportements figés par S2 sans avoir été tranchés
 
-- **2026-08-30 — La mise à jour d'un patient ne trace aucun `OfficeEvent`.**
+- (2026-08-30) **2026-08-30 — La mise à jour d'un patient ne trace aucun `OfficeEvent`.**
   `receiver_newpatient` construit l'événement `TYPE_UPDATE_PATIENT`, appelle `clean()`, puis
   n'appelle pas `save()` — la ligne est en commentaire depuis l'amont. Le test
   `test_la_mise_a_jour_ne_trace_aucun_evenement` fige ce comportement pour que S2 ne le change
