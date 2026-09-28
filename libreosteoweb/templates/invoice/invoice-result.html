@@ -1,6 +1,15 @@
 {% load i18n %}
 {% load l10n %}
-{% load invoice_extras %}
+{% load invoice_extras %}{% comment %}
+La facture imprimee est une piece fiscale redigee en dur en francais (« HONORAIRES »,
+« Regle(s) le », « A ..., le ... ») : elle s'imprime en francais quel que soit le
+navigateur (lot 4, D2). `LocaleMiddleware` et `LANGUAGES` (`fr`, `en`) laisseraient sinon
+la langue du navigateur piloter `floatformat` (« 55.55 ») et `date` (« September »). Ni
+`LANGUAGES` ni le middleware ne sont touches : c'est ce gabarit seul qui fixe sa langue.
+Balises accolees aux lignes voisines, et un bloc de commentaire plutot qu'un commentaire
+par ligne : chaque ligne de gabarit rend son saut de ligne, et le rendu `fr` doit rester
+identique a l'octet (`test_le_rendu_francais_de_la_facture_est_fige`).
+{% endcomment %}{% language "fr" %}
 <html>
 <head>
   <title>{{invoice.date | date:"Y-m-d"}}-{{invoice.number}}-{{invoice.patient_family_name}}_{{invoice.patient_first_name}}</title>
@@ -94,4 +103,4 @@
 		</div>
 	</div>
  </body>
-</html>
+</html>{% endlanguage %}

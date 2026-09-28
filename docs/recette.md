@@ -3160,7 +3160,11 @@ dossier entier depuis la base.
 - **Couverture auto** : oui —
   libreosteoweb/tests/test_facturation.py::TestFacturation::test_un_montant_a_centimes_est_stocke_au_centime_pres
   et ::test_un_montant_a_trois_decimales_est_refuse,
-  tests/functional/test_facturation.py::test_montant_a_centimes
+  tests/functional/test_facturation.py::test_montant_a_centimes ; l'étape 6 (navigateur
+  réglé en anglais) par
+  libreosteoweb/tests/test_facturation.py::TestRenduFacture::test_un_navigateur_en_anglais_imprime_la_meme_facture
+  et ::test_un_navigateur_en_anglais_imprime_le_meme_avoir (le rendu anglais est égal,
+  à l'octet, au rendu français ; l'œil du recetteur reste seul juge de la page réelle)
 - **État requis** : E2. Cette fiche facture durablement une nouvelle consultation,
   consommant le numéro `10001`, et laisse en outre une consultation ouverte (celle
   de l'étape 4, dont la clôture est refusée) : remonter l'état E2 (chapitre 1) avant
@@ -3204,6 +3208,14 @@ dossier entier depuis la base.
    Attendu : toujours les deux mêmes lignes qu'à l'étape 3, `10001` et `10000` — le
    montant à trois décimales est refusé, jamais arrondi en silence, et n'a consommé
    aucun numéro : la facturation suivante repartira de `10002`.
+6. Dans les réglages du navigateur, placer l'anglais en première langue d'affichage des
+   pages. Revenir sur la fiche Picard, ouvrir la séance facturée à l'étape 1 et cliquer le
+   bouton d'impression (icône imprimante verte).
+   Attendu : la page imprimée est **en français, comme à l'étape 2** : `Template with
+   55,55 EUR` et une ligne « HONORAIRES » avec `55,55 EUR` — virgule, pas `55.55` ; la
+   ligne « À Le Vigen, le … » porte un mois en français (« septembre », pas
+   « September ») ; aucune ligne en anglais. Remettre ensuite le français en première
+   langue du navigateur.
 
 **Constat** : elle ne prouverait rien avant D3 ; après, elle est le seul garde-fou de
 recette contre un `decimal_places` mal posé ou une frontière JSON passée aux chaînes.

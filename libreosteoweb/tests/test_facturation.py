@@ -969,6 +969,38 @@ class TestRenduFacture(APITestCase):
             INSTANTANE_FACTURE_FR.read_text(encoding="utf-8"),
         )
 
+    def test_un_navigateur_en_anglais_imprime_la_meme_facture(self):
+        """La facture est une piece fiscale redigee en francais : elle ne depend pas du
+        poste qui l'imprime (lot 4, D2).
+
+        Rouge si : la langue du navigateur pilote de nouveau `floatformat` ou `date`
+        (« 55.55 », « September ») sur la page imprimee.
+        """
+        facture = self.facture_figee()
+
+        rendu_anglais = self.rendu(facture, "en")
+
+        self.maxDiff = None
+        self.assertEqual(rendu_anglais, self.rendu(facture, "fr"))
+        self.assertIn("<td>55,55 EUR</td>", rendu_anglais)
+        self.assertIn("le 13 septembre 2026", rendu_anglais)
+
+    def test_un_navigateur_en_anglais_imprime_le_meme_avoir(self):
+        """L'avoir passe par le meme gabarit que la facture (`InvoiceViewHtml`)."""
+        facture = self.facture_figee()
+        avoir = Invoice.objects.get(
+            id=self.client.post(
+                reverse("invoice-cancel", kwargs={"pk": facture.id})
+            ).data["credit_note"]["id"]
+        )
+
+        rendu_anglais = self.rendu(avoir, "en")
+
+        self.maxDiff = None
+        self.assertEqual(rendu_anglais, self.rendu(avoir, "fr"))
+        self.assertIn("<td>-55,55 EUR</td>", rendu_anglais)
+        self.assertIn("le 13 septembre 2026", rendu_anglais)
+
 
 class TestMoyenDePaiementParDictionnaire(TestCase):
     """`PaimentModeSerializer` est alimente tantot par un objet, tantot par un
