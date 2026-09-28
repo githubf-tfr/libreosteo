@@ -337,6 +337,54 @@ class TestLoginRequiredMiddleware(APITestCase):
         reponse = self.client.get(reverse("install"))
         self.assertEqual(reponse.status_code, 200)
 
+    def test_un_non_staff_connecte_voit_la_page_install_mais_ne_peut_rien_y_faire(self):
+        """Le critere du middleware (aucun utilisateur en base) est le plus strict pour un
+        anonyme : il redirige vers la connexion avant meme d'atteindre la vue. Un non-staff
+        connecte, lui, atteint la vue -- son seul critere est « aucun is_staff en base »,
+        absent ici -- et voit la page d'installation. Divergence assumee, sans consequence :
+        aucune des deux actions que cette page propose n'est accessible pour autant, chacune
+        gardee par `@maintenance_available` (aucun utilisateur en base, quel qu'il soit) --
+        `CreateAdminAccountView.post` (garde posee par le correctif de la vulnerabilite de
+        creation d'admin anonyme, commit `19cf0f0`) et `LoadDump.post`. Comportement fige :
+        aucune assertion sur un appel interne.
+        """
+        UserModel = get_user_model()
+        with sans_receivers():
+            cree_praticien(
+                username="pincement_install", password="testpw", is_staff=False
+            )
+
+        # Anonyme : le middleware redirige avant meme d'atteindre la vue -- le plus strict.
+        reponse_anonyme = self.client.get(reverse("install"))
+        self.assertEqual(reponse_anonyme.status_code, 302)
+        self.assertEqual(
+            reponse_anonyme.url, reverse("login") + "?next=" + reverse("install")
+        )
+
+        # Connecte avec ce meme non-staff, la vue est atteinte : elle ne regarde que
+        # l'absence d'is_staff en base, jamais l'auteur de la requete.
+        self.client.login(username="pincement_install", password="testpw")
+        reponse_page = self.client.get(reverse("install"))
+        self.assertEqual(reponse_page.status_code, 200)
+
+        # Rouge si : l'une des deux actions aboutit -- un compte est cree ou une archive
+        # est chargee alors qu'un utilisateur existe deja en base.
+        reponse_creation = self.client.post(
+            reverse("accounts-create-admin"),
+            {
+                "username": "second_compte",
+                "password1": "un-mot-de-passe-suffisant",
+                "password2": "un-mot-de-passe-suffisant",
+            },
+            format="multipart",
+        )
+        self.assertEqual(reponse_creation.status_code, 403)
+        reponse_restauration = self.client.post(
+            reverse("load_dump"), {}, format="multipart"
+        )
+        self.assertEqual(reponse_restauration.status_code, 403)
+        self.assertEqual(UserModel.objects.count(), 1)
+
     def test_utilisateur_non_connecte_est_redirige_avec_next(self):
         with sans_receivers():
             cree_praticien()

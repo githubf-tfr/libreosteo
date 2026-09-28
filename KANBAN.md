@@ -1412,9 +1412,17 @@ Chacun avec son motif de non-correction — détail dans
   corriger sans preuve est exactement ce que le dépôt s'interdit. À rouvrir avec la bascule
   PostgreSQL.~~ — **clos le 2026-09-26 par `e59a4e2`** (T10) : export refusé en 409 texte
   lisible, verrou libéré en `finally`, limité au verrou effectivement tenu.
-- **Le critère du middleware (aucun utilisateur en base) n'est pas celui de la vue (aucun
+- ~~**Le critère du middleware (aucun utilisateur en base) n'est pas celui de la vue (aucun
   `is_staff`)** sur la route `/install/` — sans danger, le middleware étant le plus strict,
-  mais non testé et arbitré nulle part. Dette ouverte par la reprise du 2026-09-25.
+  mais non testé et arbitré nulle part. Dette ouverte par la reprise du 2026-09-25.~~ —
+  **clos, comportement épinglé** (`TestLoginRequiredMiddleware`, `test_acces.py`) : pour un
+  anonyme, le middleware redirige avant même d'atteindre la vue (le plus strict). Pour un
+  utilisateur non `is_staff` déjà connecté, la vue `InstallView` est atteinte et rend 200
+  (son seul critère, « aucun `is_staff` en base », est vrai) — mais aucune des deux actions
+  que la page propose n'aboutit : `CreateAdminAccountView.post` et `LoadDump.post` sont
+  chacune gardées par `@maintenance_available` (« aucun utilisateur en base », quel qu'il
+  soit), et refusent en 403. Un non-staff connecté voit donc un écran inerte : divergence
+  assumée, pas un défaut de sécurité.
 - ~~**`override_settings(HAYSTACK_CONNECTIONS=...)` est sans effet** (le singleton
   `haystack.connections` est figé à l'import) : les tâches C5 et C12 ont dû muter le
   singleton en place, restauré par `addCleanup`/`finally`. La preuve du test préexistant
