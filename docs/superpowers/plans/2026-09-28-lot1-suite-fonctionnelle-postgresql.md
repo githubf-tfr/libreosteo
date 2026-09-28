@@ -76,7 +76,9 @@ Depuis la racine du dépôt.
   rendre `… static files copied …` ; la même simulation sur `settings.base` reste rouge, c'est
   attendu. Motif : le défaut PostgreSQL de `base.py` est un mandat de l'utilisateur ; la
   construction n'a pas besoin de base, installer un pilote dans l'étage `build` masquerait ce
-  fait. Coût si faux : un module de réglages de plus.
+  fait. Coût si faux : un module de réglages de plus. **Conséquence sur les contraintes
+  globales** : ce lot crée donc **un** module `.py` (`statique.py`, tâche 7), et le décompte
+  `[tool.mypy] files` finit à **191** entrées, non 190.
 - **Écart 2 → pas d'arrêt.** L'ordre 4 → 5 tient. Si la tâche 1 inventorie un défaut produit,
   la tâche 4 commite la bascule sans exiger ses deux passes vertes, et le critère « deux passes
   PostgreSQL vertes » se constate **à la fin de la tâche 5**. La branche n'est pas poussée
@@ -531,6 +533,7 @@ SqliteDatabaseWrapper._start_transaction_under_autocommit = (  # type: ignore[at
 
 incluses (fichier temporaire, `atexit`, `OPTIONS["timeout"]`, monkeypatch `BEGIN IMMEDIATE` et leurs commentaires), et mettre à sa place, juste avant `# Plafond des assertions Playwright.` :
 
+<!-- fmt: off -->
 ```python
 # Garde de moteur : la suite ne tourne que sur PostgreSQL, le moteur de la production. Pas
 # un test -- elle arrete pytest a la collecte, avant le premier navigateur.
@@ -543,6 +546,7 @@ if connection.vendor != "postgresql":
     )
 
 ```
+<!-- fmt: on -->
 
 (e) Supprimer, en fin de fichier, `def _rejoindre_threads_de_requete_serveur(...)` et la fixture `_assainir_le_serveur` (EF3), de la ligne `def _rejoindre_threads_de_requete_serveur(delai_max: float = 5.0) -> None:` jusqu'à la dernière ligne du fichier `    _rejoindre_threads_de_requete_serveur()`. Le fichier se termine alors par `    return Socle(utilisateur=utilisateur, cabinet=cabinet, therapeute=therapeute)` suivi d'un seul saut de ligne.
 
@@ -976,6 +980,7 @@ from importlib import reload
 
 Puis ajouter à la classe `TestMoteurDeBaseDeDonnees`, après la dernière assertion de `test_le_mode_conteneur_refuse_un_moteur_autre_que_postgresql` (une ligne vide entre les deux méthodes) :
 
+<!-- fmt: off -->
 ```python
     def test_un_local_py_qui_modifie_le_defaut_de_base_est_accepte(self) -> None:
         """Un `local.py` monté qui importe `base` et modifie son `DATABASES` démarre.
@@ -1019,6 +1024,7 @@ Puis ajouter à la classe `TestMoteurDeBaseDeDonnees`, après la dernière asser
         self.assertEqual(0, resultat.returncode, resultat.stderr)
         self.assertIn("django.db.backends.postgresql db", resultat.stdout)
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 2 : le voir rougir**
 
@@ -1030,15 +1036,18 @@ Attendu : `1 failed`, `AssertionError: 0 != 1 : Traceback … ImproperlyConfigur
 
 - [ ] **Étape 3 : `base.py`** — remplacer :
 
+<!-- fmt: off -->
 ```python
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(DATA_FOLDER, "db.sqlite3"),
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
 # Un defaut de developpement, sur le port PostgreSQL standard, et rien de plus : le depot
 # ne fournit aucun serveur a cette adresse (decision Q1 c du 2026-09-28). Un serveur reel se
@@ -1055,6 +1064,7 @@ DATABASES = {
         "USER": "postgres",
         "PASSWORD": "",
 ```
+<!-- fmt: on -->
 
 Le reste du dictionnaire (`ATOMIC_REQUESTS` et son commentaire) ne change pas.
 
@@ -1064,17 +1074,21 @@ Le reste du dictionnaire (`ATOMIC_REQUESTS` et son commentaire) ne change pas.
 
 - [ ] **Étape 6 : `libreosteoweb/api/views/patient.py`** — remplacer :
 
+<!-- fmt: off -->
 ```python
             # deploiement a plusieurs workers. PostgreSQL seul (decision DU2 du
             # 2026-09-26) : sur le serveur de developpement sqlite, l'export rend 500.
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
             # deploiement a plusieurs workers. PostgreSQL seul (decision DU2 du
             # 2026-09-26).
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 7 : critère 6, constat manuel** (`timeout: 600000`)
 
@@ -1580,18 +1594,22 @@ pyproject.toml:…:    "Libreosteo/zip_loader.py",
 
 - [ ] **Étape 2 :** `git rm Libreosteo/zip_loader.py` ; supprimer `    "Libreosteo/zip_loader.py",` de `files` ; dans `base.py`, remplacer :
 
+<!-- fmt: off -->
 ```python
                 "django.template.loaders.app_directories.Loader",
                 #'Libreosteo.zip_loader.Loader',
             ],
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
                 "django.template.loaders.app_directories.Loader",
             ],
 ```
+<!-- fmt: on -->
 
 et supprimer la ligne `TEMPLATE_ZIP_FILES = ("library.zip",)` avec la ligne vide qui la suit.
 
@@ -1807,15 +1825,19 @@ git rm Libreosteo/settings/demonstration.py
 
 Dans `Libreosteo/wsgi.py`, remplacer :
 
+<!-- fmt: off -->
 ```python
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Libreosteo.settings.demonstration")
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Libreosteo.settings.container")
 ```
+<!-- fmt: on -->
 
 Supprimer `    "Libreosteo/settings/demonstration.py",` de `files`.
 
@@ -1887,15 +1909,19 @@ def _en_demonstration() -> bool:
 
 et remplacer l'appel :
 
+<!-- fmt: off -->
 ```python
     if _en_demonstration(request):
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
     if _en_demonstration():
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 4 : `test_page_documents.py`** — dans la docstring de `test_en_demonstration_le_contenu_televerse_est_remplace`, remplacer :
 

@@ -190,39 +190,51 @@ l'en-tête aujourd'hui).
 
 Dans `libreosteoweb/api/views/patient.py` :
 
+<!-- fmt: off -->
 ```python
 class PatientViewSet(XLSXFileMixin, viewsets.ModelViewSet):
 ```
+<!-- fmt: on -->
 
 remplace
 
+<!-- fmt: off -->
 ```python
 class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
 ```
+<!-- fmt: on -->
 
 et
 
+<!-- fmt: off -->
 ```python
     filename = "patients.xlsx"
 ```
+<!-- fmt: on -->
 
 remplace
 
+<!-- fmt: off -->
 ```python
     filename = "patients.xsls"
 ```
+<!-- fmt: on -->
 
 Dans `libreosteoweb/api/views/consultation.py` :
 
+<!-- fmt: off -->
 ```python
 class ExaminationViewSet(XLSXFileMixin, viewsets.ModelViewSet):
 ```
+<!-- fmt: on -->
 
 remplace
 
+<!-- fmt: off -->
 ```python
 class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
 ```
+<!-- fmt: on -->
 
 `filename = "consultations.xlsx"` est déjà correct dans ce fichier, ne pas y toucher.
 Précédent déjà correct dans le dépôt, pour référence : `InvoiceViewSet(XLSXFileMixin,
@@ -238,6 +250,7 @@ Attendu : `4 passed`.
 Relire `libreosteoweb/tests/test_concurrence.py` à `HEAD`, méthode `_refus_lisible` de
 `TestExportsConcurrents`. Remplacer :
 
+<!-- fmt: off -->
 ```python
     def _refus_lisible(self, premier, second):
         # Le type, et non un `Content-Disposition`, decide de ce que fait le navigateur :
@@ -249,9 +262,11 @@ Relire `libreosteoweb/tests/test_concurrence.py` à `HEAD`, méthode `_refus_lis
         self.assertEqual(premier.status_code, 200)
         self.assertTrue(premier["Content-Type"].startswith(XLSX))
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
     def _refus_lisible(self, premier, second):
         # Le type, et non un `Content-Disposition`, decide de ce que fait le navigateur :
@@ -267,6 +282,7 @@ par :
         self.assertEqual(premier.status_code, 200)
         self.assertTrue(premier["Content-Type"].startswith(XLSX))
 ```
+<!-- fmt: on -->
 
 Run : `pytest libreosteoweb/tests/test_concurrence.py -v`
 Attendu : tous verts (ce fichier tourne sur PostgreSQL réel, cf. son en-tête de module).
@@ -275,15 +291,18 @@ Attendu : tous verts (ce fichier tourne sur PostgreSQL réel, cf. son en-tête d
 
 Dans `libreosteoweb/api/exceptions.py`, `reponse_export_deja_en_cours`, remplacer :
 
+<!-- fmt: off -->
 ```python
     Mesure du 2026-09-26 : `XLSXFileMixin` vient apres `ModelViewSet` dans les bases de
     `PatientViewSet` et `ExaminationViewSet`. `APIView.finalize_response` n'appelant pas
     `super()`, celui du mixin ne s'execute jamais : l'export nominal ne porte aucun
     `Content-Disposition`.
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
     `XLSXFileMixin` vient desormais avant `ModelViewSet` dans les bases de `PatientViewSet`
     et `ExaminationViewSet` (lot hygiene de code, 2026-09-28) : l'export nominal porte
@@ -291,6 +310,7 @@ par :
     ce n'est pas une `Response` DRF, la condition `isinstance(response, Response)` de
     `XLSXFileMixin.finalize_response` l'exclut d'office, quel que soit l'ordre des bases.
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 7 : mettre à jour la recette**
 
@@ -491,12 +511,15 @@ par :
 Relire `libreosteoweb/tests/test_actif_initial_onglets_pages.py` à `HEAD` autour de la ligne
 96 (`class TestActifInitialCabinet`, `setUp(self) -> None:`). Remplacer :
 
+<!-- fmt: off -->
 ```python
         self.requete.officesettings = cabinet
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
         # `officesettings` est pose dynamiquement par
         # `OfficeSettingsMiddleware.process_request` (middleware.py:231), sur un
@@ -504,6 +527,7 @@ par :
         # idiome que `tests/functional/conftest.py:54,129`).
         self.requete.officesettings = cabinet  # type: ignore[attr-defined]
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 4 : relancer mypy**
 
@@ -591,6 +615,7 @@ fait que reproduire la preuve avant de couper.)
 
 Dans `libreosteoweb/models.py`, classe `Patient`, remplacer :
 
+<!-- fmt: off -->
 ```python
     def set_user_operation(self, user):
         """Use this setting method to define the user
@@ -604,9 +629,11 @@ Dans `libreosteoweb/models.py`, classe `Patient`, remplacer :
 
     TYPE_NEW_PATIENT = 1
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
     def set_user_operation(self, user):
         """Use this setting method to define the user
@@ -616,87 +643,108 @@ par :
 
     TYPE_NEW_PATIENT = 1
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 3 : retirer les cinq appels**
 
 Dans `libreosteoweb/api/views/patient.py`, `PatientViewSet.perform_create` :
 
+<!-- fmt: off -->
 ```python
         instance.set_user_operation(self.request.user)
         instance.set_request(self.request)
         # `validate_constraints=False`
 ```
+<!-- fmt: on -->
 
 devient :
 
+<!-- fmt: off -->
 ```python
         instance.set_user_operation(self.request.user)
         # `validate_constraints=False`
 ```
+<!-- fmt: on -->
 
 `perform_update` :
 
+<!-- fmt: off -->
 ```python
         serializer.instance.set_user_operation(self.request.user)
         serializer.instance.set_request(self.request)
         try:
 ```
+<!-- fmt: on -->
 
 devient :
 
+<!-- fmt: off -->
 ```python
         serializer.instance.set_user_operation(self.request.user)
         try:
 ```
+<!-- fmt: on -->
 
 `perform_destroy` :
 
+<!-- fmt: off -->
 ```python
         models.PatientDocument.objects.filter(patient=instance.id).delete()
         instance.set_request(self.request)
         return super(PatientViewSet, self).perform_destroy(instance)
 ```
+<!-- fmt: on -->
 
 devient :
 
+<!-- fmt: off -->
 ```python
         models.PatientDocument.objects.filter(patient=instance.id).delete()
         return super(PatientViewSet, self).perform_destroy(instance)
 ```
+<!-- fmt: on -->
 
 Dans `libreosteoweb/api/views/pages/nouveau_patient.py`, autour de la ligne 262 :
 
+<!-- fmt: off -->
 ```python
     patient.consent = timezone.localdate()
     patient.set_user_operation(request.user)
     patient.set_request(request)
     try:
 ```
+<!-- fmt: on -->
 
 devient :
 
+<!-- fmt: off -->
 ```python
     patient.consent = timezone.localdate()
     patient.set_user_operation(request.user)
     try:
 ```
+<!-- fmt: on -->
 
 Dans `libreosteoweb/api/views/pages/dossier_patient.py`, autour de la ligne 1004 :
 
+<!-- fmt: off -->
 ```python
     models.PatientDocument.objects.filter(patient=patient.pk).delete()
     patient.set_request(request)
     patient.set_user_operation(request.user)
     patient.delete()
 ```
+<!-- fmt: on -->
 
 devient :
 
+<!-- fmt: off -->
 ```python
     models.PatientDocument.objects.filter(patient=patient.pk).delete()
     patient.set_user_operation(request.user)
     patient.delete()
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 4 : vérifier qu'aucun appelant ne reste**
 
@@ -983,6 +1031,7 @@ Relire `libreosteoweb/tests/test_acces.py` à `HEAD`, classe `TestLoginRequiredM
 `test_utilisateur_non_connecte_est_redirige_avec_next`). `cree_praticien` et `sans_receivers`
 sont déjà importés en tête du fichier. Insérer :
 
+<!-- fmt: off -->
 ```python
     def test_un_utilisateur_non_is_staff_divergence_middleware_et_vue_install(self):
         """Le critere du middleware (aucun utilisateur en base) et celui de la vue
@@ -1004,6 +1053,7 @@ sont déjà importés en tête du fichier. Insérer :
         reponse_install = self.client.get(reverse("install"))
         self.assertEqual(reponse_install.status_code, 200)
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 2 : lancer le test, vérifier le vert immédiat**
 
@@ -1071,6 +1121,7 @@ Relire `libreosteoweb/tests/test_exploitation.py` à `HEAD`. Le précédent à s
 `TestEchecDeReindexation.test_un_echec_de_reindexation_rend_le_fragment_d_echec_en_500`
 (juste au-dessus de `TestReconstructionIndex`) :
 
+<!-- fmt: off -->
 ```python
         configuration = haystack_connections.connections_info[DEFAULT_ALIAS]
         origine = dict(configuration)
@@ -1079,6 +1130,7 @@ Relire `libreosteoweb/tests/test_exploitation.py` à `HEAD`. Le précédent à s
         self.addCleanup(haystack_connections.reload, DEFAULT_ALIAS)
         self.addCleanup(configuration.update, origine)
 ```
+<!-- fmt: on -->
 
 `haystack_connections` (alias de `haystack.connections`) et `DEFAULT_ALIAS` sont déjà
 importés en tête du fichier.
@@ -1234,6 +1286,7 @@ def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
 
 Remplacer par :
 
+<!-- fmt: off -->
 ```python
 @pytest.fixture(autouse=True)
 def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
@@ -1251,6 +1304,7 @@ def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
     yield
     connexions_recherche.reload("default")
 ```
+<!-- fmt: on -->
 
 `cast` et `Any` sont déjà importés en tête du fichier (`from typing import Any, Iterator,
 cast`) ; `connexions_recherche` (alias de `haystack.connections`) l'est aussi. Aucun nouvel
@@ -1345,6 +1399,7 @@ Relire `libreosteoweb/tests/test_facturation.py` à `HEAD`, classe `TestFacturat
 pin actuellement l'**ancien** comportement (200, corps vide) ; le laisser tel quel ferait
 échouer `make check` une fois le sérialiseur durci. Remplacer :
 
+<!-- fmt: off -->
 ```python
     def test_un_statut_de_facturation_inconnu_ne_cree_aucune_facture(self):
         """`status` est un `CharField` libre herite de l'amont : `validate` ne contraint
@@ -1357,9 +1412,11 @@ pin actuellement l'**ancien** comportement (200, corps vide) ; le laisser tel qu
         self.consultation.refresh_from_db()
         self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
     def test_un_statut_de_facturation_inconnu_est_refuse_en_400(self):
         """`status` est un `CharField` libre herite de l'amont, durci par le lot hygiene
@@ -1383,6 +1440,7 @@ par :
         )
         self.assertFalse(serialiseur.is_valid())
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 2 : ajouter le test d'annulation par facture corrective**
 
@@ -1390,6 +1448,7 @@ Relire `libreosteoweb/tests/test_facturation.py` à `HEAD`, classe
 `TestAnnulationParFactureCorrectiveInvalide`, après
 `test_une_facture_corrective_invalide_rend_400_sans_annuler_l_originale`. Insérer :
 
+<!-- fmt: off -->
 ```python
     def test_un_statut_de_facturation_inconnu_a_l_annulation_rend_400_sans_lever_de_keyerror(
         self,
@@ -1423,6 +1482,7 @@ Relire `libreosteoweb/tests/test_facturation.py` à `HEAD`, classe
         self.facture.refresh_from_db()
         self.assertNotEqual(InvoiceStatus.CANCELED, self.facture.status)
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 3 : lancer les trois tests, vérifier le rouge**
 
@@ -1438,6 +1498,7 @@ serveur).
 Dans `libreosteoweb/api/serializers/facturation.py`,
 `ExaminationInvoicingSerializer.validate`, remplacer :
 
+<!-- fmt: off -->
 ```python
                 # Les informations de cheque ne sont plus validees ici : `check` est un
                 # sous-serialiseur obligatoire et non nullable
@@ -1448,9 +1509,11 @@ Dans `libreosteoweb/api/serializers/facturation.py`,
         except KeyError:
             raise serializers.ValidationError(_("Missing data to continue"))
 ```
+<!-- fmt: on -->
 
 par :
 
+<!-- fmt: off -->
 ```python
                 # Les informations de cheque ne sont plus validees ici : `check` est un
                 # sous-serialiseur obligatoire et non nullable
@@ -1463,6 +1526,7 @@ par :
         except KeyError:
             raise serializers.ValidationError(_("Missing data to continue"))
 ```
+<!-- fmt: on -->
 
 - [ ] **Étape 5 : ajouter la traduction et recompiler**
 
