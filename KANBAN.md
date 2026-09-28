@@ -404,11 +404,6 @@ Aucun.
   sur la passe complète finale du 2026-09-28 (badge « Annulée » résolu mais `hidden` pendant
   15 s, sous la charge de la suite complète) ; vert sur toutes les autres passes du jour, et
   deux fois de suite rejoué seul (17 passed).
-- (2026-09-28) **`temp_disconnect_signal` reconnecte toujours à l'aveugle**
-  (`libreosteoweb/api/receivers.py`) : son `__exit__` reconnecte le récepteur sans vérifier
-  que `__enter__` l'avait retiré. Latent : ses deux sites d'appel
-  (`api/services/import_fichiers.py`) sont séquentiels, pas imbriqués. Jumeau de
-  `block_disconnect_all_signal.__exit__`, durci par `1c8189e` (2026-09-24).
 - (2026-09-28) **Le multi-cabinet est codé mais inatteignable** : aucun code de production
   n'écrit `session["officesettings"]`, que lit `OfficeSettingsMiddleware` ; avec un second
   `OfficeSettings`, toute page renvoie vers `officesettings-set`, qui ne le pose pas (la
@@ -494,6 +489,10 @@ Chacun avec son motif de non-correction — détail dans
 
 ## Terminé
 
+- (2026-09-28) Lot 6, T2 : `temp_disconnect_signal` devient une sous-classe de
+  `block_disconnect_all_signal` à un seul couple, ne reconnecte plus à l'aveugle — spec
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T1 : `POST /api/invoices/<pk>/cancel` sur une facture corrective non
   facturée refuse en 400 avant toute écriture — spec
   `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;

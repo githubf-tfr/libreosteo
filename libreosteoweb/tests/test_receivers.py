@@ -43,7 +43,10 @@ import haystack
 from django.dispatch import Signal
 from django.test import SimpleTestCase, TestCase
 
-from libreosteoweb.api.receivers import block_disconnect_all_signal
+from libreosteoweb.api.receivers import (
+    block_disconnect_all_signal,
+    temp_disconnect_signal,
+)
 from libreosteoweb.api.signals import post_reload_db
 
 
@@ -161,6 +164,120 @@ class TestBlocDeDeconnexion(SimpleTestCase):
             ["a"],
             self.appels,
             "Une exception levee dans le corps du bloc a laisse le recepteur debranche.",
+        )
+
+
+class TestDeconnexionTemporaireUnRecepteur(SimpleTestCase):
+    """Le contrat de `temp_disconnect_signal`, jamais porte par un test.
+
+    `__exit__` reconnectait toujours, sans regarder ce que `__enter__` avait reellement
+    retire (`Signal.disconnect` rend un booleen, jamais lu ici) -- exactement le defaut
+    ferme chez son jumeau `block_disconnect_all_signal` par `1c8189e`. Deux effets : un
+    recepteur jamais branche l'est a la sortie du bloc ; deux blocs imbriques sur le meme
+    signal rebranchent avant la sortie du bloc externe. Latent en production, les deux
+    sites d'appel (`api/services/import_fichiers.py`) etant sequentiels, jamais imbriques.
+    """
+
+    def setUp(self) -> None:
+        self.appels: list[str] = []
+
+        def recepteur(sender: Any, **kwargs: Any) -> None:
+            self.appels.append("r")
+
+        self.recepteur = recepteur
+
+    def test_un_recepteur_jamais_branche_reste_muet_apres_le_bloc(self) -> None:
+        # Rouge si : `__exit__` reconnecte sans verifier ce que `__enter__` a retire --
+        # a HEAD, `signal.disconnect` sur un recepteur jamais connecte rend `False`, mais
+        # `__exit__` le connecte quand meme.
+        signal = Signal()
+
+        with temp_disconnect_signal(
+            signal=signal, receiver=self.recepteur, sender=None
+        ):
+            pass
+
+        signal.send(sender=None)
+
+        self.assertEqual(
+            [],
+            self.appels,
+            "Un recepteur jamais connecte au signal a ete branche a la sortie du bloc.",
+        )
+
+    def test_deux_blocs_imbriques_sur_le_meme_signal_ne_rebranchent_pas_trop_tot(
+        self,
+    ) -> None:
+        # Rouge si : le bloc interne reconnecte a sa propre sortie -- a HEAD, il n'a
+        # aucun moyen de savoir qu'il n'a rien retire, puisque le bloc externe l'a deja
+        # fait.
+        signal = Signal()
+        signal.connect(self.recepteur)
+
+        with temp_disconnect_signal(
+            signal=signal, receiver=self.recepteur, sender=None
+        ):
+            with temp_disconnect_signal(
+                signal=signal, receiver=self.recepteur, sender=None
+            ):
+                pass
+
+            signal.send(sender=None)
+            self.assertEqual(
+                [],
+                self.appels,
+                "Le bloc interne a rebranche le recepteur avant la sortie du bloc "
+                "externe.",
+            )
+
+        signal.send(sender=None)
+
+        self.assertEqual(
+            ["r"],
+            self.appels,
+            "Apres deux blocs imbriques sur le meme signal, le recepteur n'a jamais ete "
+            "rendu.",
+        )
+
+    def test_le_cas_nominal_rend_bien_le_recepteur(self) -> None:
+        # Rouge si : le bloc ne deconnecte plus, ou ne reconnecte plus a la sortie.
+        signal = Signal()
+        signal.connect(self.recepteur)
+
+        with temp_disconnect_signal(
+            signal=signal, receiver=self.recepteur, sender=None
+        ):
+            signal.send(sender=None)
+            self.assertEqual(
+                [], self.appels, "Le recepteur repond encore a l'interieur du bloc."
+            )
+
+        signal.send(sender=None)
+
+        self.assertEqual(
+            ["r"], self.appels, "Le recepteur n'a pas ete rendu a la sortie du bloc."
+        )
+
+    def test_une_exception_dans_le_bloc_rend_quand_meme_le_recepteur(self) -> None:
+        # Rouge si : `__exit__` ne s'execute plus sur le chemin d'exception -- il
+        # s'agit du gestionnaire de contexte natif de Python, deja appele sur ce
+        # chemin, mais rien ne le prouvait pour cette classe.
+        signal = Signal()
+        signal.connect(self.recepteur)
+
+        with self.assertRaises(ValueError):
+            with temp_disconnect_signal(
+                signal=signal, receiver=self.recepteur, sender=None
+            ):
+                raise ValueError("echec simule dans le corps du bloc")
+
+        signal.send(sender=None)
+
+        self.assertEqual(
+            ["r"],
+            self.appels,
+            "Une exception levee dans le corps du bloc a laisse le recepteur "
+            "debranche.",
         )
 
 

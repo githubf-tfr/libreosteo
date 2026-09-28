@@ -71,24 +71,12 @@ class block_disconnect_all_signal:
         self._retires = []
 
 
-class temp_disconnect_signal:
-    """Temporarily disconnect a model from a signal"""
+class temp_disconnect_signal(block_disconnect_all_signal):
+    """Un seul recepteur : le contrat de `block_disconnect_all_signal` (ne rend que ce qui
+    a reellement ete retire), et non plus une reconnexion aveugle."""
 
     def __init__(self, signal, receiver, sender, dispatch_uid=None):
-        self.signal = signal
-        self.receiver = receiver
-        self.sender = sender
-        self.dispatch_uid = dispatch_uid
-
-    def __enter__(self):
-        self.signal.disconnect(
-            receiver=self.receiver, sender=self.sender, dispatch_uid=self.dispatch_uid
-        )
-
-    def __exit__(self, type, value, traceback):
-        self.signal.connect(
-            receiver=self.receiver, sender=self.sender, dispatch_uid=self.dispatch_uid
-        )
+        super().__init__(signal, [(receiver, sender)], dispatch_uid)
 
 
 @receiver(post_save, sender=Patient)
