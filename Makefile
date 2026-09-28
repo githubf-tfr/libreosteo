@@ -119,7 +119,8 @@ static:
 	# 4 764 fichiers residuels). tests/qualite/test_contrat_arbre_statique.py rougit
 	# si l'un d'eux revient.
 	rm -rf $(PWD)/static
-	# Les trois commandes de Docker/build/http-ready/Dockerfile:105, dans cet ordre.
+	# Les trois commandes du RUN de l'etage build de Docker/build/http-ready/Dockerfile,
+	# dans cet ordre.
 	# Les deux --settings ne sont pas decoratifs : `Libreosteo.settings` est dev.py, ou
 	# COMPRESS_ENABLED est faux ; sous ce reglage `compress` n'ecrit aucun bundle et
 	# {% compress %} rend le contenu d'origine.

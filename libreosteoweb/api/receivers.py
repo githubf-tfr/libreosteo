@@ -156,7 +156,7 @@ def purge_index_apres_rechargement(sender, **kwargs):
     pas. La migration `0023_auto_20160312_1443.py:40-45` enchainait la purge et la
     reconstruction de l'index ; la seconde moitie n'a pas sa place ici. Mesure de
     `docs/recette.md`, fiche `R-RCH-02` : **11 s pour 101 patients**, lineairement, sous
-    un plafond `--http-timeout 180` (`Docker/build/http-ready/Dockerfile:184`). Un parc
+    un plafond `--http-timeout 180` du `CMD` de `Docker/build/http-ready/Dockerfile`. Un parc
     de l'ordre de 1 500 patients approcherait la borne : une reconstruction synchrone
     dans la requete de restauration transformerait une restauration reussie en 504.
     L'ecran de restauration renvoie donc a « Reindexer », que l'exploitant declenche

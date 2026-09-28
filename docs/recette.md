@@ -3619,7 +3619,7 @@ par exemple celui que crée `R-CAB-05` (`crusher` / `nouveaumdp`), ou tout autre
 **Constat.** ⚠️ **Au-delà d'environ 1 200 patients, l'écran peut mentir sur l'échec.**
 Relevé au passage lors de la constitution des lots synthétiques de `R-SAU-04` : un
 `POST …/integrate` a rendu 200 en **238,8 s**, au-delà de la borne `--http-timeout 180`
-(`Docker/build/http-ready/Dockerfile:184`) — le navigateur a été coupé, **aucun panneau
+du `CMD` de `Docker/build/http-ready/Dockerfile` — le navigateur a été coupé, **aucun panneau
 « Importation réussie » n'est apparu**, et pourtant les 100 patients du lot étaient bien
 intégrés en base. Un exploitant qui s'arrête au panneau absent conclurait à l'échec et
 rejouerait l'import — sur un lot déjà intégré. Le dépassement n'est pas systématique : deux
@@ -3775,8 +3775,8 @@ troisième non.
 3. Attendre le retour, ou son absence, au-delà de trois minutes.
    Attendu, **et les deux issues sont des OK** : soit le panneau « Importation réussie »
    s'affiche avec le nombre de lignes intégrées ; soit **aucun panneau ne revient** — le
-   navigateur a été coupé par la borne `--http-timeout 180`
-   (`Docker/build/http-ready/Dockerfile:184`) : le témoin « Chargement en cours »
+   navigateur a été coupé par la borne `--http-timeout 180` du `CMD` de
+   `Docker/build/http-ready/Dockerfile` : le témoin « Chargement en cours »
    s'éteint, le bouton « Importer » **reste inactif**, et la phrase « Le serveur n'a pas
    répondu dans les trois minutes. L'import continue peut-être de son côté : ne le
    relancez pas, vérifiez d'abord la liste des patients. » s'affiche sous lui.
@@ -4140,7 +4140,7 @@ et la clause de repli écrite d'avance à l'étape 4.
    sur ce même trajet, jamais plus tard. L'étape 4 confronte ces mesures à la borne, et à
    un second parc bâti à l'échelle d'un parc réel.
 4. **Confronter la mesure à la borne, et appliquer la clause de repli s'il le faut.** La
-   borne est `--http-timeout 180` (`Docker/build/http-ready/Dockerfile:184`) ; la mémoire de
+   borne est `--http-timeout 180` du `CMD` de `Docker/build/http-ready/Dockerfile` ; la mémoire de
    pointe se juge contre celle dont dispose l'hôte de production.
 
    **Mesures.** Hôte de déploiement (recette) : 3,2 Gio. Un second parc, de stress, a été
