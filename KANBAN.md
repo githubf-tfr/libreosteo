@@ -406,10 +406,6 @@ Aucun.
   réparer, ou retirer. Nuance le motif de l'unicité des numéros par cabinet (2026-09-06).
   Constat du 2026-09-10 : `docs/journal/2026-09.md`,
   « Décisions actées — entrées retirées », « Le multi-cabinet est codé mais inatteignable ».
-- (2026-09-28) **`Docker/deploy/pg/.env.example` dit la publication « linux/amd64
-  uniquement pour l'instant »**, dépassé depuis `familletra/libreosteo-http:df1e658-arm64`
-  (publiée le 2026-09-27). Le commentaire sur `a0908b0` et `latest` (même digest, amd64)
-  dit vrai.
 - (2026-09-28) **Suivi amont : le commit amont `560d734` (2026-09-26) n'est pas examiné**
   (« fix(load dump): due to haystack massive data raw to import does not work well… ») ;
   « Suivi amont » s'arrête à `33753e0`.
@@ -470,6 +466,11 @@ Chacun avec son motif de non-correction — détail dans
 
 ## Terminé
 
+- (2026-09-28) Lot 6, T6 : constat « `.env.example` dit la publication linux/amd64
+  uniquement » clos, vrai en partie — commentaire réécrit (`a0908b0`/`latest` amd64,
+  `df1e658-arm64` en arm64, `make build` publie les trois étiquettes) — spec
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T5 : constat « l'archive JSON porte des dates sans fuseau » clos,
   verdict mixte — faux pour l'archive du fork (test de fidélité), non tranchable pour
   l'archive héritée (limitation assumée) — spec
