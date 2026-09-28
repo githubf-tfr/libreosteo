@@ -112,7 +112,6 @@ files = [
     "Libreosteo/settings/__init__.py",
     "Libreosteo/settings/base.py",
     "Libreosteo/settings/container.py",
-    "Libreosteo/settings/demonstration.py",
     "Libreosteo/settings/dev.py",
     "Libreosteo/settings/statique.py",
     "Libreosteo/settings/test.py",

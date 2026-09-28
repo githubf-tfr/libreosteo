@@ -248,3 +248,33 @@ class TestJournalApplicatif(SimpleTestCase):
             "Un enregistrement emis hors du sous-arbre `libreosteoweb.api.*` n'ecrit plus "
             "exactement une ligne.",
         )
+
+
+class TestPointWsgi(SimpleTestCase):
+    def test_sans_module_de_reglages_le_point_wsgi_vise_le_conteneur(self) -> None:
+        """`Libreosteo/wsgi.py` importé sans `DJANGO_SETTINGS_MODULE` prend `container.py`.
+
+        Cas d'un `uwsgi --module Libreosteo.wsgi` lancé sans la variable que le `CMD` de
+        l'image exporte. Le défaut était `settings.demonstration`, réglages sqlite d'une
+        instance publique amont, retirés (décision Q2 a du 2026-09-28) : c'est désormais
+        la seule cible, avec sa garde. Sans `settings/` monté, le démarrage est refusé en
+        nommant la cause. Même isolement en sous-processus que ci-dessus.
+        """
+        environnement = dict(os.environ)
+        environnement.pop("DJANGO_SETTINGS_MODULE", None)
+        environnement["LIBREOSTEO_SECRET_KEY"] = "django-insecure-tests-uniquement"
+        resultat = subprocess.run(
+            [sys.executable, "-c", "import Libreosteo.wsgi\n"],
+            env=environnement,
+            cwd=str(Path(base.__file__).resolve().parents[2]),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        # Rouge si : le défaut de `wsgi.py` redevient un module de réglages qui démarre
+        # sans `settings/` monté.
+        self.assertIn(
+            "Use the settings = Libreosteo.settings.container", resultat.stdout
+        )
+        self.assertNotEqual(0, resultat.returncode, resultat.stderr)
+        self.assertIn("Moteur de base de données inattendu : aucun.", resultat.stderr)
