@@ -1346,7 +1346,7 @@ soldées ou tenues** :
 Chacun avec son motif de non-correction — détail dans
 `.superpowers/sdd/2026-09-24-couverture-100-plan/` (rapports et ledger, non versionnés).
 
-- **Neuf fichiers de test manquent à `[tool.mypy] files`** (mesuré le 2026-09-26) :
+- ~~**Neuf fichiers de test manquent à `[tool.mypy] files`** (mesuré le 2026-09-26) :
   `test_actif_initial_onglets_pages.py`, `test_appariement_alpine_serveur.py`,
   `test_fin_edition_attend_le_fragment.py`, `test_migration_montants.py`,
   `test_page_import_export.py`, `test_serializer_consultation.py`,
@@ -1354,7 +1354,11 @@ Chacun avec son motif de non-correction — détail dans
   `tests/qualite/test_contrat_response_handling.py` — le dixième cité par un brief de ce
   lot, `tests/qualite/test_contrat_arbre_statique.py`, y figure déjà, ajouté par le lot
   « solde du backlog ». Écart de cliquet antérieur à ce lot ; les ajouter au passage aurait
-  pu faire rougir `mypy` sur du code que ce lot ne touche pas.
+  pu faire rougir `mypy` sur du code que ce lot ne touche pas.~~ — **corrigé** : les neuf
+  ajoutés à `[tool.mypy] files`. Une seule erreur mesurée
+  (`test_actif_initial_onglets_pages.py:96`, attribut `officesettings` posé dynamiquement
+  par `OfficeSettingsMiddleware.process_request`), close par `# type:
+  ignore[attr-defined]`, même idiome que `tests/functional/conftest.py:54,129`.
 - **`Patient.set_request` / `Patient.request`** (`libreosteoweb/models.py:119-121`) : rien
   ne lit jamais l'attribut posé, comme pour `Document.set_request` (retiré au chantier S5)
   — mais ces lignes sont **couvertes**, donc hors des 236 instructions de l'audit de

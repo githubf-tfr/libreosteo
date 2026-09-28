@@ -93,7 +93,11 @@ class TestActifInitialCabinet(TestCase):
         self.requete.user = self.praticien
         # `OfficeSettingsMiddleware` pose cet attribut hors requete authentifiee reelle :
         # on le reproduit ici, comme `_cabinet_de` (cabinet.py:187) l'exige.
-        self.requete.officesettings = cabinet
+        # `officesettings` est pose dynamiquement par
+        # `OfficeSettingsMiddleware.process_request` (middleware.py:231), sur un
+        # `request` non annote -- aucune voie typee n'existe pour cet attribut (meme
+        # idiome que `tests/functional/conftest.py:54,129`).
+        self.requete.officesettings = cabinet  # type: ignore[attr-defined]
 
     def test_la_barre_marque_l_onglet_que_la_vue_designe_meme_hors_du_premier(
         self,
