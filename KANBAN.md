@@ -1302,14 +1302,17 @@ soldées ou tenues** :
 
 ### Constats versés le 2026-09-19, à instruire après la clôture de D6g
 
-- ⚠️ **`block_disconnect_all_signal.__exit__` reconnecte aveuglément**
+- ~~⚠️ **`block_disconnect_all_signal.__exit__` reconnecte aveuglément**
   (`libreosteoweb/api/receivers.py`). Il connecte ce qu'on lui a passé sans vérifier que
   `__enter__` l'avait déconnecté : donner la même liste à deux blocs imbriqués sur deux
   signaux différents branche chaque récepteur sur **les deux** en sortie. C'est ce qui a
   produit le défaut fermé par `77eb331`, dont l'appelant seul a été corrigé. Durcir `__exit__`
   sur le retour de `Signal.disconnect` fermerait la classe entière. ⚠️ **L'aide est partagée
   avec `sans_receivers` et du code applicatif** : l'élargissement se décide, il ne s'improvise
-  pas.
+  pas.~~ — **doublon** de l'entrée close le 2026-09-24 par `1c8189e` (plus haut dans ce
+  journal, section verrous consultatifs/traduction) : `__exit__` ne reconnecte plus que ce
+  que `__enter__` a réellement retiré. Rien à faire ici ; entrée barrée pour corriger
+  l'incohérence de journal (lot hygiène de code, § 1.15 de son cadrage).
 - ~~**`tests/functional/conftest.py` remplace `settings.HAYSTACK_CONNECTIONS` par un
   dictionnaire neuf**, là où `libreosteoweb/tests/conftest.py` documente qu'il faut **muter en
   place**. Mesuré : cela fonctionne aujourd'hui parce que `BaseEngine.__init__` relit
@@ -1337,7 +1340,8 @@ soldées ou tenues** :
   `libreosteoweb/management/commands/collectstatic.py` (`MOTIFS_EXCLUS`) et le module
   `tests/qualite/test_contrat_arbre_statique.py` actuel, tous deux introduits par `f0cb705`
   (« collectstatic ne copie plus que les trois fichiers servis ») et `d4e080f` (« rendre le
-  littéral staticfiles à `INSTALLED_APPS` »), commités le 2026-09-25 — **postérieurs** à ces
+  littéral staticfiles à `INSTALLED_APPS` »), commités le 2026-09-24 et le 2026-09-25
+  respectivement — **postérieurs** à ces
   deux entrées (2026-09-19/20) et jamais reversés en clôture : oubli de journal, pas un effet
   de ce lot. Mesure du jour (2026-09-28, `rm -rf static && make static`) : `static/` porte
   **185 fichiers, 5,8 Mo** au total, et `static/components/` **3 fichiers pour 3 paquets
@@ -1381,12 +1385,14 @@ Chacun avec son motif de non-correction — détail dans
   périmètre vérifié). `INSTALLED_APPS` inchangé (hors périmètre du constat).
 - **`libreosteoweb/api/utils.py:23`** : `logging.getLogger(__file__)` — nom de journal égal
   à un chemin de fichier, hors de la hiérarchie `libreosteoweb.*`. Déjà écarté par le lot
-  correctif du 2026-09-23, pour le même motif.
+  correctif du 2026-09-23, pour le même motif. **Reconduit** par le lot hygiène de code
+  (2026-09-28) : décision non rouverte.
 - **Quatre commits `test(...)` de ce lot portent en réalité un correctif de production ou
   une suppression** (`d93f204`, `65e5837`, `09ea93d`, `b591944`) : prescrit par le plan
   lui-même (chaque correctif y était nommé comme faisant partie de la tâche de test qui
   l'a trouvé), donc défaut du plan, pas de l'exécution. Historique non réécrit — les
-  commits restent groupés comme joués.
+  commits restent groupés comme joués. **Reconduit** par le lot hygiène de code
+  (2026-09-28) : historique figé, rien à faire, noté comme tel.
 - ~~**`libreosteoweb/apps.py:55` et `file_integrator.py:265` : `logger.warn`**, méthode
   dépréciée, conservée telle quelle par la tâche C3 (et par F7 pour la seconde occurrence)
   pour ne pas glisser un geste non demandé dans un commit d'extraction ou de test.~~ —
@@ -1397,10 +1403,15 @@ Chacun avec son motif de non-correction — détail dans
   l'inverse), et un `makemessages` réécrirait tout le fichier pour une ligne.~~ —
   **corrigé** : entrée `msgid`/`msgstr` retirée manuellement de `django.po`, `.mo`
   recompilé (`make locale-compile`). Aucun `makemessages`.
-- **`IntegratorExamination.integrate` teste `file_additional is None`**, or le service passe
+- ~~**`IntegratorExamination.integrate` teste `file_additional is None`**, or le service passe
   un `FieldFile` vide qui n'est pas `None` (constat de la tâche F8). Sans portée aujourd'hui,
   le dépôt étant refusé à l'analyse avant d'atteindre l'intégrateur. À ne pas « réparer »
-  sans arbitrage.
+  sans arbitrage.~~ — **clos comme garde sans portée** (arbitrage du cadrage du lot hygiène
+  de code, 2026-09-28, option a) : le dépôt refuse aujourd'hui à l'analyse tout import sans
+  fichier patient, avant d'atteindre l'intégrateur — la ligne ne peut être exercée par
+  aucune voie produit actuelle. **Condition de réouverture** : si l'analyse cesse un jour de
+  refuser le dépôt sans fichier patient avant l'intégrateur, rouvrir et traiter
+  `file_additional` vide (`FieldFile` falsy) au même titre que `None`.
 - ~~**Un statut de facturation inconnu rend 200 au corps vide** (constat de la tâche C14), là
   où 400 serait plus juste ; et **`generator.py:261` (`return {}`) sur ce même statut
   inconnu ferait lever `KeyError`** dans l'annulation par facture corrective, préexistant et
@@ -1445,7 +1456,8 @@ Chacun avec son motif de non-correction — détail dans
 - **Le message « 3 char length maximum » de `valider_prefixe_de_sequence`**
   (`libreosteoweb/api/services/facturation.py:112`) **n'est atteignable par aucune voie
   produit** : le `max_length=3` du modèle intercepte avant. Seul l'appel direct du service
-  l'atteint. Garde de défense en profondeur, conservée telle quelle.
+  l'atteint. Garde de défense en profondeur, conservée telle quelle. **Reconduit** par le
+  lot hygiène de code (2026-09-28) : décision non rouverte.
 - **`RuntimeWarning: Accessing the database during app initialization`** (issu
   d'`AppConfig.ready()`) préexiste au lot, non traité. Compte final mesuré au dernier
   `make check` de ce lot : **17 warnings**, identifiés — **13 préexistants, constants
@@ -1458,6 +1470,13 @@ Chacun avec son motif de non-correction — détail dans
   5 warnings (les 4 occurrences de test qui traversaient `file_integrator.py:265`, plus
   l'occurrence `apps.py:55`) — compte mesuré **12 warnings**, tous préexistants
   (`RuntimeWarning` d'`AppConfig.ready()` et `loaddata`).
+  **Remesure du lot hygiène de code (2026-09-28)**, le lot 1 (bascule du moteur par défaut
+  sur PostgreSQL, `docs/superpowers/specs/2026-09-27-suite-fonctionnelle-postgresql-design.md`
+  § 4.1) étant clos : `make check` — **12 warnings**, même composition qu'au 2026-09-26
+  (1 `RuntimeWarning` d'`AppConfig.ready()`, 11 `RuntimeWarning` `loaddata` « No fixture data
+  found for 'dump' », `test_exploitation`/`test_service_sauvegarde`), sans évolution. Suite
+  fonctionnelle : **1 warning**, ce même `RuntimeWarning` d'`AppConfig.ready()`, à chaque
+  passe du 2026-09-28 (lot 1) — mesure reprise, suite non rejouée par ce lot.
 - ~~**`PATCH /api/officesettings/<pk>` avec la seule charge `office_name`, sur un cabinet
   réglé à 20000 et sans facture, réécrit `invoice_start_sequence` à 10000** et journalise
   « Invoice sequence updated from 20000 to 10000 » (mesure de la vague finale, T2 a)) :
@@ -1685,7 +1704,8 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   actuel. Alourdit l'image sans utilité, hors périmètre de D5 ; aucun cliquet ne le
   couvre (`test_contrat_arbre_statique.py` vérifie les répertoires de paquets présents,
   pas leur contenu interne, et le dit).~~ — **clos le 2026-09-28** : même résolution que
-  l'entrée ci-dessus, mêmes commits `f0cb705`/`d4e080f` (2026-09-25), postérieurs à ce
+  l'entrée ci-dessus, mêmes commits `f0cb705`/`d4e080f` (2026-09-24 et 2026-09-25
+  respectivement), postérieurs à ce
   recomptage et jamais reversés en clôture. Mesure du jour (2026-09-28, `rm -rf static &&
   make static`) : `static/components/` ne porte plus que **3 fichiers pour 3 paquets
   déclarés** (`alpinejs`, `bootstrap`, `htmx`), tous les trois référencés — les 319 fichiers
