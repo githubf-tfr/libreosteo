@@ -1919,6 +1919,29 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-28 — Lot 5 « clôtures d'instruction » clos : quatre entrées closes, aucune
+  ligne de code applicatif** (`885781f`..`ea5d10f` et ce journal). Spec :
+  `docs/superpowers/specs/2026-09-28-lot5-instruction-design.md`.
+
+  1. **Worker unique** (`885781f`) — `--processes 1 --threads 1` reste, limitation assumée,
+     décision de l'utilisateur du 2026-09-28. Commentaire du `Dockerfile` réécrit avec les
+     deux dépendances qui le rendent encore nécessaire (garde `maintenance_available`,
+     index Whoosh) et les conditions de réouverture ; nouvelle entrée « Décisions actées » ;
+     la puce « Renvoyé par D4 » close par renvoi vers elle.
+  2. **Doublon patient** (`133c1ec`) — clos : contrainte `unique_patient_nom_prenom_naissance`
+     (`0057`), deux chemins de création convertissant le refus base en message, course
+     prouvée sur PostgreSQL depuis le 2026-09-26.
+  3. **Font Awesome** (`957d6af`) — reliquat de « Dette technique » soldé par renvoi vers le
+     motif unique écrit à la clôture lot 3 de l'entrée « Aucune montée de version frontend »
+     (« Renvoyé par D5 »), qui renvoie désormais vers ce reliquat.
+  4. **Domaine « Agenda »** (`ea5d10f`) — clos : constat sur ce qu'est le produit, aucun
+     besoin exprimé, `OfficeEventViewSet` toujours en lecture seule à `HEAD`. Titre du
+     domaine et fiches `R-AGE-*` inchangés (décision de S4).
+
+  `make check` vert à chaque commit, **1245 passed**, couverture **99,96 %**, plancher 99
+  inchangé. Aucune migration, aucun module `.py` créé ; seuls `Docker/build/http-ready/
+  Dockerfile` (commentaire) et `KANBAN.md` bougent.
+
 - **2026-09-28 — Lot 4 « défauts produit » clos : trois défauts fermés, six entrées
   survivantes barrées** (`f9b7267`..`cb17bff` et ce journal). Spec :
   `docs/superpowers/specs/2026-09-28-lot4-defauts-produit-design.md`. Plan fondu ici et
