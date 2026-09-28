@@ -244,8 +244,7 @@ def enregistrer_general(request: HttpRequest) -> HttpResponse:
     Avant, `updateSettings` lancait un `PUT /api/settings/:id` **et** un
     `PUT /api/paiment-mean/:id` par moyen de paiement, en parallele, et ne confirmait
     qu'apres le dernier (F13). Sous `ATOMIC_REQUESTS`, tout est ecrit ou rien ne l'est — ce
-    qui referme au passage les trois `PUT` concurrents sur la meme table que
-    `tests/functional/conftest.py` documente comme cause d'un verrou SQLite.
+    qui referme au passage les trois `PUT` concurrents sur la meme table, source de F13.
     """
     if not request.user.is_staff:
         return reponse_avec_notification(

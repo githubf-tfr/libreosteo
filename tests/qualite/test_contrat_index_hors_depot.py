@@ -50,7 +50,8 @@ qu'aucune lecture de reglage vivant ne peut garantir depuis ce dossier.
 
 - l'ecriture d'un **autre** fichier du depot par la suite unitaire. ⚠️ **Constat, pas un
   oubli** : `MEDIA_ROOT` reste sous `DATA_FOLDER` pour la suite unitaire, la fonctionnelle
-  seule le deporte (`tests/functional/conftest.py:144`). L'elargissement a ete soumis et
+  seule le deporte (fixture `environnement_isole` de `tests/functional/conftest.py`).
+  L'elargissement a ete soumis et
   **ecarte** (D10, ARBITRAGE RENDU P5) : le critere de selection du lot se verifie entree par
   entree -- une entree entre si, non traitee, elle peut faire echouer ou fausser la reprise
   du parc -- et une fuite de medias de test n'y repond pas. L'entree est versee **au lot qui

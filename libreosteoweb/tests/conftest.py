@@ -35,9 +35,9 @@ from haystack import connections as connexions_recherche
 # lancements rend non deterministe tout test qui compte des resultats de recherche. Sans
 # ces lignes, `HAYSTACK_CONNECTIONS["default"]["PATH"]` vaut
 # `os.path.join(DATA_FOLDER, "whoosh_index")` (`Libreosteo/settings/base.py:324`), soit
-# `./data/whoosh_index` dans l'arbre de travail. `tests/functional/conftest.py:140-152` a
-# bascule le premier, par test ; ici un seul repertoire par session suffit, la suite
-# unitaire ne partageant pas d'etat entre tests par ailleurs.
+# `./data/whoosh_index` dans l'arbre de travail. La fixture `environnement_isole` de
+# `tests/functional/conftest.py` a bascule le premier, par test ; ici un seul repertoire
+# par session suffit, la suite unitaire ne partageant pas d'etat entre tests par ailleurs.
 _dossier_index_de_test = tempfile.mkdtemp(prefix="libreosteo-test-unitaire-index-")
 atexit.register(shutil.rmtree, _dossier_index_de_test, ignore_errors=True)
 # Mutation **en place** du sous-dictionnaire, jamais un remplacement : `haystack`

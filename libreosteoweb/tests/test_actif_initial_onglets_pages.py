@@ -91,12 +91,11 @@ class TestActifInitialCabinet(TestCase):
             cabinet = regle_cabinet()
         self.requete = RequestFactory().get("/")
         self.requete.user = self.praticien
-        # `OfficeSettingsMiddleware` pose cet attribut hors requete authentifiee reelle :
-        # on le reproduit ici, comme `_cabinet_de` (cabinet.py:187) l'exige.
         # `officesettings` est pose dynamiquement par
-        # `OfficeSettingsMiddleware.process_request` (middleware.py:231), sur un
-        # `request` non annote -- aucune voie typee n'existe pour cet attribut (meme
-        # idiome que `tests/functional/conftest.py:54,129`).
+        # `OfficeSettingsMiddleware.process_request` (middleware.py:231), hors requete
+        # authentifiee reelle -- on le reproduit ici comme `_cabinet_de` l'exige. Sur un
+        # `request` non annote, aucune voie typee n'existe pour cet attribut (meme idiome
+        # que `finders.get_finder.cache_clear()` de `tests/functional/conftest.py`).
         self.requete.officesettings = cabinet  # type: ignore[attr-defined]
 
     def test_la_barre_marque_l_onglet_que_la_vue_designe_meme_hors_du_premier(
