@@ -1887,7 +1887,9 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 - **2026-09-28 — Lot 4 « défauts produit » clos : trois défauts fermés, six entrées
   survivantes barrées** (`f9b7267`..`cb17bff` et ce journal). Spec :
-  `docs/superpowers/specs/2026-09-28-lot4-defauts-produit-design.md`. `make check` vert,
+  `docs/superpowers/specs/2026-09-28-lot4-defauts-produit-design.md`. Plan fondu ici et
+  dans la spec, **supprimé** (`docs/superpowers/plans/2026-09-28-lot4-defauts-produit.md`).
+  `make check` vert,
   **1245 passed**, couverture **99,96 %**, plancher 99 inchangé ; suite fonctionnelle du
   contrôleur rejouée en deux moitiés (plafond de l'outil, 600 s) : moitié A **74 passed + 1
   failed** en 407,13 s, moitié B **79 passed** en 192,22 s — **154 passed** au total (152 +
