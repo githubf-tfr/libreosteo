@@ -504,12 +504,15 @@ Tenu à la main.
   publication : construction (`docker build`, étage `build` sur `settings.statique`, sans
   `server.py`), mêmes sept bundles `output.<hash>` que `make static`,
   `/Libreosteo/django/conf/locale` absent, `R-INST-04` jouée sur l'image.
-- **Constats hors lot, versés par le lot « suite fonctionnelle sur PostgreSQL »** (2026-09-28,
+- ~~**Constats hors lot, versés par le lot « suite fonctionnelle sur PostgreSQL »** (2026-09-28,
   spec § 8) : `Docker/deploy/pg/.env.example` dit encore `db` « épinglée par digest …
   (décision DU3) », périmé depuis le renversement du 2026-09-27 ; les cibles `make run`
   (conteneur seul, sans PostgreSQL) et `run-pg` (`docker-compose` v1, `.env` à la racine)
-  sont périmées ; le script local `.tools/libreosteo-functional-tests.sh` (hors dépôt) dit
-  la base « in-memory » — il fonctionne de nouveau depuis la bascule, faute de `--ds`.
+  sont périmées~~ — **corrigé le 2026-09-28** (`c464b7d`) : commentaire de
+  `.env.example` réécrit, `make run` retiré, `run-pg` réparé sur `docker compose` v2. ~~le
+  script local `.tools/libreosteo-functional-tests.sh` (hors dépôt) dit la base
+  « in-memory » — il fonctionne de nouveau depuis la bascule, faute de `--ds`.~~ —
+  commentaire corrigé le 2026-09-28, hors dépôt, non versionné, donc hors de ce commit.
 - **[2026-09-28] `POST /api/invoices/<pk>/cancel` sur une facture rectificative non facturée
   rend 500** : `corrective_invoice.status="notinvoiced"` avec une raison passe la
   validation ; `invoice_examination` rend alors `{"invoiced": None}`, puis
