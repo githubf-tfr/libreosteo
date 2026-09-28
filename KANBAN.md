@@ -1949,13 +1949,14 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   `make check` vert,
   **1245 passed**, couverture **99,96 %**, plancher 99 inchangé ; suite fonctionnelle du
   contrôleur rejouée en deux moitiés (plafond de l'outil, 600 s) : moitié A **74 passed + 1
-  failed** en 407,13 s, moitié B **79 passed** en 192,22 s — **154 passed** au total (152 +
-  2 de T1), compteur des motifs de fuite (`ERROR at teardown` / `DeadlockDetected` /
-  `couldn't be flushed` / `Database access not allowed` / `encore en vol`) : 0 et 0.
-  L'unique échec (`test_cabinet.py::test_le_refus_d_une_cellule_est_affiche_et_n_ecrit_rien`,
-  qui supposait l'utilisateur `test` sans prénom) était causé par T3 ; corrigé par
-  `cb17bff`, fichier rejoué seul : **5 passed** — **la suite complète n'a pas été rejouée
-  après le correctif**. **Aucune migration, aucun module `.py` créé.**
+  failed** en 407,13 s, moitié B **79 passed** en 192,22 s — **154 tests** (152 + 2 de T1) :
+  **153 passed, 1 failed**
+  (`test_cabinet.py::test_le_refus_d_une_cellule_est_affiche_et_n_ecrit_rien`, qui
+  supposait l'utilisateur `test` sans prénom) — causé par T3, corrigé par `cb17bff`,
+  fichier rejoué seul (**5 passed**), suite complète non rejouée après le correctif.
+  Compteur des motifs de fuite (`ERROR at teardown` / `DeadlockDetected` / `couldn't be
+  flushed` / `Database access not allowed` / `encore en vol`) : 0 et 0. **Aucune migration,
+  aucun module `.py` créé.**
 
   1. **Import coupé** (`f9b7267`) — à la coupure de trois minutes, htmx réarmait le bouton
      « Importer » sous « ne relancez pas » ; il reste inactif et une phrase dit ce qui
