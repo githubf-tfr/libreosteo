@@ -1283,19 +1283,29 @@ soldées ou tenues** :
   et sert encore à choisir le moteur. **Isolation correcte par accident, pas par
   construction.**
 
-- **Le cliquet d'arbre statique ne couvre pas le contenu des paquets.**
+- ~~**Le cliquet d'arbre statique ne couvre pas le contenu des paquets.**
   `tests/qualite/test_contrat_arbre_statique.py` garde le **jeu de paquets** servis sous
   `static/components/`, pas ce qu'ils contiennent. Conséquence : le recomptage des fichiers
   jamais servis — l'entrée « `collectstatic` copie des fichiers jamais servis », § Renvoyé par
   D5 — **ne sera gardé par aucun cliquet**, et son chiffre redeviendra faux sans que rien ne
   rougisse. C'est le mécanisme exact qui a fait vivre un chiffre périmé de 1202 fichiers
-  pendant douze jours.
-- **Le décompte de `static/components/` est à refaire une fois D6g clos, et pas avant.**
+  pendant douze jours.~~
+- ~~**Le décompte de `static/components/` est à refaire une fois D6g clos, et pas avant.**
   Mesuré le 2026-09-19 en cours de lot : **322 fichiers, 12 Mo, 3 paquets** pour **3 fichiers
   réellement référencés** — mais c'est un **état transitoire**, Bootstrap 5 étant entré sans
   que Bootstrap 3 ne soit encore sorti. ⚠️ **Ne pas lire ce chiffre comme une régression** :
   le ménage est une clause de sortie de D6g, tâche T16. Le chiffre qui comptera est celui
-  d'après.
+  d'après.~~ — **clos le 2026-09-28** : les deux constats étaient déjà résolus en code par
+  `libreosteoweb/management/commands/collectstatic.py` (`MOTIFS_EXCLUS`) et le module
+  `tests/qualite/test_contrat_arbre_statique.py` actuel, tous deux introduits par `f0cb705`
+  (« collectstatic ne copie plus que les trois fichiers servis ») et `d4e080f` (« rendre le
+  littéral staticfiles à `INSTALLED_APPS` »), commités le 2026-09-25 — **postérieurs** à ces
+  deux entrées (2026-09-19/20) et jamais reversés en clôture : oubli de journal, pas un effet
+  de ce lot. Mesure du jour (2026-09-28, `rm -rf static && make static`) : `static/` porte
+  **185 fichiers, 5,8 Mo** au total, et `static/components/` **3 fichiers pour 3 paquets
+  déclarés** (`alpinejs`, `bootstrap`, `htmx`) — exactement l'ensemble `SERVIS` du cliquet.
+  `.venv/bin/python -m pytest tests/qualite/test_contrat_arbre_statique.py -q` : **8
+  passed**, y compris `test_static_components_ne_porte_que_les_trois_fichiers_servis`.
 
 ### Constats versés par le lot « couverture 100 % » (2026-09-26), non corrigés
 
@@ -1570,13 +1580,13 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 Deux constats mineurs versés au passage par D5, sans rapport avec le périmètre du lot :
 
-- **`collectstatic` copie des fichiers jamais servis** — documentations et exemples que
+- ~~**`collectstatic` copie des fichiers jamais servis** — documentations et exemples que
   les paquets `@components/…` embarquent et que `collectstatic` recopie en bloc, sans
   qu'aucun gabarit ni JS n'y fasse référence. **Chiffre refait le 2026-09-19** (`make
   static` puis mesure) : `static/components/` portait **103 fichiers** pour **2** paquets
-  déclarés (`alpinejs`, `htmx`).
+  déclarés (`alpinejs`, `htmx`).~~
 
-  ⚠️ **Recompté le 2026-09-24, après la clôture de D6g, par `rm -rf static && make
+  ~~⚠️ **Recompté le 2026-09-24, après la clôture de D6g, par `rm -rf static && make
   static` : 322 fichiers, dont 3 servis.** Le détail par paquet : `bootstrap` **219**,
   `alpinejs` **68**, `htmx` **35**. Les gabarits n'en référencent que **trois** —
   `components/bootstrap/dist/css/bootstrap.min.css`,
@@ -1592,7 +1602,12 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   résiduel n'est pas devenu marginal : 101 fichiers restent 30 % de l'arbre `static/`
   actuel. Alourdit l'image sans utilité, hors périmètre de D5 ; aucun cliquet ne le
   couvre (`test_contrat_arbre_statique.py` vérifie les répertoires de paquets présents,
-  pas leur contenu interne, et le dit).
+  pas leur contenu interne, et le dit).~~ — **clos le 2026-09-28** : même résolution que
+  l'entrée ci-dessus, mêmes commits `f0cb705`/`d4e080f` (2026-09-25), postérieurs à ce
+  recomptage et jamais reversés en clôture. Mesure du jour (2026-09-28, `rm -rf static &&
+  make static`) : `static/components/` ne porte plus que **3 fichiers pour 3 paquets
+  déclarés** (`alpinejs`, `bootstrap`, `htmx`), tous les trois référencés — les 319 fichiers
+  jamais servis ont disparu avec eux, `static/` total **185 fichiers, 5,8 Mo**.
 - ~~**La portabilité de `node_modules/.yarn-integrity` sur une autre architecture n'est
   pas vérifiée.**~~ — **fermé le 2026-09-19**, par précaution et non par une divergence
   mesurée : `README.rst`, empreinte (a), exclut désormais `systemParams` du hash
