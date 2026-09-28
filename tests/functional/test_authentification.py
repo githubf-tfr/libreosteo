@@ -38,7 +38,8 @@ def test_deconnexion_depuis_l_application(page: Page, live_server: LiveServer) -
     """Cas de R-AUTH-03, docs/recette.md:834-849.
 
     L'etape 2 (retour a l'URL racine apres deconnexion) est le trou par lequel la
-    regression `LogoutView` de Django 5.2 est passee (KANBAN.md:831-845) :
+    regression `LogoutView` de Django 5.2 est passee (docs/journal/2026-09.md,
+    "D4 Socle livré", "La déconnexion était cassée par Django 5.2") :
     `TestDeconnexion` (libreosteoweb/tests/test_acces.py:371) ne rejoue le controle
     que depuis "/", jamais apres une deconnexion reelle depuis l'application.
     """
@@ -71,7 +72,9 @@ def test_deconnexion_depuis_l_application(page: Page, live_server: LiveServer) -
 def test_deconnexion_est_atteignable_en_affichage_etroit(
     page: Page, live_server: LiveServer
 ) -> None:
-    """D-3, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
+    """D-3, passe au navigateur du lot D6f (docs/journal/2026-09.md,
+    "D6f clos : la coquille AngularJS est morte" ;
+    "Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur").
 
     A 400x800, hamburger et menu utilisateur ouverts, le `ul.dropdown-menu` restait en
     `position: absolute` dans `#headerNavbar` (Bootstrap 3 le borne a

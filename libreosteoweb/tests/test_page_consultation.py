@@ -152,7 +152,9 @@ def _balises_desequilibrees(html: str) -> list[str]:
     """Les balises dont le nombre de guillemets est impair.
 
     C'est la forme exacte du troisieme defaut de balisage legue par D6b
-    (`KANBAN.md:1650`) : `examination.html:14` porte `class="col-md-7" disable-enter">`, et
+    (docs/journal/2026-09.md, "D6b Filet indépendant du framework livré",
+    "Trois défauts de gabarit") : `examination.html:14` porte
+    `class="col-md-7" disable-enter">`, et
     le guillemet surnumeraire absorbe la fin de la balise, rendant l'attribut inerte sans
     qu'aucun navigateur ne s'en plaigne.
     """
@@ -1674,7 +1676,8 @@ class TestVuesDuVolet(_VoletRendu):
 
 
 class TestAncresDuGabaritDOrigine(SimpleTestCase):
-    """Le troisieme defaut de balisage legue par D6b (`KANBAN.md:1650`).
+    """Le troisieme defaut de balisage legue par D6b (docs/journal/2026-09.md,
+    "D6b Filet indépendant du framework livré", "Trois défauts de gabarit").
 
     `partials/examination.html:14` porte `class="col-md-7" disable-enter">` : un guillemet
     orphelin qui rend l'attribut inerte. Les gabarits neufs n'ont ni l'un ni l'autre.

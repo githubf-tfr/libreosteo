@@ -72,7 +72,9 @@ def test_le_lien_de_deconnexion_de_la_page_404_fonctionne(
 def test_la_barre_laterale_de_la_page_404_ne_recouvre_pas_son_titre(
     page: Page, live_server: LiveServer, settings
 ) -> None:
-    """D-5, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
+    """D-5, passe au navigateur du lot D6f (docs/journal/2026-09.md,
+    "D6f clos : la coquille AngularJS est morte" ;
+    "Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur").
 
     A partir de 768 px, la barre laterale est en `position: absolute`, largeur 250 px, et
     `#page-wrapper` ne porte aucun `margin-left` : elle recouvre le debut du titre. Mesure

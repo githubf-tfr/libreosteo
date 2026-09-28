@@ -188,7 +188,9 @@ def test_page_wrapper_ne_subit_aucun_decalage_de_la_feuille_partagee_avec_la_pag
 def test_la_barre_deployee_ne_recouvre_pas_le_titre_en_affichage_etroit(
     page: Page, live_server: LiveServer
 ) -> None:
-    """D-2, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
+    """D-2, passe au navigateur du lot D6f (docs/journal/2026-09.md,
+    "D6f clos : la coquille AngularJS est morte" ;
+    "Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur").
 
     A 400x800, hamburger ouvert : `nav.navbar-fixed-top` est hors flux
     (`partials/menu.html`) et `body { padding-top: 50px }` (`libreosteo.css`) est un
@@ -216,7 +218,9 @@ _MOTIF_LIBELLE_LISIBLE = re.compile(r"^\d{2}/\d{2}/\d{4} - \d{2}/\d{2}/\d{4} - \
 def test_l_infobulle_du_mini_graphe_n_affiche_pas_d_horodatages_bruts(
     page: Page, live_server: LiveServer
 ) -> None:
-    """D-7, passe au navigateur du lot D6f (KANBAN.md § Defauts verses par D6f).
+    """D-7, passe au navigateur du lot D6f (docs/journal/2026-09.md,
+    "D6f clos : la coquille AngularJS est morte" ;
+    "Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur").
 
     Le libelle de chaque sommet etait repris a l'octet de `Statistics.get_history_
     statistics` (`libreosteoweb/api/statistics.py`), qui le composait par

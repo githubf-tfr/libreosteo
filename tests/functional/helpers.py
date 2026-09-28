@@ -322,8 +322,8 @@ def cloturer_consultation(
     attente qui n'est liee ni au retour de ce POST ni a son callback n'en est pas une :
     documente deux fois dans ce depot, notamment par l'`Invoice.DoesNotExist` intermittent
     que ce depot a rencontre
-    (cf. KANBAN.md, section « Pieges rencontres », entree tache 9, generalise en revue
-    finale).
+    (cf. docs/journal/2026-09.md, section « Pièges rencontrés — entrées retirées »,
+    entree « 2026-09-01 (S3, tâche 9, généralisé en revue finale) »).
     """
     page.click("#close-examination")
     page.check(f"input[value={mode}]")

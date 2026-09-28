@@ -19,7 +19,9 @@
 /* For fixed navbar */
 body { padding-top: 50px; }
 
-/* En dessous de 768 px (D-2, D-3 : KANBAN.md, Defauts verses par D6f) : la barre
+/* En dessous de 768 px (D-2, D-3 : docs/journal/2026-09.md,
+   "D6f clos : la coquille AngularJS est morte" ;
+   "Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur") : la barre
    "fixed-top" sort du flux et un decalage constant (`body` ci-dessus, dimensionne
    pour la barre repliee) ne suit pas sa hauteur reelle une fois deployee — elle recouvre
    alors le titre. Son menu utilisateur deroulant, en `position: absolute`, deborde en
@@ -124,7 +126,10 @@ body {
         border-left: 1px solid #e7e7e7;
     }
 
-    /* Bloc 2 — D-5 (KANBAN.md, Defauts verses par D6f) : `.lo-barre-laterale` est en
+    /* Bloc 2 — D-5 (docs/journal/2026-09.md,
+       "D6f clos : la coquille AngularJS est morte" ;
+       "Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur") :
+       `.lo-barre-laterale` est en
        `position: absolute` (plus bas dans ce fichier) et recouvre `#page-wrapper`, qui ne
        porte aucun `margin-left`. Cette feuille est partagee par toutes les pages qui
        utilisent `#page-wrapper` (tableau de bord compris), mais `#wrapper` n'existe que

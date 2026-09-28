@@ -1356,7 +1356,8 @@ def test_la_garde_reste_armee_apres_l_ouverture_d_une_consultation(
        commentaire préservé est **toujours** en attente. L'armement était déjà borné aux
        surfaces de saisie ; le désarmement ne l'était pas.
 
-    **Ce n'est pas le « drapeau par surface »** versé à `KANBAN.md:767-768` : aucun
+    **Ce n'est pas le « drapeau par surface »** versé à `docs/journal/2026-09.md`,
+    « Défauts versés par D6e », « La garde de sortie se désarme sur trois chemins » : aucun
     comptage, aucun cycle de vie, aucun nom de surface — une seule condition, sur l'élément
     qui a émis la requête.
     """

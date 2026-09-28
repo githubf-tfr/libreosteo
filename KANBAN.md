@@ -4,6 +4,14 @@ Journal daté du repo. Le *comment* générique est dans `README.md`, les conven
 dans `CLAUDE.md` ; ici, l'avancement, les décisions et les pièges rencontrés.
 Tenu à la main.
 
+**Règle de tenue.** Une entrée close sort de « À faire » dans le commit qui la ferme : rien
+de barré n'y reste. « Terminé » ne garde qu'une puce d'index par entrée ; le détail de la
+clôture s'écrit en tête de `docs/journal/AAAA-MM.md` du mois courant, section `## Terminé`.
+Ce qui sort d'une autre section va dans le même fichier, mot pour mot, sous le titre de sa
+section d'origine. Un motif qui doit survivre à son récit (limitation assumée, refus) reçoit
+sa puce dans « Écartés et limitations assumées », avec un renvoi vers le récit. Un renvoi
+vers le journal se fait par titre, jamais par numéro de ligne.
+
 ## Décisions actées
 
 - (2026-08-30) Fork créé depuis `libreosteo/LibreOsteo`, commit amont `8e9e0e77d70`
@@ -11,8 +19,8 @@ Tenu à la main.
   conservé pour suivre les évolutions amont. Objectif : compatibilité maintenue autant
   que possible, cf. `CLAUDE.md`.
 - (2026-08-30) **Cadrage du chantier « amélioration des tests »**, découpé en cinq
-  sous-chantiers exécutés dans l'ordre S1 → S5 (cf. la section de clôture du chantier,
-  en fin de fichier). Cinq décisions actées pour S1, détail dans
+  sous-chantiers exécutés dans l'ordre S1 → S5 (cf. `docs/journal/2026-09.md`,
+  « Chantier « amélioration des tests » — clos »). Cinq décisions actées pour S1, détail dans
   `docs/superpowers/specs/2026-08-30-socle-tests-qualite-design.md` :
   - **Divergence amont assumée** — la compatibilité cesse d'être un objectif, elle
     devient une prudence. `CLAUDE.md` § Politique amont réécrit en conséquence.
@@ -81,7 +89,8 @@ Tenu à la main.
   L'état constaté depuis D1 — tout utilisateur authentifié peut lire tout document, y
   compris par une URL devinée ou transmise — est assumé, pas subi. Le point reste ouvert
   pour un lot ultérieur. Tranche l'entrée « Points en suspens » du 2026-09-04 sur le même
-  sujet (cf. ci-dessous).
+  sujet (cf. « Écartés et limitations assumées », « Aucun contrôle d'accès par objet sur
+  les documents »).
 - (2026-09-06) **La numérotation de facture doit être unique, par cabinet.** L'unicité
   pertinente porte sur `(officesettings_id, number)`, pas sur `number` seul : le
   multi-cabinet est réel et actif (`OfficeSettingsMiddleware.process_request`,
@@ -300,7 +309,7 @@ Tenu à la main.
   `docs/superpowers/specs/2026-09-20-lot-a-restitution-visuelle-design.md`, § M7 et
   Q7. La teinte pleine carte (`panel-X` → `text-bg-X`) et le refus de reproduire les
   couleurs SB Admin (vert/rouge des tuiles) avaient été **vus, écrits et acceptés** à
-  la clôture de D6g (`docs/recette.md`, R-VIS-14 ; `KANBAN.md:242`). L'usage réel les
+  la clôture de D6g (`docs/recette.md`, R-VIS-14). L'usage réel les
   a invalidés — ce n'était pas un défaut, c'était un choix, et il tombe parce que
   l'utilisateur le refuse, pas parce qu'il était mal fait. `R-VIS-14` est réécrite,
   ses deux captures de référence reprises. La disparition de `.panel-green`/
@@ -484,6 +493,10 @@ Chacun avec son motif de non-correction — détail dans
 
 ## Terminé
 
+- (2026-09-28) Refonte du KANBAN clos : renvois réécrits par titre, règle de tenue écrite,
+  `CLAUDE.md` aligné sans gain de lignes — spec
+  `docs/superpowers/specs/2026-09-28-refonte-kanban-design.md` (`d87d8a1`) ; commits
+  `5ccadb4`, `33f6d10`, `2979954` et celui-ci ; détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 5 « clôtures d'instruction » clos : quatre entrées closes, aucune
   ligne de code applicatif — spec
   `docs/superpowers/specs/2026-09-28-lot5-instruction-design.md` ; commits

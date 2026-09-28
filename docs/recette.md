@@ -189,7 +189,8 @@ l'interface — la parenthèse du champ `Couverture auto` le dit alors explicite
 ### Consignation
 
 Le cahier lui-même **ne se coche jamais** — aucune case, aucun verdict, aucune date n'y
-sont ajoutés. Toute passe se consigne dans `KANBAN.md`, section dédiée à la recette :
+sont ajoutés. Toute passe se consigne dans `KANBAN.md` : une puce de « Terminé », dont le
+détail va dans `docs/journal/AAAA-MM.md` du mois de la passe :
 
 - date du passage ;
 - commit recetté (`git rev-parse HEAD`) ;

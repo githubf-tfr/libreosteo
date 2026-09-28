@@ -17,7 +17,7 @@ code de départ est la source, gelée au commit amont `8e9e0e77d70` (2026-08-30,
   **portage manuel**, décidé au cas par cas et consigné dans `KANBAN.md` § Suivi amont.
 - Ne jamais pousser sur `upstream`.
 - **Avant toute suppression (fichier, dépendance, module), chercher le consommateur,
-  jamais le seul nom** : leçon payée deux fois (`angular-timeago`/D5, `ngRoute`/D6a).
+  jamais le seul nom** : `KANBAN.md` § Pièges rencontrés (2026-09-07).
 
 ## Déploiement
 
@@ -50,5 +50,5 @@ GPL-3.0 héritée (`LICENSE.md`, `COPYING`).
 
 ## Documentation
 
-Trois rôles distincts, cf. `~/claude/CLAUDE.md` : `README.md` (comment, intemporel),
-`KANBAN.md` (journal daté, décisions), `CLAUDE.md` (ici, invariants pour qui modifie).
+Trois rôles, cf. `~/claude/CLAUDE.md` : `README.md` (comment, intemporel), `KANBAN.md` (journal
+daté, décisions ; historique sous `docs/journal/`), `CLAUDE.md` (invariants pour qui modifie).

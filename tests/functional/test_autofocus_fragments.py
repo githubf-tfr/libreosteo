@@ -1,6 +1,8 @@
 """L'`autofocus` natif sur un champ insere apres le chargement du document.
 
-Dette n°1 de D6f (KANBAN.md § Defauts verses par D6f) : le navigateur ne pose pas
+Dette n°1 de D6f (docs/journal/2026-09.md,
+"D6f clos : la coquille AngularJS est morte" ;
+"Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur") : le navigateur ne pose pas
 `autofocus` de facon synchrone sur un fragment injecte par htmx, il planifie une tache
 differee (« flush autofocus candidates », HTML Standard) qui **reprend** le focus a un
 instant non garanti — y compris entre un `focus()` explicite et l'ecriture d'un second

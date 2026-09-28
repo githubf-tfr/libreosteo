@@ -22,7 +22,9 @@ from libreosteoweb.models import Examination, Patient
 
 
 def _libelle_periode(debut, fin):
-    """« debut - fin », lisibles (D-7, KANBAN.md § Defauts verses par D6f).
+    """« debut - fin », lisibles (D-7, docs/journal/2026-09.md,
+    "D6f clos : la coquille AngularJS est morte" ;
+    "Cinq défauts d'affichage soldés, dont une impasse fonctionnelle sur").
 
     `str(datetime)` porte les microsecondes et le fuseau brut (UTC ou local selon
     l'instant) : illisible en infobulle. `SHORT_DATE_FORMAT`, sur les deux bornes
