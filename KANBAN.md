@@ -510,6 +510,17 @@ Tenu à la main.
   (conteneur seul, sans PostgreSQL) et `run-pg` (`docker-compose` v1, `.env` à la racine)
   sont périmées ; le script local `.tools/libreosteo-functional-tests.sh` (hors dépôt) dit
   la base « in-memory » — il fonctionne de nouveau depuis la bascule, faute de `--ds`.
+- **[2026-09-28] `POST /api/invoices/<pk>/cancel` sur une facture rectificative non facturée
+  rend 500** : `corrective_invoice.status="notinvoiced"` avec une raison passe la
+  validation ; `invoice_examination` rend alors `{"invoiced": None}`, puis
+  `Invoice.objects.get(id=None)` lève — rollback, aucune écriture. Atteignable par l'API
+  seule (l'écran fige `"invoiced"` en dur). Cousin du `KeyError` fermé par le lot 2 (défauts
+  produit). Antérieur à la branche, non corrigé.
+- **[2026-09-28] Test fonctionnel intermittent, cause non instruite** :
+  `tests/functional/test_facturation.py::test_annulation_et_refacturation` a échoué une fois
+  sur la passe complète finale du 2026-09-28 (badge « Annulée » résolu mais `hidden` pendant
+  15 s, sous la charge de la suite complète) ; vert sur toutes les autres passes du jour, et
+  deux fois de suite rejoué seul (17 passed).
 - ~~**Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
   version à chaque construction ; la suite unitaire épingle seulement son pilote de test
   (`VERSION_PSYCOPG2 = 2.9.13`).~~ — **clos le 2026-09-28 par `0d41fb5`**, détail en
@@ -2059,7 +2070,7 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     199 à 192 entrées (+1 `statique.py`, −8 fichiers retirés), chacune sortie avec le
     fichier qu'elle nomme, dans le même commit. Aucun module existant n'en sort : le
     périmètre de code vérifié ne rétrécit pas, c'est le code qui disparaît.
-  - **Documentation** : ajoute `CONTRIBUTING.md` (consigne yarn 1.21.1 déplacée du
+  - **Documentation** : complète `CONTRIBUTING.md` (consigne yarn 1.21.1 déplacée du
     `README.rst`, Docker requis pour les deux suites, `make test`).
 
   **Recette** : `R-INST-04` (étape 3) et chapitre 0 (§ Montage, § Tag d'image) mis à jour ;
