@@ -433,6 +433,19 @@ Tenu à la main.
   du même jour : l'absence de contrôle d'appartenance par praticien n'est pas un défaut
   d'autorisation à corriger.
 
+- (2026-09-28) **Suite fonctionnelle et base de développement sur PostgreSQL : deux
+  décisions de l'utilisateur.** Spec :
+  `docs/superpowers/specs/2026-09-27-suite-fonctionnelle-postgresql-design.md` § 10.
+  - **Q1 c — aucun serveur PostgreSQL de développement fourni.** `base.py` vise
+    `127.0.0.1:5432` (`trust`, sans mot de passe) sans qu'un serveur y écoute ; aucune cible
+    `make`. Motif : l'application ne se lance jamais hors conteneur, `runserver` n'a pas de
+    cas d'usage dans ce fork. Écartées : la base `libreosteo` du serveur de test (`make
+    dev-db`), un conteneur `libreosteo-dev-pg` persistant.
+  - **Q2 a — réglages de démonstration retirés, mode démonstration gardé.** Défaut de
+    `Libreosteo/wsgi.py` → `settings.container` ; branche morte `request.tenant` de
+    `_en_demonstration` retirée. Motif : pas d'instance publique ; retrait minimal.
+    Écartée : retirer tout le mode (drapeau, sérialiseur, gabarits, six tests).
+
 ## À faire
 
 - ~~**Bascule du parc sur l'image officielle — geste de l'utilisateur** (lot « suite unitaire
@@ -469,6 +482,12 @@ Tenu à la main.
   `settings/standalone.py`), après recherche du consommateur et du motif de conservation au
   journal ; `settings/demonstration.py` et `is_demonstration` à trancher. Pas de traque des
   mentions « sqlite » dans les commentaires : elles tombent avec (1).
+- **Constats hors lot, versés par le lot « suite fonctionnelle sur PostgreSQL »** (2026-09-28,
+  spec § 8) : `Docker/deploy/pg/.env.example` dit encore `db` « épinglée par digest …
+  (décision DU3) », périmé depuis le renversement du 2026-09-27 ; les cibles `make run`
+  (conteneur seul, sans PostgreSQL) et `run-pg` (`docker-compose` v1, `.env` à la racine)
+  sont périmées ; le script local `.tools/libreosteo-functional-tests.sh` (hors dépôt) dit
+  la base « in-memory » — il fonctionne de nouveau depuis la bascule, faute de `--ds`.
 - ~~**Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
   version à chaque construction ; la suite unitaire épingle seulement son pilote de test
   (`VERSION_PSYCOPG2 = 2.9.13`).~~ — **clos le 2026-09-28 par `0d41fb5`**, détail en
@@ -1181,8 +1200,9 @@ soldées ou tenues** :
   que ni l'une ni l'autre ne coupe `propagate` (absent vaut `True`) : un
   `logging.getLogger(__name__)` sous `libreosteoweb.api.*` traversait deux ancêtres configurés.
   L'entrée fille est retirée, un commentaire dit pourquoi et interdit de la réintroduire.
-  ⚠️ **`winserver.py:180` garde le même motif** — hors cible de déploiement (conteneur +
-  PostgreSQL), donc délibérément non touché.
+  ~~⚠️ **`winserver.py:180` garde le même motif** — hors cible de déploiement (conteneur +
+  PostgreSQL), donc délibérément non touché.~~ — **sans objet depuis le 2026-09-28** :
+  `winserver.py` retiré (`33b1273`).
 
 - ~~⚠️ **Les libellés des tuiles du tableau de bord se coupent au milieu d'un mot**~~ —
   **fermé le 2026-09-20 par `d62cbd2`**, le style de `.huge` repris sous `.lo-compteur-tuile`
@@ -1326,9 +1346,9 @@ Chacun avec son motif de non-correction — détail dans
   ne lit jamais l'attribut posé, comme pour `Document.set_request` (retiré au chantier S5)
   — mais ces lignes sont **couvertes**, donc hors des 236 instructions de l'audit de
   cadrage. Les retirer aurait élargi le mandat.
-- **`libreosteoweb/api/views/pages/documents.py:474`** (`getattr(request, "tenant", None)`) :
+- ~~**`libreosteoweb/api/views/pages/documents.py:474`** (`getattr(request, "tenant", None)`) :
   même vestige que la branche `request.tenant` retirée par S10, mais couvert par son
-  court-circuit.
+  court-circuit.~~ — **retiré le 2026-09-28 par `b8a1df8`** (décision Q2 a).
 - **`libreosteoweb/admin.py`** : les quatre `admin.site.register` sont sans effet,
   `admin.site.urls` n'étant dans aucun `urlpatterns`. Aucune de ses lignes n'est dans les
   236 : le module s'importe, donc il se couvre.
@@ -1741,6 +1761,47 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-28 — Lot « suite fonctionnelle et base de développement sur PostgreSQL » : les deux
+  suites sur PostgreSQL, sqlite et standalone retirés du dépôt** (15 commits,
+  `5b8a8f6`..`b8a1df8`). Spec :
+  `docs/superpowers/specs/2026-09-27-suite-fonctionnelle-postgresql-design.md`. `make check`
+  vert, **1225 passed, 12 warnings**, couverture **99,98 %** ; `fail_under` inchangé à 99.
+  - **Suite fonctionnelle** : serveur de test et `settings.test`, sans `--ds` ; tuyauterie
+    sqlite retirée (`BEGIN IMMEDIATE`, base temporaire, `OPTIONS["timeout"]`, jointure de
+    fin de session) ; chaque vidage attend que le `live_server` ait soldé ses requêtes
+    (interblocage `TRUNCATE` / requête htmx en vol, mesuré au cadrage). Référence sqlite
+    (T1) **584,66 s** ; PostgreSQL (T1) **572,37 s** ; bascule (T4) **594,37 s** puis
+    **612,60 s**, second lancement sans redémarrage du serveur de test ; **152 passed** à
+    chaque passe, aucune ligne `ERROR at teardown`, `DeadlockDetected`, `couldn't be
+    flushed`, `Database access not allowed`. Échecs révélés par la passe complète :
+    **aucun**. **Critère 3** : tenu en T1 (−2 %), dépassé en T4 (+2 % et +5 %) ; bruit de
+    séance (sqlite mesurée entre 549 et 585 s le même jour). Spec § 5.3 : un dépassement
+    relève l'objectif, il ne bloque pas. Conséquence pratique : une passe complète frôle
+    le plafond de 600 s de l'outil ; le repli en deux moitiés du protocole devient la
+    règle.
+  - **Base par défaut** : `base.py` vise PostgreSQL `127.0.0.1:5432` (Q1 c) ; `container.py`
+    efface ce défaut avant d'importer le `settings/` monté, refus « Moteur de base de
+    données inattendu : aucun ». Critère 6 constaté (T7) : `make check` vert sans serveur
+    sur 5432, `migrations-check` et `mypy` avertissent sans échouer. **Arbitrage de l'étage
+    `build`** : `django.setup()` charge le pilote avant `ready()` ; l'étage `build` n'a pas
+    de pilote → nouveau module `Libreosteo/settings/statique.py` (moteur
+    `django.db.backends.dummy`) pour `collectstatic` et `compress`, dans le `Makefile`
+    (cible `static`) et le `Dockerfile` (étage `build`).
+  - **Retrait** : `setup.py`, `patch.py`, `setup.cfg`, `MANIFEST.in`,
+    `requirements/requ-win32.txt`, `application.py`, `winserver.py`, `server.py` (et sa
+    copie dans l'image), `Libreosteo/standalone.py`, `settings/standalone.py`,
+    `Libreosteo/zip_loader.py`, branche `sys.frozen` de `base.py`,
+    `settings/demonstration.py` (Q2 a ; défaut de `wsgi.py` → `settings.container`),
+    branche `request.tenant` de `_en_demonstration`. **Cliquet `mypy`** : `files` passe de
+    199 à 192 entrées (+1 `statique.py`, −8 fichiers retirés), chacune sortie avec le
+    fichier qu'elle nomme, dans le même commit. Aucun module existant n'en sort : le
+    périmètre de code vérifié ne rétrécit pas, c'est le code qui disparaît.
+  - **Documentation** : ajoute `CONTRIBUTING.md` (consigne yarn 1.21.1 déplacée du
+    `README.rst`, Docker requis pour les deux suites, `make test`).
+
+  **Recette** : `R-INST-04` (étape 3) et chapitre 0 (§ Montage, § Tag d'image) mis à jour ;
+  passe de la tâche 20 ci-dessous.
 
 - **2026-09-28 — `psycopg2` épinglé dans l'image http, cliquet de synchronisation** (`0d41fb5`).
   Sans version, `pip install psycopg2` compilait la dernière publiée sur PyPI à chaque

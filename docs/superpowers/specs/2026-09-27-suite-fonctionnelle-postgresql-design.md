@@ -152,7 +152,8 @@ lancements.
 **Durée** : sur le même sous-ensemble, PostgreSQL est **plus rapide** que sqlite (≈ 92 s
 contre 126 s, −27 %) — vraisemblablement le hacheur MD5 et la fin des attentes de verrou de
 fichier. Passe complète de la suite (152 tests) sur PostgreSQL avec le remède :
-**[À REPORTER : résultat et durée de la passe complète de la sonde, § 1.3bis]**.
+passe complète du 2026-09-28 : sqlite 584,66 s, PostgreSQL (EF1 + EF2 locaux) 572,37 s,
+152 passed des deux côtés, aucun échec.
 
 ### 1.4 Le mode standalone : consommateurs
 

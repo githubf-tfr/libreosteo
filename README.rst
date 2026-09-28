@@ -133,10 +133,6 @@ HDS certification addresses hosts entrusted with someone else's health data. You
 obligations still apply, but they are not the same ones.
 - LIBREOSTEO_IMAGE_TAG selects which build of the application image the compose file runs ; the container refuses to start without it. The ``db`` image does not depend on it: it is the ``image:`` line of the compose file, so the commit you deploy says which PostgreSQL runs
 
-The sqlite and standalone (CherryPy) modes described further below still exist in the
-code, but are no longer a deployment target : they are not maintained or tested, and this
-Docker/PostgreSQL path is the only one to rely on.
-
 
 into your __init__.py file for settings you can have ::
 
@@ -409,9 +405,7 @@ Use it in production
 ====================
 The Docker/PostgreSQL deployment documented above is the only one that is maintained and
 tested. What follows documents the underlying settings mechanism, which the Docker image
-also relies on ; it is kept here because the code paths it describes (sqlite, standalone)
-are still in the repository, not because they are recommended production choices on their
-own.
+relies on.
 
 Settings are in the folder
 ::
@@ -420,8 +414,7 @@ Settings are in the folder
 
 There are some settings in this folder, the base_ settings is the main settings. All settings should
 use this base settings as reference. The Docker image builds on top of it with
-container_, which enforces PostgreSQL ; standalone_ (paired with the CherryPy server
-further below) is not maintained since it stopped being a deployment target.
+container_, which enforces PostgreSQL.
 
 Setting to avoid debug trace
 ----------------------------
@@ -476,25 +469,8 @@ this other `one <https://docs.nginx.com/nginx/admin-guide/web-server/app-gateway
 
 Docker images are provided with uwsgi as provider of the webapp. uwsgi is built from source at image build time, against the pinned Python interpreter of the image, and serves HTTP directly on port 8085.
 
-The repository also carries a standalone script, ``server.py``, which serves the
-application through CherryPy_ instead of uwsgi or a reverse proxy. It is not a
-maintained deployment target since the container/PostgreSQL decision above ; it is
-documented here only because the code and its dependency are still present.
-::
-
-   ./server.py
-
-
-To change the default port of the server, write a file server.cfg like this  (to set to 9000 in this example)
-::
-
-   [server]
-   server.port = 9000
-
 .. _base : LibreOsteo/settings/base.py
 .. _container : LibreOsteo/settings/container.py
-.. _standalone : LibreOsteo/settings/standalone.py
-.. _CherryPy : https://cherrypy.org/
 
 Rich text diagnostic
 ====================
