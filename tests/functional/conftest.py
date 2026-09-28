@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import threading
 import time
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator, cast
@@ -17,6 +18,7 @@ from django.conf import settings as reglages_django
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.staticfiles import finders
+from django.core.signals import request_finished, request_started
 from django.db.backends.sqlite3.base import DatabaseWrapper as SqliteDatabaseWrapper
 from haystack import connections as connexions_recherche
 from playwright.sync_api import Page, expect
@@ -173,8 +175,82 @@ document.addEventListener('alpine:initialized', () => { window.__alpineInitialis
 """
 
 
+class _RequetesEnVol:
+    """Nombre de requetes du `live_server` en cours de traitement, tous fils confondus.
+
+    Tenu par les deux signaux publics de Django. `request_started` part a l'entree du
+    gestionnaire WSGI ; `request_finished` a la fermeture de la reponse, apres la
+    validation de la transaction `ATOMIC_REQUESTS` et apres `close_old_connections`,
+    receveur connecte par Django avant celui-ci : quand le compte retombe a zero, aucun
+    fil de requete ne tient plus ni transaction ni connexion a la base. Un fil **inactif**,
+    garde vivant par une connexion HTTP persistante, ne compte pas : il ne tient rien.
+    """
+
+    def __init__(self) -> None:
+        self._condition = threading.Condition()
+        self._nombre = 0
+
+    def debut(self, sender: object, **kwargs: object) -> None:
+        with self._condition:
+            self._nombre += 1
+
+    def fin(self, sender: object, **kwargs: object) -> None:
+        with self._condition:
+            self._nombre -= 1
+            self._condition.notify_all()
+
+    def attendre_qu_aucune_ne_reste(self, delai_max: float) -> bool:
+        """Rend la main des que le compte est nul ; `False` si la borne est atteinte avant.
+
+        Attente conditionnelle, pas une temporisation : `wait_for` rend des que le
+        predicat est vrai, et tout de suite s'il l'est deja.
+        """
+        with self._condition:
+            return self._condition.wait_for(lambda: self._nombre == 0, delai_max)
+
+    def nombre(self) -> int:
+        with self._condition:
+            return self._nombre
+
+
+_REQUETES_EN_VOL = _RequetesEnVol()
+request_started.connect(
+    _REQUETES_EN_VOL.debut, dispatch_uid="fonctionnel-requete-debut"
+)
+request_finished.connect(_REQUETES_EN_VOL.fin, dispatch_uid="fonctionnel-requete-fin")
+
+# Borne de l'attente, pas une duree d'attente : la plus longue requete de la suite (import
+# CSV de `test_import_csv.py`) rend en quelques secondes. Atteinte, elle signale une
+# requete qui ne finit pas, elle ne la masque pas.
+DELAI_MAX_REQUETES_EN_VOL = 30.0
+
+
+@pytest.fixture
+def _requetes_soldees(transactional_db) -> Iterator[None]:
+    """Attend, en demontage, qu'aucune requete ne soit plus en vol, **avant** le vidage.
+
+    Sous PostgreSQL, le vidage de fin de test de `transactional_db` (`TRUNCATE` de toutes
+    les tables, verrou `AccessExclusiveLock`) et une requete encore en vol du
+    `live_server` (fragment htmx, transaction `ATOMIC_REQUESTS` ouverte) s'attendent
+    mutuellement : PostgreSQL sacrifie le `TRUNCATE` (`DeadlockDetected`), le vidage
+    echoue et le test suivant tombe a sa mise en place sur l'utilisateur `test` reste en
+    base (mesure du cadrage du 2026-09-27, § 1.3). Depend de `transactional_db` pour se
+    demonter **avant** lui ; `_drapeau_alpine_initialise` la demande avant `page` pour
+    qu'elle se demonte **apres** la page et son contexte, donc quand plus aucune requete
+    nouvelle ne peut partir. Une borne atteinte est signalee par un avertissement, jamais
+    tue : le vidage qui suit rougira alors en nommant l'interblocage.
+    """
+    yield
+    if not _REQUETES_EN_VOL.attendre_qu_aucune_ne_reste(DELAI_MAX_REQUETES_EN_VOL):
+        warnings.warn(
+            f"{_REQUETES_EN_VOL.nombre()} requete(s) du live_server encore en vol apres "
+            f"{DELAI_MAX_REQUETES_EN_VOL} s : le vidage de la base part quand meme.",
+            stacklevel=1,
+        )
+
+
 @pytest.fixture(autouse=True)
-def _drapeau_alpine_initialise(transactional_db, page: Page) -> None:
+def _drapeau_alpine_initialise(transactional_db, _requetes_soldees, page: Page) -> None:
     """Pose le drapeau **avant** toute navigation (D6f).
 
     `page.add_init_script` s'execute avant le premier script de **chaque** navigation
@@ -183,10 +259,12 @@ def _drapeau_alpine_initialise(transactional_db, page: Page) -> None:
     remet a `false`) a chaque nouvelle navigation, donc reste correct a travers les
     changements de document complets (`ouvrir_reglages_cabinet`, `ouvrir_profil_therapeute`).
 
-    `transactional_db`, inutilise ici, force pytest a demander cette fixture **avant**
-    `page` : sans lui, l'ordre de demontage s'inverse (`page` se demonte apres la base)
-    et le navigateur reste ouvert sur le `live_server` de session pendant que la base
-    est tronquee et `MEDIA_ROOT` / `HAYSTACK_CONNECTIONS` sont rendus au depot.
+    `transactional_db` et `_requetes_soldees`, inutilises ici, forcent pytest a demander
+    ces fixtures **avant** `page`, donc a les demonter apres elle, dans cet ordre : `page`
+    et son contexte, puis l'attente des requetes en vol, puis le vidage. Sans eux, le
+    navigateur reste ouvert sur le `live_server` de session pendant que la base est
+    tronquee et `MEDIA_ROOT` / `HAYSTACK_CONNECTIONS` sont rendus au depot, ou le vidage
+    croise une requete encore en vol.
     """
     page.add_init_script(_SCRIPT_DRAPEAU_ALPINE)
 
