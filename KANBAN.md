@@ -428,14 +428,6 @@ Aucun.
     `loaddata` sans données) ; aucun n'est propre à PostgreSQL (diff nul avec la mesure
     sqlite de T1).
 
-### Constat versé par le lot 4 (2026-09-28), non instruit
-
-- (2026-09-28) **`R-CON-01` étape 5 paraît injouable par son chemin.** Elle demande de vider le nom
-  **et** le prénom depuis « Profil » ; or `FormulaireIdentite` (`pages/profil.py`) exige le
-  nom. À vérifier à la prochaine passe de recette : si l'étape est bien injouable, le seul
-  chemin vers un praticien sans nom est un compte ajouté par « Ajouter un utilisateur » qui
-  n'a jamais enregistré son profil — celui de `R-FAC-08`.
-
 ### Constats versés par le lot « couverture 100 % » (2026-09-26), non corrigés
 
 Chacun avec son motif de non-correction — détail dans
@@ -463,6 +455,10 @@ Chacun avec son motif de non-correction — détail dans
 
 ## Terminé
 
+- (2026-09-28) Lot 6, T8 : `R-CON-01` étape 5 réécrite sur l'édition en place du tableau
+  « Utilisateurs » (chemin jouable) — spec
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T6 : constat « `.env.example` dit la publication linux/amd64
   uniquement » clos, vrai en partie — commentaire réécrit (`a0908b0`/`latest` amd64,
   `df1e658-arm64` en arm64, `make build` publie les trois étiquettes) — spec
@@ -1218,6 +1214,13 @@ Chacun avec son motif de non-correction — détail dans
   étaient invisibles, et la seule trace écrite était le plan — **qui se supprime à la clôture**.
   Sans cette entrée, le dépôt affirmerait « Bootstrap 3 est mort, clause à zéro » alors que sept
   sites survivent.
+
+- (2026-09-28) **L'édition en place du tableau « Utilisateurs » accepte un nom vide, là où
+  « Profil » l'exige** — motif : un praticien sans nom est un état prévu (`R-FAC-08` :
+  émission refusée, avoir possible ; repli d'affichage sur l'identifiant), et c'est le
+  chemin qui rend `R-CON-01` étape 5 jouable. Ne pas « réparer » sans rouvrir ces deux
+  fiches. Récit : `docs/journal/2026-09.md`, « À faire — entrées retirées », « Constat
+  versé par le lot 4 (2026-09-28), non instruit ».
 
 ## Suivi amont
 
