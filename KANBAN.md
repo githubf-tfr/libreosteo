@@ -469,9 +469,10 @@ Tenu à la main.
   `settings/standalone.py`), après recherche du consommateur et du motif de conservation au
   journal ; `settings/demonstration.py` et `is_demonstration` à trancher. Pas de traque des
   mentions « sqlite » dans les commentaires : elles tombent avec (1).
-- **Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
+- ~~**Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
   version à chaque construction ; la suite unitaire épingle seulement son pilote de test
-  (`VERSION_PSYCOPG2 = 2.9.13`).
+  (`VERSION_PSYCOPG2 = 2.9.13`).~~ — **clos le 2026-09-28 par `0d41fb5`**, détail en
+  « Terminé ».
 - ~~**Premier run CI `quality` à constater après push** (lot « suite unitaire sur PostgreSQL »,
   2026-09-26). Constater : la ligne `Serveur de test : démarrage` (le runner part d'un démon
   vide), le job vert, sa durée, et que le job `functional` reste vert sur sqlite (critère 6 de
@@ -1740,6 +1741,22 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-28 — `psycopg2` épinglé dans l'image http, cliquet de synchronisation** (`0d41fb5`).
+  Sans version, `pip install psycopg2` compilait la dernière publiée sur PyPI à chaque
+  construction — dérive silencieuse. Le Dockerfile pose désormais `pip install
+  psycopg2==2.9.13`, reprenant la version que porte déjà `requirements/requ-dev.txt`
+  (`psycopg2-binary==2.9.13`, pilote de la suite unitaire) ; le nouveau module
+  `tests/qualite/test_contrat_pilote_psycopg2.py` (ajouté à `[tool.mypy] files` dans le
+  même commit) rougit si les deux fichiers divergent, en nommant les deux et leurs
+  valeurs. **Preuve telle que faite, pas la construction complète** : le bac à sable
+  bloque Alpine et Yarn par son proxy TLS, la compilation n'y est pas vérifiable. Preuve
+  ramenée à l'archive source `psycopg2-2.9.13.tar.gz` disponible sur PyPI et au constat
+  que 2.9.13 est déjà la dernière version publiée, donc celle que l'image compilait sans
+  épingle avant ce commit — aucune régression de version introduite. **La construction
+  complète de l'image reste un geste dû**, à faire et à constater à la prochaine
+  publication, pas encore faite. `make check` vert, **1221 passed, 2 skipped**, couverture
+  **99,98 %**.
 
 - **2026-09-27 — Première image arm64 publiée : `familletra/libreosteo-http:df1e658-arm64`.**
   Bâtie sur l'hôte par l'utilisateur (`docker buildx build --platform=linux/arm64 … --load`,
