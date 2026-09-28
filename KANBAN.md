@@ -385,15 +385,20 @@ vers le journal se fait par titre, jamais par numéro de ligne.
 
 ### Gestes dus par l'utilisateur
 
-- (2026-09-28) **Construire l'image http et la recetter** — geste de l'utilisateur à la prochaine
-  publication : construction (`docker build`, étage `build` sur `settings.statique`, sans
-  `server.py`), mêmes sept bundles `output.<hash>` que `make static`,
-  `/Libreosteo/django/conf/locale` absent, `R-INST-04` jouée sur l'image. Hors du bac à sable :
-  le réseau hôte (« esit », racine `pki.esit.fr`) intercepte le TLS vers yarn et Alpine, et
-  l'utilisateur a refusé d'y faire confiance dans le bac à sable (2026-09-28).
+Aucun.
 
 ### Autres entrées ouvertes
 
+- (2026-09-28) **Construire l'image http et la recetter, depuis le bac à sable, hors du réseau
+  ESIT** — à faire par l'agent dès que la machine hôte n'est plus sur le réseau « esit » :
+  celui-ci intercepte le TLS vers yarn et Alpine (racine `pki.esit.fr`), et l'utilisateur a
+  refusé d'y faire confiance (2026-09-28). Condition : `curl -sS -o /dev/null -w '%{http_code}'
+  https://registry.yarnpkg.com/` rend `200`. Méthode : proxy Docker Sandboxes seul, CA
+  `$PROXY_CA_CERT_B64` injectée dans une variante du `Dockerfile` hors dépôt, image locale
+  jamais publiée (doc Docker, *Troubleshooting* des Sandboxes). Contrôles : étage `build` sur
+  `settings.statique`, sans `server.py`, mêmes sept bundles `output.<hash>` que `make static`,
+  `/Libreosteo/django/conf/locale` absent, `pip show psycopg2` en `2.9.13`, `R-INST-04` jouée
+  sur l'image.
 - (2026-09-28) **[2026-09-28] `POST /api/invoices/<pk>/cancel` sur une facture rectificative non facturée
   rend 500** : `corrective_invoice.status="notinvoiced"` avec une raison passe la
   validation ; `invoice_examination` rend alors `{"invoiced": None}`, puis
