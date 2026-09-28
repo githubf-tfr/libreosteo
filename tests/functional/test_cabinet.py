@@ -141,7 +141,12 @@ def test_le_refus_d_une_cellule_est_affiche_et_n_ecrit_rien(
     # La cellule reste **en edition** : rien n'affiche la valeur refusee comme si elle
     # etait enregistree.
     expect(page.get_by_test_id("cellule-test-first_name")).to_have_count(0)
-    assert get_user_model().objects.get(username="test").first_name == ""
+    # Valeur d'origine du socle (lot 4 : « Robot », plus "" -- E1 seme desormais un nom
+    # et un prenom, cf. `conftest.py::socle`) : le refus ne l'ecrase pas.
+    assert (
+        get_user_model().objects.get(username="test").first_name
+        == socle.utilisateur.first_name
+    )
 
 
 def test_tri_du_tableau_des_utilisateurs(
