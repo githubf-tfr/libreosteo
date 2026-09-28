@@ -1387,10 +1387,12 @@ Chacun avec son motif de non-correction — détail dans
   dépréciée, conservée telle quelle par la tâche C3 (et par F7 pour la seconde occurrence)
   pour ne pas glisser un geste non demandé dans un commit d'extraction ou de test.~~ —
   **corrigé le 2026-09-26 par `8b68c4c`**, `logger.warning` aux deux occurrences.
-- **Le msgid `"Cannot read the content file. Check the encoding."`**
+- ~~**Le msgid `"Cannot read the content file. Check the encoding."`**
   (`locale/fr/LC_MESSAGES/django.po:69`) est devenu orphelin avec la suppression F1. Aucun
   cliquet ne le voit (`test_contrat_traductions.py` mesure code → catalogue, jamais
-  l'inverse), et un `makemessages` réécrirait tout le fichier pour une ligne.
+  l'inverse), et un `makemessages` réécrirait tout le fichier pour une ligne.~~ —
+  **corrigé** : entrée `msgid`/`msgstr` retirée manuellement de `django.po`, `.mo`
+  recompilé (`make locale-compile`). Aucun `makemessages`.
 - **`IntegratorExamination.integrate` teste `file_additional is None`**, or le service passe
   un `FieldFile` vide qui n'est pas `None` (constat de la tâche F8). Sans portée aujourd'hui,
   le dépôt étant refusé à l'analyse avant d'atteindre l'intégrateur. À ne pas « réparer »

@@ -66,9 +66,6 @@ msgstr ""
 msgid "This file was not validated by the analyze step."
 msgstr "Ce fichier n'a pas été validé par l'étape d'analyse."
 
-msgid "Cannot read the content file. Check the encoding."
-msgstr "Impossible de lire le contenu du fichier. Vérifiez l'encodage."
-
 msgid "Missing patient file to integrate it."
 msgstr "Il manque le fichier patient pour intégrer."
 
