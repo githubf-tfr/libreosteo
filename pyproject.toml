@@ -1,5 +1,4 @@
 # Configuration de l'outillage de qualité uniquement.
-# L'emballage du paquet reste décrit par setup.py et setup.cfg.
 
 [tool.pytest.ini_options]
 # PostgreSQL, le moteur de la production (cadrages du 2026-09-26 et du 2026-09-27) ;
@@ -106,10 +105,6 @@ python_version = "3.14"
 plugins = ["mypy_django_plugin.main"]
 # Périmètre volontairement restreint : seuls les modules qui passent déjà figurent
 # ici. Un module rejoint la liste quand il est annoté. Même cliquet que la couverture.
-# Seul `setup.py` reste hors périmètre : `sys.winver`, qui n'existe que sous Windows,
-# est utilisé dans des fonctions imbriquées dans un bloc `if sys.platform == "win32":`
-# — narrowing que mypy ne fait pas traverser jusqu'aux corps de fonctions qui y sont
-# définies. Le corriger demanderait un `# type: ignore`, pire qu'une exclusion honnête.
 files = [
     "Libreosteo/__init__.py",
     "Libreosteo/settings/__init__.py",
@@ -257,7 +252,6 @@ files = [
     "outils/tests/__init__.py",
     "outils/tests/test_diagnostic_archive.py",
     "outils/tests/test_rupture_bs5.py",
-    "patch.py",
     "server.py",
     "tests/__init__.py",
     "tests/functional/__init__.py",

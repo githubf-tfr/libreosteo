@@ -1,2 +1,0 @@
--r requirements.txt
-cx_freeze==6.9
