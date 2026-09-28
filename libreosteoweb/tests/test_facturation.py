@@ -683,6 +683,37 @@ class TestAnnulationParFactureCorrectiveInvalide(APITestCase):
         self.facture.refresh_from_db()
         self.assertNotEqual(InvoiceStatus.CANCELED, self.facture.status)
 
+    def test_une_facture_corrective_non_facturee_rend_400_sans_rien_ecrire(self):
+        # Rouge si : le refus n'intervient plus au serialiseur -- `invoice_examination`
+        # ecrit alors le statut de la seance avant que la vue ne leve ou ne refuse
+        # (spec lot 6 § 1.1). A HEAD, cette meme requete leve `Invoice.DoesNotExist`
+        # (500) : le client de test la relaie telle quelle.
+        regle_cabinet(cancel_invoice_credit_note=False)
+        consultation = self.client.get(
+            reverse("examination-detail", kwargs={"pk": self.consultation.id})
+        ).data
+        self.consultation.refresh_from_db()
+        statut_seance_avant = self.consultation.status
+        nombre_factures_avant = Invoice.objects.count()
+
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": self.facture.pk}),
+            data={
+                "examination": consultation,
+                "corrective_invoice": facturation(
+                    status="notinvoiced", reason="Geste commercial"
+                ),
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, reponse.status_code)
+        self.facture.refresh_from_db()
+        self.assertNotEqual(InvoiceStatus.CANCELED, self.facture.status)
+        self.consultation.refresh_from_db()
+        self.assertEqual(statut_seance_avant, self.consultation.status)
+        self.assertEqual(nombre_factures_avant, Invoice.objects.count())
+
 
 class TestRefusDuNumeroDejaEmisAAnnulation(APITestCase):
     """Meme collision que TestRefusDuNumeroDejaEmis, mais sur le chemin de

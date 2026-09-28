@@ -113,6 +113,16 @@ class ExaminationInvoicingSerializer(serializers.Serializer):
 class InvoiceCancelingWithCorrectiveInvoiceSerializer(serializers.Serializer):
     corrective_invoice = ExaminationInvoicingSerializer()
 
+    def validate(self, attrs):
+        # Une facture corrective remplace une facture emise : elle est emise a son tour.
+        # Le refus precede toute ecriture (`invoice_examination` ecrit le statut de la
+        # seance avant de rendre, cf. spec lot 6 § 1.1).
+        if attrs["corrective_invoice"]["status"] != "invoiced":
+            raise serializers.ValidationError(
+                _("A corrective invoice must be invoiced")
+            )
+        return attrs
+
     def get_fields(self):
         # Import local : ExaminationSerializer vit dans consultation.py, qui importe
         # InvoiceSerializer d'ici. Un import en tete de fichier creerait un cycle au

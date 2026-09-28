@@ -128,6 +128,9 @@ msgstr ""
 msgid "Unknown invoicing status"
 msgstr "Statut de facturation inconnu"
 
+msgid "A corrective invoice must be invoiced"
+msgstr "Une facture corrective doit être émise"
+
 msgid "Check information is missing"
 msgstr "Les informations de chèque sont manquantes"
 

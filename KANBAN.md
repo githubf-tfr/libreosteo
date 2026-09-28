@@ -399,12 +399,6 @@ Aucun.
   `settings.statique`, sans `server.py`, mêmes sept bundles `output.<hash>` que `make static`,
   `/Libreosteo/django/conf/locale` absent, `pip show psycopg2` en `2.9.13`, `R-INST-04` jouée
   sur l'image.
-- (2026-09-28) **[2026-09-28] `POST /api/invoices/<pk>/cancel` sur une facture rectificative non facturée
-  rend 500** : `corrective_invoice.status="notinvoiced"` avec une raison passe la
-  validation ; `invoice_examination` rend alors `{"invoiced": None}`, puis
-  `Invoice.objects.get(id=None)` lève — rollback, aucune écriture. Atteignable par l'API
-  seule (l'écran fige `"invoiced"` en dur). Cousin du `KeyError` fermé par le lot 2 (défauts
-  produit). Antérieur à la branche, non corrigé.
 - (2026-09-28) **[2026-09-28] Test fonctionnel intermittent, cause non instruite** :
   `tests/functional/test_facturation.py::test_annulation_et_refacturation` a échoué une fois
   sur la passe complète finale du 2026-09-28 (badge « Annulée » résolu mais `hidden` pendant
@@ -500,6 +494,10 @@ Chacun avec son motif de non-correction — détail dans
 
 ## Terminé
 
+- (2026-09-28) Lot 6, T1 : `POST /api/invoices/<pk>/cancel` sur une facture corrective non
+  facturée refuse en 400 avant toute écriture — spec
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Refonte du KANBAN clos : renvois réécrits par titre, règle de tenue écrite,
   `CLAUDE.md` aligné sans gain de lignes — spec
   `docs/superpowers/specs/2026-09-28-refonte-kanban-design.md` (`d87d8a1`) ; commits
