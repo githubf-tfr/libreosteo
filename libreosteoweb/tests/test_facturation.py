@@ -13,8 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
@@ -822,10 +824,20 @@ class TestListeFactures(APITestCase):
         self.assertEqual(reponse.data["envoyee"], str(self.ma_facture.id))
 
 
+# L'instantane du rendu francais de la facture imprimee (lot 4, T2a).
+INSTANTANE_FACTURE_FR = Path(__file__).parent / "instantanes" / "facture-fr.html"
+
+
 class TestRenduFacture(APITestCase):
     def setUp(self):
         with sans_receivers():
             self.user = cree_praticien()
+            # La facture recopie le nom du praticien qui l'emet : l'instantane doit en
+            # porter un. « Crusher » et non « Tester » : aucun attendu de ce module ne
+            # doit pouvoir passer par la sous-chaine « TEST » de l'identifiant.
+            self.user.last_name = "Crusher"
+            self.user.first_name = "Beverly"
+            self.user.save()
             cree_reglages_praticien(self.user)
             regle_cabinet(invoice_content="Consultation de <patient_first_name>")
             self.patient = cree_patient()
@@ -893,6 +905,69 @@ class TestRenduFacture(APITestCase):
         corps = reponse.content.decode("utf-8")
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         self.assertIn(PaimentMean.objects.get(code="cash").text.lower(), corps)
+
+    def facture_figee(self):
+        """Une facture dont chaque donnee rendue est figee : seance, montant, encaissement.
+
+        Emise par l'API, comme en production, puis reglee par un encaissement date.
+        """
+        regle_cabinet(
+            invoice_office_header="Cabinet 1",
+            office_address_street="27 rue Haute",
+            office_address_complement="",
+            office_address_zipcode="87110",
+            office_address_city="Le Vigen",
+            office_phone="05 55 12 13 14",
+            office_identifier_label="SIRET",
+            professional_id_label="Adeli",
+            invoice_content="Consultation de <patient_first_name> : <amount> <currency>",
+            invoice_footer="Footer",
+        )
+        with sans_receivers():
+            seance = cree_consultation(
+                self.patient,
+                therapeut=self.user,
+                date=datetime(2026, 9, 13, 10, 30, tzinfo=ZoneInfo("Europe/Paris")),
+            )
+        facture = Invoice.objects.get(
+            id=self.client.post(
+                reverse("examination-invoice", kwargs={"pk": seance.id}),
+                data=facturation(amount=55.55, paiment_mode="notpaid"),
+                format="json",
+            ).data["invoiced"]
+        )
+        encaissement = Paiment.objects.create(
+            amount=Decimal("55.55"),
+            currency="EUR",
+            paiment_mode="check",
+            date=date(2026, 9, 14),
+        )
+        facture.paiment_set.add(encaissement)
+        return facture
+
+    def rendu(self, facture, langue):
+        reponse = self.client.get(
+            reverse("invoice_view", kwargs={"invoiceid": facture.id}),
+            HTTP_ACCEPT_LANGUAGE=langue,
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        return reponse.content.decode("utf-8")
+
+    def test_le_rendu_francais_de_la_facture_est_fige(self):
+        """Instantane du rendu `fr`, pris sur le gabarit d'avant le lot 4 (T2a).
+
+        Il porte les quatre sorties localisees du gabarit -- `floatformat` (HONORAIRES,
+        encaissement), `date:"d F Y"` (« A ..., le ... », encaissement) -- et le corps
+        rendu par `templatize`. T2b fixe la langue du gabarit : ce fichier ne doit pas
+        bouger d'un octet.
+
+        Rouge si : un octet du rendu francais change.
+        """
+        self.maxDiff = None
+        self.assertEqual(
+            self.rendu(self.facture_figee(), "fr"),
+            INSTANTANE_FACTURE_FR.read_text(encoding="utf-8"),
+        )
 
 
 class TestMoyenDePaiementParDictionnaire(TestCase):
