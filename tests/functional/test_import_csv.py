@@ -401,3 +401,87 @@ def test_l_indicateur_d_attente_s_affiche_pendant_l_import(
         assert Patient.objects.count() == 2
     finally:
         page.unroute_all(behavior="ignoreErrors")
+
+
+def _fichier_de_deux_patients(tmp_path: Path) -> Path:
+    """En-tete et deux lignes de `patients_1.csv` : l'integration dure quelques secondes."""
+    fichier_court = tmp_path / "patients_2_lignes.csv"
+    with fichier_court.open("w") as sortie:
+        subprocess.run(["head", "-3", FICHIER_PATIENTS], check=True, stdout=sortie)
+    return fichier_court
+
+
+def test_apres_une_coupure_le_bouton_importer_reste_inactif(
+    page: Page, live_server: LiveServer, tmp_path: Path
+) -> None:
+    """A la coupure, l'ecran ne contredit plus « ne relancez pas » (lot 4, D1).
+
+    htmx 2.0.10, sur une requete sans reponse (`onerror`, `ontimeout`, `onabort`), retire
+    `disabled` du bouton pose par `hx-disabled-elt` **avant** d'emettre
+    `htmx:afterRequest` : sans le gestionnaire du gabarit, le bouton redevenait vert et
+    actif juste sous la phrase qui interdit de rejouer -- et le rejeu double les
+    consultations, qui n'ont aucune contrainte d'unicite.
+
+    La coupure est simulee dans le navigateur (`route.abort()`, statut 0, la voie
+    `onerror` par laquelle arrive la coupure du routeur `uwsgi`) : rien n'atteint le
+    `live_server`, et le test n'attend pas trois minutes. La borne htmx (`ontimeout`)
+    rend le meme statut 0. Seule la fiche `R-IMP-04` joue la coupure reelle.
+
+    Rouge si : le gestionnaire `hx-on::after-request` quitte le bouton (le bouton se
+    rearme : premiere assertion apres le vol), ou si la phrase n'est plus revelee.
+    """
+    connexion(page, live_server)
+    ouvrir_import(page)
+    page.set_input_files("#patient-file", str(_fichier_de_deux_patients(tmp_path)))
+    page.click("button:has-text('Analyser')")
+    expect(page.get_by_test_id("analyse-patients-ok")).to_be_visible()
+
+    bouton = page.get_by_role("button", name="Importer", exact=True)
+    indicateur = page.locator("#import-en-cours")
+    avis = page.get_by_test_id("import-coupure")
+    # Preuve de presence, et d'absence avant le geste : sans elle, `to_be_visible()` plus
+    # bas passerait sur une phrase affichee d'emblee.
+    expect(avis).to_be_attached()
+    expect(avis).to_be_hidden()
+
+    page.route("**/integrate", lambda route: route.abort())
+    with page.expect_event("requestfailed"):
+        bouton.click()
+    # Fin du vol, cote page : `htmx-request` quitte le temoin dans le meme `onerror` qui
+    # retire `disabled` puis emet `htmx:afterRequest`. On attend la classe, pas le
+    # bouton : `to_be_disabled()` seul passerait pendant le vol, bouton encore desactive
+    # par `hx-disabled-elt`, avec ou sans gestionnaire.
+    page.wait_for_function(
+        "() => !document.getElementById('import-en-cours')"
+        ".classList.contains('htmx-request')"
+    )
+
+    expect(bouton).to_be_disabled()
+    expect(avis).to_be_visible()
+    expect(avis).to_contain_text("ne le relancez pas")
+    expect(indicateur).to_be_hidden()
+    assert Patient.objects.count() == 0
+
+
+def test_une_integration_reussie_n_affiche_pas_l_avis_de_coupure(
+    page: Page, live_server: LiveServer, tmp_path: Path
+) -> None:
+    """Pendant du test de coupure : sur une reponse 200, le gestionnaire ne fait rien.
+
+    Rouge si : la condition `status === 0` disparait ou s'elargit -- l'avis de coupure
+    s'afficherait sous un import reussi.
+    """
+    connexion(page, live_server)
+    ouvrir_import(page)
+    page.set_input_files("#patient-file", str(_fichier_de_deux_patients(tmp_path)))
+    page.click("button:has-text('Analyser')")
+    expect(page.get_by_test_id("analyse-patients-ok")).to_be_visible()
+    # Preuve de presence : l'absence constatee plus bas ne prouverait rien sur un
+    # paragraphe qui n'existe pas.
+    expect(page.get_by_test_id("import-coupure")).to_be_attached()
+
+    page.get_by_role("button", name="Importer", exact=True).click()
+    expect(page.get_by_test_id("import-reussi-titre")).to_be_visible(timeout=60_000)
+
+    expect(page.get_by_test_id("import-coupure")).to_be_hidden()
+    assert Patient.objects.count() == 2

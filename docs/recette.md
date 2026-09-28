@@ -3682,9 +3682,16 @@ la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par 
 ### R-IMP-04 — Import dépassant la borne de trois minutes
 
 - **Domaine** : Import CSV
-- **Couverture auto** : non — le cas demande un fichier de plus de 1 200 patients et une
-  mesure de plus de 180 s ; la suite fonctionnelle ne peut jouer ni l'un ni l'autre. Seul
-  l'avertissement qui précède l'import est couvert, par
+- **Couverture auto** : partielle —
+  tests/functional/test_import_csv.py::test_apres_une_coupure_le_bouton_importer_reste_inactif
+  (coupe la requête d'intégration dans le navigateur, sans attendre trois minutes, et
+  constate l'écran d'après la coupure : bouton « Importer » inactif, phrase de coupure
+  affichée, témoin éteint, aucun patient intégré) et
+  ::test_une_integration_reussie_n_affiche_pas_l_avis_de_coupure (la phrase ne s'affiche
+  pas sous un import qui répond). Ni le fichier de plus de 1 200 patients ni la mesure de
+  plus de 180 s ne sont joués : la coupure réelle, et la voie par laquelle elle arrive
+  (borne htmx ou routeur `uwsgi`), restent à cette fiche. L'avertissement qui précède
+  l'import est couvert par
   libreosteoweb/tests/test_page_import.py::test_le_panneau_d_analyse_avertit_avant_d_integrer.
 - **État requis** : E1
 
@@ -3706,7 +3713,11 @@ troisième non.
    Attendu, **et les deux issues sont des OK** : soit le panneau « Importation réussie »
    s'affiche avec le nombre de lignes intégrées ; soit **aucun panneau ne revient** — le
    navigateur a été coupé par la borne `--http-timeout 180`
-   (`Docker/build/http-ready/Dockerfile:184`). ⚠️ **La seconde issue n'est pas un échec de
+   (`Docker/build/http-ready/Dockerfile:184`) : le témoin « Chargement en cours »
+   s'éteint, le bouton « Importer » **reste inactif**, et la phrase « Le serveur n'a pas
+   répondu dans les trois minutes. L'import continue peut-être de son côté : ne le
+   relancez pas, vérifiez d'abord la liste des patients. » s'affiche sous lui.
+   ⚠️ **La seconde issue n'est pas un échec de
    l'import** : mesuré à `R-IMP-01`, un `POST …/integrate` a rendu 200 en 238,8 s et les
    patients étaient intégrés.
 4. Dans le second cas seulement : **ne pas relancer l'import**. Ouvrir le tableau de bord
