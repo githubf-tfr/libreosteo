@@ -251,7 +251,6 @@ files = [
     "outils/tests/__init__.py",
     "outils/tests/test_diagnostic_archive.py",
     "outils/tests/test_rupture_bs5.py",
-    "server.py",
     "tests/__init__.py",
     "tests/functional/__init__.py",
     "tests/functional/banc/__init__.py",

@@ -68,7 +68,6 @@ COPY ./Libreosteo ./Libreosteo
 COPY ./locale ./locale
 COPY ./zipcode_lookup ./zipcode_lookup
 COPY ./manage.py .
-COPY ./server.py .
 
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:/root/.yarn/bin:$PATH"
