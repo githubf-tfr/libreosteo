@@ -18,6 +18,9 @@ def test_reglage_du_therapeute(
 ) -> None:
     socle.therapeute.professional_id = ""
     socle.therapeute.save()
+    socle.utilisateur.last_name = ""
+    socle.utilisateur.first_name = ""
+    socle.utilisateur.save()
 
     connexion(page, live_server)
     # Le gabarit du popover porte desormais ses ancres (D6f T1 bis) : c'est une chaine
@@ -32,10 +35,10 @@ def test_reglage_du_therapeute(
 
     ouvrir_profil_therapeute(page)
     # `last_name`, `first_name` et `email` n'ont qu'un attribut `name`, pas d'`id`
-    # (user-profile.html) : meme ecart que dans test_cabinet.py. `quality` est distinct de
-    # la valeur semee par le socle ("Ostéopathe DO", tests/functional/conftest.py) : une
-    # reassertion de la valeur deja en base passerait meme si l'enregistrement ne faisait
-    # rien.
+    # (user-profile.html) : meme ecart que dans test_cabinet.py. `last_name` et
+    # `first_name` sont vides en tete de test, `quality` est distinct de la valeur semee
+    # par le socle ("Ostéopathe DO", tests/functional/conftest.py) : une reassertion de
+    # la valeur deja en base ne passerait pas si l'enregistrement ne faisait rien.
     page.fill("input[name='last_name']", "Tester")
     page.fill("input[name=first_name]", "Robot")
     page.fill("input[name=email]", "test@robot.com")
