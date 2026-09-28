@@ -93,16 +93,27 @@ def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
     # Mutation en place du sous-dictionnaire "default", jamais un remplacement de
     # `settings.HAYSTACK_CONNECTIONS` : `haystack.connections.connections_info` fige sa
     # reference au premier import et choisit l'ENGINE dessus -- un remplacement
-    # laisserait le handler sur l'ancien moteur (meme raisonnement que
-    # `libreosteoweb/tests/conftest.py:43-49`).
+    # laisserait le handler sur l'ancien moteur. **Restauree apres chaque test** : cette
+    # mutation passe par `__getattr__` du `Settings` de pytest-django, que sa restauration
+    # automatique entre tests ne couvre pas -- ni `ENGINE` ni `PATH` ne reviendraient
+    # sinon a leur valeur d'origine, et le test suivant heriterait du `tmp_path` de celui
+    # d'avant. A la difference de `libreosteoweb/tests/conftest.py:43-49`, qui mute une
+    # fois par session sans jamais restaurer (la session s'arrete juste apres), ici chaque
+    # test doit repartir du reglage d'origine : meme geste que
+    # `TestReconstructionIndex.setUpClass` (`libreosteoweb/tests/test_exploitation.py`),
+    # sauvegarde puis restauration en `finally`, au cas ou le test leve entre les deux.
     configuration = cast("dict[str, Any]", settings.HAYSTACK_CONNECTIONS["default"])
+    origine = dict(configuration)
     configuration["ENGINE"] = (
         "libreosteoweb.api.folding_whoosh_backend.FoldingWhooshEngine"
     )
     configuration["PATH"] = str(tmp_path / "whoosh_index")
     connexions_recherche.reload("default")
-    yield
-    connexions_recherche.reload("default")
+    try:
+        yield
+    finally:
+        configuration.update(origine)
+        connexions_recherche.reload("default")
 
 
 # `window.Alpine` est pose **avant** que `start()` ne lie les directives
