@@ -457,38 +457,38 @@ Chacun avec son motif de non-correction — détail dans
 
 - (2026-09-28) Lot 6, T8 : `R-CON-01` étape 5 réécrite sur l'édition en place du tableau
   « Utilisateurs » (chemin jouable) — spec
-  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit `3367911` ;
+  détail : `docs/journal/2026-09.md`.
+- (2026-09-28) Lot 6, T7 : suivi amont — `560d734` examiné, **sans objet**, défaut déjà
+  fermé par `c5c902a` — spec
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit `c838379` ;
   détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T6 : constat « `.env.example` dit la publication linux/amd64
   uniquement » clos, vrai en partie — commentaire réécrit (`a0908b0`/`latest` amd64,
   `df1e658-arm64` en arm64, `make build` publie les trois étiquettes) — spec
-  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
-  détail : `docs/journal/2026-09.md`.
-- (2026-09-28) Lot 6, T7 : suivi amont — `560d734` examiné, **sans objet**, défaut déjà
-  fermé par `c5c902a` — spec
-  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit `b9af2b8` ;
   détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T5 : constat « l'archive JSON porte des dates sans fuseau » clos,
   verdict mixte — faux pour l'archive du fork (test de fidélité), non tranchable pour
   l'archive héritée (limitation assumée) — spec
-  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit `28bf5aa` ;
   détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T4 : constat « le montant du cabinet ne borne pas les décimales côté
   navigateur » clos, **faux** — `pattern` retiré (inerte sur `#amount`, `type="number"`), le
   pas de 0,01 bornait déjà — spec
-  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit `b651ce3` ;
   détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T3 : test fonctionnel intermittent `test_annulation_et_refacturation`
   clos, cause établie (course du test) — spec
-  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit `8824b75` ;
   détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T2 : `temp_disconnect_signal` devient une sous-classe de
   `block_disconnect_all_signal` à un seul couple, ne reconnecte plus à l'aveugle — spec
-  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit `ce45673` ;
   détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T1 : `POST /api/invoices/<pk>/cancel` sur une facture corrective non
   facturée refuse en 400 avant toute écriture — spec
-  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit `ff44261` ;
   détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Refonte du KANBAN clos : renvois réécrits par titre, règle de tenue écrite,
   `CLAUDE.md` aligné sans gain de lignes — spec
@@ -1200,6 +1200,13 @@ Chacun avec son motif de non-correction — détail dans
   `docs/journal/2026-09.md`, « À faire — entrées retirées », « Premier retour d'usage sur
   données réelles, et les deux lots qu'il ouvre (2026-09-20) ».
 
+- (2026-09-28) **L'édition en place du tableau « Utilisateurs » accepte un nom vide, là où
+  « Profil » l'exige** — motif : un praticien sans nom est un état prévu (`R-FAC-08` :
+  émission refusée, avoir possible ; repli d'affichage sur l'identifiant), et c'est le
+  chemin qui rend `R-CON-01` étape 5 jouable. Ne pas « réparer » sans rouvrir ces deux
+  fiches. Récit : `docs/journal/2026-09.md`, « À faire — entrées retirées », « Constat
+  versé par le lot 4 (2026-09-28), non instruit ».
+
 ### Limitation assumée par D6g, à ne pas « réparer » sans la comprendre (2026-09-20)
 
 - (2026-09-20) Attention : **Sept sites Bootstrap 3 survivent, posés depuis Python**, et c'est **assumé** :
@@ -1214,13 +1221,6 @@ Chacun avec son motif de non-correction — détail dans
   étaient invisibles, et la seule trace écrite était le plan — **qui se supprime à la clôture**.
   Sans cette entrée, le dépôt affirmerait « Bootstrap 3 est mort, clause à zéro » alors que sept
   sites survivent.
-
-- (2026-09-28) **L'édition en place du tableau « Utilisateurs » accepte un nom vide, là où
-  « Profil » l'exige** — motif : un praticien sans nom est un état prévu (`R-FAC-08` :
-  émission refusée, avoir possible ; repli d'affichage sur l'identifiant), et c'est le
-  chemin qui rend `R-CON-01` étape 5 jouable. Ne pas « réparer » sans rouvrir ces deux
-  fiches. Récit : `docs/journal/2026-09.md`, « À faire — entrées retirées », « Constat
-  versé par le lot 4 (2026-09-28), non instruit ».
 
 ## Suivi amont
 
@@ -1265,6 +1265,13 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
     conception : c'est une préservation **accidentelle** du défaut amont, et non une
     limitation assumée au sens du `CLAUDE.md`. La distinction a été instruite, pas supposée.
 
+- (2026-09-28) **`560d734` (2026-09-26) examiné — sans objet** (décision de la session
+  principale, lot 6) : l'amont remplace le processeur temps réel de Haystack par
+  `SafeRealtimeSignalProcessor`, qui ignore les enregistrements `raw` d'un `loaddata`.
+  Défaut déjà fermé chez le fork par `c5c902a` (D10 T2, 2026-09-19) : `restaurer()`
+  débranche l'indexation pendant le chargement puis vide l'index ; c'est le seul appel à
+  `loaddata` en production. `upstream/master` = `560d734`.
+
 ### Portages amont dus (2026-09-19) — **faits le jour même**
 
 - (2026-09-19) ~~**`accounts/logout` doit entrer dans `NO_REROUTE_PATTERN_URL`**~~ — **fait** (`bde1f53`).
@@ -1287,13 +1294,6 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
   405 garanti. **Preuve attendue** : après l'échec, `SESSION_KEY` n'est plus dans la session.
   La cible de redirection ne change pas ; seul l'effet de bord est neuf, et c'est lui qui doit
   être prouvé.
-
-- (2026-09-28) **`560d734` (2026-09-26) examiné — sans objet** (décision de la session
-  principale, lot 6) : l'amont remplace le processeur temps réel de Haystack par
-  `SafeRealtimeSignalProcessor`, qui ignore les enregistrements `raw` d'un `loaddata`.
-  Défaut déjà fermé chez le fork par `c5c902a` (D10 T2, 2026-09-19) : `restaurer()`
-  débranche l'indexation pendant le chargement puis vide l'index ; c'est le seul appel à
-  `loaddata` en production. `upstream/master` = `560d734`.
 
 ## Points en suspens
 

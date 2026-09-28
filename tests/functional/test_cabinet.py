@@ -83,7 +83,6 @@ def test_un_montant_a_trois_decimales_est_refuse_par_le_navigateur(
     page: Page, live_server: LiveServer, socle: Socle
 ) -> None:
     """Constat lot 6 (1.4) : faux. `#amount` est `type="number" step="0.01"` -- le pas
-
     refuse deja la 3e decimale, le `pattern` (retire par ce lot) etait sans effet sur un
     champ numerique. Le bouton « Mettre à jour » est `type="submit"` dans le formulaire :
     le navigateur valide avant `submit` et rapporte lui-meme le champ fautif, sans le
