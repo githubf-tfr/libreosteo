@@ -1026,7 +1026,7 @@ class TestFacturationCorrectiveRefusee(TestCase):
 
     def setUp(self) -> None:
         with sans_receivers():
-            self.praticien = cree_praticien()
+            self.praticien = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages = cree_reglages_praticien(self.praticien)
             self.cabinet = regle_cabinet(
                 amount=55,
@@ -1205,6 +1205,10 @@ class TestVuesDuVolet(_VoletRendu):
 
     def setUp(self) -> None:
         super().setUp()
+        # Ces vues emettent des factures : un praticien sans nom n'en emet pas (lot 4, D3).
+        self.praticien.last_name = "Crusher"
+        self.praticien.first_name = "Beverly"
+        self.praticien.save()
         self.client.force_login(self.praticien)
 
     def _cloturer(self, **donnees: object) -> Any:
@@ -1825,3 +1829,110 @@ class TestNomDuPraticien(_VoletRendu):
 
         self.assertNotIn("text-uppercase", html)
         self.assertNotIn("test", _texte(html).split("Motif")[0])
+
+
+class TestEmissionRefuseeSansNomALaPage(_VoletRendu):
+    """Les chemins de page qui emettent, sous le praticien du socle -- ni nomme ni
+    prenomme (lot 4, D3).
+
+    La vue de page rend le refus en 422 et **valide** sa transaction : c'est pourquoi le
+    refus doit preceder la reservation du numero. Chaque test le prouve par la sequence du
+    cabinet, qui ne bouge pas. Le message est cherche sans son apostrophe, que le gabarit
+    echappe.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.cabinet.invoice_start_sequence = "10001"
+        self.cabinet.save()
+        self.client.force_login(self.praticien)
+
+    def sequence(self) -> str:
+        return models.OfficeSettings.objects.get(
+            pk=self.cabinet.pk
+        ).invoice_start_sequence
+
+    def test_la_cloture_facturee_est_refusee_dans_la_modale(self) -> None:
+        reponse = self.client.post(
+            reverse("consultation-cloture", args=[self.consultation.id]),
+            {"status": "invoiced", "amount": "55", "paiment_mode": "cash"},
+        )
+
+        self.assertEqual(422, reponse.status_code)
+        self.assertIn(
+            "Renseignez votre nom dans votre profil utilisateur",
+            reponse.content.decode(),
+        )
+        self.consultation.refresh_from_db()
+        self.assertEqual(ExaminationStatus.IN_PROGRESS, self.consultation.status)
+        self.assertEqual(0, Invoice.objects.count())
+        self.assertEqual("10001", self.sequence())
+
+    def test_facturer_est_refuse_dans_la_modale(self) -> None:
+        reponse = self.client.post(
+            reverse("consultation-facturation", args=[self.consultation.id]),
+            {"amount": "55", "paiment_mode": "cash"},
+        )
+
+        self.assertEqual(422, reponse.status_code)
+        self.assertIn(
+            "Renseignez votre nom dans votre profil utilisateur",
+            reponse.content.decode(),
+        )
+        self.consultation.refresh_from_db()
+        self.assertEqual(ExaminationStatus.IN_PROGRESS, self.consultation.status)
+        self.assertEqual(0, Invoice.objects.count())
+        self.assertEqual("10001", self.sequence())
+
+    def test_la_cloture_non_facturee_reste_permise(self) -> None:
+        reponse = self.client.post(
+            reverse("consultation-cloture", args=[self.consultation.id]),
+            {"status": "notinvoiced", "reason": "Suivi"},
+        )
+
+        self.assertEqual(200, reponse.status_code)
+        self.consultation.refresh_from_db()
+        self.assertEqual(ExaminationStatus.NOT_INVOICED, self.consultation.status)
+
+    def test_l_annulation_par_facture_corrective_est_refusee_dans_la_modale(
+        self,
+    ) -> None:
+        self.cabinet.cancel_invoice_credit_note = False
+        self.cabinet.save()
+        with sans_receivers():
+            seance = cree_consultation(
+                self.patient,
+                therapeut=self.praticien,
+                status=ExaminationStatus.INVOICED_PAID,
+            )
+        originale = Invoice.objects.create(
+            date=seance.date,
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number="10000",
+            patient_family_name="Picard",
+            officesettings_id=self.cabinet.id,
+            status=InvoiceStatus.INVOICED_PAID,
+        )
+        seance.invoices.add(originale)
+
+        reponse = self.client.post(
+            reverse("consultation-annulation-facture", args=[seance.id]),
+            {"amount": "60", "paiment_mode": "cash"},
+        )
+
+        self.assertEqual(422, reponse.status_code)
+        self.assertIn(
+            "Renseignez votre nom dans votre profil utilisateur",
+            reponse.content.decode(),
+        )
+        originale.refresh_from_db()
+        self.assertEqual(InvoiceStatus.INVOICED_PAID, originale.status)
+        self.assertIsNone(originale.canceled_by_id)
+        self.assertEqual(1, Invoice.objects.count())
+        self.assertEqual("10001", self.sequence())

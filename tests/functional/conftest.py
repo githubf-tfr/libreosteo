@@ -235,8 +235,10 @@ def socle(request, transactional_db, environnement_isole) -> Socle | None:
     if request.node.get_closest_marker("sans_socle") is not None:
         return None
 
+    # Nom et prenom de l'etat E1 (docs/recette.md) : un praticien sans nom n'emet pas de
+    # facture (lot 4, D3), et tout test qui facture partirait sur un refus.
     utilisateur = get_user_model().objects.create_superuser(
-        "test", "test@test.com", "test"
+        "test", "test@test.com", "test", last_name="Tester", first_name="Robot"
     )
     therapeute = TherapeutSettings.objects.create(
         user=utilisateur,

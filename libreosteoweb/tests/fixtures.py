@@ -53,12 +53,22 @@ def sans_receivers():
         yield
 
 
-def cree_praticien(username="test", password="testpw", is_staff=True):
+def cree_praticien(
+    username="test", password="testpw", is_staff=True, last_name="", first_name=""
+):
+    """Un compte praticien, **sans nom par defaut**.
+
+    Le defaut reste vide : les tests de la famille « praticien sans nom » en tirent leur
+    cas, et un nom par defaut ferait passer en silence une assertion sur le repli par
+    l'identifiant (« TEST » est une sous-chaine de « TESTER »). Un test qui emet une
+    facture passe un nom : un praticien sans nom n'en emet pas (lot 4, D3).
+    """
     modele = get_user_model()
     courriel = "%s@test.com" % username
+    noms = {"last_name": last_name, "first_name": first_name}
     if is_staff:
-        return modele.objects.create_superuser(username, courriel, password)
-    return modele.objects.create_user(username, courriel, password)
+        return modele.objects.create_superuser(username, courriel, password, **noms)
+    return modele.objects.create_user(username, courriel, password, **noms)
 
 
 def cree_reglages_praticien(user, **kwargs):

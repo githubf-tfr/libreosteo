@@ -2201,6 +2201,14 @@ class TestClotureDepuisLEdition(_SocleDuDossier):
 class TestFactureCorrective(TestAnnulationDeFacture):
     """La seconde etape du chemin « facture corrective » (`examination.js:253-265`)."""
 
+    def setUp(self) -> None:
+        super().setUp()
+        # La facture corrective est une emission : un praticien sans nom n'en emet pas
+        # (lot 4, D3).
+        self.praticien.last_name = "Crusher"
+        self.praticien.first_name = "Beverly"
+        self.praticien.save()
+
     def test_la_validation_emet_la_remplacante_et_cite_l_annulee(self) -> None:
         """Ce que ce test regarde : la facture de remplacement en base, le statut
         « annulee » de la premiere, et le fait que `Examination.last_invoice` — qui resout a

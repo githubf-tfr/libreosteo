@@ -3346,6 +3346,57 @@ deux dates.
    lorsque son numéro figure dans le champ `replace` d'une autre facture de la période, ce
    que l'annulation par avoir ne fait sur aucune des deux.
 
+### R-FAC-08 — Émission refusée à un praticien sans nom ; l'avoir reste possible
+
+- **Domaine** : Facturation
+- **Couverture auto** : partielle —
+  libreosteoweb/tests/test_page_consultation.py::TestEmissionRefuseeSansNomALaPage
+  (clôture « Facturée », « Facturer » et facture corrective refusées en 422, message
+  rendu dans le fragment de modale, rien d'écrit, séquence inchangée ; la clôture « Non
+  facturée » reste permise) et
+  libreosteoweb/tests/test_facturation.py::TestEmissionRefuseeAuPraticienSansNom (les
+  mêmes refus par l'API, en 400 ; l'avoir émis ; un nom ou un prénom seul suffit). La
+  fenêtre restée ouverte et le message lu à l'écran n'ont d'équivalent qu'en rendu de
+  fragment.
+- **État requis** : E2. Cette fiche crée durablement l'utilisateur `riker`, annule la
+  facture `10000` par un avoir et émet la facture `10002` : remonter l'état E2
+  (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur → « Paramètres », onglet « Utilisateurs », « Ajouter un utilisateur » :
+   `riker` comme nom d'utilisateur, `motdepasse` dans les deux champs, « Valider » (même
+   geste que `R-CAB-05`, étape 7). Se déconnecter, s'identifier avec `riker` /
+   `motdepasse` ; fermer la visite guidée si elle s'ouvre.
+   Attendu : connexion acceptée ; le menu utilisateur affiche `riker`.
+2. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations », « Démarrer une
+   consultation » ; saisir `Motif de consultation` (Motif) et `Examen normal` (Examen
+   médical), cliquer « Clôturer » ; choisir « Facturée », moyen de paiement « Chèque »,
+   cliquer « Valider ».
+   Attendu : la fenêtre « Facturation » **reste ouverte** et affiche « Renseignez votre
+   nom dans votre profil utilisateur avant d'émettre une facture. » ; la consultation
+   reste dans l'onglet « Consultation en cours », sans encart « Facture ».
+3. Fermer la fenêtre. Menu « Comptabilité », liste « Par » : choisir « Tout », cliquer
+   « Rechercher ».
+   Attendu : une seule ligne, la facture `10000` — le refus de l'étape 2 n'a rien émis.
+4. Sur la ligne `10000`, menu « Actions », « Annuler », confirmer.
+   Attendu : un message de confirmation ; la facture `10000` passe à l'état « Annulée » et
+   un avoir `10001` apparaît, au montant négatif — un praticien sans nom **peut** annuler
+   une facture déjà émise.
+5. Menu utilisateur → « Profil utilisateur » : Nom `Riker`, Adresse électronique
+   `riker@test.com`, « Enregistrer ». Revenir sur la fiche Picard, onglet « Consultation
+   en cours », cliquer « Clôturer », choisir « Facturée », moyen de paiement « Chèque »,
+   cliquer « Valider ».
+   Attendu : la fenêtre se ferme ; l'encart « Facture » affiche le lien `n° 10002` —
+   **aucun numéro perdu** par le refus de l'étape 2.
+6. Cliquer le bouton d'impression (icône imprimante verte).
+   Attendu : un nouvel onglet s'ouvre ; le thérapeute imprimé est `Riker`.
+
+**Constat** : le nom du praticien est recopié sur la facture, pièce fiscale, et n'y change
+plus : il se vérifie avant l'émission, jamais après. Le refus précède la réservation du
+numéro, la numérotation reste continue (étape 5). L'avoir recopie le nom de la facture
+qu'il annule : il n'est pas concerné (étape 4).
+
 ### Médecins traitants
 
 ### R-MED-01 — Créer un médecin traitant

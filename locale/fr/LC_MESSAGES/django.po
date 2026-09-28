@@ -2517,3 +2517,8 @@ msgstr "Enregistrement en cours"
 
 msgid "An export is already in progress. Try again in a moment."
 msgstr "Un export est déjà en cours. Réessayez dans un instant."
+
+msgid "Fill in your name in your user profile before issuing an invoice."
+msgstr ""
+"Renseignez votre nom dans votre profil utilisateur avant d'émettre une "
+"facture."

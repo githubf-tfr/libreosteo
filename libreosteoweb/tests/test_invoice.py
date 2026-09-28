@@ -48,7 +48,11 @@ class TestChangeIdInvoice(APITestCase):
             signal=signals.post_save, receivers_senders=receivers_senders
         ):
             self.user = get_user_model().objects.create_superuser(
-                "test", "test@test.com", "testpw"
+                "test",
+                "test@test.com",
+                "testpw",
+                last_name="Crusher",
+                first_name="Beverly",
             )
             TherapeutSettings.objects.create(
                 professional_id="12345", office_identifier="12345", user=self.user
@@ -161,7 +165,11 @@ class TestCancelInvoice(APITestCase):
             signal=signals.post_save, receivers_senders=receivers_senders
         ):
             self.user = get_user_model().objects.create_superuser(
-                "test", "test@test.com", "testpw"
+                "test",
+                "test@test.com",
+                "testpw",
+                last_name="Crusher",
+                first_name="Beverly",
             )
             TherapeutSettings.objects.create(
                 professional_id="12345", office_identifier="12345", user=self.user
@@ -233,7 +241,11 @@ class TestRegularizeNotPaidInvoice(APITestCase):
             signal=signals.post_save, receivers_senders=receivers_senders
         ):
             self.user = get_user_model().objects.create_superuser(
-                "test", "test@test.com", "testpw"
+                "test",
+                "test@test.com",
+                "testpw",
+                last_name="Crusher",
+                first_name="Beverly",
             )
             TherapeutSettings.objects.create(
                 professional_id="12345", office_identifier="12345", user=self.user
@@ -446,7 +458,11 @@ class TestInvoiceWithOfficeSettings(APITestCase):
             signal=signals.post_save, receivers_senders=receivers_senders
         ):
             self.user = get_user_model().objects.create_superuser(
-                "test", "test@test.com", "testpw"
+                "test",
+                "test@test.com",
+                "testpw",
+                last_name="Crusher",
+                first_name="Beverly",
             )
             TherapeutSettings.objects.create(
                 professional_id="12345", office_identifier="12345", user=self.user

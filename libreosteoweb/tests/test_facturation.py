@@ -56,7 +56,7 @@ from libreosteoweb.tests.fixtures import (
 class TestFacturation(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet(
                 invoice_office_header="Cabinet des étoiles",
@@ -219,7 +219,7 @@ class TestRefusDuNumeroDejaEmis(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages_praticien = cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet(invoice_start_sequence="10000")
             self.patient = cree_patient()
@@ -282,7 +282,7 @@ class TestNumerotationFacture(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages_praticien = cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -371,7 +371,7 @@ class TestMaximumDeSequenceSurLesTroisSurfaces(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages_praticien = cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet(invoice_start_sequence="10003")
             self.patient = cree_patient()
@@ -472,7 +472,7 @@ class TestMaximumDeSequenceSurLesTroisSurfaces(APITestCase):
 class TestEncaissement(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -543,7 +543,7 @@ class TestEncaissement(APITestCase):
 class TestAnnulationFacture(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -611,7 +611,7 @@ class TestAnnulationParFactureCorrectiveInvalide(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -692,7 +692,7 @@ class TestRefusDuNumeroDejaEmisAAnnulation(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet(cancel_invoice_credit_note=True)
             self.patient = cree_patient()
@@ -747,9 +747,11 @@ def envoi_factice(request, pk=None):
 class TestListeFactures(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
-            self.autre = cree_praticien(username="autre")
+            self.autre = cree_praticien(
+                username="autre", last_name="Riker", first_name="William"
+            )
             cree_reglages_praticien(self.autre)
             regle_cabinet()
             self.patient = cree_patient()
@@ -831,13 +833,7 @@ INSTANTANE_FACTURE_FR = Path(__file__).parent / "instantanes" / "facture-fr.html
 class TestRenduFacture(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
-            # La facture recopie le nom du praticien qui l'emet : l'instantane doit en
-            # porter un. « Crusher » et non « Tester » : aucun attendu de ce module ne
-            # doit pouvoir passer par la sous-chaine « TEST » de l'identifiant.
-            self.user.last_name = "Crusher"
-            self.user.first_name = "Beverly"
-            self.user.save()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             regle_cabinet(invoice_content="Consultation de <patient_first_name>")
             self.patient = cree_patient()
@@ -1097,7 +1093,7 @@ class TestDateDeLaFacture(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages_praticien = cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -1157,7 +1153,7 @@ class TestChampsGouvernesDeLaConsultation(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             regle_cabinet()
             self.patient = cree_patient()
@@ -1266,3 +1262,151 @@ class TestChampsGouvernesDeLaConsultation(APITestCase):
         self.assertEqual(self.consultation.reason, "Cervicalgie")
         self.assertEqual(self.consultation.status, ExaminationStatus.INVOICED_PAID)
         self.assertEqual([facture], list(self.consultation.invoices.all()))
+
+
+# Le refus d'emission, tel que le praticien le lit (lot 4, D3).
+REFUS_SANS_NOM = (
+    "Renseignez votre nom dans votre profil utilisateur avant d'émettre une facture."
+)
+
+
+class TestEmissionRefuseeAuPraticienSansNom(APITestCase):
+    """Un praticien ni nomme ni prenomme n'emet aucune facture, et l'avoir lui reste
+    permis (lot 4, D3).
+
+    Chaque refus est prouve par ce qu'il **n'ecrit pas** : aucune facture, sequence du
+    cabinet inchangee, seance et facture d'origine inchangees.
+    """
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet(invoice_start_sequence="10001")
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+
+    def sequence(self):
+        return OfficeSettings.objects.get(pk=self.cabinet.pk).invoice_start_sequence
+
+    def facture_d_origine(self):
+        """Une facture deja emise, par un praticien nomme : avant la regle, ou par un
+        confrere."""
+        with sans_receivers():
+            seance = cree_consultation(
+                self.patient,
+                therapeut=self.user,
+                status=ExaminationStatus.INVOICED_PAID,
+            )
+        facture = Invoice.objects.create(
+            date=seance.date,
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number="10000",
+            patient_family_name="Picard",
+            officesettings_id=self.cabinet.id,
+            status=InvoiceStatus.INVOICED_PAID,
+        )
+        seance.invoices.add(facture)
+        return seance, facture
+
+    def emet(self, action):
+        return self.client.post(
+            reverse(action, kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+
+    def test_facturer_est_refuse_sans_rien_ecrire(self):
+        reponse = self.emet("examination-invoice")
+
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reponse.data, {"non_field_errors": [REFUS_SANS_NOM]})
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.assertEqual(self.sequence(), "10001")
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
+
+    def test_cloturer_facturee_est_refuse_et_la_seance_reste_en_cours(self):
+        reponse = self.emet("examination-close")
+
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reponse.data, {"non_field_errors": [REFUS_SANS_NOM]})
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.assertEqual(self.sequence(), "10001")
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
+
+    def test_l_annulation_par_facture_corrective_est_refusee_sans_rien_annuler(self):
+        regle_cabinet(cancel_invoice_credit_note=False)
+        seance, originale = self.facture_d_origine()
+        consultation = self.client.get(
+            reverse("examination-detail", kwargs={"pk": seance.id})
+        ).data
+
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": originale.id}),
+            data={
+                "examination": consultation,
+                "corrective_invoice": facturation(amount=60.0),
+            },
+            format="json",
+        )
+
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reponse.data, {"non_field_errors": [REFUS_SANS_NOM]})
+        originale.refresh_from_db()
+        self.assertEqual(originale.status, InvoiceStatus.INVOICED_PAID)
+        self.assertIsNone(originale.canceled_by_id)
+        self.assertEqual(Invoice.objects.count(), 1)
+        self.assertEqual(self.sequence(), "10001")
+
+    def test_l_avoir_reste_permis_au_praticien_sans_nom(self):
+        """`cancel_invoice` recopie le nom de la facture annulee : le refuser bloquerait
+        l'annulation d'une facture emise avant la regle."""
+        regle_cabinet(cancel_invoice_credit_note=True)
+        _seance, originale = self.facture_d_origine()
+
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": originale.id}),
+            data={},
+            format="json",
+        )
+
+        self.assertEqual(reponse.status_code, status.HTTP_202_ACCEPTED)
+        avoir = Invoice.objects.get(id=reponse.data["credit_note"]["id"])
+        self.assertEqual(avoir.type, "creditnote")
+        self.assertEqual(avoir.number, "10001")
+        self.assertEqual(avoir.therapeut_name, "Crusher")
+        originale.refresh_from_db()
+        self.assertEqual(originale.status, InvoiceStatus.CANCELED)
+
+    def test_un_nom_seul_suffit_a_emettre(self):
+        self.user.last_name = "Crusher"
+        self.user.save()
+
+        reponse = self.emet("examination-invoice")
+
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        facture = Invoice.objects.get(id=reponse.data["invoiced"])
+        self.assertEqual(
+            (facture.therapeut_name, facture.therapeut_first_name), ("Crusher", "")
+        )
+
+    def test_un_prenom_seul_suffit_a_emettre(self):
+        self.user.first_name = "Beverly"
+        self.user.save()
+
+        reponse = self.emet("examination-invoice")
+
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        facture = Invoice.objects.get(id=reponse.data["invoiced"])
+        self.assertEqual(
+            (facture.therapeut_name, facture.therapeut_first_name), ("", "Beverly")
+        )
