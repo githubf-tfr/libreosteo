@@ -115,7 +115,6 @@ files = [
     "Libreosteo/settings/standalone.py",
     "Libreosteo/settings/statique.py",
     "Libreosteo/settings/test.py",
-    "Libreosteo/standalone.py",
     "Libreosteo/urls.py",
     "Libreosteo/wsgi.py",
     "Libreosteo/zip_loader.py",
