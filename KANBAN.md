@@ -472,7 +472,7 @@ Tenu à la main.
 - ~~**Effacer les images `familletra/libreosteo-pg` de Docker Hub** — geste de l'utilisateur,
   possible depuis la bascule du 2026-09-27 (le retour arrière par cette image tombe avec).~~
   — **fait le 2026-09-27** par l'utilisateur.
-- **Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
+- ~~**Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
   décision de l'utilisateur du 2026-09-26) — (1) suite fonctionnelle Playwright et serveur de
   développement sur PostgreSQL : retire le monkeypatch `BEGIN IMMEDIATE` de
   `tests/functional/conftest.py` (commentaire périmé, Django 5.2 offre
@@ -481,7 +481,16 @@ Tenu à la main.
   puis retrait du mode standalone (`Libreosteo/standalone.py`, `server.py`, `setup.py`,
   `settings/standalone.py`), après recherche du consommateur et du motif de conservation au
   journal ; `settings/demonstration.py` et `is_demonstration` à trancher. Pas de traque des
-  mentions « sqlite » dans les commentaires : elles tombent avec (1).
+  mentions « sqlite » dans les commentaires : elles tombent avec (1).~~ — **fait le
+  2026-09-28** (code et suites ; image due), cf. « Terminé ».
+- **Premier run CI du lot « suite fonctionnelle sur PostgreSQL » à constater après push**
+  (critère 4) : job `functional` vert, ligne `Serveur de test : demarrage sur
+  postgres:18-alpine` (démon vide), `152 passed`, durée ≤ 11 min (9 min 51 s au dernier run
+  sqlite) ; job `quality` inchangé et vert.
+- **Construire l'image http et la recetter** — geste de l'utilisateur à la prochaine
+  publication : construction (`docker build`, étage `build` sur `settings.statique`, sans
+  `server.py`), mêmes sept bundles `output.<hash>` que `make static`,
+  `/Libreosteo/django/conf/locale` absent, `R-INST-04` jouée sur l'image.
 - **Constats hors lot, versés par le lot « suite fonctionnelle sur PostgreSQL »** (2026-09-28,
   spec § 8) : `Docker/deploy/pg/.env.example` dit encore `db` « épinglée par digest …
   (décision DU3) », périmé depuis le renversement du 2026-09-27 ; les cibles `make run`
@@ -1801,7 +1810,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
     `README.rst`, Docker requis pour les deux suites, `make test`).
 
   **Recette** : `R-INST-04` (étape 3) et chapitre 0 (§ Montage, § Tag d'image) mis à jour ;
-  passe de la tâche 20 ci-dessous.
+  **image non construite dans cette séance** (bac à sable sans accès TLS à yarn ni Alpine) ;
+  la construction, la comparaison des sept bundles et `R-INST-04` sur l'image sont **dues à
+  la prochaine publication**, cf. « À faire ». **Le plan est achevé et supprimé, fondu dans
+  cette entrée et dans la spec ci-dessus**
+  (`docs/superpowers/plans/2026-09-28-lot1-suite-fonctionnelle-postgresql.md`).
 
 - **2026-09-28 — `psycopg2` épinglé dans l'image http, cliquet de synchronisation** (`0d41fb5`).
   Sans version, `pip install psycopg2` compilait la dernière publiée sur PyPI à chaque
