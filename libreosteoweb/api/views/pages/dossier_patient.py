@@ -1001,7 +1001,6 @@ def _purger_le_dossier(patient: models.Patient, request: HttpRequest) -> None:
     models.ExaminationComment.objects.filter(examination__patient=patient.pk).delete()
     seances.delete()
     models.PatientDocument.objects.filter(patient=patient.pk).delete()
-    patient.set_request(request)
     patient.set_user_operation(request.user)
     patient.delete()
 

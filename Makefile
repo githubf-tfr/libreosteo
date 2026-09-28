@@ -41,7 +41,8 @@ test: test-db
 	@echo "Tests unitaires et couverture"
 	$(PYTHON) -m pytest
 
-# Serveur PostgreSQL de la suite unitaire (cadrage du 2026-09-26, § 5.2). L'image est la
+# Serveur PostgreSQL des deux suites, unitaire (cadrage du 2026-09-26, § 5.2) et
+# fonctionnelle (cadrage du 2026-09-27). L'image est la
 # ligne `image:` du service `db` du compose de production, lue dans ce fichier : une seule
 # ligne versionnee, trois lecteurs (le compose, cette cible, et
 # tests/qualite/test_contrat_moteur_de_test.py). Aucune construction.
@@ -70,8 +71,8 @@ test-db:
 		exit 1; \
 	fi; \
 	if ! command -v docker >/dev/null 2>&1; then \
-		echo "make test-db : docker introuvable. La suite unitaire exige un serveur PostgreSQL" >&2; \
-		echo "(README.rst, Development) ; elle ne se repointe jamais sur sqlite." >&2; \
+		echo "make test-db : docker introuvable. Les deux suites exigent un serveur PostgreSQL" >&2; \
+		echo "(README.rst, Development) ; elles ne se repointent jamais sur sqlite." >&2; \
 		exit 1; \
 	fi; \
 	if ! docker info >/dev/null 2>&1; then \
@@ -118,24 +119,25 @@ static:
 	# 4 764 fichiers residuels). tests/qualite/test_contrat_arbre_statique.py rougit
 	# si l'un d'eux revient.
 	rm -rf $(PWD)/static
-	# Les trois commandes de Docker/build/http-ready/Dockerfile:105, dans cet ordre.
+	# Les trois commandes du RUN de l'etage build de Docker/build/http-ready/Dockerfile,
+	# dans cet ordre.
 	# Les deux --settings ne sont pas decoratifs : `Libreosteo.settings` est dev.py, ou
 	# COMPRESS_ENABLED est faux ; sous ce reglage `compress` n'ecrit aucun bundle et
 	# {% compress %} rend le contenu d'origine.
 	$(YARN) install --frozen-lockfile
-	$(PYTHON) ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base
-	$(PYTHON) ./manage.py compress --settings=Libreosteo.settings.base
+	$(PYTHON) ./manage.py collectstatic --no-input --settings=Libreosteo.settings.statique
+	$(PYTHON) ./manage.py compress --settings=Libreosteo.settings.statique
 
-# `--ds=Libreosteo.settings` : la suite fonctionnelle reste sur sqlite jusqu'a son propre
-# lot (cadrage du 2026-09-26, § 9). Sans lui, elle prendrait le reglage de pyproject.toml,
-# celui de la suite unitaire : PostgreSQL.
-test-functional: static
+# Sur PostgreSQL, comme la suite unitaire (cadrage du 2026-09-27) : meme serveur de test
+# (`test-db`), meme reglage, celui de pyproject.toml (Libreosteo.settings.test), une base de
+# test par processus. Aucun `--ds` : le conftest.py de la suite refuse tout autre moteur.
+test-functional: static test-db
 	@echo "Tests fonctionnels Playwright"
 	set -o pipefail; \
 	if [ -d "$(PWD)/.tools/playwright-browsers" ]; then \
 		export PLAYWRIGHT_BROWSERS_PATH="$(PWD)/.tools/playwright-browsers"; \
 	fi; \
-	$(PYTHON) -m pytest tests/functional --no-cov --ds=Libreosteo.settings \
+	$(PYTHON) -m pytest tests/functional --no-cov \
 	  --tracing=retain-on-failure --screenshot=only-on-failure --output=test-results \
 	  2>&1 | tee pytest-functional.log
 

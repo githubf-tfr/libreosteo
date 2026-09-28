@@ -33,71 +33,8 @@ Problems or questions contact me at github_
 HOW-TO try it ?
 ===============
 
-Requirements :
-  - Python 3.14
-  - pip
-  - nodejs
-  - yarn
-  - virtualenv
-  - nodejs
-  - if on linux system, you need linux-headers package.
-
-Install system dependencies, for example, on Debian-like sytem, that would be ::
-
-    sudo apt install python3-pip python3-venv nodejs linux-headers-$(uname -r) curl git
-
-Yarn is pinned to 1.21.1: 1.22.x corrupts one dependency's symlink
-(``node_modules/@components/moment/meteor/moment.js`` comes out cyclic, breaking
-``collectstatic`` with ``ELOOP``) — a yarn 1.22.x regression established by the D5 build
-work, not an upstream tarball defect (see ``KANBAN.md``). Skip ``curl | bash`` too: its
-upstream installer silently drops signature verification when ``gpg`` is missing. Download
-and verify the same tarball the Docker image installs instead
-(``Docker/build/http-ready/Dockerfile``) ::
-
-  curl -fsSL -o /tmp/yarn.tar.gz https://github.com/yarnpkg/yarn/releases/download/v1.21.1/yarn-v1.21.1.tar.gz
-  echo "d1d9f4a0f16f5ed484e814afeb98f39b82d4728c6c8beaafb5abc99c02db6674  /tmp/yarn.tar.gz" | sha256sum -c -
-  tar -xzf /tmp/yarn.tar.gz -C /tmp
-  export PATH="/tmp/yarn-v1.21.1/bin:$PATH"
-
-Retrieve the content of the project from Git repository ::
-
-    git clone https://github.com/libreosteo/LibreOsteo.git
-
-Enter the cloned folder ::
-
-    cd LibreOsteo
-
-Create a virtualenv ::
-
-  python3 -m venv venv
-
-Then retrieve the python requirements ::
-
-    ./venv/bin/pip install -r requirements/requirements.txt
-
-Install Javascript dependencies ::
-
-    yarn install --frozen-lockfile
-
-Initialize the database ::
-
-    ./venv/bin/python manage.py migrate
-
-Fetch the french postcodes for zipcode completion ::
-
-   ./venv/bin/python manage.py import_zipcodes
-
-Compile the translation catalogues (needs ``gettext``) ::
-
-    make locale-compile
-
-Now you can start the server with ::
-
-    ./venv/bin/python manage.py runserver
-
-Point your browser on : http://localhost:8000/ it will guide you towards creating the first admin user.
-
-Have fun !
+This fork runs in a container, against PostgreSQL, and nowhere else: follow
+`Docker with PostgreSQL, the only supported deployment`_ below.
 
 Installation with Docker
 ========================
@@ -195,10 +132,6 @@ Note that self-hosting your own patients' records is not third-party hosting: th
 HDS certification addresses hosts entrusted with someone else's health data. Your own
 obligations still apply, but they are not the same ones.
 - LIBREOSTEO_IMAGE_TAG selects which build of the application image the compose file runs ; the container refuses to start without it. The ``db`` image does not depend on it: it is the ``image:`` line of the compose file, so the commit you deploy says which PostgreSQL runs
-
-The sqlite and standalone (CherryPy) modes described further below still exist in the
-code, but are no longer a deployment target : they are not maintained or tested, and this
-Docker/PostgreSQL path is the only one to rely on.
 
 
 into your __init__.py file for settings you can have ::
@@ -472,9 +405,7 @@ Use it in production
 ====================
 The Docker/PostgreSQL deployment documented above is the only one that is maintained and
 tested. What follows documents the underlying settings mechanism, which the Docker image
-also relies on ; it is kept here because the code paths it describes (sqlite, standalone)
-are still in the repository, not because they are recommended production choices on their
-own.
+relies on.
 
 Settings are in the folder
 ::
@@ -483,8 +414,7 @@ Settings are in the folder
 
 There are some settings in this folder, the base_ settings is the main settings. All settings should
 use this base settings as reference. The Docker image builds on top of it with
-container_, which enforces PostgreSQL ; standalone_ (paired with the CherryPy server
-further below) is not maintained since it stopped being a deployment target.
+container_, which enforces PostgreSQL.
 
 Setting to avoid debug trace
 ----------------------------
@@ -496,10 +426,14 @@ Setting to avoid debug trace
 Setting for Database
 --------------------
 
-base_ defaults to sqlite3, but that default is not the deployment target : the Docker
-image forces PostgreSQL through container_, and sqlite is not maintained or recetted
-outside of it. To define postgresql as database backend yourself, you can use this
-definition.
+base_ points at a PostgreSQL server on ``127.0.0.1:5432`` (database ``libreosteo``, user
+``postgres``, empty password), and the repository provides no server there: this default
+only serves ``manage.py`` commands run outside the container, which this fork does not
+support. To run them anyway, declare a PostgreSQL server of your own in
+``Libreosteo/settings/local.py`` (ignored by git, imported by ``dev.py``), and never put
+real data on a server that accepts connections without a password. The container never
+reads this default: container_ clears it, takes ``DATABASES`` from the mounted
+``settings/`` package only, and refuses to start without it. A definition looks like this.
 ::
 
    DATABASES = {
@@ -514,7 +448,6 @@ definition.
    }
 
 You have to adapt your value with your installation, and configuration of the database used.
-But you can use other database backend, there is no specificity used in the software linked to the implementation of the database.
 
 Setting for Cryptograhic key for CSRF_
 --------------------------------------
@@ -536,25 +469,8 @@ this other `one <https://docs.nginx.com/nginx/admin-guide/web-server/app-gateway
 
 Docker images are provided with uwsgi as provider of the webapp. uwsgi is built from source at image build time, against the pinned Python interpreter of the image, and serves HTTP directly on port 8085.
 
-The repository also carries a standalone script, ``server.py``, which serves the
-application through CherryPy_ instead of uwsgi or a reverse proxy. It is not a
-maintained deployment target since the container/PostgreSQL decision above ; it is
-documented here only because the code and its dependency are still present.
-::
-
-   ./server.py
-
-
-To change the default port of the server, write a file server.cfg like this  (to set to 9000 in this example)
-::
-
-   [server]
-   server.port = 9000
-
 .. _base : LibreOsteo/settings/base.py
 .. _container : LibreOsteo/settings/container.py
-.. _standalone : LibreOsteo/settings/standalone.py
-.. _CherryPy : https://cherrypy.org/
 
 Rich text diagnostic
 ====================
@@ -624,8 +540,8 @@ dependencies in your virtualenv ::
     pip install -r requirements/requirements.txt
     pip install -r requirements/requ-dev.txt
 
-The unit suite runs on PostgreSQL, the production engine, and never on sqlite: a guard
-test fails the suite if it is pointed elsewhere. ``make test`` first runs ``make
+Both suites, unit and functional, run on PostgreSQL, the production engine, and never on
+sqlite: a guard fails either suite if it is pointed elsewhere. ``make test`` first runs ``make
 test-db``, which needs Docker: it starts a throwaway PostgreSQL container,
 ``libreosteo-test-pg``, on the very image the production compose file pins (``image:``
 of the ``db`` service in ``Docker/deploy/pg/docker-compose.yml``), with its data in
@@ -665,8 +581,10 @@ itself lands in ``~/.cache/ms-playwright``.) Then run the suite ::
 
     make test-functional
 
-It still runs on sqlite: ``make test-functional`` passes ``--ds=Libreosteo.settings``,
-which a bare ``pytest tests/functional`` would not.
+It runs on the same PostgreSQL test server as the unit suite: ``make test-functional``
+first runs ``make test-db`` (Docker), and the suite takes its settings from
+``pyproject.toml`` (``Libreosteo.settings.test``), as ``make test`` does. Its
+``conftest.py`` stops the run if it finds any other engine.
 
 Reproducible frontend build
 ===========================

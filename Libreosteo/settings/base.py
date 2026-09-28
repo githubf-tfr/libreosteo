@@ -23,39 +23,15 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 """
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-import logging
 import os
-import sys
 
 from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-if getattr(sys, "frozen", False):
-    logger = logging.getLogger(__name__)
-    logger.info("Frozen with attribute value %s" % (getattr(sys, "frozen", False)))
-    logger.info("Real path of the start : %s " % (os.path.realpath(__file__)))
-    SITE_ROOT = os.path.split(
-        os.path.split(os.path.split(os.path.dirname(os.path.realpath(__file__)))[0])[0]
-    )[0]
-    logger.info("SITE_ROOT = %s" % SITE_ROOT)
-    if getattr(sys, "frozen", False):
-        SITE_ROOT = os.path.split(SITE_ROOT)[0]
-    DATA_FOLDER = SITE_ROOT
-    if getattr(sys, "frozen", False) == "macosx_app":
-        DATA_FOLDER = os.path.join(
-            os.path.join(
-                os.path.join(os.environ["HOME"], "Library"), "Application Support"
-            ),
-            "Libreosteo",
-        )
-        SITE_ROOT = os.path.join(os.path.split(SITE_ROOT)[0], "Resources")
-        if not os.path.exists(DATA_FOLDER):
-            os.makedirs(DATA_FOLDER)
-else:
-    SITE_ROOT = BASE_DIR
-    DATA_FOLDER = os.path.join(SITE_ROOT, "data")
-    if not os.path.exists(DATA_FOLDER):
-        os.makedirs(DATA_FOLDER)
+SITE_ROOT = BASE_DIR
+DATA_FOLDER = os.path.join(SITE_ROOT, "data")
+if not os.path.exists(DATA_FOLDER):
+    os.makedirs(DATA_FOLDER)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
@@ -81,7 +57,6 @@ ALLOWED_HOSTS = [hote.strip() for hote in _HOTES_AUTORISES.split(",") if hote.st
 
 LOCALE_PATHS = (
     "locale",
-    os.path.join(SITE_ROOT, "django", "conf", "locale"),
     os.path.join(SITE_ROOT, "locale"),
 )
 
@@ -98,7 +73,7 @@ COMPRESS_ENABLED = True
 # deterministe. Le piege qu'il arme -- un {% if %} dans un bloc compress -- est deja garde
 # par tests/qualite/test_contrat_compression.py, dont la liste EXCEPTIONS est vide.
 # Retour arriere : cette ligne seule (repli d'A8).
-# `container.py` et `standalone.py` en heritent ; `dev.py` n'est pas touche, COMPRESS_ENABLED
+# `container.py` en herite ; `dev.py` n'est pas touche, COMPRESS_ENABLED
 # y etant faux -- {% compress %} y rend le contenu d'origine et ne cherche aucun manifeste.
 COMPRESS_OFFLINE = True
 
@@ -179,13 +154,10 @@ TEMPLATES = [
             "loaders": [
                 "django.template.loaders.filesystem.Loader",
                 "django.template.loaders.app_directories.Loader",
-                #'Libreosteo.zip_loader.Loader',
             ],
         },
     },
 ]
-
-TEMPLATE_ZIP_FILES = ("library.zip",)
 
 # Additional locations of static files
 # STATICFILES_DIRS = (
@@ -207,10 +179,20 @@ STATICFILES_FINDERS = (
 # Database
 # https://docs.djangoproject.com/en/1.6/ref/settings/#databases
 
+# Un defaut de developpement, sur le port PostgreSQL standard, et rien de plus : le depot
+# ne fournit aucun serveur a cette adresse (decision Q1 c du 2026-09-28). Un serveur reel se
+# declare dans Libreosteo/settings/local.py, importe par dev.py et ignore par git. `trust`,
+# sans mot de passe, comme le serveur de test (decision DU1) : aucune donnee reelle sur un
+# tel serveur. Le deploiement ne lit jamais ce dictionnaire : container.py l'efface avant
+# d'importer le settings/ monte.
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.path.join(DATA_FOLDER, "db.sqlite3"),
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "libreosteo",
+        "HOST": "127.0.0.1",
+        "PORT": "5432",
+        "USER": "postgres",
+        "PASSWORD": "",
         # Une requete HTTP = une transaction. Le deploiement de reference ne lit jamais ce
         # dictionnaire (le settings/ monte redefinit DATABASES en entier, et container.py
         # impose le reglage sur le dictionnaire effectif) : la ligne est ici pour que le

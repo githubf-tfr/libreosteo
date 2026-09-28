@@ -22,13 +22,12 @@ code de départ est la source, gelée au commit amont `8e9e0e77d70` (2026-08-30,
 ## Déploiement
 
 **Conteneur (Docker pour le moment) + PostgreSQL, rien d'autre** (acté au cadrage S4,
-2026-09-01). Les modes sqlite et standalone ne sont plus des cibles : ne pas les
-entretenir, ne pas les recetter.
+2026-09-01). sqlite et standalone sont retirés du dépôt : ne pas les réintroduire.
 
 ## Tests et qualité
 
-`make check` avant tout commit — c'est exactement le job `quality` de la CI. La suite
-unitaire tourne sur PostgreSQL (`make test-db`, Docker) : ne jamais la repointer sur sqlite.
+`make check` avant tout commit — c'est exactement le job `quality` de la CI. Les deux
+suites tournent sur PostgreSQL (`make test-db`, Docker) : ne jamais les repointer sur sqlite.
 Trois cliquets, qui ne se desserrent jamais :
 
 - le plancher de couverture (`fail_under`) ne descend pas ;

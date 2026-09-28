@@ -96,7 +96,7 @@ def recherche(request):
     Cette vue n'a **aucun etat** : `Libreosteo/urls.py` montait auparavant une *instance*
     de `SearchViewHtml`, et `SearchView.__call__` stockait `request`, `form`, `query` et
     `results` dessus — deux requetes concurrentes se marchaient dessus, et seul
-    `--processes 1 --threads 1` (Docker/build/http-ready/Dockerfile:184) l'empechait. Ce
+    `--processes 1 --threads 1` du `CMD` de `Docker/build/http-ready/Dockerfile` l'empechait. Ce
     garde-fou d'exploitation est leve ici, et le fait est ecrit au KANBAN.
 
     Le filtre `.models(models.Patient)` n'est pas cosmetique : deux index sont declares

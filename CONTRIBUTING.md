@@ -76,8 +76,11 @@ Running unit tests
 
 You have to run tests before developing any functionality. To run theses tests:
 ```
-./manage.py test
+make test
 ```
+
+Docker is required: both suites run on PostgreSQL, whose test server `make test-db` starts
+(and `make test` / `make test-functional` call it).
 
 Running functional tests
 ------------------------
@@ -90,10 +93,27 @@ playwright install --with-deps chromium
 (`--with-deps` also installs the system libraries Chromium needs to launch ; Chromium
 itself lands in `~/.cache/ms-playwright`.)
 
+Yarn is pinned to 1.21.1: 1.22.x corrupts one dependency's symlink
+(`node_modules/@components/moment/meteor/moment.js` comes out cyclic, breaking
+`collectstatic` with `ELOOP`) — a yarn 1.22.x regression established by the D5 build
+work, not an upstream tarball defect (see `KANBAN.md`). Skip `curl | bash` too: its
+upstream installer silently drops signature verification when `gpg` is missing. Download
+and verify the same tarball the Docker image installs instead
+(`Docker/build/http-ready/Dockerfile`):
+```
+curl -fsSL -o /tmp/yarn.tar.gz https://github.com/yarnpkg/yarn/releases/download/v1.21.1/yarn-v1.21.1.tar.gz
+echo "d1d9f4a0f16f5ed484e814afeb98f39b82d4728c6c8beaafb5abc99c02db6674  /tmp/yarn.tar.gz" | sha256sum -c -
+tar -xzf /tmp/yarn.tar.gz -C /tmp
+export PATH="/tmp/yarn-v1.21.1/bin:$PATH"
+```
+
+Docker is required: both suites run on PostgreSQL, whose test server `make test-db` starts
+(and `make test` / `make test-functional` call it).
+
 2. Execute the suite:
 ```
 make test-functional
 ```
 
-There is no server to launch by hand : `pytest-django`'s `live_server` fixture starts the
+There is no HTTP server to launch by hand : `pytest-django`'s `live_server` fixture starts the
 application in a thread for the duration of each test.

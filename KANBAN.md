@@ -433,6 +433,32 @@ Tenu à la main.
   du même jour : l'absence de contrôle d'appartenance par praticien n'est pas un défaut
   d'autorisation à corriger.
 
+- (2026-09-28) **Suite fonctionnelle et base de développement sur PostgreSQL : deux
+  décisions de l'utilisateur.** Spec :
+  `docs/superpowers/specs/2026-09-27-suite-fonctionnelle-postgresql-design.md` § 10.
+  - **Q1 c — aucun serveur PostgreSQL de développement fourni.** `base.py` vise
+    `127.0.0.1:5432` (`trust`, sans mot de passe) sans qu'un serveur y écoute ; aucune cible
+    `make`. Motif : l'application ne se lance jamais hors conteneur, `runserver` n'a pas de
+    cas d'usage dans ce fork. Écartées : la base `libreosteo` du serveur de test (`make
+    dev-db`), un conteneur `libreosteo-dev-pg` persistant.
+  - **Q2 a — réglages de démonstration retirés, mode démonstration gardé.** Défaut de
+    `Libreosteo/wsgi.py` → `settings.container` ; branche morte `request.tenant` de
+    `_en_demonstration` retirée. Motif : pas d'instance publique ; retrait minimal.
+    Écartée : retirer tout le mode (drapeau, sérialiseur, gabarits, six tests).
+
+- (2026-09-28) **`--processes 1 --threads 1` : limitation assumée, décision de
+  l'utilisateur** (lot 5, spec `docs/superpowers/specs/2026-09-28-lot5-instruction-design.md`).
+  Origine amont morte (2022, `e9e8453`/`cb5cf31`, concurrence sqlite) ; depuis D3,
+  l'intégrité de la base n'en dépend plus. Il sérialise encore deux choses, nommées au-dessus
+  du `CMD` du `Dockerfile` : la garde « aucun utilisateur » de la restauration et de la
+  création du premier administrateur (non atomique) ; l'index Whoosh (suppression sans
+  attente du verrou d'écriture, `rebuild_index` qui efface l'index sous les autres
+  workers). Prix accepté : une réindexation, un import CSV ou un chargement d'archive fige
+  l'instance pour tous. **Se rouvre si, et seulement si**, un praticien signale une attente
+  due à l'opération d'un autre en usage courant, ou si une instance sert plus d'un cabinet ;
+  rouvert, le lot traite ces deux dépendances avant d'ajouter un worker, avec sa preuve de
+  charge et la mémoire mesurée sur arm64. Ne pas « réparer » hors de ces conditions.
+
 ## À faire
 
 - ~~**Bascule du parc sur l'image officielle — geste de l'utilisateur** (lot « suite unitaire
@@ -459,7 +485,7 @@ Tenu à la main.
 - ~~**Effacer les images `familletra/libreosteo-pg` de Docker Hub** — geste de l'utilisateur,
   possible depuis la bascule du 2026-09-27 (le retour arrière par cette image tombe avec).~~
   — **fait le 2026-09-27** par l'utilisateur.
-- **Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
+- ~~**Lot « suite fonctionnelle et serveur de développement sur PostgreSQL »** (spec § 9,
   décision de l'utilisateur du 2026-09-26) — (1) suite fonctionnelle Playwright et serveur de
   développement sur PostgreSQL : retire le monkeypatch `BEGIN IMMEDIATE` de
   `tests/functional/conftest.py` (commentaire périmé, Django 5.2 offre
@@ -468,10 +494,37 @@ Tenu à la main.
   puis retrait du mode standalone (`Libreosteo/standalone.py`, `server.py`, `setup.py`,
   `settings/standalone.py`), après recherche du consommateur et du motif de conservation au
   journal ; `settings/demonstration.py` et `is_demonstration` à trancher. Pas de traque des
-  mentions « sqlite » dans les commentaires : elles tombent avec (1).
-- **Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
+  mentions « sqlite » dans les commentaires : elles tombent avec (1).~~ — **fait le
+  2026-09-28** (code et suites ; image due), cf. « Terminé ».
+- **Premier run CI du lot « suite fonctionnelle sur PostgreSQL » à constater après push**
+  (critère 4) : job `functional` vert, ligne `Serveur de test : demarrage sur
+  postgres:18-alpine` (démon vide), `152 passed`, durée ≤ 11 min (9 min 51 s au dernier run
+  sqlite) ; job `quality` inchangé et vert.
+- **Construire l'image http et la recetter** — geste de l'utilisateur à la prochaine
+  publication : construction (`docker build`, étage `build` sur `settings.statique`, sans
+  `server.py`), mêmes sept bundles `output.<hash>` que `make static`,
+  `/Libreosteo/django/conf/locale` absent, `R-INST-04` jouée sur l'image.
+- **Constats hors lot, versés par le lot « suite fonctionnelle sur PostgreSQL »** (2026-09-28,
+  spec § 8) : `Docker/deploy/pg/.env.example` dit encore `db` « épinglée par digest …
+  (décision DU3) », périmé depuis le renversement du 2026-09-27 ; les cibles `make run`
+  (conteneur seul, sans PostgreSQL) et `run-pg` (`docker-compose` v1, `.env` à la racine)
+  sont périmées ; le script local `.tools/libreosteo-functional-tests.sh` (hors dépôt) dit
+  la base « in-memory » — il fonctionne de nouveau depuis la bascule, faute de `--ds`.
+- **[2026-09-28] `POST /api/invoices/<pk>/cancel` sur une facture rectificative non facturée
+  rend 500** : `corrective_invoice.status="notinvoiced"` avec une raison passe la
+  validation ; `invoice_examination` rend alors `{"invoiced": None}`, puis
+  `Invoice.objects.get(id=None)` lève — rollback, aucune écriture. Atteignable par l'API
+  seule (l'écran fige `"invoiced"` en dur). Cousin du `KeyError` fermé par le lot 2 (défauts
+  produit). Antérieur à la branche, non corrigé.
+- **[2026-09-28] Test fonctionnel intermittent, cause non instruite** :
+  `tests/functional/test_facturation.py::test_annulation_et_refacturation` a échoué une fois
+  sur la passe complète finale du 2026-09-28 (badge « Annulée » résolu mais `hidden` pendant
+  15 s, sous la charge de la suite complète) ; vert sur toutes les autres passes du jour, et
+  deux fois de suite rejoué seul (17 passed).
+- ~~**Épingler `psycopg2` dans l'image http** — constat (2026-09-26) : elle compile la dernière
   version à chaque construction ; la suite unitaire épingle seulement son pilote de test
-  (`VERSION_PSYCOPG2 = 2.9.13`).
+  (`VERSION_PSYCOPG2 = 2.9.13`).~~ — **clos le 2026-09-28 par `0d41fb5`**, détail en
+  « Terminé ».
 - ~~**Premier run CI `quality` à constater après push** (lot « suite unitaire sur PostgreSQL »,
   2026-09-26). Constater : la ligne `Serveur de test : démarrage` (le runner part d'un démon
   vide), le job vert, sa durée, et que le job `functional` reste vert sur sqlite (critère 6 de
@@ -499,9 +552,13 @@ Tenu à la main.
 - ~~**Routine de relève du digest de `postgres:18-alpine`** — renvoyée (2026-09-26) ; d'ici là,
   relever le digest est un commit ordinaire, vert sous `make check`.~~ — **sans objet le
   2026-09-27** : plus de digest (DU3 renversé, cf. « Décisions actées »).
-- **`patients.xsls`** (`PatientViewSet.filename`) — constat (2026-09-26) : extension fautive
+- ~~**`patients.xsls`** (`PatientViewSet.filename`) — constat (2026-09-26) : extension fautive
   et de toute façon morte, `XLSXFileMixin` venant après `ModelViewSet` dans les bases de
-  `PatientViewSet`/`ExaminationViewSet`, son `finalize_response` ne s'exécute jamais.
+  `PatientViewSet`/`ExaminationViewSet`, son `finalize_response` ne s'exécute jamais.~~ —
+  **corrigé** : bases réordonnées (`XLSXFileMixin` avant `ModelViewSet`) sur les deux
+  ViewSets, `filename = "patients.xlsx"`. `Content-Disposition` posé sous `?format=xlsx`
+  uniquement, réponse JSON par défaut inchangée (`TestEnTeteDExport`,
+  `libreosteoweb/tests/test_exploitation.py`). `docs/recette.md` § R-IMP-05 mis à jour.
 
 > 🌙 **Relevé de décision de la nuit du 2026-09-24 au 2026-09-25.** L'utilisateur a confié
 > l'exécution complète en autonomie avant de dormir, avec quatre autonomies explicitement
@@ -823,6 +880,19 @@ cherchant le motif là où on ne l'attend pas.**
 est un **instantané stocké en base** (`Invoice.therapeut_name`, alimenté par
 `invoicing/generator.py:92-93`) — c'est le constat neuf ci-dessous, qui attend l'utilisateur.
 
+~~**Constat neuf : une facture émise par un praticien sans nom porte un nom vide,
+définitivement.**~~ — **fermé le 2026-09-28 par `ffe0a57`** (lot 4, décision D3 de
+l'utilisateur). `Invoice.therapeut_name` et `therapeut_first_name` sont un instantané de
+`request.user` à l'émission (`Generator.generate_invoice`), rendu par `invoice-result.html`
+et recopié par l'avoir : un praticien ni nommé ni prénommé émettait une pièce fiscale sans
+signataire. **L'émission est désormais refusée** (message à l'écran, 400 en API),
+**avant** la réservation du numéro — aucun trou dans la numérotation ; l'avoir n'est pas
+concerné ; aucune migration, aucune reprise des factures déjà émises. Même prédicat que les
+trois sites de la famille : un champ fait d'espaces compte comme renseigné (arbitrage de la
+session principale du 2026-09-28 — formulaires et sérialiseurs élaguent les blancs, deux
+définitions seraient une dette pire que le cas). Écrit ici par le lot 4 : la tâche de
+journal du lot « solde du backlog » l'annonçait « ci-dessous » sans l'écrire.
+
 ⚠️ **`Patient` et `Children` sont hors périmètre, mais pas pour la raison qu'on croit** :
 `Patient.first_name` porte `blank=True` (`models.py:62`), il **peut** être vide. Ce qui les
 protège est que **`family_name` (`models.py:60`) est obligatoire** — un patient n'est jamais
@@ -987,7 +1057,12 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
   AngularJS rendait la chaîne nue après passage par JSON.~~ — **fermé le 2026-09-12 par
   `a8bab9c`** (cf. « Terminé »), qui a refermé du même geste **deux autres formes
   d'erreur** que le gabarit ne savait pas rendre, dont une qui n'affichait rien du tout.
-- **L'import de masse n'affiche aucun indicateur d'attente.** L'intégration de 100 patients
+- ~~**L'import de masse n'affiche aucun indicateur d'attente.**~~ — **fermé le 2026-09-25
+  par la mesure** (`64ab4c2`, cf. « Terminé », 2026-09-25, lot « solde du backlog ») :
+  l'indicateur s'affiche, opacité calculée 0 → 1 → 0,
+  `tests/functional/test_import_csv.py::test_l_indicateur_d_attente_s_affiche_pendant_l_import`.
+  Barré le 2026-09-28 par le lot 4, qui l'a trouvé encore rédigé comme ouvert. Texte
+  d'origine : L'intégration de 100 patients
   répond en **114 s** et le navigateur reçoit bien la réponse — l'ancien défaut du
   2026-09-01 est donc fermé —, mais rien à l'écran ne signale le travail en cours pendant
   ces presque deux minutes. ⚠️ **La cause écrite ici était fausse** : « préexiste à D6d, qui
@@ -1014,7 +1089,14 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
 Chacun préexiste à D6d, qui les **reproduit à l'identique** plutôt que de les trancher : un
 lot de migration ne change pas le produit. Chacun vient avec son emplacement et sa preuve.
 
-- **La ponctuation des montants diverge entre l'écran et la facture imprimée.**
+- ~~**La ponctuation des montants diverge entre l'écran et la facture imprimée.**~~ —
+  **fermé le 2026-09-25 sous la langue `fr`** (`14a537e`, `6f8ebf6`, `5fe4dc8`, cf.
+  « Terminé », 2026-09-25, lot « solde du backlog ») : les deux surfaces de lecture passent
+  par `api.utils.formater_montant_francais`. **Résidu fermé le 2026-09-28 par `de9f787`**
+  (lot 4, décision D2) : depuis un navigateur réglé en anglais, `LocaleMiddleware` rendait
+  HONORAIRES et encaissements au point (`55.55`) et le mois en anglais (« September ») ; la
+  facture imprimée fixe désormais sa langue, rendu `fr` inchangé à l'octet (instantané
+  `2599aa1`). Texte d'origine :
   `libreosteoweb/templates/pages/fragments/comptabilite-liste.html` affiche `55.55 €` avec
   un **point** — valeur formatée par `format(v.normalize(), "f")`, qui reproduit l'affichage
   d'avant à l'octet —, et `libreosteoweb/templates/invoice/invoice-result.html:81` affiche
@@ -1032,8 +1114,12 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
-- **`OfficeEvent.reference` n'a pas de clef étrangère : le journal garde des références
-  mortes.** `libreosteoweb/models.py:470` déclare un `IntegerField` nu. Supprimer un patient
+- ~~**`OfficeEvent.reference` n'a pas de clef étrangère : le journal garde des références
+  mortes.**~~ — **clos sans objet le 2026-09-25** (`5817a5e`, cf. « Terminé », 2026-09-25,
+  lot « solde du backlog », point 5) : la référence est polymorphe sur quatre `clazz`, une
+  clef étrangère y est structurellement impossible, et la suppression RGPD purge déjà le
+  journal. Revérifié à `HEAD` (spec du lot 4, § 1.5). Barré le 2026-09-28 par le lot 4.
+  Texte d'origine : `libreosteoweb/models.py:470` déclare un `IntegerField` nu. Supprimer un patient
   — geste légal, et obligatoire au titre du RGPD — ne supprime pas ses entrées de journal,
   qui continuent de le désigner par un identifiant désormais mort. ⚠️ **Le 500 d'`api/events`
   que cette entrée décrivait est fermé** (`eb27039`, cf. « Terminé ») : les deux surfaces qui
@@ -1041,8 +1127,12 @@ décrits à l'entrée de clôture, pas ici.
   reste est le schéma, pas l'affichage** — et il ne se pose pas dans un lot de dette : la
   clef touche le schéma **et** les données d'un parc en service, donc elle se joint à la
   reprise du parc de production (§ ci-dessus).
-- **La garde de sortie se désarme sur trois chemins qui ne sont pas des enregistrements, et
-  l'inventaire écrit ici en annonçait un.** La revue de branche a mesuré les trois ; la
+- ~~**La garde de sortie se désarme sur trois chemins qui ne sont pas des enregistrements, et
+  l'inventaire écrit ici en annonçait un.**~~ — **clos** : chemins 2 et 3 fermés le
+  2026-09-18 par D9 (`7b79d33`, `2111549`) ; **chemin 1 volontaire** (`R-PAT-12` étape 5 :
+  l'abandon d'une vignette est le geste du praticien), reconnu délibéré par le lot « solde
+  du backlog » (spec `2026-09-24-solde-backlog-design.md` § 4.4, cf. « Terminé »,
+  2026-09-25). Barré le 2026-09-28 par le lot 4. Texte d'origine : La revue de branche a mesuré les trois ; la
   phrase « c'est le seul endroit du dossier où la règle *seul un résultat réel désarme*
   n'est pas appliquée » était fausse et se présentait comme exhaustive. **Les trois
   mécanismes sont volontaires et prouvés ; c'est l'inventaire qui était incomplet.**
@@ -1174,14 +1264,21 @@ soldées ou tenues** :
   rester muet, et le rapport continue de voyager dans la réponse HTTP (cf. la tension Q3
   ci-dessus). Le cas réel **n'est pas automatisable** — il demande un lot de plus de 1 200
   patients et une mesure de plus de 180 s —, il reste la fiche de recette humaine `R-IMP-04`.
+  ⚠️ **À la coupure, l'écran invitait au rejeu** : htmx 2.0.10 retire `disabled` du bouton
+  **avant** d'émettre `htmx:afterRequest`, et l'écran revenait à son état d'avant le clic,
+  bouton « Importer » actif sous « ne relancez pas » — or le rejeu double les
+  consultations, qui n'ont aucune contrainte d'unicité. **Fermé le 2026-09-28 par `f9b7267`**
+  (lot 4, décision D1 de l'utilisateur) : le bouton reste inactif et une phrase dit ce qui
+  s'est passé. La coupure et la perte du rapport demeurent (arbitrage Q3-a).
 - ~~**Chaque enregistrement de journal applicatif est émis deux fois**~~ — **clos le
   2026-09-24 par `7dfa637`** (lot correctif 1, T1). Deux entrées de `LOGGING` — `libreosteoweb`
   et `libreosteoweb.api` — portaient **le même** handler `console` et **le même** niveau, sans
   que ni l'une ni l'autre ne coupe `propagate` (absent vaut `True`) : un
   `logging.getLogger(__name__)` sous `libreosteoweb.api.*` traversait deux ancêtres configurés.
   L'entrée fille est retirée, un commentaire dit pourquoi et interdit de la réintroduire.
-  ⚠️ **`winserver.py:180` garde le même motif** — hors cible de déploiement (conteneur +
-  PostgreSQL), donc délibérément non touché.
+  ~~⚠️ **`winserver.py:180` garde le même motif** — hors cible de déploiement (conteneur +
+  PostgreSQL), donc délibérément non touché.~~ — **sans objet depuis le 2026-09-28** :
+  `winserver.py` retiré (`33b1273`).
 
 - ~~⚠️ **Les libellés des tuiles du tableau de bord se coupent au milieu d'un mot**~~ —
   **fermé le 2026-09-20 par `d62cbd2`**, le style de `.huge` repris sous `.lo-compteur-tuile`
@@ -1266,43 +1363,69 @@ soldées ou tenues** :
   La cible de redirection ne change pas ; seul l'effet de bord est neuf, et c'est lui qui doit
   être prouvé.
 
+### Constat versé par le lot 4 (2026-09-28), non instruit
+
+- **`R-CON-01` étape 5 paraît injouable par son chemin.** Elle demande de vider le nom
+  **et** le prénom depuis « Profil » ; or `FormulaireIdentite` (`pages/profil.py`) exige le
+  nom. À vérifier à la prochaine passe de recette : si l'étape est bien injouable, le seul
+  chemin vers un praticien sans nom est un compte ajouté par « Ajouter un utilisateur » qui
+  n'a jamais enregistré son profil — celui de `R-FAC-08`.
+
 ### Constats versés le 2026-09-19, à instruire après la clôture de D6g
 
-- ⚠️ **`block_disconnect_all_signal.__exit__` reconnecte aveuglément**
+- ~~⚠️ **`block_disconnect_all_signal.__exit__` reconnecte aveuglément**
   (`libreosteoweb/api/receivers.py`). Il connecte ce qu'on lui a passé sans vérifier que
   `__enter__` l'avait déconnecté : donner la même liste à deux blocs imbriqués sur deux
   signaux différents branche chaque récepteur sur **les deux** en sortie. C'est ce qui a
   produit le défaut fermé par `77eb331`, dont l'appelant seul a été corrigé. Durcir `__exit__`
   sur le retour de `Signal.disconnect` fermerait la classe entière. ⚠️ **L'aide est partagée
   avec `sans_receivers` et du code applicatif** : l'élargissement se décide, il ne s'improvise
-  pas.
-- **`tests/functional/conftest.py` remplace `settings.HAYSTACK_CONNECTIONS` par un
+  pas.~~ — **doublon** de l'entrée close le 2026-09-24 par `1c8189e` (plus haut dans ce
+  journal, section verrous consultatifs/traduction) : `__exit__` ne reconnecte plus que ce
+  que `__enter__` a réellement retiré. Rien à faire ici ; entrée barrée pour corriger
+  l'incohérence de journal (lot hygiène de code, § 1.15 de son cadrage).
+- ~~**`tests/functional/conftest.py` remplace `settings.HAYSTACK_CONNECTIONS` par un
   dictionnaire neuf**, là où `libreosteoweb/tests/conftest.py` documente qu'il faut **muter en
   place**. Mesuré : cela fonctionne aujourd'hui parce que `BaseEngine.__init__` relit
   `settings`, mais `haystack.connections.connections_info` reste figé sur `data/whoosh_index`
   et sert encore à choisir le moteur. **Isolation correcte par accident, pas par
-  construction.**
+  construction.**~~ — **corrigé** : `environnement_isole` mute le sous-dictionnaire
+  `"default"` en place (`d27252d`), jamais un remplacement ; restauré après chaque test
+  depuis ce correctif (mutation hors de portée de la restauration automatique de
+  `pytest-django` entre tests — `Settings.__getattr__`). Voir aussi le constat jumeau de la
+  section « couverture 100 % » ci-dessous, mêmes commits.
 
-- **Le cliquet d'arbre statique ne couvre pas le contenu des paquets.**
+- ~~**Le cliquet d'arbre statique ne couvre pas le contenu des paquets.**
   `tests/qualite/test_contrat_arbre_statique.py` garde le **jeu de paquets** servis sous
   `static/components/`, pas ce qu'ils contiennent. Conséquence : le recomptage des fichiers
   jamais servis — l'entrée « `collectstatic` copie des fichiers jamais servis », § Renvoyé par
   D5 — **ne sera gardé par aucun cliquet**, et son chiffre redeviendra faux sans que rien ne
   rougisse. C'est le mécanisme exact qui a fait vivre un chiffre périmé de 1202 fichiers
-  pendant douze jours.
-- **Le décompte de `static/components/` est à refaire une fois D6g clos, et pas avant.**
+  pendant douze jours.~~
+- ~~**Le décompte de `static/components/` est à refaire une fois D6g clos, et pas avant.**
   Mesuré le 2026-09-19 en cours de lot : **322 fichiers, 12 Mo, 3 paquets** pour **3 fichiers
   réellement référencés** — mais c'est un **état transitoire**, Bootstrap 5 étant entré sans
   que Bootstrap 3 ne soit encore sorti. ⚠️ **Ne pas lire ce chiffre comme une régression** :
   le ménage est une clause de sortie de D6g, tâche T16. Le chiffre qui comptera est celui
-  d'après.
+  d'après.~~ — **clos le 2026-09-28** : les deux constats étaient déjà résolus en code par
+  `libreosteoweb/management/commands/collectstatic.py` (`MOTIFS_EXCLUS`) et le module
+  `tests/qualite/test_contrat_arbre_statique.py` actuel, tous deux introduits par `f0cb705`
+  (« collectstatic ne copie plus que les trois fichiers servis ») et `d4e080f` (« rendre le
+  littéral staticfiles à `INSTALLED_APPS` »), commités le 2026-09-24 et le 2026-09-25
+  respectivement — **postérieurs** à ces
+  deux entrées (2026-09-19/20) et jamais reversés en clôture : oubli de journal, pas un effet
+  de ce lot. Mesure du jour (2026-09-28, `rm -rf static && make static`) : `static/` porte
+  **185 fichiers, 5,8 Mo** au total, et `static/components/` **3 fichiers pour 3 paquets
+  déclarés** (`alpinejs`, `bootstrap`, `htmx`) — exactement l'ensemble `SERVIS` du cliquet.
+  `.venv/bin/python -m pytest tests/qualite/test_contrat_arbre_statique.py -q` : **8
+  passed**, y compris `test_static_components_ne_porte_que_les_trois_fichiers_servis`.
 
 ### Constats versés par le lot « couverture 100 % » (2026-09-26), non corrigés
 
 Chacun avec son motif de non-correction — détail dans
 `.superpowers/sdd/2026-09-24-couverture-100-plan/` (rapports et ledger, non versionnés).
 
-- **Neuf fichiers de test manquent à `[tool.mypy] files`** (mesuré le 2026-09-26) :
+- ~~**Neuf fichiers de test manquent à `[tool.mypy] files`** (mesuré le 2026-09-26) :
   `test_actif_initial_onglets_pages.py`, `test_appariement_alpine_serveur.py`,
   `test_fin_edition_attend_le_fragment.py`, `test_migration_montants.py`,
   `test_page_import_export.py`, `test_serializer_consultation.py`,
@@ -1310,43 +1433,69 @@ Chacun avec son motif de non-correction — détail dans
   `tests/qualite/test_contrat_response_handling.py` — le dixième cité par un brief de ce
   lot, `tests/qualite/test_contrat_arbre_statique.py`, y figure déjà, ajouté par le lot
   « solde du backlog ». Écart de cliquet antérieur à ce lot ; les ajouter au passage aurait
-  pu faire rougir `mypy` sur du code que ce lot ne touche pas.
-- **`Patient.set_request` / `Patient.request`** (`libreosteoweb/models.py:119-121`) : rien
+  pu faire rougir `mypy` sur du code que ce lot ne touche pas.~~ — **corrigé** : les neuf
+  ajoutés à `[tool.mypy] files`. Une seule erreur mesurée
+  (`test_actif_initial_onglets_pages.py:96`, attribut `officesettings` posé dynamiquement
+  par `OfficeSettingsMiddleware.process_request`), close par `# type:
+  ignore[attr-defined]`, même idiome que `tests/functional/conftest.py:54,129`.
+- ~~**`Patient.set_request` / `Patient.request`** (`libreosteoweb/models.py:119-121`) : rien
   ne lit jamais l'attribut posé, comme pour `Document.set_request` (retiré au chantier S5)
   — mais ces lignes sont **couvertes**, donc hors des 236 instructions de l'audit de
-  cadrage. Les retirer aurait élargi le mandat.
-- **`libreosteoweb/api/views/pages/documents.py:474`** (`getattr(request, "tenant", None)`) :
+  cadrage. Les retirer aurait élargi le mandat.~~ — **corrigé** : retiré (`models.py`) et
+  ses cinq appelants (`api/views/patient.py`, `api/views/pages/nouveau_patient.py`,
+  `api/views/pages/dossier_patient.py`), sur le modèle de `292c27b`
+  (`Document.set_request`).
+- ~~**`libreosteoweb/api/views/pages/documents.py:474`** (`getattr(request, "tenant", None)`) :
   même vestige que la branche `request.tenant` retirée par S10, mais couvert par son
-  court-circuit.
-- **`libreosteoweb/admin.py`** : les quatre `admin.site.register` sont sans effet,
+  court-circuit.~~ — **retiré le 2026-09-28 par `b8a1df8`** (décision Q2 a).
+- ~~**`libreosteoweb/admin.py`** : les quatre `admin.site.register` sont sans effet,
   `admin.site.urls` n'étant dans aucun `urlpatterns`. Aucune de ses lignes n'est dans les
-  236 : le module s'importe, donc il se couvre.
+  236 : le module s'importe, donc il se couvre.~~ — **corrigé** : fichier supprimé,
+  `admin.autodiscover()` et son import retirés de `Libreosteo/urls.py`, entrée `mypy
+  files` retirée dans le même commit (suppression de module, pas rétrécissement du
+  périmètre vérifié). `INSTALLED_APPS` inchangé (hors périmètre du constat).
 - **`libreosteoweb/api/utils.py:23`** : `logging.getLogger(__file__)` — nom de journal égal
   à un chemin de fichier, hors de la hiérarchie `libreosteoweb.*`. Déjà écarté par le lot
-  correctif du 2026-09-23, pour le même motif.
+  correctif du 2026-09-23, pour le même motif. **Reconduit** par le lot hygiène de code
+  (2026-09-28) : décision non rouverte.
 - **Quatre commits `test(...)` de ce lot portent en réalité un correctif de production ou
   une suppression** (`d93f204`, `65e5837`, `09ea93d`, `b591944`) : prescrit par le plan
   lui-même (chaque correctif y était nommé comme faisant partie de la tâche de test qui
   l'a trouvé), donc défaut du plan, pas de l'exécution. Historique non réécrit — les
-  commits restent groupés comme joués.
+  commits restent groupés comme joués. **Reconduit** par le lot hygiène de code
+  (2026-09-28) : historique figé, rien à faire, noté comme tel.
 - ~~**`libreosteoweb/apps.py:55` et `file_integrator.py:265` : `logger.warn`**, méthode
   dépréciée, conservée telle quelle par la tâche C3 (et par F7 pour la seconde occurrence)
   pour ne pas glisser un geste non demandé dans un commit d'extraction ou de test.~~ —
   **corrigé le 2026-09-26 par `8b68c4c`**, `logger.warning` aux deux occurrences.
-- **Le msgid `"Cannot read the content file. Check the encoding."`**
+- ~~**Le msgid `"Cannot read the content file. Check the encoding."`**
   (`locale/fr/LC_MESSAGES/django.po:69`) est devenu orphelin avec la suppression F1. Aucun
   cliquet ne le voit (`test_contrat_traductions.py` mesure code → catalogue, jamais
-  l'inverse), et un `makemessages` réécrirait tout le fichier pour une ligne.
-- **`IntegratorExamination.integrate` teste `file_additional is None`**, or le service passe
+  l'inverse), et un `makemessages` réécrirait tout le fichier pour une ligne.~~ —
+  **corrigé** : entrée `msgid`/`msgstr` retirée manuellement de `django.po`, `.mo`
+  recompilé (`make locale-compile`). Aucun `makemessages`.
+- ~~**`IntegratorExamination.integrate` teste `file_additional is None`**, or le service passe
   un `FieldFile` vide qui n'est pas `None` (constat de la tâche F8). Sans portée aujourd'hui,
   le dépôt étant refusé à l'analyse avant d'atteindre l'intégrateur. À ne pas « réparer »
-  sans arbitrage.
-- **Un statut de facturation inconnu rend 200 au corps vide** (constat de la tâche C14), là
+  sans arbitrage.~~ — **clos comme garde sans portée** (arbitrage du cadrage du lot hygiène
+  de code, 2026-09-28, option a) : le dépôt refuse aujourd'hui à l'analyse tout import sans
+  fichier patient, avant d'atteindre l'intégrateur — la ligne ne peut être exercée par
+  aucune voie produit actuelle. **Condition de réouverture** : si l'analyse cesse un jour de
+  refuser le dépôt sans fichier patient avant l'intégrateur, rouvrir et traiter
+  `file_additional` vide (`FieldFile` falsy) au même titre que `None`.
+- ~~**Un statut de facturation inconnu rend 200 au corps vide** (constat de la tâche C14), là
   où 400 serait plus juste ; et **`generator.py:261` (`return {}`) sur ce même statut
   inconnu ferait lever `KeyError`** dans l'annulation par facture corrective, préexistant et
   indépendant de la suppression S19. `status` est un `CharField` libre hérité de l'amont,
   aucun geste d'écran ne l'atteint, et le durcissement appartiendrait à
-  `ExaminationInvoicingSerializer.validate`.
+  `ExaminationInvoicingSerializer.validate`.~~ — **corrigé** :
+  `ExaminationInvoicingSerializer.validate` rejette tout statut hors
+  `{"notinvoiced", "invoiced"}`. Les trois points d'entrée atteignables rendent
+  désormais 400 (`ExaminationViewSet.invoice`/`close`, `InvoiceViewSet.cancel` avec
+  facture corrective) ; `facturer_ou_cloturer` (écran) reste hors d'atteinte, le
+  formulaire n'offrant que les deux statuts valides. `generator.py:261` (`return {}`)
+  n'est alors plus jamais atteint avec un statut inconnu : clos par ricochet, sans code
+  à y changer.
 - ~~**Le renforcement du `raise Exception("Operation already in progress")`** des verrous
   consultatifs (`patient.py:63`, `consultation.py:164`) en une réponse 409 : la ligne est
   **impossible à éprouver** tant que I1 tient (huit instructions, verrous PostgreSQL
@@ -1354,18 +1503,32 @@ Chacun avec son motif de non-correction — détail dans
   corriger sans preuve est exactement ce que le dépôt s'interdit. À rouvrir avec la bascule
   PostgreSQL.~~ — **clos le 2026-09-26 par `e59a4e2`** (T10) : export refusé en 409 texte
   lisible, verrou libéré en `finally`, limité au verrou effectivement tenu.
-- **Le critère du middleware (aucun utilisateur en base) n'est pas celui de la vue (aucun
+- ~~**Le critère du middleware (aucun utilisateur en base) n'est pas celui de la vue (aucun
   `is_staff`)** sur la route `/install/` — sans danger, le middleware étant le plus strict,
-  mais non testé et arbitré nulle part. Dette ouverte par la reprise du 2026-09-25.
-- **`override_settings(HAYSTACK_CONNECTIONS=...)` est sans effet** (le singleton
+  mais non testé et arbitré nulle part. Dette ouverte par la reprise du 2026-09-25.~~ —
+  **clos, comportement épinglé** (`TestLoginRequiredMiddleware`, `test_acces.py`) : pour un
+  anonyme, le middleware redirige avant même d'atteindre la vue (le plus strict). Pour un
+  utilisateur non `is_staff` déjà connecté, la vue `InstallView` est atteinte et rend 200
+  (son seul critère, « aucun `is_staff` en base », est vrai) — mais aucune des deux actions
+  que la page propose n'aboutit : `CreateAdminAccountView.post` et `LoadDump.post` sont
+  chacune gardées par `@maintenance_available` (« aucun utilisateur en base », quel qu'il
+  soit), et refusent en 403. Un non-staff connecté voit donc un écran inerte : divergence
+  assumée, pas un défaut de sécurité.
+- ~~**`override_settings(HAYSTACK_CONNECTIONS=...)` est sans effet** (le singleton
   `haystack.connections` est figé à l'import) : les tâches C5 et C12 ont dû muter le
   singleton en place, restauré par `addCleanup`/`finally`. La preuve du test préexistant
   `TestReconstructionIndex` en est affaiblie — il croit changer de moteur de recherche et
-  ne le fait pas. Non corrigé : hors mandat de ce lot.
+  ne le fait pas.~~ — **corrigé** : `TestReconstructionIndex.setUpClass` (unitaire,
+  `16e822d`) et `environnement_isole` (`tests/functional/conftest.py`, fonctionnel,
+  `d27252d` puis restauration après chaque test dans ce correctif) mutent tous deux le
+  sous-dictionnaire `"default"` en place, jamais un remplacement, chacun restaurant l'état
+  d'origine après usage. Voir aussi le constat jumeau de la section « Constats versés le
+  2026-09-19 » ci-dessus, mêmes commits.
 - **Le message « 3 char length maximum » de `valider_prefixe_de_sequence`**
   (`libreosteoweb/api/services/facturation.py:112`) **n'est atteignable par aucune voie
   produit** : le `max_length=3` du modèle intercepte avant. Seul l'appel direct du service
-  l'atteint. Garde de défense en profondeur, conservée telle quelle.
+  l'atteint. Garde de défense en profondeur, conservée telle quelle. **Reconduit** par le
+  lot hygiène de code (2026-09-28) : décision non rouverte.
 - **`RuntimeWarning: Accessing the database during app initialization`** (issu
   d'`AppConfig.ready()`) préexiste au lot, non traité. Compte final mesuré au dernier
   `make check` de ce lot : **17 warnings**, identifiés — **13 préexistants, constants
@@ -1378,6 +1541,13 @@ Chacun avec son motif de non-correction — détail dans
   5 warnings (les 4 occurrences de test qui traversaient `file_integrator.py:265`, plus
   l'occurrence `apps.py:55`) — compte mesuré **12 warnings**, tous préexistants
   (`RuntimeWarning` d'`AppConfig.ready()` et `loaddata`).
+  **Remesure du lot hygiène de code (2026-09-28)**, le lot 1 (bascule du moteur par défaut
+  sur PostgreSQL, `docs/superpowers/specs/2026-09-27-suite-fonctionnelle-postgresql-design.md`
+  § 4.1) étant clos : `make check` — **12 warnings**, même composition qu'au 2026-09-26
+  (1 `RuntimeWarning` d'`AppConfig.ready()`, 11 `RuntimeWarning` `loaddata` « No fixture data
+  found for 'dump' », `test_exploitation`/`test_service_sauvegarde`), sans évolution. Suite
+  fonctionnelle : **1 warning**, ce même `RuntimeWarning` d'`AppConfig.ready()`, à chaque
+  passe du 2026-09-28 (lot 1) — mesure reprise, suite non rejouée par ce lot.
 - ~~**`PATCH /api/officesettings/<pk>` avec la seule charge `office_name`, sur un cabinet
   réglé à 20000 et sans facture, réécrit `invoice_start_sequence` à 10000** et journalise
   « Invoice sequence updated from 20000 to 10000 » (mesure de la vague finale, T2 a)) :
@@ -1412,7 +1582,11 @@ Chacun avec son motif de non-correction — détail dans
   ⚠️ **Ce qui reste réellement gelé est bien plus étroit** : **Font Awesome 4.5.0**,
   vendorisé depuis le fork (`d4f9b17`) et jamais monté, plus deux fichiers orphelins sans
   consommateur (police Glyphicons de Bootstrap 3, copie de `timeline.css` de SB Admin 2) —
-  dette de **nettoyage**, pas gel de version. Le texte ci-dessous est conservé pour mémoire
+  dette de **nettoyage**, pas gel de version. — **soldé le 2026-09-28** (lot 5) : les deux
+  orphelins sont partis (`95dc888`, polices Glyphicons, 2026-09-24 ; `ad913f3`, copie de
+  `timeline.css`, 2026-09-25). Font Awesome 4.5.0 est une limitation assumée ; **son motif
+  est écrit une fois**, à la clôture de l'entrée « Aucune montée de version frontend »
+  (« Renvoyé par D5 », lot 3). Le texte ci-dessous est conservé pour mémoire
   du raisonnement qui valait jusqu'au 2026-09-19 : le reliquat
   était un socle **visuel**, pas un framework applicatif, et le remplacer était une décision de
   base visuelle (D6g), à ne pas engager sans décision explicite.
@@ -1456,8 +1630,13 @@ Chacun avec son motif de non-correction — détail dans
   reproductible — retour explicite sur l'URL racine de l'instance entre les deux
   tentatives (étape 2 de la fiche) — pour que son verdict reste déterministe. Cause
   non recherchée ici.~~ — **fermé le 2026-09-05**, défaut C, par D3 : cf. « Terminé ».
-- (S4, tâche 7) **Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
-  sous forme de création manuelle.** Aucune fonction ne permet de créer à la main un
+- (S4, tâche 7) ~~**Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
+  sous forme de création manuelle.**~~ — **clos le 2026-09-28** (lot 5) : constat sur ce
+  qu'est le produit, pas un défaut, et aucun besoin exprimé ; D10 l'avait déjà classé « à
+  radier ». Vérifié à `HEAD` : `OfficeEventViewSet` en lecture seule, écritures par les
+  récepteurs seuls. Le titre du domaine et les fiches `R-AGE-*` restent inchangés (décision
+  de S4). Se rouvre sur une demande de prise de rendez-vous dans LibreOsteo — une fonction
+  neuve, pas une correction. Aucune fonction ne permet de créer à la main un
   événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
   (`libreosteoweb/api/views/administration.py:173`, référence rectifiée le 2026-09-24 —
   `api/views.py` a depuis été scindé en paquet `api/views/`) est un `ReadOnlyModelViewSet`, et les seules
@@ -1477,7 +1656,7 @@ Chacun avec son motif de non-correction — détail dans
   `--http-timeout 180` sur la commande `uwsgi` de
   `Docker/build/http-ready/Dockerfile`, cf. « Terminé ».
 
-### Doublon patient à la création : investigation du 2026-09-02, non concluante
+### ~~Doublon patient à la création : investigation du 2026-09-02, non concluante~~ — **close le 2026-09-28** (lot 5)
 
 Le refus instable consigné plus haut (S4, tâche 5, défaut C) **n'a pas été reproduit** :
 neuf exécutions ciblées du parcours incriminé, toutes déterministes, refus systématique,
@@ -1503,7 +1682,17 @@ Le défaut C est **clos par D3 (2026-09-05), par son résultat observable et non
 cause** : cf. « Terminé ». Les deux acquis ci-dessus restent valides et ne se réinstruisent
 pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'être.
 
-### Défauts produit constatés en recette (à traiter, pas encore planifiés)
+**Clos le 2026-09-28 (lot 5).** Le symptôme est impossible et la course prouvée sur le
+moteur réel : contrainte `unique_patient_nom_prenom_naissance` (`0057`, franchie par le
+parc) ; les deux chemins de création — `PatientViewSet.perform_create` et
+`page_nouveau_patient` — convertissent le refus de la base en « Ce patient existe déjà » ;
+`test_deux_creations_simultanees_ne_produisent_qu_une_ligne` asserte 201 + 400 et une
+seule ligne sur PostgreSQL depuis le 2026-09-26. La cause de l'instabilité du 2026-09-01
+n'est pas recherchée : l'écran AngularJS où elle a été vue est parti avec D6f. Limitation
+assumée ; un doublon ou un refus instable sur l'écran htmx serait un constat neuf. Les
+deux acquis ci-dessus sont historiques (la suite unitaire ne tourne plus sur sqlite).
+
+### ~~Défauts produit constatés en recette (à traiter, pas encore planifiés)~~ — **rien d'ouvert, vérifié le 2026-09-28**
 
 - ~~**2026-09-09 — perte silencieuse de donnée médicale dans le dossier patient.** Un clic ou un `Tab` pendant l'édition soumettait l'éditable autonome `original_name` et le callback `$scope.patient = data` effaçait en bloc antécédents, traitement en cours et motifs.~~ — **corrigé le 2026-09-11 par le lot D8**, cliquet de gabarit posé. À retenir de ce défaut, indépendamment de son remède : **il a vécu en production, et c'est un filet de test qui l'a trouvé, pas une revue de code.** Il a été découvert en retirant une barrière d'attente écrite pour le contourner sans l'avoir nommé — donc par le geste même que D6b faisait. C'est l'argument le plus réutilisable du chantier D6 : le filet ne sert pas qu'à protéger la bascule, il révèle ce que le produit cache. ~~La passe de recette `R-PAT-08` reste due.~~ — **jouée le 2026-09-19 sur `078229b`, dix étapes sur dix OK** (cf. « Terminé »).
 - ~~**2026-09-18 — la passe de recette de D9 reste due, et c'est la huitième clause du lot.**
@@ -1518,7 +1707,8 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 ### Renvoyé par D4 (2026-09-06)
 
-- **`--processes 1 --threads 1` n'est pas levé.** Ce n'est plus un garde-fou
+- ~~**`--processes 1 --threads 1` n'est pas levé.**~~ — **clos le 2026-09-28, limitation
+  assumée** (lot 5) : cf. « Décisions actées ». Ce n'est plus un garde-fou
   d'intégrité depuis D3 — `Docker/build/http-ready/Dockerfile:169-171` le dit dans ces
   termes mêmes —, c'est un **choix de capacité**, et sa levée demande une preuve de
   charge que ni la recette ni la suite Playwright ne portent. Candidat à un lot
@@ -1556,8 +1746,21 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   écrit — après retrait d'`animatescroll` et correction des cinq lignes que D6f T10 avait
   rendues fausses sans toucher au tableau. Ce même inventaire note que **DataTables n'a
   aucun consommateur** : vérifié le 2026-09-18, aucun gabarit de
-  `libreosteoweb/templates/` ne le nomme. L'entrée reste ouverte pour le gel A6, CVE
-  comprises.
+  `libreosteoweb/templates/` ne le nomme. ~~L'entrée reste ouverte pour le gel A6, CVE
+  comprises.~~ — **clos le 2026-09-28**, comme limitation assumée : `libreosteoweb/static/
+  font-awesome/` (vendorisé à part, hors `package.json` et hors `static/components/`) ne
+  porte que 6 fichiers — un CSS minifié (`css/font-awesome.min.css`) et cinq polices
+  (`fonts/fontawesome-webfont.{eot,woff,woff2,svg,ttf}`) — vérifié à HEAD le 2026-09-28 :
+  aucun fichier `.js`, aucune chaîne `script`/`function(` dans le CSS. La mention « CVE
+  comprises » qui tenait l'entrée ouverte visait une surface d'exécution qui n'existe pas
+  ici : Font Awesome 4.x ne distribue que du CSS et des polices, sans code exécuté par le
+  navigateur. Une montée en version 5 ou 6 serait une migration purement visuelle
+  (renommages de classes, recette par icône, comparable en nature à D6g pour Bootstrap)
+  sans bénéfice pour le praticien qui utilise l'application — le sujet n'a jamais été le
+  poids (6 fichiers, 764 Ko, tous référencés par `libreosteoweb/templates/base.html` et
+  `account/login.html`), seulement la version gelée. Le reste du paragraphe garde sa
+  valeur d'inventaire. Le même motif clôt le reliquat Font Awesome de « Dette technique »
+  (lot 5).
 - ~~**L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
   Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
   lots restants »).~~ — **fermé le 2026-09-06 par `bfbc160`** : une cible `make static`
@@ -1570,13 +1773,13 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
 
 Deux constats mineurs versés au passage par D5, sans rapport avec le périmètre du lot :
 
-- **`collectstatic` copie des fichiers jamais servis** — documentations et exemples que
+- ~~**`collectstatic` copie des fichiers jamais servis** — documentations et exemples que
   les paquets `@components/…` embarquent et que `collectstatic` recopie en bloc, sans
   qu'aucun gabarit ni JS n'y fasse référence. **Chiffre refait le 2026-09-19** (`make
   static` puis mesure) : `static/components/` portait **103 fichiers** pour **2** paquets
-  déclarés (`alpinejs`, `htmx`).
+  déclarés (`alpinejs`, `htmx`).~~
 
-  ⚠️ **Recompté le 2026-09-24, après la clôture de D6g, par `rm -rf static && make
+  ~~⚠️ **Recompté le 2026-09-24, après la clôture de D6g, par `rm -rf static && make
   static` : 322 fichiers, dont 3 servis.** Le détail par paquet : `bootstrap` **219**,
   `alpinejs` **68**, `htmx` **35**. Les gabarits n'en référencent que **trois** —
   `components/bootstrap/dist/css/bootstrap.min.css`,
@@ -1592,7 +1795,13 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   résiduel n'est pas devenu marginal : 101 fichiers restent 30 % de l'arbre `static/`
   actuel. Alourdit l'image sans utilité, hors périmètre de D5 ; aucun cliquet ne le
   couvre (`test_contrat_arbre_statique.py` vérifie les répertoires de paquets présents,
-  pas leur contenu interne, et le dit).
+  pas leur contenu interne, et le dit).~~ — **clos le 2026-09-28** : même résolution que
+  l'entrée ci-dessus, mêmes commits `f0cb705`/`d4e080f` (2026-09-24 et 2026-09-25
+  respectivement), postérieurs à ce
+  recomptage et jamais reversés en clôture. Mesure du jour (2026-09-28, `rm -rf static &&
+  make static`) : `static/components/` ne porte plus que **3 fichiers pour 3 paquets
+  déclarés** (`alpinejs`, `bootstrap`, `htmx`), tous les trois référencés — les 319 fichiers
+  jamais servis ont disparu avec eux, `static/` total **185 fichiers, 5,8 Mo**.
 - ~~**La portabilité de `node_modules/.yarn-integrity` sur une autre architecture n'est
   pas vérifiée.**~~ — **fermé le 2026-09-19**, par précaution et non par une divergence
   mesurée : `README.rst`, empreinte (a), exclut désormais `systemParams` du hash
@@ -1610,7 +1819,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 > actées ») et aux candidats D7 ci-dessous. Chaque affirmation est adossée à un
 > `chemin:ligne` vérifié.
 
-- **La relation `Examination.invoices` n'est pas un groupement.** Le
+- ~~**La relation `Examination.invoices` n'est pas un groupement.**~~ — **constat de
+  lecture, clos le 2026-09-25** (`5817a5e`, cf. « Terminé », 2026-09-25, lot « solde du
+  backlog », point 5) : vrai, rien de cassé, rien demandé ; la conversion en `ForeignKey`
+  serait une migration pour un renommage, écartée. Barré le 2026-09-28 par le lot 4. Texte
+  d'origine : Le
   `ManyToManyField` (`libreosteoweb/models.py:203`) porte, pour **une seule**
   consultation, un historique facture → avoir, 1 pour 1 à l'origine : la migration
   `0037_auto_20190506_1653.py` (`migrate_invoice_examination`, lignes 7-12) copie
@@ -1628,7 +1841,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   facture qu'il annule (`:189`), pas celle de la séance. Vérifié le 2026-09-19 : aucune
   occurrence de `timezone.now()` ne subsiste dans ce fichier ; les deux lignes ci-dessus
   sont toujours en place.
-- **Ce qui dépend de `Invoice.date`** : le filtre de la liste/export des factures
+- ~~**Ce qui dépend de `Invoice.date`**~~ — **inventaire sans verdict, clos le 2026-09-25**
+  (`5817a5e`, cf. « Terminé », 2026-09-25, lot « solde du backlog », point 5) : son objet,
+  `timezone.now()`, est fermé depuis `9f5bf1f` ; les lignes citées ont dérivé depuis.
+  Barré le 2026-09-28 par le lot 4. Texte d'origine : le filtre de la liste/export des factures
   (`filterset_fields`, `libreosteoweb/api/views/facturation.py:66`), l'écran de
   Comptabilité (`libreosteoweb/api/views/pages/comptabilite.py:82`, filtre
   `date__date__gte`/`__lte`) — ⚠️ **référence rectifiée le 2026-09-19** : l'écran AngularJS
@@ -1713,6 +1929,172 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-28 — Lot 5 « clôtures d'instruction » clos : quatre entrées closes, aucune
+  ligne de code applicatif** (`885781f`..`ea5d10f` et ce journal). Spec :
+  `docs/superpowers/specs/2026-09-28-lot5-instruction-design.md`.
+
+  1. **Worker unique** (`885781f`) — `--processes 1 --threads 1` reste, limitation assumée,
+     décision de l'utilisateur du 2026-09-28. Commentaire du `Dockerfile` réécrit avec les
+     deux dépendances qui le rendent encore nécessaire (garde `maintenance_available`,
+     index Whoosh) et les conditions de réouverture ; nouvelle entrée « Décisions actées » ;
+     la puce « Renvoyé par D4 » close par renvoi vers elle.
+  2. **Doublon patient** (`133c1ec`) — clos : contrainte `unique_patient_nom_prenom_naissance`
+     (`0057`), deux chemins de création convertissant le refus base en message, course
+     prouvée sur PostgreSQL depuis le 2026-09-26.
+  3. **Font Awesome** (`957d6af`) — reliquat de « Dette technique » soldé par renvoi vers le
+     motif unique écrit à la clôture lot 3 de l'entrée « Aucune montée de version frontend »
+     (« Renvoyé par D5 »), qui renvoie désormais vers ce reliquat.
+  4. **Domaine « Agenda »** (`ea5d10f`) — clos : constat sur ce qu'est le produit, aucun
+     besoin exprimé, `OfficeEventViewSet` toujours en lecture seule à `HEAD`. Titre du
+     domaine et fiches `R-AGE-*` inchangés (décision de S4).
+
+  `make check` vert à chaque commit, **1245 passed**, couverture **99,96 %**, plancher 99
+  inchangé. Aucune migration, aucun module `.py` créé ; seuls `Docker/build/http-ready/
+  Dockerfile` (commentaire) et `KANBAN.md` bougent.
+
+- **2026-09-28 — Lot 4 « défauts produit » clos : trois défauts fermés, six entrées
+  survivantes barrées** (`f9b7267`..`cb17bff` et ce journal). Spec :
+  `docs/superpowers/specs/2026-09-28-lot4-defauts-produit-design.md`. Plan fondu ici et
+  dans la spec, **supprimé** (`docs/superpowers/plans/2026-09-28-lot4-defauts-produit.md`).
+  `make check` vert,
+  **1245 passed**, couverture **99,96 %**, plancher 99 inchangé ; suite fonctionnelle du
+  contrôleur rejouée en deux moitiés (plafond de l'outil, 600 s) : moitié A **74 passed + 1
+  failed** en 407,13 s, moitié B **79 passed** en 192,22 s — **154 tests** (152 + 2 de T1) :
+  **153 passed, 1 failed**
+  (`test_cabinet.py::test_le_refus_d_une_cellule_est_affiche_et_n_ecrit_rien`, qui
+  supposait l'utilisateur `test` sans prénom) — causé par T3, corrigé par `cb17bff`,
+  fichier rejoué seul (**5 passed**), suite complète non rejouée après le correctif.
+  Compteur des motifs de fuite (`ERROR at teardown` / `DeadlockDetected` / `couldn't be
+  flushed` / `Database access not allowed` / `encore en vol`) : 0 et 0. **Aucune migration,
+  aucun module `.py` créé.**
+
+  1. **Import coupé** (`f9b7267`) — à la coupure de trois minutes, htmx réarmait le bouton
+     « Importer » sous « ne relancez pas » ; il reste inactif et une phrase dit ce qui
+     s'est passé. Preuve par mutation : sans le gestionnaire, le test rougit sur le bouton
+     réactivé.
+  2. **Facture toujours en français** (`2599aa1`, `de9f787`) — depuis un navigateur en
+     anglais, la page imprimée repassait à `55.55` et « September ». Le gabarit fixe sa
+     langue ; le rendu `fr` est prouvé identique à l'octet par un instantané commité avant
+     la modification.
+  3. **Émission refusée à un praticien sans nom** (`ffe0a57`) — avant la réservation du
+     numéro, l'avoir restant permis. Preuve par mutation : un refus déplacé après la
+     réservation fait rougir les trois refus de page sur la séquence. ⚠️ **À la prochaine
+     montée du parc, un praticien sans nom ni prénom se verra refuser la facturation** :
+     c'est la règle voulue, le message dit où agir (« Profil utilisateur »).
+  4. **Six entrées survivantes barrées** (E1, E2, E3, E4, et les deux premiers constats de
+     facturation) : le lot « solde du backlog » les avait fermées, sa tâche de journal
+     n'avait barré aucune source. **Une clôture de lot barre aussi les entrées qu'elle
+     ferme**, pas seulement l'entrée de « Terminé » : cinq entrées survivantes ont coûté ici
+     une instruction de plus.
+
+  **Recette** : `R-IMP-04` (étape 3), `R-FAC-05` (étape 6), `R-FAC-08` (neuve).
+  **Suivi amont** : rien de repris d'amont.
+
+- **2026-09-28 — Lot « hygiène de code » clos : dix constats corrigés ou reconduits (export
+  xlsx, périmètre `mypy`, i18n, mutations d'environnement de test, divergence `/install/`,
+  statut de facturation inconnu), journal remis en cohérence** (10 commits, `cfbc9db`..
+  `4cd6b3f`). Spec : `docs/superpowers/specs/2026-09-28-lot2-hygiene-code-design.md`.
+  `make check` vert, **1232 passed, 12 warnings**, couverture **99,96 %** sur **4674
+  instructions** (2 manquantes : `generator.py:261`, ligne morte défensive rendue
+  inatteignable par ce lot ; `dossier_patient.py:275`, garde de typage `mypy`, I2) ;
+  `fail_under` inchangé à 99.
+  - **T1** (`cfbc9db`) — l'export xlsx patients/consultations rend enfin son
+    `Content-Disposition` : `XLSXFileMixin` passé avant `ModelViewSet` dans les bases de
+    `PatientViewSet` et `ExaminationViewSet`, réponse JSON par défaut et refus 409 d'un
+    export concurrent inchangés. `docs/recette.md` § R-IMP-05 à jour.
+  - **T2-T5** (`3c6ea55`, `80676ab`, `92c75f9`, `e2b9b84`) — neuf fichiers de test ajoutés à
+    `[tool.mypy] files` ; `libreosteoweb/admin.py` retiré (quatre `admin.site.register`
+    sans route, `admin.autodiscover()` retiré de `Libreosteo/urls.py`) ; `Patient.set_request`
+    retiré (aucun lecteur) ; le msgid orphelin `"Cannot read the content file..."` purgé de
+    `django.po`/`.mo`. Périmètre `mypy` : **192 → 200 fichiers** (+9 −1), aucun rétrécissement.
+  - **T6-T8** (`16e822d`, `d27252d`, `477ad86`, correctif `4cd6b3f`) — `TestReconstructionIndex`
+    et `environnement_isole` mutent désormais `HAYSTACK_CONNECTIONS["default"]` en place et le
+    restaurent après chaque test (préexistant : mutation hors de portée de la restauration
+    automatique de `pytest-django` entre tests) ; la divergence `/install/` entre middleware et
+    vue est épinglée par un test, pas corrigée : **écart mesuré, différent du plan**, qui
+    attendait à tort un 200 anonyme — un anonyme est redirigé (302, middleware) ; un
+    utilisateur non `is_staff` déjà connecté atteint la vue (200, page en lecture seule), mais
+    ses deux actions (`accounts/create-admin/`, chargement d'archive) sont refusées en 403 par
+    `@maintenance_available` : aucun compte créé. Divergence assumée, pas un défaut de sécurité.
+  - **T9** (`13adf3c`) — `ExaminationInvoicingSerializer.validate` rejette tout statut de
+    facturation hors `{"notinvoiced", "invoiced"}` ; les trois points d'entrée atteignables
+    (`ExaminationViewSet.invoice`/`close`, `InvoiceViewSet.cancel` avec facture corrective)
+    rendent 400. `generator.py:261` (`return {}`) devient inatteignable par ricochet, laissé
+    tel quel (ligne morte défensive, sans code à changer) : couverture **99,98 % → 99,96 %**,
+    `fail_under` intact.
+  - **T10** (journal) — doublon `__exit__` barré (déjà clos par `1c8189e` le
+    2026-09-24, entrée dupliquée par erreur) ; `IntegratorExamination.integrate` clos comme
+    garde sans portée avec condition de réouverture explicite ; trois reconductions actées
+    sans rouvrir la décision (`api/utils.py:23`, « 3 char length maximum », les quatre commits
+    `test(...)` du lot correctif du 2026-09-19) ; date de `f0cb705` corrigée (2026-09-24, pas
+    2026-09-25) ; remesure du `RuntimeWarning` d'`AppConfig.ready()` : **12 warnings**
+    (unitaire, inchangé), **1 warning** (fonctionnelle, mesure du lot 1 reprise sans
+    rejouer la suite). Doublon HAYSTACK déjà clos par T8, non retouché ; relevé de nuit
+    (archive) non touché.
+  - **Plan achevé et supprimé**, fondu dans cette entrée et dans la spec ci-dessus
+    (`docs/superpowers/plans/2026-09-28-lot2-hygiene-code.md`).
+
+- **2026-09-28 — Lot « suite fonctionnelle et base de développement sur PostgreSQL » : les deux
+  suites sur PostgreSQL, sqlite et standalone retirés du dépôt** (15 commits,
+  `5b8a8f6`..`b8a1df8`). Spec :
+  `docs/superpowers/specs/2026-09-27-suite-fonctionnelle-postgresql-design.md`. `make check`
+  vert, **1225 passed, 12 warnings**, couverture **99,98 %** ; `fail_under` inchangé à 99.
+  - **Suite fonctionnelle** : serveur de test et `settings.test`, sans `--ds` ; tuyauterie
+    sqlite retirée (`BEGIN IMMEDIATE`, base temporaire, `OPTIONS["timeout"]`, jointure de
+    fin de session) ; chaque vidage attend que le `live_server` ait soldé ses requêtes
+    (interblocage `TRUNCATE` / requête htmx en vol, mesuré au cadrage). Référence sqlite
+    (T1) **584,66 s** ; PostgreSQL (T1) **572,37 s** ; bascule (T4) **594,37 s** puis
+    **612,60 s**, second lancement sans redémarrage du serveur de test ; **152 passed** à
+    chaque passe, aucune ligne `ERROR at teardown`, `DeadlockDetected`, `couldn't be
+    flushed`, `Database access not allowed`. Échecs révélés par la passe complète :
+    **aucun**. **Critère 3** : tenu en T1 (−2 %), dépassé en T4 (+2 % et +5 %) ; bruit de
+    séance (sqlite mesurée entre 549 et 585 s le même jour). Spec § 5.3 : un dépassement
+    relève l'objectif, il ne bloque pas. Conséquence pratique : une passe complète frôle
+    le plafond de 600 s de l'outil ; le repli en deux moitiés du protocole devient la
+    règle.
+  - **Base par défaut** : `base.py` vise PostgreSQL `127.0.0.1:5432` (Q1 c) ; `container.py`
+    efface ce défaut avant d'importer le `settings/` monté, refus « Moteur de base de
+    données inattendu : aucun ». Critère 6 constaté (T7) : `make check` vert sans serveur
+    sur 5432, `migrations-check` et `mypy` avertissent sans échouer. **Arbitrage de l'étage
+    `build`** : `django.setup()` charge le pilote avant `ready()` ; l'étage `build` n'a pas
+    de pilote → nouveau module `Libreosteo/settings/statique.py` (moteur
+    `django.db.backends.dummy`) pour `collectstatic` et `compress`, dans le `Makefile`
+    (cible `static`) et le `Dockerfile` (étage `build`).
+  - **Retrait** : `setup.py`, `patch.py`, `setup.cfg`, `MANIFEST.in`,
+    `requirements/requ-win32.txt`, `application.py`, `winserver.py`, `server.py` (et sa
+    copie dans l'image), `Libreosteo/standalone.py`, `settings/standalone.py`,
+    `Libreosteo/zip_loader.py`, branche `sys.frozen` de `base.py`,
+    `settings/demonstration.py` (Q2 a ; défaut de `wsgi.py` → `settings.container`),
+    branche `request.tenant` de `_en_demonstration`. **Cliquet `mypy`** : `files` passe de
+    199 à 192 entrées (+1 `statique.py`, −8 fichiers retirés), chacune sortie avec le
+    fichier qu'elle nomme, dans le même commit. Aucun module existant n'en sort : le
+    périmètre de code vérifié ne rétrécit pas, c'est le code qui disparaît.
+  - **Documentation** : complète `CONTRIBUTING.md` (consigne yarn 1.21.1 déplacée du
+    `README.rst`, Docker requis pour les deux suites, `make test`).
+
+  **Recette** : `R-INST-04` (étape 3) et chapitre 0 (§ Montage, § Tag d'image) mis à jour ;
+  **image non construite dans cette séance** (bac à sable sans accès TLS à yarn ni Alpine) ;
+  la construction, la comparaison des sept bundles et `R-INST-04` sur l'image sont **dues à
+  la prochaine publication**, cf. « À faire ». **Le plan est achevé et supprimé, fondu dans
+  cette entrée et dans la spec ci-dessus**
+  (`docs/superpowers/plans/2026-09-28-lot1-suite-fonctionnelle-postgresql.md`).
+
+- **2026-09-28 — `psycopg2` épinglé dans l'image http, cliquet de synchronisation** (`0d41fb5`).
+  Sans version, `pip install psycopg2` compilait la dernière publiée sur PyPI à chaque
+  construction — dérive silencieuse. Le Dockerfile pose désormais `pip install
+  psycopg2==2.9.13`, reprenant la version que porte déjà `requirements/requ-dev.txt`
+  (`psycopg2-binary==2.9.13`, pilote de la suite unitaire) ; le nouveau module
+  `tests/qualite/test_contrat_pilote_psycopg2.py` (ajouté à `[tool.mypy] files` dans le
+  même commit) rougit si les deux fichiers divergent, en nommant les deux et leurs
+  valeurs. **Preuve telle que faite, pas la construction complète** : le bac à sable
+  bloque Alpine et Yarn par son proxy TLS, la compilation n'y est pas vérifiable. Preuve
+  ramenée à l'archive source `psycopg2-2.9.13.tar.gz` disponible sur PyPI et au constat
+  que 2.9.13 est déjà la dernière version publiée, donc celle que l'image compilait sans
+  épingle avant ce commit — aucune régression de version introduite. **La construction
+  complète de l'image reste un geste dû**, à faire et à constater à la prochaine
+  publication, pas encore faite. `make check` vert, **1221 passed, 2 skipped**, couverture
+  **99,98 %**.
 
 - **2026-09-27 — Première image arm64 publiée : `familletra/libreosteo-http:df1e658-arm64`.**
   Bâtie sur l'hôte par l'utilisateur (`docker buildx build --platform=linux/arm64 … --load`,

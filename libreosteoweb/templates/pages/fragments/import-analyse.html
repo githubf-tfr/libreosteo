@@ -131,6 +131,17 @@
       {# meme decision que `ng-disabled` prenait dans le navigateur, prise la ou #}
       {# l'information existe. `test_csv_invalide_refuse_sans_import_partiel` exige #}
       {# `to_be_disabled()` **et** qu'aucune requete `/integrate` ne parte. #}
+      {# **Apres une coupure, le bouton reste inactif et l'avis ci-dessous s'affiche** (lot 4, #}
+      {# D1). Sur une requete sans reponse, htmx 2.0.10 retire lui-meme `disabled` #}
+      {# (`removeRequestIndicators`) **avant** d'emettre `htmx:afterRequest` : sans ce #}
+      {# gestionnaire, l'ecran revenait a son etat d'avant le clic, bouton vert et actif sous #}
+      {# « ne relancez pas l'import » -- et le rejeu double les consultations. #}
+      {# `status === 0` et non `htmx:timeout` seul : deux bornes de 180 s coexistent, celle de #}
+      {# htmx (`ontimeout`) et `--http-timeout` du routeur `uwsgi` (coupure qui arrive par #}
+      {# `onerror`) ; laquelle tombe la premiere n'est pas mesuree, et les deux rendent 0. #}
+      {# ⚠️ La coupure n'est pas supprimee et le rapport d'import reste perdu avec la reponse #}
+      {# (arbitrage Q3-a du lot correctif 2) : ce gestionnaire empeche seulement l'ecran #}
+      {# d'inviter au rejeu. #}
       <button class="btn btn-success" type="button"
               hx-post="{% url 'import-integration' fichier.id %}"
               hx-target="#import-result"
@@ -138,8 +149,10 @@
               hx-indicator="#import-en-cours"
               hx-disabled-elt="this"
               hx-request='{"timeout": 180000}'
+              hx-on::after-request="if (event.detail.xhr.status === 0) { this.disabled = true; document.getElementById('import-coupure').hidden = false; }"
               {% if not importable %}disabled{% endif %}>{% trans 'Import' %}</button>
       <span class="bg-success htmx-indicator" id="import-en-cours"><i class="fa fa-cog fa-spin fa-lg fa-fw"></i> {% trans 'Loading in progress'%}</span>
     </p>
+    <p class="text-danger" id="import-coupure" data-testid="import-coupure" hidden>{% trans 'The server did not answer within three minutes. The import may still be running on its side: do not run it again, check the patient list first.' %}</p>
   </div>
 </div>

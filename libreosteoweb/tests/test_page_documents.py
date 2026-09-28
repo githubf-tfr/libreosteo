@@ -645,9 +645,7 @@ class TestTeleversement(_SocleDuPatient):
 
         Ce que cette preuve regarde : **le contenu reellement ecrit sur le disque**, relu
         par l'ORM, sous `DEMONSTRATION = True`. Ce qu'elle laisserait passer : un titre ou
-        des notes conserves du depot refuse (c'est voulu — seul le fichier est remplace),
-        et le cas du locataire `demonstration`, que seul le deploiement multi-schema
-        expose.
+        des notes conserves du depot refuse (c'est voulu — seul le fichier est remplace).
         """
         contenu = b"ceci ne doit pas etre enregistre"
         fichier = SimpleUploadedFile("secret.txt", contenu, content_type="text/plain")

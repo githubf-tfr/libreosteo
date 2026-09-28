@@ -103,6 +103,8 @@ class ExaminationInvoicingSerializer(serializers.Serializer):
                 # (`CheckSerializer()`, plus haut), donc `attrs["check"]` existe
                 # toujours. Les controles de banque, de payeur et de numero etaient
                 # deja desactives par l'amont ; ils ne reviennent pas par cette porte.
+            if attrs["status"] not in ("notinvoiced", "invoiced"):
+                raise serializers.ValidationError(_("Unknown invoicing status"))
             return attrs
         except KeyError:
             raise serializers.ValidationError(_("Missing data to continue"))

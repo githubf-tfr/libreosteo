@@ -22,12 +22,10 @@ from tests.functional.helpers import (
 def definir_nom_du_therapeute(page: Page) -> None:
     """Complete le profil therapeute (E1, etape 3, docs/recette.md:223-276).
 
-    `last_name` et `first_name` ne sont pas semes par le socle ORM
-    (`tests/functional/conftest.py::socle`), a la difference de `professional_id` et
-    `quality` (`TherapeutSettings`) : `get_user_model().objects.create_superuser` ne
-    pose ni prenom ni nom. Sans ce passage par l'interface (meme geste que
-    test_therapeute.py::test_reglage_du_therapeute), la signature « Tester Robot » des
-    evenements du tableau de bord tomberait sur le repli `get_username`.
+    Le socle ORM (`tests/functional/conftest.py::socle`) seme deja ce nom et ce prenom
+    depuis le lot 4 : ce passage par l'interface (meme geste que
+    test_therapeute.py::test_reglage_du_therapeute) les repose a l'identique, et garde le
+    geste de l'etat E1 dans le parcours du test.
     """
     ouvrir_profil_therapeute(page)
     page.fill("input[name='last_name']", "Tester")

@@ -11,3 +11,7 @@ pytest-django==4.14.0
 pytest-playwright==0.9.0
 playwright==1.62.0
 requests
+
+# Pilote PostgreSQL : la suite fonctionnelle tourne sur le serveur de `make test-db`, comme
+# la suite unitaire. Meme epingle que requ-dev.txt, relever les deux ensemble.
+psycopg2-binary==2.9.13

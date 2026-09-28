@@ -26,7 +26,8 @@ fichier statique rendait 404, Alpine ne demarrait jamais et la barriere
 
 Le litteral est donc rendu a `INSTALLED_APPS`, et la regle descend ici. La commande est
 le seul autre endroit ou elle peut vivre **une fois** pour les deux appels du depot —
-`Makefile:62` et `Docker/build/http-ready/Dockerfile:105` invoquent tous deux
+`Makefile:62` et le `RUN` de l'etage `build` de `Docker/build/http-ready/Dockerfile`
+invoquent tous deux
 `manage.py collectstatic --no-input --settings=Libreosteo.settings.base`, et une
 commande d'application masque celle de Django sans qu'aucune ligne de construction ne
 change.

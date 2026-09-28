@@ -32,10 +32,11 @@ def reponse_export_deja_en_cours() -> HttpResponse:
     navigateur, et le praticien recevrait du JSON dans un classeur au lieu du message.
     Ici, le type est `text/plain` quel que soit le suffixe.
 
-    Mesure du 2026-09-26 : `XLSXFileMixin` vient apres `ModelViewSet` dans les bases de
-    `PatientViewSet` et `ExaminationViewSet`. `APIView.finalize_response` n'appelant pas
-    `super()`, celui du mixin ne s'execute jamais : l'export nominal ne porte aucun
-    `Content-Disposition`.
+    `XLSXFileMixin` vient desormais avant `ModelViewSet` dans les bases de `PatientViewSet`
+    et `ExaminationViewSet` (lot hygiene de code, 2026-09-28) : l'export nominal porte
+    `Content-Disposition: attachment; filename=...`. Cette reponse-ci n'est pas concernee :
+    ce n'est pas une `Response` DRF, la condition `isinstance(response, Response)` de
+    `XLSXFileMixin.finalize_response` l'exclut d'office, quel que soit l'ordre des bases.
     """
     return HttpResponse(
         _("An export is already in progress. Try again in a moment."),

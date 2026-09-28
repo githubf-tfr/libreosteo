@@ -15,6 +15,7 @@
 import os
 import subprocess
 import sys
+import tempfile
 from importlib import reload
 from pathlib import Path
 
@@ -71,9 +72,10 @@ class TestMoteurDeBaseDeDonnees(SimpleTestCase):
         Une clef secrète est fournie : c'est bien le moteur de base, et non la
         clef, qui doit faire échouer le démarrage. Sans paquet `settings` sur
         `sys.path`, l'import `from settings import *` de `container.py` ne ramène
-        rien et `DATABASES` reste sur le sqlite de `base.py` — exactement la
-        situation d'un volume `/Libreosteo/settings` monté sans `__init__.py`
-        réexportant `local.py`.
+        rien — exactement la situation d'un volume `/Libreosteo/settings` monté sans
+        `__init__.py` réexportant `local.py`. `container.py` efface le `DATABASES` de
+        `base.py` avant cet import : le moteur effectif est alors « aucun », quel que
+        soit le défaut de développement de `base.py`.
 
         Isolé dans un sous-processus pour la raison déjà écrite plus haut :
         recharger un module de réglages Django pollue le processus de la suite.
@@ -92,10 +94,57 @@ class TestMoteurDeBaseDeDonnees(SimpleTestCase):
             text=True,
             check=False,
         )
+        # Rouge si : le conteneur retombe sur le défaut de développement de `base.py` au
+        # lieu de refuser (ligne `DATABASES = {}` de `container.py` retirée ou déplacée
+        # après l'import du `settings/` monté).
         self.assertNotEqual(0, resultat.returncode, resultat.stderr)
         self.assertIn("ImproperlyConfigured", resultat.stderr)
+        self.assertIn("Moteur de base de données inattendu : aucun.", resultat.stderr)
         self.assertIn("django.db.backends.postgresql", resultat.stderr)
-        self.assertIn("db.sqlite3", resultat.stderr)
+        self.assertIn("__init__.py", resultat.stderr)
+        self.assertNotIn("db.sqlite3", resultat.stderr)
+
+    def test_un_local_py_qui_modifie_le_defaut_de_base_est_accepte(self) -> None:
+        """Un `local.py` monté qui importe `base` et modifie son `DATABASES` démarre.
+
+        Forme possible d'un `local.py` de parc, que le dépôt ne contrôle pas : il ne
+        redéfinit pas `DATABASES`, il retouche celui de `base.py`. Le nom repart alors par
+        `from settings import *` et remplace le dictionnaire vide que `container.py` pose
+        avant cet import ; la garde laisse passer, puisque le défaut de `base.py` est
+        PostgreSQL. Même isolement en sous-processus que ci-dessus ; le paquet `settings`
+        monté est un répertoire temporaire placé sur `PYTHONPATH`.
+        """
+        with tempfile.TemporaryDirectory() as racine:
+            paquet = Path(racine) / "settings"
+            paquet.mkdir()
+            (paquet / "__init__.py").write_text(
+                "from .local import *\n", encoding="utf-8"
+            )
+            (paquet / "local.py").write_text(
+                "from Libreosteo.settings.base import *\n"
+                'DATABASES["default"]["HOST"] = "db"\n',
+                encoding="utf-8",
+            )
+            environnement = dict(os.environ)
+            environnement["LIBREOSTEO_SECRET_KEY"] = "django-insecure-tests-uniquement"
+            environnement["PYTHONPATH"] = racine
+            script = (
+                "import Libreosteo.settings.container as reglages\n"
+                'base = reglages.DATABASES["default"]\n'
+                'print(base["ENGINE"], base["HOST"])\n'
+            )
+            resultat = subprocess.run(
+                [sys.executable, "-c", script],
+                env=environnement,
+                cwd=str(Path(base.__file__).resolve().parents[2]),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        # Rouge si : un montage qui retouche le `DATABASES` de `base.py` au lieu de le
+        # redéfinir est refusé, ou démarre sur autre chose que ce qu'il a retouché.
+        self.assertEqual(0, resultat.returncode, resultat.stderr)
+        self.assertIn("django.db.backends.postgresql db", resultat.stdout)
 
 
 class TestHotesAutorises(SimpleTestCase):
@@ -199,3 +248,33 @@ class TestJournalApplicatif(SimpleTestCase):
             "Un enregistrement emis hors du sous-arbre `libreosteoweb.api.*` n'ecrit plus "
             "exactement une ligne.",
         )
+
+
+class TestPointWsgi(SimpleTestCase):
+    def test_sans_module_de_reglages_le_point_wsgi_vise_le_conteneur(self) -> None:
+        """`Libreosteo/wsgi.py` importé sans `DJANGO_SETTINGS_MODULE` prend `container.py`.
+
+        Cas d'un `uwsgi --module Libreosteo.wsgi` lancé sans la variable que le `CMD` de
+        l'image exporte. Le défaut était `settings.demonstration`, réglages sqlite d'une
+        instance publique amont, retirés (décision Q2 a du 2026-09-28) : c'est désormais
+        la seule cible, avec sa garde. Sans `settings/` monté, le démarrage est refusé en
+        nommant la cause. Même isolement en sous-processus que ci-dessus.
+        """
+        environnement = dict(os.environ)
+        environnement.pop("DJANGO_SETTINGS_MODULE", None)
+        environnement["LIBREOSTEO_SECRET_KEY"] = "django-insecure-tests-uniquement"
+        resultat = subprocess.run(
+            [sys.executable, "-c", "import Libreosteo.wsgi\n"],
+            env=environnement,
+            cwd=str(Path(base.__file__).resolve().parents[2]),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        # Rouge si : le défaut de `wsgi.py` redevient un module de réglages qui démarre
+        # sans `settings/` monté.
+        self.assertIn(
+            "Use the settings = Libreosteo.settings.container", resultat.stdout
+        )
+        self.assertNotEqual(0, resultat.returncode, resultat.stderr)
+        self.assertIn("Moteur de base de données inattendu : aucun.", resultat.stderr)

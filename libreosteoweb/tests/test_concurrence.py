@@ -285,10 +285,14 @@ class TestExportsConcurrents(APITransactionTestCase):
 
     def _refus_lisible(self, premier, second):
         # Le type, et non un `Content-Disposition`, decide de ce que fait le navigateur :
-        # sous le type tableur, il telecharge un fichier, piece jointe declaree ou non.
-        # Mesure du 2026-09-26 : l'export nominal ne porte aucun `Content-Disposition`.
+        # sous le type tableur, il telecharge un fichier, piece jointe declaree ou non. Le
+        # refus, lui, ne doit jamais en porter un : ce serait un fichier attache portant un
+        # message d'erreur. Depuis le lot hygiene de code (2026-09-28), l'export nominal
+        # porte desormais `Content-Disposition` (reforme du MRO de XLSXFileMixin) ; le
+        # refus, une `HttpResponse` simple hors du rendu DRF, n'est pas concerne.
         self.assertEqual(second.status_code, 409)
         self.assertEqual(second["Content-Type"], "text/plain; charset=utf-8")
+        self.assertNotIn("Content-Disposition", second)
         self.assertEqual(second.content.decode("utf-8"), EXPORT_EN_COURS)
         self.assertEqual(premier.status_code, 200)
         self.assertTrue(premier["Content-Type"].startswith(XLSX))

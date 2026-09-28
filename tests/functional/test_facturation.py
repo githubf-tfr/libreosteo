@@ -469,13 +469,10 @@ def test_montant_a_centimes(page: Page, live_server: LiveServer) -> None:
 def definir_nom_du_therapeute(page: Page) -> None:
     """Complete le profil therapeute (E1, etape 3, docs/recette.md:223-276).
 
-    Meme copie locale que test_agenda.py, pour la meme raison : `last_name` et
-    `first_name` ne sont pas semes par le socle ORM (`tests/functional/conftest.py::
-    socle`), a la difference de `professional_id` et `quality` (`TherapeutSettings`).
-    Sans ce passage par l'interface, `invoice.therapeut_name`/`therapeut_first_name`
-    (`api/invoicing/generator.py:47-48`, lus depuis `user.last_name`/`first_name`)
-    restent vides, et la signature « Tester Robot » attendue sur la facture imprimee
-    ne tient pas.
+    Meme copie locale que test_agenda.py. Le socle ORM (`tests/functional/conftest.py::
+    socle`) seme deja ce nom et ce prenom depuis le lot 4 -- un praticien sans nom
+    n'emet pas de facture : ce passage par l'interface les repose a l'identique, et
+    garde le geste de l'etat E1 dans le parcours du test.
     """
     ouvrir_profil_therapeute(page)
     page.fill("input[name='last_name']", "Tester")

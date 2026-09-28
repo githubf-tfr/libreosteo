@@ -13,8 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
@@ -54,7 +56,7 @@ from libreosteoweb.tests.fixtures import (
 class TestFacturation(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet(
                 invoice_office_header="Cabinet des étoiles",
@@ -183,16 +185,27 @@ class TestFacturation(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Invoice.objects.count(), 0)
 
-    def test_un_statut_de_facturation_inconnu_ne_cree_aucune_facture(self):
-        """`status` est un `CharField` libre herite de l'amont : `validate` ne contraint
-        que « notinvoiced » et « invoiced »."""
-        # Rouge si : un statut inconnu cree une facture ou change l'etat de la seance --
-        # une valeur qu'aucun bouton de l'ecran ne produit ne doit rien ecrire.
+    def test_un_statut_de_facturation_inconnu_est_refuse_en_400(self):
+        """`status` est un `CharField` libre herite de l'amont, durci par le lot hygiene
+        de code (2026-09-28) : `validate` ne contraint plus seulement le contenu de
+        « notinvoiced » et « invoiced », il rejette toute autre valeur. Avant ce
+        durcissement, la reponse rendait 200 a corps vide."""
+        # Rouge si : un statut inconnu cree une facture, change l'etat de la seance, ou
+        # cesse d'etre refuse en 400.
         reponse = self.facture(status="autre")
-        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Invoice.objects.count(), 0)
         self.consultation.refresh_from_db()
         self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
+
+    def test_un_statut_hors_notinvoiced_et_invoiced_est_invalide(self):
+        """Rouge si : `validate()` accepte encore un statut hors des deux valeurs
+        connues -- c'est la cause commune aux quatre appelants de
+        `invoice_examination`."""
+        serialiseur = apiserializers.ExaminationInvoicingSerializer(
+            data=facturation(status="bogus")
+        )
+        self.assertFalse(serialiseur.is_valid())
 
 
 class TestRefusDuNumeroDejaEmis(APITestCase):
@@ -206,7 +219,7 @@ class TestRefusDuNumeroDejaEmis(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages_praticien = cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet(invoice_start_sequence="10000")
             self.patient = cree_patient()
@@ -269,7 +282,7 @@ class TestNumerotationFacture(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages_praticien = cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -358,7 +371,7 @@ class TestMaximumDeSequenceSurLesTroisSurfaces(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages_praticien = cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet(invoice_start_sequence="10003")
             self.patient = cree_patient()
@@ -459,7 +472,7 @@ class TestMaximumDeSequenceSurLesTroisSurfaces(APITestCase):
 class TestEncaissement(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -530,7 +543,7 @@ class TestEncaissement(APITestCase):
 class TestAnnulationFacture(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -598,7 +611,7 @@ class TestAnnulationParFactureCorrectiveInvalide(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -638,6 +651,38 @@ class TestAnnulationParFactureCorrectiveInvalide(APITestCase):
         self.facture.refresh_from_db()
         self.assertNotEqual(InvoiceStatus.CANCELED, self.facture.status)
 
+    def test_un_statut_de_facturation_inconnu_a_l_annulation_rend_400_sans_lever_de_keyerror(
+        self,
+    ):
+        """Avant le durcissement de `ExaminationInvoicingSerializer.validate`, un statut
+        hors des deux valeurs connues faisait rendre `{}` par `invoice_examination`
+        (`generator.py:261`), et `models.Invoice.objects.get(id=result["invoiced"])`
+        levait `KeyError` -- une 500, non une 400. Rouge si : cette ligne redevient
+        atteignable."""
+        regle_cabinet(cancel_invoice_credit_note=False)
+        consultation = self.client.get(
+            reverse("examination-detail", kwargs={"pk": self.consultation.id})
+        ).data
+
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": self.facture.pk}),
+            data={
+                "examination": consultation,
+                "corrective_invoice": {
+                    "status": "bogus",
+                    "amount": "50.00",
+                    "paiment_mode": "cash",
+                    "reason": None,
+                    "check": {},
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, reponse.status_code)
+        self.facture.refresh_from_db()
+        self.assertNotEqual(InvoiceStatus.CANCELED, self.facture.status)
+
 
 class TestRefusDuNumeroDejaEmisAAnnulation(APITestCase):
     """Meme collision que TestRefusDuNumeroDejaEmis, mais sur le chemin de
@@ -647,7 +692,7 @@ class TestRefusDuNumeroDejaEmisAAnnulation(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet(cancel_invoice_credit_note=True)
             self.patient = cree_patient()
@@ -702,9 +747,11 @@ def envoi_factice(request, pk=None):
 class TestListeFactures(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
-            self.autre = cree_praticien(username="autre")
+            self.autre = cree_praticien(
+                username="autre", last_name="Riker", first_name="William"
+            )
             cree_reglages_praticien(self.autre)
             regle_cabinet()
             self.patient = cree_patient()
@@ -779,10 +826,14 @@ class TestListeFactures(APITestCase):
         self.assertEqual(reponse.data["envoyee"], str(self.ma_facture.id))
 
 
+# L'instantane du rendu francais de la facture imprimee (lot 4, T2a).
+INSTANTANE_FACTURE_FR = Path(__file__).parent / "instantanes" / "facture-fr.html"
+
+
 class TestRenduFacture(APITestCase):
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             regle_cabinet(invoice_content="Consultation de <patient_first_name>")
             self.patient = cree_patient()
@@ -850,6 +901,101 @@ class TestRenduFacture(APITestCase):
         corps = reponse.content.decode("utf-8")
         self.assertEqual(reponse.status_code, status.HTTP_200_OK)
         self.assertIn(PaimentMean.objects.get(code="cash").text.lower(), corps)
+
+    def facture_figee(self):
+        """Une facture dont chaque donnee rendue est figee : seance, montant, encaissement.
+
+        Emise par l'API, comme en production, puis reglee par un encaissement date.
+        """
+        regle_cabinet(
+            invoice_office_header="Cabinet 1",
+            office_address_street="27 rue Haute",
+            office_address_complement="",
+            office_address_zipcode="87110",
+            office_address_city="Le Vigen",
+            office_phone="05 55 12 13 14",
+            office_identifier_label="SIRET",
+            professional_id_label="Adeli",
+            invoice_content="Consultation de <patient_first_name> : <amount> <currency>",
+            invoice_footer="Footer",
+        )
+        with sans_receivers():
+            seance = cree_consultation(
+                self.patient,
+                therapeut=self.user,
+                date=datetime(2026, 9, 13, 10, 30, tzinfo=ZoneInfo("Europe/Paris")),
+            )
+        facture = Invoice.objects.get(
+            id=self.client.post(
+                reverse("examination-invoice", kwargs={"pk": seance.id}),
+                data=facturation(amount=55.55, paiment_mode="notpaid"),
+                format="json",
+            ).data["invoiced"]
+        )
+        encaissement = Paiment.objects.create(
+            amount=Decimal("55.55"),
+            currency="EUR",
+            paiment_mode="check",
+            date=date(2026, 9, 14),
+        )
+        facture.paiment_set.add(encaissement)
+        return facture
+
+    def rendu(self, facture, langue):
+        reponse = self.client.get(
+            reverse("invoice_view", kwargs={"invoiceid": facture.id}),
+            HTTP_ACCEPT_LANGUAGE=langue,
+        )
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        return reponse.content.decode("utf-8")
+
+    def test_le_rendu_francais_de_la_facture_est_fige(self):
+        """Instantane du rendu `fr`, pris sur le gabarit d'avant le lot 4 (T2a).
+
+        Il porte les quatre sorties localisees du gabarit -- `floatformat` (HONORAIRES,
+        encaissement), `date:"d F Y"` (« A ..., le ... », encaissement) -- et le corps
+        rendu par `templatize`. T2b fixe la langue du gabarit : ce fichier ne doit pas
+        bouger d'un octet.
+
+        Rouge si : un octet du rendu francais change.
+        """
+        self.maxDiff = None
+        self.assertEqual(
+            self.rendu(self.facture_figee(), "fr"),
+            INSTANTANE_FACTURE_FR.read_text(encoding="utf-8"),
+        )
+
+    def test_un_navigateur_en_anglais_imprime_la_meme_facture(self):
+        """La facture est une piece fiscale redigee en francais : elle ne depend pas du
+        poste qui l'imprime (lot 4, D2).
+
+        Rouge si : la langue du navigateur pilote de nouveau `floatformat` ou `date`
+        (« 55.55 », « September ») sur la page imprimee.
+        """
+        facture = self.facture_figee()
+
+        rendu_anglais = self.rendu(facture, "en")
+
+        self.maxDiff = None
+        self.assertEqual(rendu_anglais, self.rendu(facture, "fr"))
+        self.assertIn("<td>55,55 EUR</td>", rendu_anglais)
+        self.assertIn("le 13 septembre 2026", rendu_anglais)
+
+    def test_un_navigateur_en_anglais_imprime_le_meme_avoir(self):
+        """L'avoir passe par le meme gabarit que la facture (`InvoiceViewHtml`)."""
+        facture = self.facture_figee()
+        avoir = Invoice.objects.get(
+            id=self.client.post(
+                reverse("invoice-cancel", kwargs={"pk": facture.id})
+            ).data["credit_note"]["id"]
+        )
+
+        rendu_anglais = self.rendu(avoir, "en")
+
+        self.maxDiff = None
+        self.assertEqual(rendu_anglais, self.rendu(avoir, "fr"))
+        self.assertIn("<td>-55,55 EUR</td>", rendu_anglais)
+        self.assertIn("le 13 septembre 2026", rendu_anglais)
 
 
 class TestMoyenDePaiementParDictionnaire(TestCase):
@@ -947,7 +1093,7 @@ class TestDateDeLaFacture(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             self.reglages_praticien = cree_reglages_praticien(self.user)
             self.cabinet = regle_cabinet()
             self.patient = cree_patient()
@@ -1007,7 +1153,7 @@ class TestChampsGouvernesDeLaConsultation(APITestCase):
 
     def setUp(self):
         with sans_receivers():
-            self.user = cree_praticien()
+            self.user = cree_praticien(last_name="Crusher", first_name="Beverly")
             cree_reglages_praticien(self.user)
             regle_cabinet()
             self.patient = cree_patient()
@@ -1116,3 +1262,151 @@ class TestChampsGouvernesDeLaConsultation(APITestCase):
         self.assertEqual(self.consultation.reason, "Cervicalgie")
         self.assertEqual(self.consultation.status, ExaminationStatus.INVOICED_PAID)
         self.assertEqual([facture], list(self.consultation.invoices.all()))
+
+
+# Le refus d'emission, tel que le praticien le lit (lot 4, D3).
+REFUS_SANS_NOM = (
+    "Renseignez votre nom dans votre profil utilisateur avant d'émettre une facture."
+)
+
+
+class TestEmissionRefuseeAuPraticienSansNom(APITestCase):
+    """Un praticien ni nomme ni prenomme n'emet aucune facture, et l'avoir lui reste
+    permis (lot 4, D3).
+
+    Chaque refus est prouve par ce qu'il **n'ecrit pas** : aucune facture, sequence du
+    cabinet inchangee, seance et facture d'origine inchangees.
+    """
+
+    def setUp(self):
+        with sans_receivers():
+            self.user = cree_praticien()
+            cree_reglages_praticien(self.user)
+            self.cabinet = regle_cabinet(invoice_start_sequence="10001")
+            self.patient = cree_patient()
+            self.consultation = cree_consultation(self.patient, therapeut=self.user)
+        self.client.login(username="test", password="testpw")
+
+    def sequence(self):
+        return OfficeSettings.objects.get(pk=self.cabinet.pk).invoice_start_sequence
+
+    def facture_d_origine(self):
+        """Une facture deja emise, par un praticien nomme : avant la regle, ou par un
+        confrere."""
+        with sans_receivers():
+            seance = cree_consultation(
+                self.patient,
+                therapeut=self.user,
+                status=ExaminationStatus.INVOICED_PAID,
+            )
+        facture = Invoice.objects.create(
+            date=seance.date,
+            amount=Decimal("55.00"),
+            currency="EUR",
+            paiment_mode="cash",
+            therapeut_name="Crusher",
+            therapeut_first_name="Beverly",
+            professional_id="12345",
+            location="Le Vigen",
+            number="10000",
+            patient_family_name="Picard",
+            officesettings_id=self.cabinet.id,
+            status=InvoiceStatus.INVOICED_PAID,
+        )
+        seance.invoices.add(facture)
+        return seance, facture
+
+    def emet(self, action):
+        return self.client.post(
+            reverse(action, kwargs={"pk": self.consultation.id}),
+            data=facturation(),
+            format="json",
+        )
+
+    def test_facturer_est_refuse_sans_rien_ecrire(self):
+        reponse = self.emet("examination-invoice")
+
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reponse.data, {"non_field_errors": [REFUS_SANS_NOM]})
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.assertEqual(self.sequence(), "10001")
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
+
+    def test_cloturer_facturee_est_refuse_et_la_seance_reste_en_cours(self):
+        reponse = self.emet("examination-close")
+
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reponse.data, {"non_field_errors": [REFUS_SANS_NOM]})
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.assertEqual(self.sequence(), "10001")
+        self.consultation.refresh_from_db()
+        self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
+
+    def test_l_annulation_par_facture_corrective_est_refusee_sans_rien_annuler(self):
+        regle_cabinet(cancel_invoice_credit_note=False)
+        seance, originale = self.facture_d_origine()
+        consultation = self.client.get(
+            reverse("examination-detail", kwargs={"pk": seance.id})
+        ).data
+
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": originale.id}),
+            data={
+                "examination": consultation,
+                "corrective_invoice": facturation(amount=60.0),
+            },
+            format="json",
+        )
+
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reponse.data, {"non_field_errors": [REFUS_SANS_NOM]})
+        originale.refresh_from_db()
+        self.assertEqual(originale.status, InvoiceStatus.INVOICED_PAID)
+        self.assertIsNone(originale.canceled_by_id)
+        self.assertEqual(Invoice.objects.count(), 1)
+        self.assertEqual(self.sequence(), "10001")
+
+    def test_l_avoir_reste_permis_au_praticien_sans_nom(self):
+        """`cancel_invoice` recopie le nom de la facture annulee : le refuser bloquerait
+        l'annulation d'une facture emise avant la regle."""
+        regle_cabinet(cancel_invoice_credit_note=True)
+        _seance, originale = self.facture_d_origine()
+
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": originale.id}),
+            data={},
+            format="json",
+        )
+
+        self.assertEqual(reponse.status_code, status.HTTP_202_ACCEPTED)
+        avoir = Invoice.objects.get(id=reponse.data["credit_note"]["id"])
+        self.assertEqual(avoir.type, "creditnote")
+        self.assertEqual(avoir.number, "10001")
+        self.assertEqual(avoir.therapeut_name, "Crusher")
+        originale.refresh_from_db()
+        self.assertEqual(originale.status, InvoiceStatus.CANCELED)
+
+    def test_un_nom_seul_suffit_a_emettre(self):
+        self.user.last_name = "Crusher"
+        self.user.save()
+
+        reponse = self.emet("examination-invoice")
+
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        facture = Invoice.objects.get(id=reponse.data["invoiced"])
+        self.assertEqual(
+            (facture.therapeut_name, facture.therapeut_first_name), ("Crusher", "")
+        )
+
+    def test_un_prenom_seul_suffit_a_emettre(self):
+        self.user.first_name = "Beverly"
+        self.user.save()
+
+        reponse = self.emet("examination-invoice")
+
+        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        facture = Invoice.objects.get(id=reponse.data["invoiced"])
+        self.assertEqual(
+            (facture.therapeut_name, facture.therapeut_first_name), ("", "Beverly")
+        )

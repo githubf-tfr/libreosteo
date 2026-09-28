@@ -1,9 +1,8 @@
 # Configuration de l'outillage de qualité uniquement.
-# L'emballage du paquet reste décrit par setup.py et setup.cfg.
 
 [tool.pytest.ini_options]
-# PostgreSQL, le moteur de la production (cadrage du 2026-09-26) ; serveur par
-# `make test-db`. La suite fonctionnelle passe `--ds=Libreosteo.settings` (sqlite).
+# PostgreSQL, le moteur de la production (cadrages du 2026-09-26 et du 2026-09-27) ;
+# serveur par `make test-db`. Les deux suites le prennent ici, sans `--ds`.
 DJANGO_SETTINGS_MODULE = "Libreosteo.settings.test"
 testpaths = ["libreosteoweb/tests", "outils/tests", "zipcode_lookup", "tests/qualite"]
 python_files = ["test_*.py", "tests.py"]
@@ -76,13 +75,15 @@ fail_under = 99
 # Reste volontairement en retrait du plancher d'execution, qui est 3.14 (cf.
 # [tool.mypy] python_version ci-dessous), pour une raison unique : sous "py314",
 # `ruff format` adopterait la syntaxe PEP 758 (`except A, B:` sans parentheses)
-# dans 4 fichiers. Cette syntaxe se lit comme l'`except E, e:` de Python 2, qui
+# dans 7 fichiers. Cette syntaxe se lit comme l'`except E, e:` de Python 2, qui
 # signifiait tout autre chose (capturer l'exception sous le nom `e`, pas les
 # types A et B) - c'est cette ambiguite, et elle seule, qui tient ce plancher en
 # retrait ; aucun canal ne sert plus reellement Python 3.13. Ne pas relever sans
-# assumer le reformatage de ces 4 fichiers (Libreosteo/zip_loader.py,
-# libreosteoweb/api/file_integrator.py, libreosteoweb/api/utils.py,
-# libreosteoweb/api/views/administration.py).
+# assumer le reformatage de ces 7 fichiers (libreosteoweb/api/file_integrator.py,
+# libreosteoweb/api/services/reprise_archive.py, libreosteoweb/api/utils.py,
+# libreosteoweb/api/views/administration.py,
+# libreosteoweb/api/views/pages/tableau_de_bord.py, libreosteoweb/api/views/patient.py,
+# outils/diagnostic_archive.py).
 target-version = "py313"
 extend-exclude = ["libreosteoweb/migrations", "node_modules", ".venv", ".tools"]
 
@@ -106,26 +107,17 @@ python_version = "3.14"
 plugins = ["mypy_django_plugin.main"]
 # Périmètre volontairement restreint : seuls les modules qui passent déjà figurent
 # ici. Un module rejoint la liste quand il est annoté. Même cliquet que la couverture.
-# Seul `setup.py` reste hors périmètre : `sys.winver`, qui n'existe que sous Windows,
-# est utilisé dans des fonctions imbriquées dans un bloc `if sys.platform == "win32":`
-# — narrowing que mypy ne fait pas traverser jusqu'aux corps de fonctions qui y sont
-# définies. Le corriger demanderait un `# type: ignore`, pire qu'une exclusion honnête.
 files = [
     "Libreosteo/__init__.py",
     "Libreosteo/settings/__init__.py",
     "Libreosteo/settings/base.py",
     "Libreosteo/settings/container.py",
-    "Libreosteo/settings/demonstration.py",
     "Libreosteo/settings/dev.py",
-    "Libreosteo/settings/standalone.py",
+    "Libreosteo/settings/statique.py",
     "Libreosteo/settings/test.py",
-    "Libreosteo/standalone.py",
     "Libreosteo/urls.py",
     "Libreosteo/wsgi.py",
-    "Libreosteo/zip_loader.py",
-    "application.py",
     "libreosteoweb/__init__.py",
-    "libreosteoweb/admin.py",
     "libreosteoweb/api/__init__.py",
     "libreosteoweb/api/demonstration.py",
     "libreosteoweb/api/dialecte_csv.py",
@@ -199,6 +191,8 @@ files = [
     "libreosteoweb/tests/conftest.py",
     "libreosteoweb/tests/fixtures.py",
     "libreosteoweb/tests/test_acces.py",
+    "libreosteoweb/tests/test_actif_initial_onglets_pages.py",
+    "libreosteoweb/tests/test_appariement_alpine_serveur.py",
     "libreosteoweb/tests/test_concurrence.py",
     "libreosteoweb/tests/test_context_processors.py",
     "libreosteoweb/tests/test_delete_patient.py",
@@ -209,9 +203,11 @@ files = [
     "libreosteoweb/tests/test_facturation.py",
     "libreosteoweb/tests/test_file_integrator.py",
     "libreosteoweb/tests/test_filter.py",
+    "libreosteoweb/tests/test_fin_edition_attend_le_fragment.py",
     "libreosteoweb/tests/test_graphiques.py",
     "libreosteoweb/tests/test_import_fichiers.py",
     "libreosteoweb/tests/test_invoice.py",
+    "libreosteoweb/tests/test_migration_montants.py",
     "libreosteoweb/tests/test_migration_purge_sessions.py",
     "libreosteoweb/tests/test_modeles.py",
     "libreosteoweb/tests/test_notifications.py",
@@ -223,6 +219,7 @@ files = [
     "libreosteoweb/tests/test_page_documents.py",
     "libreosteoweb/tests/test_page_dossier_patient.py",
     "libreosteoweb/tests/test_page_import.py",
+    "libreosteoweb/tests/test_page_import_export.py",
     "libreosteoweb/tests/test_page_installation.py",
     "libreosteoweb/tests/test_page_medecins.py",
     "libreosteoweb/tests/test_page_nouveau_patient.py",
@@ -237,6 +234,7 @@ files = [
     "libreosteoweb/tests/test_reprise_factures.py",
     "libreosteoweb/tests/test_routage.py",
     "libreosteoweb/tests/test_serializer_administration.py",
+    "libreosteoweb/tests/test_serializer_consultation.py",
     "libreosteoweb/tests/test_service_facturation.py",
     "libreosteoweb/tests/test_service_import.py",
     "libreosteoweb/tests/test_service_sauvegarde.py",
@@ -256,8 +254,6 @@ files = [
     "outils/tests/__init__.py",
     "outils/tests/test_diagnostic_archive.py",
     "outils/tests/test_rupture_bs5.py",
-    "patch.py",
-    "server.py",
     "tests/__init__.py",
     "tests/functional/__init__.py",
     "tests/functional/banc/__init__.py",
@@ -271,6 +267,7 @@ files = [
     "tests/functional/test_ancien_signet.py",
     "tests/functional/test_atteignabilite.py",
     "tests/functional/test_authentification.py",
+    "tests/functional/test_autofocus_fragments.py",
     "tests/functional/test_cabinet.py",
     "tests/functional/test_code_postal.py",
     "tests/functional/test_consultation.py",
@@ -293,15 +290,17 @@ files = [
     "tests/qualite/test_contrat_adressage.py",
     "tests/qualite/test_contrat_arbre_statique.py",
     "tests/qualite/test_contrat_catalogue_compile.py",
+    "tests/qualite/test_contrat_commentaires.py",
     "tests/qualite/test_contrat_compression.py",
     "tests/qualite/test_contrat_gabarits.py",
     "tests/qualite/test_contrat_index_hors_depot.py",
     "tests/qualite/test_contrat_moteur_de_test.py",
+    "tests/qualite/test_contrat_pilote_psycopg2.py",
     "tests/qualite/test_contrat_recette.py",
+    "tests/qualite/test_contrat_response_handling.py",
     "tests/qualite/test_contrat_styles.py",
     "tests/qualite/test_contrat_traductions.py",
     "tests/qualite/test_contrat_version_diagnostic.py",
-    "winserver.py",
     "zipcode_lookup/__init__.py",
     "zipcode_lookup/management/commands/__init__.py",
     "zipcode_lookup/management/commands/import_zipcodes.py",

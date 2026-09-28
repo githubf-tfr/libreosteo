@@ -12,22 +12,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-"""
-WSGI config for LibreOsteo project.
+"""Reglages de construction de l'arbre statique (`collectstatic`, `compress`).
 
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/1.6/howto/deployment/wsgi/
+Ni l'etage `build` de l'image ni `make static` n'ont de base de donnees : le moteur
+factice le dit, et aucun pilote PostgreSQL n'est requis pour construire.
 """
 
-import os
-import sys
+from .base import *
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-if not os.environ.get("DJANGO_SETTINGS_MODULE"):
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Libreosteo.settings.standalone")
-
-from django.core.wsgi import get_wsgi_application
-
-application = get_wsgi_application()
+DATABASES = {"default": {"ENGINE": "django.db.backends.dummy"}}

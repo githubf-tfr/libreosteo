@@ -68,16 +68,17 @@ COPY ./Libreosteo ./Libreosteo
 COPY ./locale ./locale
 COPY ./zipcode_lookup ./zipcode_lookup
 COPY ./manage.py .
-COPY ./server.py .
 
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:/root/.yarn/bin:$PATH"
-# collectstatic et compress tournent sur Libreosteo.settings.base, et non sur .container :
-# le mode conteneur exige desormais un moteur PostgreSQL (cf. Libreosteo/settings/container.py),
-# qu'une machine de construction n'a aucune raison d'avoir. base.py porte deja DEBUG = False
-# et COMPRESS_ENABLED = True, les deux seuls reglages que container ajoutait pour la
-# compression. Aucune autre etape de ce RUN ne tourne plus sur un module de reglages
-# different, depuis que compilejsi18n en est sorti (D6g T16, commit 4/6).
+# collectstatic et compress tournent sur Libreosteo.settings.statique, et non sur .base ou
+# .container : depuis la tache 7 (moteur PostgreSQL par defaut de base.py), les deux
+# heritent d'un moteur PostgreSQL (cf. Libreosteo/settings/container.py), qu'une machine de
+# construction n'a ni serveur ni pilote pour joindre. statique.py importe base.py -- DEBUG
+# = False et COMPRESS_ENABLED = True, les deux seuls reglages que container ajoutait pour la
+# compression -- et pose un moteur factice (django.db.backends.dummy) a la place. Aucune
+# autre etape de ce RUN ne tourne plus sur un module de reglages different, depuis que
+# compilejsi18n en est sorti (D6g T16, commit 4/6).
 # Django exige quand meme une SECRET_KEY non vide, quel que soit le module de reglages
 # (django/conf/__init__.py, au premier acces) : cette etape de construction ne sert jamais de
 # requete, la valeur de developpement ci-dessous suffit et disparait avec l'etage "build"
@@ -102,7 +103,7 @@ ENV LIBREOSTEO_SECRET_KEY="django-insecure-developpement-et-tests-uniquement"
 # monolithique. L'avertissement ne tient donc plus, sur aucun motif mesure, et il est retire.
 # Ce RUN reste neanmoins une seule commande : personne n'a demande son decoupage, et corriger
 # une affirmation fausse n'est pas une occasion de reorganiser le build.
-RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn install --frozen-lockfile && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base && python3 ./manage.py compress --settings=Libreosteo.settings.base
+RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn install --frozen-lockfile && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.statique && python3 ./manage.py compress --settings=Libreosteo.settings.statique
 RUN rm libreosteoweb/static/components
 
 
@@ -134,13 +135,18 @@ WORKDIR /Libreosteo
 # libc-dev n'est pas repris : c'est le meme paquet que musl-dev.
 # L'etage run ne garde donc que ce dont l'execution a besoin : tzdata, gettext et
 # postgresql-libs. Le dernier apk add prend --no-cache comme les autres.
+# psycopg2 est epingle a la version exacte que portent requirements/requ-dev.txt et
+# requirements/requ-testing.txt (psycopg2-binary, meme pilote livre en roue pour les
+# suites unitaire et fonctionnelle) : sans epingle, chaque construction tirerait la
+# derniere version publiee sur PyPI, une derive silencieuse. Le cliquet
+# tests/qualite/test_contrat_pilote_psycopg2.py rougit si les trois fichiers divergent.
 RUN apk add --no-cache \
     tzdata \
     gettext \
     postgresql-libs \
     && apk add --no-cache --virtual .build-deps gcc musl-dev linux-headers postgresql-dev libpq-dev \
     && pip install --upgrade pip \
-    && pip install psycopg2 uwsgi \
+    && pip install psycopg2==2.9.13 uwsgi \
     && apk --purge del .build-deps
 
 EXPOSE 8085
@@ -165,10 +171,19 @@ EXPOSE 8085
 # applicatif : --processes 1 --threads 1 reste le garde-fou de serialisation. La cause etant
 # traitee, l'offload reste pour son benefice propre : liberer l'unique worker pendant un
 # transfert.
-# --processes 1 --threads 1 : garde-fou de serialisation, et non un reglage de performance.
-# Jusqu'a D3 c'etait lui, et lui seul, qui tenait l'integrite au silence — aucune contrainte
-# d'unicite en base, aucune transaction. Depuis D3 l'integrite ne repose plus dessus : c'est
-# redevenu un choix de capacite, qu'un lot ulterieur pourra lever avec sa propre preuve.
+# --processes 1 --threads 1 : limitation assumee (decision de l'utilisateur du 2026-09-28,
+# KANBAN « Decisions actees »), pas un reglage oublie. Origine amont : 3 processus ramenes
+# a 1 en 2022 (e9e8453, cb5cf31) pour la concurrence de sqlite, raison morte depuis que le
+# conteneur ne sert que PostgreSQL. Depuis D3, l'integrite de la base n'en depend plus. Il
+# serialise encore deux choses :
+# - la garde « aucun utilisateur » (maintenance_available) de la restauration et de la
+#   creation du premier administrateur n'est pas atomique : a deux workers, un second envoi
+#   la passe et rejoue vidage et chargement derriere le premier ;
+# - l'index Whoosh : une suppression n'attend pas le verrou d'ecriture (LockError avalee,
+#   l'entree reste dans l'index), et rebuild_index efface l'index sous les autres workers.
+# Prix accepte : une reindexation, un import ou un chargement d'archive fige l'instance pour
+# tous. Se rouvre si un praticien signale une attente due a l'operation d'un autre en usage
+# courant, ou si une instance sert plus d'un cabinet -- et alors ces deux points d'abord.
 # --die-on-term : sans elle, la reaction par defaut d'uwsgi a SIGTERM est un rechargement
 # (« binary reloading uWSGI »), pas une extinction : `docker compose stop` attend alors le
 # delai de grace complet avant de forcer un SIGKILL. Mesure sur instance reelle sans cette

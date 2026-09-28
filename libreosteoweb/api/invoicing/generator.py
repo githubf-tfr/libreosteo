@@ -70,6 +70,31 @@ class Generator(object):
         self.therapeut_settings = therapeut_settings
 
     def generate_invoice(self, examination, serializer_data, user_therapeut):
+        # **Un praticien sans nom n'emet pas de facture** (lot 4, D3) : le nom est recopie
+        # plus bas, et une facture est un instantane definitif -- il se verifie avant,
+        # jamais apres.
+        # - **Meme predicat** que les trois sites de la famille « praticien sans nom »
+        #   (`partials/praticien-nom.html`, `pages/comptabilite.html`,
+        #   `tableau_de_bord.nom_du_praticien`) : sans nom quand le nom **et** le prenom
+        #   sont vides. Un champ fait d'espaces compte comme renseigne, comme la-bas.
+        # - **Avant `get_invoice_number`**, et pas par gout : les vues de page rendent un
+        #   refus en 422, reponse normale que `ATOMIC_REQUESTS` valide. Un refus leve apres
+        #   la reservation consommerait un numero, et laisserait un trou dans la
+        #   numerotation.
+        # - **L'avoir n'est pas concerne** : `cancel_invoice` recopie le nom d'une facture
+        #   deja emise. Le refuser bloquerait l'annulation d'une facture emise avant cette
+        #   regle.
+        if not (user_therapeut.last_name or user_therapeut.first_name):
+            raise ValidationError(
+                {
+                    api_settings.NON_FIELD_ERRORS_KEY: [
+                        _(
+                            "Fill in your name in your user profile before issuing "
+                            "an invoice."
+                        )
+                    ]
+                }
+            )
         invoice = models.Invoice()
         invoice.amount = serializer_data["amount"]
         invoice.currency = self.office_settings.currency

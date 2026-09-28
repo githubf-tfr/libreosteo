@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import atexit
 import os
-import shutil
-import tempfile
 import threading
-import time
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator, cast
@@ -17,7 +14,8 @@ from django.conf import settings as reglages_django
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.staticfiles import finders
-from django.db.backends.sqlite3.base import DatabaseWrapper as SqliteDatabaseWrapper
+from django.core.signals import request_finished, request_started
+from django.db import connection
 from haystack import connections as connexions_recherche
 from playwright.sync_api import Page, expect
 
@@ -55,7 +53,8 @@ finders.get_finder.cache_clear()  # type: ignore[attr-defined]
 # Le produit sert **sept** bundles `output.<hash>` -- six CSS, un JS --, mesures dans
 # l'image reconstruite a D6g T16 et identiques a ceux d'un `make static` local, nom pour nom.
 # La suite doit servir les memes, sans quoi elle recette une chaine et le produit en livre
-# une autre. `Libreosteo.settings` est dev.py, ou COMPRESS_ENABLED est faux : on rebascule.
+# une autre. `Libreosteo.settings.test` herite de dev.py, ou COMPRESS_ENABLED est faux : on
+# rebascule.
 reglages_django.COMPRESS_ENABLED = True
 # Indissociable de la ligne precedente. COMPRESS_ROOT vaut STATIC_ROOT par defaut, et on
 # vient justement de deplacer STATIC_ROOT vers un chemin jamais ecrit. Sans cette ligne,
@@ -63,72 +62,15 @@ reglages_django.COMPRESS_ENABLED = True
 # finders ne les serviraient pas. `make static` (Makefile) les a deja ecrits sous static/.
 reglages_django.COMPRESS_ROOT = str(RACINE / "static")
 
-# La base de test par defaut de Django, sous sqlite3, est en memoire mais **a cache
-# partage entre threads** (`sqlite3/creation.py` la nomme
-# `file:memorydb_default?mode=memory&cache=shared`). Ce cache partage a son propre verrou
-# de table, `SQLITE_LOCKED` / « database table is locked » : contrairement a `SQLITE_BUSY`
-# / « database is locked » (verrou de fichier ordinaire), le busy handler de `sqlite3` ne
-# le retente jamais. `OneSessionPerUserMiddleware` corrige, l'enregistrement du cabinet
-# declenche encore trois PUT HTTP reellement concurrents (`officesettings.js`, un par
-# moyen de paiement) sur la meme table, threads de requete differents : reproduit
-# empiriquement (5 echecs sur 7 lancements de `test_cabinet.py`, tous portant
-# `sqlite3.OperationalError: database table is locked`). Une base de production
-# (`Libreosteo/settings/base.py`) est un fichier sans cache partage et ne peut pas subir
-# cette erreur precise ; le correctif reste donc cantonne a la configuration de la base de
-# test, jamais au code applicatif. Bascule sur un fichier hors dossier de travail (verrou
-# de fichier ordinaire, retente par le busy handler) avec un delai d'attente genereux.
-_dossier_base_de_test = tempfile.mkdtemp(prefix="libreosteo-test-db-")
-# Django efface le fichier de base en fin de session (`_destroy_test_db`), pas le
-# repertoire qui le contient : sans ce nettoyage, chaque run laisse un repertoire
-# `/tmp/libreosteo-test-db-*` vide derriere lui. `atexit` plutot qu'une fixture, puisque
-# ce repertoire est cree a l'import du module, avant qu'aucune fixture n'existe.
-atexit.register(shutil.rmtree, _dossier_base_de_test, ignore_errors=True)
-# `AppConfig.ready()` (libreosteoweb/apps.py) interroge deja la base a l'import de
-# l'application, avant meme que ce module ne s'execute : ca a deja fait passer
-# `django.db.connections` par sa mise en place des cles par defaut de `DATABASES`
-# (`ConnectionHandler.configure_settings`, `django/db/utils.py`), qui met en cache la
-# structure. Remplacer les sous-dictionnaires `TEST`/`OPTIONS` perdrait ce cache ; on les
-# met a jour en place (memes objets, cles ajoutees ou ecrasees) pour que la mutation soit
-# vue quel que soit l'ordre.
-# django-stubs type chaque connexion de `DATABASES` en `Dict[str, str]` : trop etroit pour
-# les sous-dictionnaires `TEST`/`OPTIONS`, deja presents dans la configuration Django reelle.
-_base_par_defaut = cast("dict[str, Any]", reglages_django.DATABASES["default"])
-_base_par_defaut.setdefault("TEST", {})["NAME"] = os.path.join(
-    _dossier_base_de_test, "test_db.sqlite3"
-)
-_base_par_defaut.setdefault("OPTIONS", {})["timeout"] = 20
-
-
-# `ATOMIC_REQUESTS` (impose par `base.py`) ouvre chaque transaction HTTP par `BEGIN`
-# (differe) : la connexion ne prend un verrou partage qu'a la premiere lecture, et ne le
-# monte en RESERVED qu'a la premiere ecriture. Si deux requetes concurrentes en sont
-# chacune la, en verrou partage, et tentent de monter en RESERVED en meme temps, SQLite
-# refuse d'invoquer le busy handler pour la seconde — la retenter risquerait un
-# interblocage symetrique, chacune attendant que l'autre libere son verrou partage — et
-# rend tout de suite `SQLITE_BUSY` / « database is locked » : le `timeout` pose ci-dessus
-# ne joue alors aucun role, puisqu'il ne s'applique qu'aux tentatives que le busy handler
-# retente. Mesure : passer la base de test en journal WAL (qui separe pourtant les
-# lecteurs de l'unique redacteur) ne change rien, la contention ici oppose des
-# redacteurs entre eux, pas un redacteur a un lecteur. C'est une erreur propre au verrou
-# de fichier de SQLite, qu'un fichier de production ne peut pas subir de la meme facon :
-# PostgreSQL verrouille par ligne, jamais par montee de verrou de fichier entier. Le
-# correctif reste donc cantonne a la configuration de la base de test. `BEGIN IMMEDIATE`
-# demande le verrou d'ecriture des l'ouverture, avant toute lecture : il n'y a alors plus
-# de verrou partage a monter, et le busy handler est bien invoque si un autre redacteur
-# est deja en RESERVED — le `timeout` ci-dessus joue enfin son role. Django 5.1 expose ce
-# reglage par `OPTIONS["transaction_mode"]` ; absent de la 4.2 utilisee ici, le point
-# d'accroche est cette methode du backend sqlite3, dont la docstring precise elle-meme
-# qu'elle existe pour emettre `BEGIN` en mode autocommit — une seule instruction a
-# changer. django-stubs ne type que l'interface publique de `DatabaseWrapper` ; cette
-# methode, privee, n'y figure pas. Migration vers Django >= 5.1 : remplacer ce
-# monkeypatch par `OPTIONS["transaction_mode"] = "IMMEDIATE"`, pas le laisser a cote.
-def _demarrer_transaction_immediate(self: SqliteDatabaseWrapper) -> None:
-    self.cursor().execute("BEGIN IMMEDIATE")
-
-
-SqliteDatabaseWrapper._start_transaction_under_autocommit = (  # type: ignore[attr-defined]
-    _demarrer_transaction_immediate
-)
+# Garde de moteur : la suite ne tourne que sur PostgreSQL, le moteur de la production. Pas
+# un test -- elle arrete pytest a la collecte, avant le premier navigateur.
+if connection.vendor != "postgresql":
+    raise RuntimeError(
+        f"La suite fonctionnelle tourne sur {connection.vendor}. Elle ne tourne que sur "
+        "PostgreSQL : `make test-functional` demarre le serveur de test (`make test-db`), "
+        "le reglage est Libreosteo.settings.test. Ne jamais la repointer sur sqlite "
+        "(CLAUDE.md, Tests et qualite)."
+    )
 
 # Plafond des assertions Playwright. C'est un delai de garde, pas une temporisation :
 # `expect` rend la main des que l'etat attendu est atteint.
@@ -148,15 +90,30 @@ class Socle:
 def environnement_isole(tmp_path: Path, settings) -> Iterator[None]:
     """Sort les medias et l'index Whoosh du depot, pour chaque test."""
     settings.MEDIA_ROOT = str(tmp_path / "media")
-    settings.HAYSTACK_CONNECTIONS = {
-        "default": {
-            "ENGINE": "libreosteoweb.api.folding_whoosh_backend.FoldingWhooshEngine",
-            "PATH": str(tmp_path / "whoosh_index"),
-        },
-    }
+    # Mutation en place du sous-dictionnaire "default", jamais un remplacement de
+    # `settings.HAYSTACK_CONNECTIONS` : `haystack.connections.connections_info` fige sa
+    # reference au premier import et choisit l'ENGINE dessus -- un remplacement
+    # laisserait le handler sur l'ancien moteur. **Restauree apres chaque test** : cette
+    # mutation passe par `__getattr__` du `Settings` de pytest-django, que sa restauration
+    # automatique entre tests ne couvre pas -- ni `ENGINE` ni `PATH` ne reviendraient
+    # sinon a leur valeur d'origine, et le test suivant heriterait du `tmp_path` de celui
+    # d'avant. A la difference de `libreosteoweb/tests/conftest.py:43-49`, qui mute une
+    # fois par session sans jamais restaurer (la session s'arrete juste apres), ici chaque
+    # test doit repartir du reglage d'origine : meme geste que
+    # `TestReconstructionIndex.setUpClass` (`libreosteoweb/tests/test_exploitation.py`),
+    # sauvegarde puis restauration en `finally`, au cas ou le test leve entre les deux.
+    configuration = cast("dict[str, Any]", settings.HAYSTACK_CONNECTIONS["default"])
+    origine = dict(configuration)
+    configuration["ENGINE"] = (
+        "libreosteoweb.api.folding_whoosh_backend.FoldingWhooshEngine"
+    )
+    configuration["PATH"] = str(tmp_path / "whoosh_index")
     connexions_recherche.reload("default")
-    yield
-    connexions_recherche.reload("default")
+    try:
+        yield
+    finally:
+        configuration.update(origine)
+        connexions_recherche.reload("default")
 
 
 # `window.Alpine` est pose **avant** que `start()` ne lie les directives
@@ -173,8 +130,82 @@ document.addEventListener('alpine:initialized', () => { window.__alpineInitialis
 """
 
 
+class _RequetesEnVol:
+    """Nombre de requetes du `live_server` en cours de traitement, tous fils confondus.
+
+    Tenu par les deux signaux publics de Django. `request_started` part a l'entree du
+    gestionnaire WSGI ; `request_finished` a la fermeture de la reponse, apres la
+    validation de la transaction `ATOMIC_REQUESTS` et apres `close_old_connections`,
+    receveur connecte par Django avant celui-ci : quand le compte retombe a zero, aucun
+    fil de requete ne tient plus ni transaction ni connexion a la base. Un fil **inactif**,
+    garde vivant par une connexion HTTP persistante, ne compte pas : il ne tient rien.
+    """
+
+    def __init__(self) -> None:
+        self._condition = threading.Condition()
+        self._nombre = 0
+
+    def debut(self, sender: object, **kwargs: object) -> None:
+        with self._condition:
+            self._nombre += 1
+
+    def fin(self, sender: object, **kwargs: object) -> None:
+        with self._condition:
+            self._nombre -= 1
+            self._condition.notify_all()
+
+    def attendre_qu_aucune_ne_reste(self, delai_max: float) -> bool:
+        """Rend la main des que le compte est nul ; `False` si la borne est atteinte avant.
+
+        Attente conditionnelle, pas une temporisation : `wait_for` rend des que le
+        predicat est vrai, et tout de suite s'il l'est deja.
+        """
+        with self._condition:
+            return self._condition.wait_for(lambda: self._nombre == 0, delai_max)
+
+    def nombre(self) -> int:
+        with self._condition:
+            return self._nombre
+
+
+_REQUETES_EN_VOL = _RequetesEnVol()
+request_started.connect(
+    _REQUETES_EN_VOL.debut, dispatch_uid="fonctionnel-requete-debut"
+)
+request_finished.connect(_REQUETES_EN_VOL.fin, dispatch_uid="fonctionnel-requete-fin")
+
+# Borne de l'attente, pas une duree d'attente : la plus longue requete de la suite (import
+# CSV de `test_import_csv.py`) rend en quelques secondes. Atteinte, elle signale une
+# requete qui ne finit pas, elle ne la masque pas.
+DELAI_MAX_REQUETES_EN_VOL = 30.0
+
+
+@pytest.fixture
+def _requetes_soldees(transactional_db) -> Iterator[None]:
+    """Attend, en demontage, qu'aucune requete ne soit plus en vol, **avant** le vidage.
+
+    Sous PostgreSQL, le vidage de fin de test de `transactional_db` (`TRUNCATE` de toutes
+    les tables, verrou `AccessExclusiveLock`) et une requete encore en vol du
+    `live_server` (fragment htmx, transaction `ATOMIC_REQUESTS` ouverte) s'attendent
+    mutuellement : PostgreSQL sacrifie le `TRUNCATE` (`DeadlockDetected`), le vidage
+    echoue et le test suivant tombe a sa mise en place sur l'utilisateur `test` reste en
+    base (mesure du cadrage du 2026-09-27, § 1.3). Depend de `transactional_db` pour se
+    demonter **avant** lui ; `_drapeau_alpine_initialise` la demande avant `page` pour
+    qu'elle se demonte **apres** la page et son contexte, donc quand plus aucune requete
+    nouvelle ne peut partir. Une borne atteinte est signalee par un avertissement, jamais
+    tue : le vidage qui suit rougira alors en nommant l'interblocage.
+    """
+    yield
+    if not _REQUETES_EN_VOL.attendre_qu_aucune_ne_reste(DELAI_MAX_REQUETES_EN_VOL):
+        warnings.warn(
+            f"{_REQUETES_EN_VOL.nombre()} requete(s) du live_server encore en vol apres "
+            f"{DELAI_MAX_REQUETES_EN_VOL} s : le vidage de la base part quand meme.",
+            stacklevel=1,
+        )
+
+
 @pytest.fixture(autouse=True)
-def _drapeau_alpine_initialise(transactional_db, page: Page) -> None:
+def _drapeau_alpine_initialise(transactional_db, _requetes_soldees, page: Page) -> None:
     """Pose le drapeau **avant** toute navigation (D6f).
 
     `page.add_init_script` s'execute avant le premier script de **chaque** navigation
@@ -183,10 +214,12 @@ def _drapeau_alpine_initialise(transactional_db, page: Page) -> None:
     remet a `false`) a chaque nouvelle navigation, donc reste correct a travers les
     changements de document complets (`ouvrir_reglages_cabinet`, `ouvrir_profil_therapeute`).
 
-    `transactional_db`, inutilise ici, force pytest a demander cette fixture **avant**
-    `page` : sans lui, l'ordre de demontage s'inverse (`page` se demonte apres la base)
-    et le navigateur reste ouvert sur le `live_server` de session pendant que la base
-    est tronquee et `MEDIA_ROOT` / `HAYSTACK_CONNECTIONS` sont rendus au depot.
+    `transactional_db` et `_requetes_soldees`, inutilises ici, forcent pytest a demander
+    ces fixtures **avant** `page`, donc a les demonter apres elle, dans cet ordre : `page`
+    et son contexte, puis l'attente des requetes en vol, puis le vidage. Sans eux, le
+    navigateur reste ouvert sur le `live_server` de session pendant que la base est
+    tronquee et `MEDIA_ROOT` / `HAYSTACK_CONNECTIONS` sont rendus au depot, ou le vidage
+    croise une requete encore en vol.
     """
     page.add_init_script(_SCRIPT_DRAPEAU_ALPINE)
 
@@ -202,8 +235,10 @@ def socle(request, transactional_db, environnement_isole) -> Socle | None:
     if request.node.get_closest_marker("sans_socle") is not None:
         return None
 
+    # Nom et prenom de l'etat E1 (docs/recette.md) : un praticien sans nom n'emet pas de
+    # facture (lot 4, D3), et tout test qui facture partirait sur un refus.
     utilisateur = get_user_model().objects.create_superuser(
-        "test", "test@test.com", "test"
+        "test", "test@test.com", "test", last_name="Tester", first_name="Robot"
     )
     therapeute = TherapeutSettings.objects.create(
         user=utilisateur,
@@ -237,49 +272,3 @@ def socle(request, transactional_db, environnement_isole) -> Socle | None:
         )
 
     return Socle(utilisateur=utilisateur, cabinet=cabinet, therapeute=therapeute)
-
-
-def _rejoindre_threads_de_requete_serveur(delai_max: float = 5.0) -> None:
-    """Rejoint les threads de requete du `live_server` encore actifs.
-
-    `ThreadedWSGIServer.daemon_threads = True` (Django) fait que ces threads ne sont
-    jamais ajoutes a la liste jointe par `server_close()` :
-    `socketserver.ThreadingMixIn._Threads.append` ignore silencieusement tout thread
-    daemon (`if thread.daemon: return`, avant le `super().append(thread)`). La fixture
-    de session `live_server` (pytest-django) revoque donc le partage de connexion SQLite
-    entre threads (`dec_thread_sharing`) sans jamais avoir attendu qu'un thread de
-    requete encore actif ait fini de fermer sa propre connexion — d'ou l'exception
-    intermittente `DatabaseWrapper objects created in a thread can only be used in
-    that same thread`, reproduite et tracee jusqu'ici par instrumentation directe de
-    `validate_thread_sharing`. On rejoint nous-memes ces threads, par nom :
-    `threading.Thread` suffixe le nom du thread du nom de sa fonction cible depuis
-    Python 3.10 (`threading.py`, `Thread.__init__`), d'ou `Thread-N
-    (process_request_thread)`, confirme dans cet environnement par la meme
-    instrumentation. `join(timeout=...)` est une attente conditionnelle, pas une
-    temporisation : elle rend la main des que le thread termine.
-    """
-    limite = time.monotonic() + delai_max
-    for thread in threading.enumerate():
-        if "process_request_thread" not in thread.name:
-            continue
-        thread.join(timeout=max(0.0, limite - time.monotonic()))
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _assainir_le_serveur(live_server) -> Iterator[None]:
-    """Assainit `live_server` juste avant que sa propre fixture ne se termine.
-
-    Session-scope et **depend explicitement de `live_server`** : cette dependance
-    garantit, via l'ordre pile (LIFO) des fixtures, deux choses a la fois —
-    (1) notre nettoyage tourne apres le teardown de `page`/`context` de *tous* les
-    tests de la session (fixtures fonction-scope, forcement terminees avant la
-    finalisation d'une fixture session-scope), donc les connexions HTTP keep-alive
-    ouvertes par le navigateur sont deja closes cote client a ce moment-la ; (2) notre
-    nettoyage tourne avant `live_server.stop()` (puisque nous en dependons, cf. regle
-    LIFO), donc avant la revocation du partage de connexion. Un essai anterieur en
-    fonction-scope, sans cette dependance explicite, rejoignait par erreur des threads
-    de requete encore legitimement vivants (connexions HTTP/1.1 persistantes en
-    attente d'une prochaine requete) et bloquait inutilement jusqu'au delai maximal.
-    """
-    yield
-    _rejoindre_threads_de_requete_serveur()

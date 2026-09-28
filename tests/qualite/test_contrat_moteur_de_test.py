@@ -15,8 +15,9 @@
 """Cliquet de moteur : la suite unitaire tourne sur PostgreSQL, sur l'image de la production.
 
 **Ce que ce cliquet garde.** Le mode d'echec le plus couteux de ce depot : un `connection
-refused` « repare » en repointant la suite sur sqlite -- `--ds=Libreosteo.settings`, ou un
-`DJANGO_SETTINGS_MODULE` exporte, qui l'emporte sur `pyproject.toml` pour pytest-django.
+refused` « repare » en repointant la suite sur sqlite -- `--ds` vers un module de reglages
+sqlite, ou un `DJANGO_SETTINGS_MODULE` exporte, qui l'emporte sur `pyproject.toml` pour
+pytest-django.
 La suite passerait alors en silence, sur un moteur que la production n'execute pas
 (`CLAUDE.md` § Deploiement), et le plancher de couverture mesurerait ce moteur-la. Avec ce
 module, elle rougit en nommant la cause.

@@ -37,7 +37,7 @@ from ..renderers import PatientCSVRenderer
 logger = logging.getLogger(__name__)
 
 
-class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
+class PatientViewSet(XLSXFileMixin, viewsets.ModelViewSet):
     model = models.Patient
     serializer_class = apiserializers.PatientSerializer
     queryset = models.Patient.objects.all()
@@ -47,14 +47,14 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         XLSXRenderer,
     ]
     xlsx_use_labels = True
-    filename = "patients.xsls"
+    filename = "patients.xlsx"
 
     def list(self, request, *args, **kwargs):
         with connection.cursor() as cursor:
             # Verrou consultatif non bloquant : un seul export complet a la fois. Il est
             # tenu par la session PostgreSQL, non par le processus, et protege donc un
             # deploiement a plusieurs workers. PostgreSQL seul (decision DU2 du
-            # 2026-09-26) : sur le serveur de developpement sqlite, l'export rend 500.
+            # 2026-09-26).
             cursor.execute("SELECT pg_try_advisory_lock(1);")
             if not cursor.fetchone()[0]:
                 return reponse_export_deja_en_cours()
@@ -134,7 +134,6 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
     def perform_create(self, serializer):
         instance = models.Patient(**serializer.validated_data)
         instance.set_user_operation(self.request.user)
-        instance.set_request(self.request)
         # `validate_constraints=False` : le validateur du serialiseur porte deja la regle
         # d'unicite (meme clef, meme insensibilite a la casse) et la base la garantit. Une
         # troisieme verification ici ne fermerait rien de plus — ce serait un troisieme
@@ -155,7 +154,6 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
 
     def perform_update(self, serializer):
         serializer.instance.set_user_operation(self.request.user)
-        serializer.instance.set_request(self.request)
         try:
             # Meme garde qu'a la creation, et pour la meme raison (`ATOMIC_REQUESTS`) :
             # deux PATCH concurrents renommant deux patients existants vers le meme
@@ -187,7 +185,6 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         ).delete()
         models.Examination.objects.filter(patient=instance.id).delete()
         models.PatientDocument.objects.filter(patient=instance.id).delete()
-        instance.set_request(self.request)
         return super(PatientViewSet, self).perform_destroy(instance)
 
 

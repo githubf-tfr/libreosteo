@@ -67,20 +67,27 @@ jobs:
         # de .venv : setup-python + pip install ont tout mis dans l'interpreteur courant.
         # YARN se resout seul sur $HOME/.yarn/bin/yarn, pose par l'etape Install tooling.
         run: make static PYTHON=python
+      - name: Start the PostgreSQL test server
+        # Meme serveur que le job `quality` et que `make test-functional` en local : la cible
+        # `test-db` demarre par Docker le conteneur PostgreSQL des deux suites, sur l'image du
+        # compose de production. Le runner ubuntu-latest a Docker nativement ; jamais de bloc
+        # `services:` (image dupliquee, port dispute avec la cible).
+        run: make test-db
       - name: Verify the static tree contract
         # tests/qualite/test_contrat_arbre_statique.py porte deux tests en egalite
         # d'ensemble qui se `skip` tant que `static/` n'existe pas (cf. le docstring du
         # module) : le job `quality` ne construit jamais l'arbre, donc ne les fait
-        # jamais mordre. Ce job vient de le construire (etape precedente) pour
-        # `tests/functional` ; on y fait tourner le module ici, une seule fois, sans
+        # jamais mordre. Ce job vient de le construire (etape « Prepare the static tree »)
+        # pour `tests/functional` ; on y fait tourner le module ici, une seule fois, sans
         # reconstruire l'arbre ni relancer `tests/functional`.
-        # `--ds=Libreosteo.settings` : pyproject.toml vise PostgreSQL, et ce job n'installe
-        # pas requ-dev.txt, donc aucun pilote. Il reste sur sqlite, comme la suite
-        # fonctionnelle, jusqu'au lot de celle-ci.
-        run: pytest tests/qualite/test_contrat_arbre_statique.py --no-cov -rs --ds=Libreosteo.settings
+        # Sans `--ds` : pyproject.toml vise PostgreSQL (Libreosteo.settings.test), servi par
+        # l'etape « Start the PostgreSQL test server » ; le pilote vient de requ-testing.txt.
+        run: pytest tests/qualite/test_contrat_arbre_statique.py --no-cov -rs
       - name: Run functional tests
+        # Sur PostgreSQL, comme `make test-functional` en local : reglage de pyproject.toml,
+        # serveur demarre plus haut.
         run: |
-          pytest tests/functional --no-cov --ds=Libreosteo.settings \
+          pytest tests/functional --no-cov \
             --tracing=retain-on-failure --screenshot=only-on-failure \
             --output=test-results
       - name: Archiving results

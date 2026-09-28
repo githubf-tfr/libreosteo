@@ -75,9 +75,9 @@ pourquoi : `Libreosteo/settings/container.py` fait `from settings import *` (imp
 absolu), donc `settings` désigne le paquet top-level résolu via `sys.path`, c'est-à-dire le
 volume monté à `/Libreosteo/settings` lui-même, pas `local.py` dedans. Sans ce fichier,
 l'import réussit (paquet-espace de noms implicite, PEP 420) mais n'importe aucun nom, et
-`DATABASES` retombe sur le défaut sqlite de `base.py`. Cette erreur n'est plus silencieuse :
+le conteneur ne trouve aucune base. Cette erreur n'est pas silencieuse :
 le service sort en erreur et le journal montre
-`ImproperlyConfigured: Moteur de base de données inattendu : django.db.backends.sqlite3 ...`
+`ImproperlyConfigured: Moteur de base de données inattendu : aucun ...`
 — c'est ce que la fiche R-INST-04 met à l'épreuve.
 
 `$SCRATCH/.env` (contenu aligné sur `Docker/deploy/pg/.env.example`, committé, chemins
@@ -118,8 +118,8 @@ l'emporte ensuite sur `LIBREOSTEO_SECRET_KEY` pour ce montage précis (import `f
 import *` dans `container.py`), mais les renseigner ici évite l'avertissement « variable
 is not set » de `docker compose`. Attention : `LIBREOSTEO_SECRET_KEY` **seule ne suffit
 pas** à démarrer. Elle ne configure pas la base de données, et depuis D2 le mode conteneur
-refuse tout moteur autre que PostgreSQL : un montage sans `settings/` retomberait sur le
-sqlite de `base.py` et sortirait en `ImproperlyConfigured`. Le volume `settings/` est
+refuse tout moteur autre que PostgreSQL : un montage sans `settings/` ne trouverait aucune
+base et sortirait en `ImproperlyConfigured`. Le volume `settings/` est
 obligatoire.
 
 **Étape 3 — démarrage :**
@@ -576,14 +576,13 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    ```
 
    Attendu : `libreosteo` en `Exited` avec un code de sortie non nul ; le journal porte
-   `ImproperlyConfigured: Moteur de base de données inattendu :
-   django.db.backends.sqlite3. Le mode conteneur exige PostgreSQL
-   (django.db.backends.postgresql ou django.db.backends.postgresql_psycopg2). Cause la
-   plus fréquente : le volume monté sur /Libreosteo/settings ne porte pas d'__init__.py
-   réexportant local.py, ...`, message qui nomme PostgreSQL, l'absence d'`__init__.py` et
-   `data/db.sqlite3` comme fichier dans lequel l'instance aurait écrit ; **aucune ligne
-   `WSGI app 0 (mountpoint='') ready`** pour ce démarrage ; `ls "$SCRATCH/data"` ne montre
-   **aucun fichier `db.sqlite3`**.
+   `ImproperlyConfigured: Moteur de base de données inattendu : aucun. Le mode conteneur
+   exige PostgreSQL (django.db.backends.postgresql ou
+   django.db.backends.postgresql_psycopg2), défini par le settings/ monté. Cause la plus
+   fréquente : le volume monté sur /Libreosteo/settings ne porte pas d'__init__.py
+   réexportant local.py, ...`, message qui nomme PostgreSQL et l'absence d'`__init__.py` ;
+   **aucune ligne `WSGI app 0 (mountpoint='') ready`** pour ce démarrage ;
+   `ls "$SCRATCH/data"` ne montre **aucun fichier `db.sqlite3`**.
 4. Remettre le fichier en place et redémarrer :
 
    ```sh
@@ -3161,7 +3160,11 @@ dossier entier depuis la base.
 - **Couverture auto** : oui —
   libreosteoweb/tests/test_facturation.py::TestFacturation::test_un_montant_a_centimes_est_stocke_au_centime_pres
   et ::test_un_montant_a_trois_decimales_est_refuse,
-  tests/functional/test_facturation.py::test_montant_a_centimes
+  tests/functional/test_facturation.py::test_montant_a_centimes ; l'étape 6 (navigateur
+  réglé en anglais) par
+  libreosteoweb/tests/test_facturation.py::TestRenduFacture::test_un_navigateur_en_anglais_imprime_la_meme_facture
+  et ::test_un_navigateur_en_anglais_imprime_le_meme_avoir (le rendu anglais est égal,
+  à l'octet, au rendu français ; l'œil du recetteur reste seul juge de la page réelle)
 - **État requis** : E2. Cette fiche facture durablement une nouvelle consultation,
   consommant le numéro `10001`, et laisse en outre une consultation ouverte (celle
   de l'étape 4, dont la clôture est refusée) : remonter l'état E2 (chapitre 1) avant
@@ -3205,6 +3208,14 @@ dossier entier depuis la base.
    Attendu : toujours les deux mêmes lignes qu'à l'étape 3, `10001` et `10000` — le
    montant à trois décimales est refusé, jamais arrondi en silence, et n'a consommé
    aucun numéro : la facturation suivante repartira de `10002`.
+6. Dans les réglages du navigateur, placer l'anglais en première langue d'affichage des
+   pages. Revenir sur la fiche Picard, ouvrir la séance facturée à l'étape 1 et cliquer le
+   bouton d'impression (icône imprimante verte).
+   Attendu : la page imprimée est **en français, comme à l'étape 2** : `Template with
+   55,55 EUR` et une ligne « HONORAIRES » avec `55,55 EUR` — virgule, pas `55.55` ; la
+   ligne « À Le Vigen, le … » porte un mois en français (« septembre », pas
+   « September ») ; aucune ligne en anglais. Remettre ensuite le français en première
+   langue du navigateur.
 
 **Constat** : elle ne prouverait rien avant D3 ; après, elle est le seul garde-fou de
 recette contre un `decimal_places` mal posé ou une frontière JSON passée aux chaînes.
@@ -3334,6 +3345,57 @@ deux dates.
    la règle du produit et non un effet de bord — une facture n'est retirée de la somme que
    lorsque son numéro figure dans le champ `replace` d'une autre facture de la période, ce
    que l'annulation par avoir ne fait sur aucune des deux.
+
+### R-FAC-08 — Émission refusée à un praticien sans nom ; l'avoir reste possible
+
+- **Domaine** : Facturation
+- **Couverture auto** : partielle —
+  libreosteoweb/tests/test_page_consultation.py::TestEmissionRefuseeSansNomALaPage
+  (clôture « Facturée », « Facturer » et facture corrective refusées en 422, message
+  rendu dans le fragment de modale, rien d'écrit, séquence inchangée ; la clôture « Non
+  facturée » reste permise) et
+  libreosteoweb/tests/test_facturation.py::TestEmissionRefuseeAuPraticienSansNom (les
+  mêmes refus par l'API, en 400 ; l'avoir émis ; un nom ou un prénom seul suffit). La
+  fenêtre restée ouverte et le message lu à l'écran n'ont d'équivalent qu'en rendu de
+  fragment.
+- **État requis** : E2. Cette fiche crée durablement l'utilisateur `riker`, annule la
+  facture `10000` par un avoir et émet la facture `10002` : remonter l'état E2
+  (chapitre 1) avant de jouer une autre fiche qui en dépend.
+
+**Étapes**
+
+1. Menu utilisateur → « Paramètres », onglet « Utilisateurs », « Ajouter un utilisateur » :
+   `riker` comme nom d'utilisateur, `motdepasse` dans les deux champs, « Valider » (même
+   geste que `R-CAB-05`, étape 7). Se déconnecter, s'identifier avec `riker` /
+   `motdepasse` ; fermer la visite guidée si elle s'ouvre.
+   Attendu : connexion acceptée ; le menu utilisateur affiche `riker`.
+2. Rechercher `Picard`, ouvrir sa fiche, onglet « Consultations », « Démarrer une
+   consultation » ; saisir `Motif de consultation` (Motif) et `Examen normal` (Examen
+   médical), cliquer « Clôturer » ; choisir « Facturée », moyen de paiement « Chèque »,
+   cliquer « Valider ».
+   Attendu : la fenêtre « Facturation » **reste ouverte** et affiche « Renseignez votre
+   nom dans votre profil utilisateur avant d'émettre une facture. » ; la consultation
+   reste dans l'onglet « Consultation en cours », sans encart « Facture ».
+3. Fermer la fenêtre. Menu « Comptabilité », liste « Par » : choisir « Tout », cliquer
+   « Rechercher ».
+   Attendu : une seule ligne, la facture `10000` — le refus de l'étape 2 n'a rien émis.
+4. Sur la ligne `10000`, menu « Actions », « Annuler », confirmer.
+   Attendu : un message de confirmation ; la facture `10000` passe à l'état « Annulée » et
+   un avoir `10001` apparaît, au montant négatif — un praticien sans nom **peut** annuler
+   une facture déjà émise.
+5. Menu utilisateur → « Profil utilisateur » : Nom `Riker`, Adresse électronique
+   `riker@test.com`, « Enregistrer ». Revenir sur la fiche Picard, onglet « Consultation
+   en cours », cliquer « Clôturer », choisir « Facturée », moyen de paiement « Chèque »,
+   cliquer « Valider ».
+   Attendu : la fenêtre se ferme ; l'encart « Facture » affiche le lien `n° 10002` —
+   **aucun numéro perdu** par le refus de l'étape 2.
+6. Cliquer le bouton d'impression (icône imprimante verte).
+   Attendu : un nouvel onglet s'ouvre ; le thérapeute imprimé est `Riker`.
+
+**Constat** : le nom du praticien est recopié sur la facture, pièce fiscale, et n'y change
+plus : il se vérifie avant l'émission, jamais après. Le refus précède la réservation du
+numéro, la numérotation reste continue (étape 5). L'avoir recopie le nom de la facture
+qu'il annule : il n'est pas concerné (étape 4).
 
 ### Médecins traitants
 
@@ -3557,7 +3619,7 @@ par exemple celui que crée `R-CAB-05` (`crusher` / `nouveaumdp`), ou tout autre
 **Constat.** ⚠️ **Au-delà d'environ 1 200 patients, l'écran peut mentir sur l'échec.**
 Relevé au passage lors de la constitution des lots synthétiques de `R-SAU-04` : un
 `POST …/integrate` a rendu 200 en **238,8 s**, au-delà de la borne `--http-timeout 180`
-(`Docker/build/http-ready/Dockerfile:184`) — le navigateur a été coupé, **aucun panneau
+du `CMD` de `Docker/build/http-ready/Dockerfile` — le navigateur a été coupé, **aucun panneau
 « Importation réussie » n'est apparu**, et pourtant les 100 patients du lot étaient bien
 intégrés en base. Un exploitant qui s'arrête au panneau absent conclurait à l'échec et
 rejouerait l'import — sur un lot déjà intégré. Le dépassement n'est pas systématique : deux
@@ -3683,9 +3745,16 @@ la requête, tous deux écartés de ce lot. Limite assumée. Le cas se joue par 
 ### R-IMP-04 — Import dépassant la borne de trois minutes
 
 - **Domaine** : Import CSV
-- **Couverture auto** : non — le cas demande un fichier de plus de 1 200 patients et une
-  mesure de plus de 180 s ; la suite fonctionnelle ne peut jouer ni l'un ni l'autre. Seul
-  l'avertissement qui précède l'import est couvert, par
+- **Couverture auto** : partielle —
+  tests/functional/test_import_csv.py::test_apres_une_coupure_le_bouton_importer_reste_inactif
+  (coupe la requête d'intégration dans le navigateur, sans attendre trois minutes, et
+  constate l'écran d'après la coupure : bouton « Importer » inactif, phrase de coupure
+  affichée, témoin éteint, aucun patient intégré) et
+  ::test_une_integration_reussie_n_affiche_pas_l_avis_de_coupure (la phrase ne s'affiche
+  pas sous un import qui répond). Ni le fichier de plus de 1 200 patients ni la mesure de
+  plus de 180 s ne sont joués : la coupure réelle, et la voie par laquelle elle arrive
+  (borne htmx ou routeur `uwsgi`), restent à cette fiche. L'avertissement qui précède
+  l'import est couvert par
   libreosteoweb/tests/test_page_import.py::test_le_panneau_d_analyse_avertit_avant_d_integrer.
 - **État requis** : E1
 
@@ -3706,8 +3775,12 @@ troisième non.
 3. Attendre le retour, ou son absence, au-delà de trois minutes.
    Attendu, **et les deux issues sont des OK** : soit le panneau « Importation réussie »
    s'affiche avec le nombre de lignes intégrées ; soit **aucun panneau ne revient** — le
-   navigateur a été coupé par la borne `--http-timeout 180`
-   (`Docker/build/http-ready/Dockerfile:184`). ⚠️ **La seconde issue n'est pas un échec de
+   navigateur a été coupé par la borne `--http-timeout 180` du `CMD` de
+   `Docker/build/http-ready/Dockerfile` : le témoin « Chargement en cours »
+   s'éteint, le bouton « Importer » **reste inactif**, et la phrase « Le serveur n'a pas
+   répondu dans les trois minutes. L'import continue peut-être de son côté : ne le
+   relancez pas, vérifiez d'abord la liste des patients. » s'affiche sous lui.
+   ⚠️ **La seconde issue n'est pas un échec de
    l'import** : mesuré à `R-IMP-01`, un `POST …/integrate` a rendu 200 en 238,8 s et les
    patients étaient intégrés.
 4. Dans le second cas seulement : **ne pas relancer l'import**. Ouvrir le tableau de bord
@@ -3734,10 +3807,10 @@ journal.
 1. Menu utilisateur → « Import/export », onglet « Exporter vers un système externe ».
    Attendu : liens « Fichier patients » et « Fichier des consultations ».
 2. Cliquer « Fichier patients ».
-   Attendu : le navigateur télécharge un fichier ; ouvert dans un tableur, il liste les
-   patients de E2, un par ligne.
+   Attendu : le navigateur télécharge un fichier nommé `patients.xlsx` ; ouvert dans un
+   tableur, il liste les patients de E2, un par ligne.
 3. Cliquer « Fichier des consultations ».
-   Attendu : idem, une ligne par consultation de E2.
+   Attendu : idem, un fichier nommé `consultations.xlsx`, une ligne par consultation de E2.
 4. Dans un terminal, à la racine du dépôt :
    `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml exec db sh -c 'psql -U "$POSTGRES_USER" -d libreosteo -c "SELECT pg_advisory_lock(1), pg_sleep(60);"'`
    puis, dans les 60 secondes, cliquer « Fichier patients ».
@@ -4067,7 +4140,7 @@ et la clause de repli écrite d'avance à l'étape 4.
    sur ce même trajet, jamais plus tard. L'étape 4 confronte ces mesures à la borne, et à
    un second parc bâti à l'échelle d'un parc réel.
 4. **Confronter la mesure à la borne, et appliquer la clause de repli s'il le faut.** La
-   borne est `--http-timeout 180` (`Docker/build/http-ready/Dockerfile:184`) ; la mémoire de
+   borne est `--http-timeout 180` du `CMD` de `Docker/build/http-ready/Dockerfile` ; la mémoire de
    pointe se juge contre celle dont dispose l'hôte de production.
 
    **Mesures.** Hôte de déploiement (recette) : 3,2 Gio. Un second parc, de stress, a été
