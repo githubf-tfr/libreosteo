@@ -45,10 +45,9 @@ Docker with PostgreSQL, the only supported deployment
 ======================================================
 
 Container (Docker) with PostgreSQL is the only deployment target that is maintained and
-tested ; the reference compose file is ``Docker/deploy/pg/docker-compose.yml``. ``make
-build`` followed by ``make run`` only starts the http image on its own, with no PostgreSQL
-service and none of the settings below : the container refuses to start in that state, so
-this does not give you a usable instance. Follow the steps below instead.
+tested ; the reference compose file is ``Docker/deploy/pg/docker-compose.yml``. The http
+image on its own, with no PostgreSQL service and none of the settings below, refuses to
+start : this does not give you a usable instance. Follow the steps below instead.
 
 - Copy this repository in your local environment.
 - Ensure you have docker installed on your machine.
