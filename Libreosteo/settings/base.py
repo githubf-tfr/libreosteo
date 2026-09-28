@@ -98,7 +98,7 @@ COMPRESS_ENABLED = True
 # deterministe. Le piege qu'il arme -- un {% if %} dans un bloc compress -- est deja garde
 # par tests/qualite/test_contrat_compression.py, dont la liste EXCEPTIONS est vide.
 # Retour arriere : cette ligne seule (repli d'A8).
-# `container.py` et `standalone.py` en heritent ; `dev.py` n'est pas touche, COMPRESS_ENABLED
+# `container.py` en herite ; `dev.py` n'est pas touche, COMPRESS_ENABLED
 # y etant faux -- {% compress %} y rend le contenu d'origine et ne cherche aucun manifeste.
 COMPRESS_OFFLINE = True
 
