@@ -176,7 +176,17 @@ def test_annulation_et_refacturation(
 
     page.goto(f"{live_server.url}/patient/{patient.id}/examination/{consultation.id}")
     page.click("#cancelInvoiceBtn")
+    # Barriere contre une course intermittente (spec lot 6 § 1.2/2.2/3.2) : la confirmation
+    # rend le volet en deux temps — hors-bande tout de suite, puis `#dossier-corps` entier
+    # recompose par `consultation-modifiee` (GET /patient/<id>/body). Si ce second temps
+    # arrive apres le clic sur `#unfold_invoices` ci-dessous, il remplace le `<details>`
+    # ouvert par un `<details>` neuf ferme : badge present mais cache. On marque le corps
+    # avant de confirmer et on attend son remplacement avant de deplier.
+    page.evaluate(
+        "() => { document.getElementById('dossier-corps').dataset.perime = '1' }"
+    )
     confirmer_la_modale(page)
+    expect(page.locator("#dossier-corps")).not_to_have_attribute("data-perime", "1")
     expect(page.locator("#invoiceExaminationBtn")).to_be_visible()
     page.click("#unfold_invoices")
     # Deux `data-testid` distincts, et un scope, pour deux ambiguites distinctes.
