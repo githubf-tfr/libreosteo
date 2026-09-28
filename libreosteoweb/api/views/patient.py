@@ -54,7 +54,7 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
             # Verrou consultatif non bloquant : un seul export complet a la fois. Il est
             # tenu par la session PostgreSQL, non par le processus, et protege donc un
             # deploiement a plusieurs workers. PostgreSQL seul (decision DU2 du
-            # 2026-09-26) : sur le serveur de developpement sqlite, l'export rend 500.
+            # 2026-09-26).
             cursor.execute("SELECT pg_try_advisory_lock(1);")
             if not cursor.fetchone()[0]:
                 return reponse_export_deja_en_cours()

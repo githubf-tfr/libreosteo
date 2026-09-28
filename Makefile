@@ -124,8 +124,8 @@ static:
 	# COMPRESS_ENABLED est faux ; sous ce reglage `compress` n'ecrit aucun bundle et
 	# {% compress %} rend le contenu d'origine.
 	$(YARN) install --frozen-lockfile
-	$(PYTHON) ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base
-	$(PYTHON) ./manage.py compress --settings=Libreosteo.settings.base
+	$(PYTHON) ./manage.py collectstatic --no-input --settings=Libreosteo.settings.statique
+	$(PYTHON) ./manage.py compress --settings=Libreosteo.settings.statique
 
 # Sur PostgreSQL, comme la suite unitaire (cadrage du 2026-09-27) : meme serveur de test
 # (`test-db`), meme reglage, celui de pyproject.toml (Libreosteo.settings.test), une base de

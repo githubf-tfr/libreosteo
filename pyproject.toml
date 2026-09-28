@@ -118,6 +118,7 @@ files = [
     "Libreosteo/settings/demonstration.py",
     "Libreosteo/settings/dev.py",
     "Libreosteo/settings/standalone.py",
+    "Libreosteo/settings/statique.py",
     "Libreosteo/settings/test.py",
     "Libreosteo/standalone.py",
     "Libreosteo/urls.py",

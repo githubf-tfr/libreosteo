@@ -15,6 +15,7 @@
 import os
 import subprocess
 import sys
+import tempfile
 from importlib import reload
 from pathlib import Path
 
@@ -102,6 +103,48 @@ class TestMoteurDeBaseDeDonnees(SimpleTestCase):
         self.assertIn("django.db.backends.postgresql", resultat.stderr)
         self.assertIn("__init__.py", resultat.stderr)
         self.assertNotIn("db.sqlite3", resultat.stderr)
+
+    def test_un_local_py_qui_modifie_le_defaut_de_base_est_accepte(self) -> None:
+        """Un `local.py` monté qui importe `base` et modifie son `DATABASES` démarre.
+
+        Forme possible d'un `local.py` de parc, que le dépôt ne contrôle pas : il ne
+        redéfinit pas `DATABASES`, il retouche celui de `base.py`. Le nom repart alors par
+        `from settings import *` et remplace le dictionnaire vide que `container.py` pose
+        avant cet import ; la garde laisse passer, puisque le défaut de `base.py` est
+        PostgreSQL. Même isolement en sous-processus que ci-dessus ; le paquet `settings`
+        monté est un répertoire temporaire placé sur `PYTHONPATH`.
+        """
+        with tempfile.TemporaryDirectory() as racine:
+            paquet = Path(racine) / "settings"
+            paquet.mkdir()
+            (paquet / "__init__.py").write_text(
+                "from .local import *\n", encoding="utf-8"
+            )
+            (paquet / "local.py").write_text(
+                "from Libreosteo.settings.base import *\n"
+                'DATABASES["default"]["HOST"] = "db"\n',
+                encoding="utf-8",
+            )
+            environnement = dict(os.environ)
+            environnement["LIBREOSTEO_SECRET_KEY"] = "django-insecure-tests-uniquement"
+            environnement["PYTHONPATH"] = racine
+            script = (
+                "import Libreosteo.settings.container as reglages\n"
+                'base = reglages.DATABASES["default"]\n'
+                'print(base["ENGINE"], base["HOST"])\n'
+            )
+            resultat = subprocess.run(
+                [sys.executable, "-c", script],
+                env=environnement,
+                cwd=str(Path(base.__file__).resolve().parents[2]),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        # Rouge si : un montage qui retouche le `DATABASES` de `base.py` au lieu de le
+        # redéfinir est refusé, ou démarre sur autre chose que ce qu'il a retouché.
+        self.assertEqual(0, resultat.returncode, resultat.stderr)
+        self.assertIn("django.db.backends.postgresql db", resultat.stdout)
 
 
 class TestHotesAutorises(SimpleTestCase):

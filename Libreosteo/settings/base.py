@@ -207,10 +207,20 @@ STATICFILES_FINDERS = (
 # Database
 # https://docs.djangoproject.com/en/1.6/ref/settings/#databases
 
+# Un defaut de developpement, sur le port PostgreSQL standard, et rien de plus : le depot
+# ne fournit aucun serveur a cette adresse (decision Q1 c du 2026-09-28). Un serveur reel se
+# declare dans Libreosteo/settings/local.py, importe par dev.py et ignore par git. `trust`,
+# sans mot de passe, comme le serveur de test (decision DU1) : aucune donnee reelle sur un
+# tel serveur. Le deploiement ne lit jamais ce dictionnaire : container.py l'efface avant
+# d'importer le settings/ monte.
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.path.join(DATA_FOLDER, "db.sqlite3"),
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "libreosteo",
+        "HOST": "127.0.0.1",
+        "PORT": "5432",
+        "USER": "postgres",
+        "PASSWORD": "",
         # Une requete HTTP = une transaction. Le deploiement de reference ne lit jamais ce
         # dictionnaire (le settings/ monte redefinit DATABASES en entier, et container.py
         # impose le reglage sur le dictionnaire effectif) : la ligne est ici pour que le

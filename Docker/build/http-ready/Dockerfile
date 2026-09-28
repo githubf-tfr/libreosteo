@@ -72,12 +72,14 @@ COPY ./server.py .
 
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:/root/.yarn/bin:$PATH"
-# collectstatic et compress tournent sur Libreosteo.settings.base, et non sur .container :
-# le mode conteneur exige desormais un moteur PostgreSQL (cf. Libreosteo/settings/container.py),
-# qu'une machine de construction n'a aucune raison d'avoir. base.py porte deja DEBUG = False
-# et COMPRESS_ENABLED = True, les deux seuls reglages que container ajoutait pour la
-# compression. Aucune autre etape de ce RUN ne tourne plus sur un module de reglages
-# different, depuis que compilejsi18n en est sorti (D6g T16, commit 4/6).
+# collectstatic et compress tournent sur Libreosteo.settings.statique, et non sur .base ou
+# .container : depuis la tache 7 (moteur PostgreSQL par defaut de base.py), les deux
+# heritent d'un moteur PostgreSQL (cf. Libreosteo/settings/container.py), qu'une machine de
+# construction n'a ni serveur ni pilote pour joindre. statique.py importe base.py -- DEBUG
+# = False et COMPRESS_ENABLED = True, les deux seuls reglages que container ajoutait pour la
+# compression -- et pose un moteur factice (django.db.backends.dummy) a la place. Aucune
+# autre etape de ce RUN ne tourne plus sur un module de reglages different, depuis que
+# compilejsi18n en est sorti (D6g T16, commit 4/6).
 # Django exige quand meme une SECRET_KEY non vide, quel que soit le module de reglages
 # (django/conf/__init__.py, au premier acces) : cette etape de construction ne sert jamais de
 # requete, la valeur de developpement ci-dessous suffit et disparait avec l'etage "build"
@@ -102,7 +104,7 @@ ENV LIBREOSTEO_SECRET_KEY="django-insecure-developpement-et-tests-uniquement"
 # monolithique. L'avertissement ne tient donc plus, sur aucun motif mesure, et il est retire.
 # Ce RUN reste neanmoins une seule commande : personne n'a demande son decoupage, et corriger
 # une affirmation fausse n'est pas une occasion de reorganiser le build.
-RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn install --frozen-lockfile && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.base && python3 ./manage.py compress --settings=Libreosteo.settings.base
+RUN rm libreosteoweb/static/components || true && . venv/bin/activate && pip3 install -r requirements/requirements.txt && yarn install --frozen-lockfile && python3 ./manage.py collectstatic --no-input --settings=Libreosteo.settings.statique && python3 ./manage.py compress --settings=Libreosteo.settings.statique
 RUN rm libreosteoweb/static/components
 
 
