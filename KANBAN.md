@@ -856,6 +856,19 @@ cherchant le motif là où on ne l'attend pas.**
 est un **instantané stocké en base** (`Invoice.therapeut_name`, alimenté par
 `invoicing/generator.py:92-93`) — c'est le constat neuf ci-dessous, qui attend l'utilisateur.
 
+~~**Constat neuf : une facture émise par un praticien sans nom porte un nom vide,
+définitivement.**~~ — **fermé le 2026-09-28 par `ffe0a57`** (lot 4, décision D3 de
+l'utilisateur). `Invoice.therapeut_name` et `therapeut_first_name` sont un instantané de
+`request.user` à l'émission (`Generator.generate_invoice`), rendu par `invoice-result.html`
+et recopié par l'avoir : un praticien ni nommé ni prénommé émettait une pièce fiscale sans
+signataire. **L'émission est désormais refusée** (message à l'écran, 400 en API),
+**avant** la réservation du numéro — aucun trou dans la numérotation ; l'avoir n'est pas
+concerné ; aucune migration, aucune reprise des factures déjà émises. Même prédicat que les
+trois sites de la famille : un champ fait d'espaces compte comme renseigné (arbitrage de la
+session principale du 2026-09-28 — formulaires et sérialiseurs élaguent les blancs, deux
+définitions seraient une dette pire que le cas). Écrit ici par le lot 4 : la tâche de
+journal du lot « solde du backlog » l'annonçait « ci-dessous » sans l'écrire.
+
 ⚠️ **`Patient` et `Children` sont hors périmètre, mais pas pour la raison qu'on croit** :
 `Patient.first_name` porte `blank=True` (`models.py:62`), il **peut** être vide. Ce qui les
 protège est que **`family_name` (`models.py:60`) est obligatoire** — un patient n'est jamais
@@ -1020,7 +1033,12 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
   AngularJS rendait la chaîne nue après passage par JSON.~~ — **fermé le 2026-09-12 par
   `a8bab9c`** (cf. « Terminé »), qui a refermé du même geste **deux autres formes
   d'erreur** que le gabarit ne savait pas rendre, dont une qui n'affichait rien du tout.
-- **L'import de masse n'affiche aucun indicateur d'attente.** L'intégration de 100 patients
+- ~~**L'import de masse n'affiche aucun indicateur d'attente.**~~ — **fermé le 2026-09-25
+  par la mesure** (`64ab4c2`, cf. « Terminé », 2026-09-25, lot « solde du backlog ») :
+  l'indicateur s'affiche, opacité calculée 0 → 1 → 0,
+  `tests/functional/test_import_csv.py::test_l_indicateur_d_attente_s_affiche_pendant_l_import`.
+  Barré le 2026-09-28 par le lot 4, qui l'a trouvé encore rédigé comme ouvert. Texte
+  d'origine : L'intégration de 100 patients
   répond en **114 s** et le navigateur reçoit bien la réponse — l'ancien défaut du
   2026-09-01 est donc fermé —, mais rien à l'écran ne signale le travail en cours pendant
   ces presque deux minutes. ⚠️ **La cause écrite ici était fausse** : « préexiste à D6d, qui
@@ -1047,7 +1065,14 @@ premiers sont des régressions de D6d** : ils n'existaient pas avant la réécri
 Chacun préexiste à D6d, qui les **reproduit à l'identique** plutôt que de les trancher : un
 lot de migration ne change pas le produit. Chacun vient avec son emplacement et sa preuve.
 
-- **La ponctuation des montants diverge entre l'écran et la facture imprimée.**
+- ~~**La ponctuation des montants diverge entre l'écran et la facture imprimée.**~~ —
+  **fermé le 2026-09-25 sous la langue `fr`** (`14a537e`, `6f8ebf6`, `5fe4dc8`, cf.
+  « Terminé », 2026-09-25, lot « solde du backlog ») : les deux surfaces de lecture passent
+  par `api.utils.formater_montant_francais`. **Résidu fermé le 2026-09-28 par `de9f787`**
+  (lot 4, décision D2) : depuis un navigateur réglé en anglais, `LocaleMiddleware` rendait
+  HONORAIRES et encaissements au point (`55.55`) et le mois en anglais (« September ») ; la
+  facture imprimée fixe désormais sa langue, rendu `fr` inchangé à l'octet (instantané
+  `2599aa1`). Texte d'origine :
   `libreosteoweb/templates/pages/fragments/comptabilite-liste.html` affiche `55.55 €` avec
   un **point** — valeur formatée par `format(v.normalize(), "f")`, qui reproduit l'affichage
   d'avant à l'octet —, et `libreosteoweb/templates/invoice/invoice-result.html:81` affiche
@@ -1065,8 +1090,12 @@ son emplacement et ce qui l'a fait apparaître. **Deux ont été fermés en cour
 parce qu'ils vivaient dans un composant que le lot corrigeait de toute façon — ils sont
 décrits à l'entrée de clôture, pas ici.
 
-- **`OfficeEvent.reference` n'a pas de clef étrangère : le journal garde des références
-  mortes.** `libreosteoweb/models.py:470` déclare un `IntegerField` nu. Supprimer un patient
+- ~~**`OfficeEvent.reference` n'a pas de clef étrangère : le journal garde des références
+  mortes.**~~ — **clos sans objet le 2026-09-25** (`5817a5e`, cf. « Terminé », 2026-09-25,
+  lot « solde du backlog », point 5) : la référence est polymorphe sur quatre `clazz`, une
+  clef étrangère y est structurellement impossible, et la suppression RGPD purge déjà le
+  journal. Revérifié à `HEAD` (spec du lot 4, § 1.5). Barré le 2026-09-28 par le lot 4.
+  Texte d'origine : `libreosteoweb/models.py:470` déclare un `IntegerField` nu. Supprimer un patient
   — geste légal, et obligatoire au titre du RGPD — ne supprime pas ses entrées de journal,
   qui continuent de le désigner par un identifiant désormais mort. ⚠️ **Le 500 d'`api/events`
   que cette entrée décrivait est fermé** (`eb27039`, cf. « Terminé ») : les deux surfaces qui
@@ -1074,8 +1103,12 @@ décrits à l'entrée de clôture, pas ici.
   reste est le schéma, pas l'affichage** — et il ne se pose pas dans un lot de dette : la
   clef touche le schéma **et** les données d'un parc en service, donc elle se joint à la
   reprise du parc de production (§ ci-dessus).
-- **La garde de sortie se désarme sur trois chemins qui ne sont pas des enregistrements, et
-  l'inventaire écrit ici en annonçait un.** La revue de branche a mesuré les trois ; la
+- ~~**La garde de sortie se désarme sur trois chemins qui ne sont pas des enregistrements, et
+  l'inventaire écrit ici en annonçait un.**~~ — **clos** : chemins 2 et 3 fermés le
+  2026-09-18 par D9 (`7b79d33`, `2111549`) ; **chemin 1 volontaire** (`R-PAT-12` étape 5 :
+  l'abandon d'une vignette est le geste du praticien), reconnu délibéré par le lot « solde
+  du backlog » (spec `2026-09-24-solde-backlog-design.md` § 4.4, cf. « Terminé »,
+  2026-09-25). Barré le 2026-09-28 par le lot 4. Texte d'origine : La revue de branche a mesuré les trois ; la
   phrase « c'est le seul endroit du dossier où la règle *seul un résultat réel désarme*
   n'est pas appliquée » était fausse et se présentait comme exhaustive. **Les trois
   mécanismes sont volontaires et prouvés ; c'est l'inventaire qui était incomplet.**
@@ -1207,6 +1240,12 @@ soldées ou tenues** :
   rester muet, et le rapport continue de voyager dans la réponse HTTP (cf. la tension Q3
   ci-dessus). Le cas réel **n'est pas automatisable** — il demande un lot de plus de 1 200
   patients et une mesure de plus de 180 s —, il reste la fiche de recette humaine `R-IMP-04`.
+  ⚠️ **À la coupure, l'écran invitait au rejeu** : htmx 2.0.10 retire `disabled` du bouton
+  **avant** d'émettre `htmx:afterRequest`, et l'écran revenait à son état d'avant le clic,
+  bouton « Importer » actif sous « ne relancez pas » — or le rejeu double les
+  consultations, qui n'ont aucune contrainte d'unicité. **Fermé le 2026-09-28 par `f9b7267`**
+  (lot 4, décision D1 de l'utilisateur) : le bouton reste inactif et une phrase dit ce qui
+  s'est passé. La coupure et la perte du rapport demeurent (arbitrage Q3-a).
 - ~~**Chaque enregistrement de journal applicatif est émis deux fois**~~ — **clos le
   2026-09-24 par `7dfa637`** (lot correctif 1, T1). Deux entrées de `LOGGING` — `libreosteoweb`
   et `libreosteoweb.api` — portaient **le même** handler `console` et **le même** niveau, sans
@@ -1299,6 +1338,14 @@ soldées ou tenues** :
   405 garanti. **Preuve attendue** : après l'échec, `SESSION_KEY` n'est plus dans la session.
   La cible de redirection ne change pas ; seul l'effet de bord est neuf, et c'est lui qui doit
   être prouvé.
+
+### Constat versé par le lot 4 (2026-09-28), non instruit
+
+- **`R-CON-01` étape 5 paraît injouable par son chemin.** Elle demande de vider le nom
+  **et** le prénom depuis « Profil » ; or `FormulaireIdentite` (`pages/profil.py`) exige le
+  nom. À vérifier à la prochaine passe de recette : si l'étape est bien injouable, le seul
+  chemin vers un praticien sans nom est un compte ajouté par « Ajouter un utilisateur » qui
+  n'a jamais enregistré son profil — celui de `R-FAC-08`.
 
 ### Constats versés le 2026-09-19, à instruire après la clôture de D6g
 
@@ -1602,7 +1649,7 @@ Le défaut C est **clos par D3 (2026-09-05), par son résultat observable et non
 cause** : cf. « Terminé ». Les deux acquis ci-dessus restent valides et ne se réinstruisent
 pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'être.
 
-### Défauts produit constatés en recette (à traiter, pas encore planifiés)
+### ~~Défauts produit constatés en recette (à traiter, pas encore planifiés)~~ — **rien d'ouvert, vérifié le 2026-09-28**
 
 - ~~**2026-09-09 — perte silencieuse de donnée médicale dans le dossier patient.** Un clic ou un `Tab` pendant l'édition soumettait l'éditable autonome `original_name` et le callback `$scope.patient = data` effaçait en bloc antécédents, traitement en cours et motifs.~~ — **corrigé le 2026-09-11 par le lot D8**, cliquet de gabarit posé. À retenir de ce défaut, indépendamment de son remède : **il a vécu en production, et c'est un filet de test qui l'a trouvé, pas une revue de code.** Il a été découvert en retirant une barrière d'attente écrite pour le contourner sans l'avoir nommé — donc par le geste même que D6b faisait. C'est l'argument le plus réutilisable du chantier D6 : le filet ne sert pas qu'à protéger la bascule, il révèle ce que le produit cache. ~~La passe de recette `R-PAT-08` reste due.~~ — **jouée le 2026-09-19 sur `078229b`, dix étapes sur dix OK** (cf. « Terminé »).
 - ~~**2026-09-18 — la passe de recette de D9 reste due, et c'est la huitième clause du lot.**
@@ -1727,7 +1774,11 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 > actées ») et aux candidats D7 ci-dessous. Chaque affirmation est adossée à un
 > `chemin:ligne` vérifié.
 
-- **La relation `Examination.invoices` n'est pas un groupement.** Le
+- ~~**La relation `Examination.invoices` n'est pas un groupement.**~~ — **constat de
+  lecture, clos le 2026-09-25** (`5817a5e`, cf. « Terminé », 2026-09-25, lot « solde du
+  backlog », point 5) : vrai, rien de cassé, rien demandé ; la conversion en `ForeignKey`
+  serait une migration pour un renommage, écartée. Barré le 2026-09-28 par le lot 4. Texte
+  d'origine : Le
   `ManyToManyField` (`libreosteoweb/models.py:203`) porte, pour **une seule**
   consultation, un historique facture → avoir, 1 pour 1 à l'origine : la migration
   `0037_auto_20190506_1653.py` (`migrate_invoice_examination`, lignes 7-12) copie
@@ -1745,7 +1796,10 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   facture qu'il annule (`:189`), pas celle de la séance. Vérifié le 2026-09-19 : aucune
   occurrence de `timezone.now()` ne subsiste dans ce fichier ; les deux lignes ci-dessus
   sont toujours en place.
-- **Ce qui dépend de `Invoice.date`** : le filtre de la liste/export des factures
+- ~~**Ce qui dépend de `Invoice.date`**~~ — **inventaire sans verdict, clos le 2026-09-25**
+  (`5817a5e`, cf. « Terminé », 2026-09-25, lot « solde du backlog », point 5) : son objet,
+  `timezone.now()`, est fermé depuis `9f5bf1f` ; les lignes citées ont dérivé depuis.
+  Barré le 2026-09-28 par le lot 4. Texte d'origine : le filtre de la liste/export des factures
   (`filterset_fields`, `libreosteoweb/api/views/facturation.py:66`), l'écran de
   Comptabilité (`libreosteoweb/api/views/pages/comptabilite.py:82`, filtre
   `date__date__gte`/`__lte`) — ⚠️ **référence rectifiée le 2026-09-19** : l'écran AngularJS
@@ -1830,6 +1884,41 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
   fond et non ménage**, porté par la puce ci-dessus.
 
 ## Terminé
+
+- **2026-09-28 — Lot 4 « défauts produit » clos : trois défauts fermés, six entrées
+  survivantes barrées** (`f9b7267`..`cb17bff` et ce journal). Spec :
+  `docs/superpowers/specs/2026-09-28-lot4-defauts-produit-design.md`. `make check` vert,
+  **1245 passed**, couverture **99,96 %**, plancher 99 inchangé ; suite fonctionnelle du
+  contrôleur rejouée en deux moitiés (plafond de l'outil, 600 s) : moitié A **74 passed + 1
+  failed** en 407,13 s, moitié B **79 passed** en 192,22 s — **154 passed** au total (152 +
+  2 de T1), compteur des motifs de fuite (`ERROR at teardown` / `DeadlockDetected` /
+  `couldn't be flushed` / `Database access not allowed` / `encore en vol`) : 0 et 0.
+  L'unique échec (`test_cabinet.py::test_le_refus_d_une_cellule_est_affiche_et_n_ecrit_rien`,
+  qui supposait l'utilisateur `test` sans prénom) était causé par T3 ; corrigé par
+  `cb17bff`, fichier rejoué seul : **5 passed** — **la suite complète n'a pas été rejouée
+  après le correctif**. **Aucune migration, aucun module `.py` créé.**
+
+  1. **Import coupé** (`f9b7267`) — à la coupure de trois minutes, htmx réarmait le bouton
+     « Importer » sous « ne relancez pas » ; il reste inactif et une phrase dit ce qui
+     s'est passé. Preuve par mutation : sans le gestionnaire, le test rougit sur le bouton
+     réactivé.
+  2. **Facture toujours en français** (`2599aa1`, `de9f787`) — depuis un navigateur en
+     anglais, la page imprimée repassait à `55.55` et « September ». Le gabarit fixe sa
+     langue ; le rendu `fr` est prouvé identique à l'octet par un instantané commité avant
+     la modification.
+  3. **Émission refusée à un praticien sans nom** (`ffe0a57`) — avant la réservation du
+     numéro, l'avoir restant permis. Preuve par mutation : un refus déplacé après la
+     réservation fait rougir les trois refus de page sur la séquence. ⚠️ **À la prochaine
+     montée du parc, un praticien sans nom ni prénom se verra refuser la facturation** :
+     c'est la règle voulue, le message dit où agir (« Profil utilisateur »).
+  4. **Six entrées survivantes barrées** (E1, E2, E3, E4, et les deux premiers constats de
+     facturation) : le lot « solde du backlog » les avait fermées, sa tâche de journal
+     n'avait barré aucune source. **Une clôture de lot barre aussi les entrées qu'elle
+     ferme**, pas seulement l'entrée de « Terminé » : cinq entrées survivantes ont coûté ici
+     une instruction de plus.
+
+  **Recette** : `R-IMP-04` (étape 3), `R-FAC-05` (étape 6), `R-FAC-08` (neuve).
+  **Suivi amont** : rien de repris d'amont.
 
 - **2026-09-28 — Lot « hygiène de code » clos : dix constats corrigés ou reconduits (export
   xlsx, périmètre `mypy`, i18n, mutations d'environnement de test, divergence `/install/`,
