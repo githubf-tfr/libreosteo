@@ -1619,8 +1619,13 @@ Chacun avec son motif de non-correction — détail dans
   reproductible — retour explicite sur l'URL racine de l'instance entre les deux
   tentatives (étape 2 de la fiche) — pour que son verdict reste déterministe. Cause
   non recherchée ici.~~ — **fermé le 2026-09-05**, défaut C, par D3 : cf. « Terminé ».
-- (S4, tâche 7) **Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
-  sous forme de création manuelle.** Aucune fonction ne permet de créer à la main un
+- (S4, tâche 7) ~~**Le domaine « Agenda » du cahier de recette n'a pas d'équivalent produit
+  sous forme de création manuelle.**~~ — **clos le 2026-09-28** (lot 5) : constat sur ce
+  qu'est le produit, pas un défaut, et aucun besoin exprimé ; D10 l'avait déjà classé « à
+  radier ». Vérifié à `HEAD` : `OfficeEventViewSet` en lecture seule, écritures par les
+  récepteurs seuls. Le titre du domaine et les fiches `R-AGE-*` restent inchangés (décision
+  de S4). Se rouvre sur une demande de prise de rendez-vous dans LibreOsteo — une fonction
+  neuve, pas une correction. Aucune fonction ne permet de créer à la main un
   événement d'agenda ou un rendez-vous : `OfficeEventViewSet`
   (`libreosteoweb/api/views/administration.py:173`, référence rectifiée le 2026-09-24 —
   `api/views.py` a depuis été scindé en paquet `api/views/`) est un `ReadOnlyModelViewSet`, et les seules
