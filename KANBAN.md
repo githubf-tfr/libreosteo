@@ -1566,8 +1566,20 @@ pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'�
   écrit — après retrait d'`animatescroll` et correction des cinq lignes que D6f T10 avait
   rendues fausses sans toucher au tableau. Ce même inventaire note que **DataTables n'a
   aucun consommateur** : vérifié le 2026-09-18, aucun gabarit de
-  `libreosteoweb/templates/` ne le nomme. L'entrée reste ouverte pour le gel A6, CVE
-  comprises.
+  `libreosteoweb/templates/` ne le nomme. ~~L'entrée reste ouverte pour le gel A6, CVE
+  comprises.~~ — **clos le 2026-09-28**, comme limitation assumée : `libreosteoweb/static/
+  font-awesome/` (vendorisé à part, hors `package.json` et hors `static/components/`) ne
+  porte que 6 fichiers — un CSS minifié (`css/font-awesome.min.css`) et cinq polices
+  (`fonts/fontawesome-webfont.{eot,woff,woff2,svg,ttf}`) — vérifié à HEAD le 2026-09-28 :
+  aucun fichier `.js`, aucune chaîne `script`/`function(` dans le CSS. La mention « CVE
+  comprises » qui tenait l'entrée ouverte visait une surface d'exécution qui n'existe pas
+  ici : Font Awesome 4.x ne distribue que du CSS et des polices, sans code exécuté par le
+  navigateur. Une montée en version 5 ou 6 serait une migration purement visuelle
+  (renommages de classes, recette par icône, comparable en nature à D6g pour Bootstrap)
+  sans bénéfice pour le praticien qui utilise l'application — le sujet n'a jamais été le
+  poids (6 fichiers, 764 Ko, tous référencés par `libreosteoweb/templates/base.html` et
+  `account/login.html`), seulement la version gelée. Le reste du paragraphe garde sa
+  valeur d'inventaire.
 - ~~**L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
   Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
   lots restants »).~~ — **fermé le 2026-09-06 par `bfbc160`** : une cible `make static`
