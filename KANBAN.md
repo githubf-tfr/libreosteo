@@ -388,7 +388,9 @@ vers le journal se fait par titre, jamais par numéro de ligne.
 - (2026-09-28) **Construire l'image http et la recetter** — geste de l'utilisateur à la prochaine
   publication : construction (`docker build`, étage `build` sur `settings.statique`, sans
   `server.py`), mêmes sept bundles `output.<hash>` que `make static`,
-  `/Libreosteo/django/conf/locale` absent, `R-INST-04` jouée sur l'image.
+  `/Libreosteo/django/conf/locale` absent, `R-INST-04` jouée sur l'image. Hors du bac à sable :
+  le réseau hôte (« esit », racine `pki.esit.fr`) intercepte le TLS vers yarn et Alpine, et
+  l'utilisateur a refusé d'y faire confiance dans le bac à sable (2026-09-28).
 
 ### Autres entrées ouvertes
 
