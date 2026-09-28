@@ -27,8 +27,8 @@ entretenir, ne pas les recetter.
 
 ## Tests et qualité
 
-`make check` avant tout commit — c'est exactement le job `quality` de la CI. La suite
-unitaire tourne sur PostgreSQL (`make test-db`, Docker) : ne jamais la repointer sur sqlite.
+`make check` avant tout commit — c'est exactement le job `quality` de la CI. Les deux
+suites tournent sur PostgreSQL (`make test-db`, Docker) : ne jamais les repointer sur sqlite.
 Trois cliquets, qui ne se desserrent jamais :
 
 - le plancher de couverture (`fail_under`) ne descend pas ;

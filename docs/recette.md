@@ -75,9 +75,9 @@ pourquoi : `Libreosteo/settings/container.py` fait `from settings import *` (imp
 absolu), donc `settings` désigne le paquet top-level résolu via `sys.path`, c'est-à-dire le
 volume monté à `/Libreosteo/settings` lui-même, pas `local.py` dedans. Sans ce fichier,
 l'import réussit (paquet-espace de noms implicite, PEP 420) mais n'importe aucun nom, et
-`DATABASES` retombe sur le défaut sqlite de `base.py`. Cette erreur n'est plus silencieuse :
+le conteneur ne trouve aucune base. Cette erreur n'est pas silencieuse :
 le service sort en erreur et le journal montre
-`ImproperlyConfigured: Moteur de base de données inattendu : django.db.backends.sqlite3 ...`
+`ImproperlyConfigured: Moteur de base de données inattendu : aucun ...`
 — c'est ce que la fiche R-INST-04 met à l'épreuve.
 
 `$SCRATCH/.env` (contenu aligné sur `Docker/deploy/pg/.env.example`, committé, chemins
@@ -118,8 +118,8 @@ l'emporte ensuite sur `LIBREOSTEO_SECRET_KEY` pour ce montage précis (import `f
 import *` dans `container.py`), mais les renseigner ici évite l'avertissement « variable
 is not set » de `docker compose`. Attention : `LIBREOSTEO_SECRET_KEY` **seule ne suffit
 pas** à démarrer. Elle ne configure pas la base de données, et depuis D2 le mode conteneur
-refuse tout moteur autre que PostgreSQL : un montage sans `settings/` retomberait sur le
-sqlite de `base.py` et sortirait en `ImproperlyConfigured`. Le volume `settings/` est
+refuse tout moteur autre que PostgreSQL : un montage sans `settings/` ne trouverait aucune
+base et sortirait en `ImproperlyConfigured`. Le volume `settings/` est
 obligatoire.
 
 **Étape 3 — démarrage :**
@@ -576,14 +576,13 @@ réelle complète correspondante : `R-AUTH-02` (chapitre 3, Authentification).
    ```
 
    Attendu : `libreosteo` en `Exited` avec un code de sortie non nul ; le journal porte
-   `ImproperlyConfigured: Moteur de base de données inattendu :
-   django.db.backends.sqlite3. Le mode conteneur exige PostgreSQL
-   (django.db.backends.postgresql ou django.db.backends.postgresql_psycopg2). Cause la
-   plus fréquente : le volume monté sur /Libreosteo/settings ne porte pas d'__init__.py
-   réexportant local.py, ...`, message qui nomme PostgreSQL, l'absence d'`__init__.py` et
-   `data/db.sqlite3` comme fichier dans lequel l'instance aurait écrit ; **aucune ligne
-   `WSGI app 0 (mountpoint='') ready`** pour ce démarrage ; `ls "$SCRATCH/data"` ne montre
-   **aucun fichier `db.sqlite3`**.
+   `ImproperlyConfigured: Moteur de base de données inattendu : aucun. Le mode conteneur
+   exige PostgreSQL (django.db.backends.postgresql ou
+   django.db.backends.postgresql_psycopg2), défini par le settings/ monté. Cause la plus
+   fréquente : le volume monté sur /Libreosteo/settings ne porte pas d'__init__.py
+   réexportant local.py, ...`, message qui nomme PostgreSQL et l'absence d'`__init__.py` ;
+   **aucune ligne `WSGI app 0 (mountpoint='') ready`** pour ce démarrage ;
+   `ls "$SCRATCH/data"` ne montre **aucun fichier `db.sqlite3`**.
 4. Remettre le fichier en place et redémarrer :
 
    ```sh
