@@ -135,11 +135,11 @@ WORKDIR /Libreosteo
 # libc-dev n'est pas repris : c'est le meme paquet que musl-dev.
 # L'etage run ne garde donc que ce dont l'execution a besoin : tzdata, gettext et
 # postgresql-libs. Le dernier apk add prend --no-cache comme les autres.
-# psycopg2 est epingle a la version exacte que porte requirements/requ-dev.txt
-# (psycopg2-binary, meme pilote livre en roue pour la suite unitaire) : sans epingle,
-# chaque construction tirerait la derniere version publiee sur PyPI, une derive
-# silencieuse. Le cliquet tests/qualite/test_contrat_pilote_psycopg2.py rougit si les
-# deux fichiers divergent.
+# psycopg2 est epingle a la version exacte que portent requirements/requ-dev.txt et
+# requirements/requ-testing.txt (psycopg2-binary, meme pilote livre en roue pour les
+# suites unitaire et fonctionnelle) : sans epingle, chaque construction tirerait la
+# derniere version publiee sur PyPI, une derive silencieuse. Le cliquet
+# tests/qualite/test_contrat_pilote_psycopg2.py rougit si les trois fichiers divergent.
 RUN apk add --no-cache \
     tzdata \
     gettext \
