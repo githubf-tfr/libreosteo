@@ -183,16 +183,27 @@ class TestFacturation(APITestCase):
         self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Invoice.objects.count(), 0)
 
-    def test_un_statut_de_facturation_inconnu_ne_cree_aucune_facture(self):
-        """`status` est un `CharField` libre herite de l'amont : `validate` ne contraint
-        que « notinvoiced » et « invoiced »."""
-        # Rouge si : un statut inconnu cree une facture ou change l'etat de la seance --
-        # une valeur qu'aucun bouton de l'ecran ne produit ne doit rien ecrire.
+    def test_un_statut_de_facturation_inconnu_est_refuse_en_400(self):
+        """`status` est un `CharField` libre herite de l'amont, durci par le lot hygiene
+        de code (2026-09-28) : `validate` ne contraint plus seulement le contenu de
+        « notinvoiced » et « invoiced », il rejette toute autre valeur. Avant ce
+        durcissement, la reponse rendait 200 a corps vide."""
+        # Rouge si : un statut inconnu cree une facture, change l'etat de la seance, ou
+        # cesse d'etre refuse en 400.
         reponse = self.facture(status="autre")
-        self.assertEqual(reponse.status_code, status.HTTP_200_OK)
+        self.assertEqual(reponse.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Invoice.objects.count(), 0)
         self.consultation.refresh_from_db()
         self.assertEqual(self.consultation.status, ExaminationStatus.IN_PROGRESS)
+
+    def test_un_statut_hors_notinvoiced_et_invoiced_est_invalide(self):
+        """Rouge si : `validate()` accepte encore un statut hors des deux valeurs
+        connues -- c'est la cause commune aux quatre appelants de
+        `invoice_examination`."""
+        serialiseur = apiserializers.ExaminationInvoicingSerializer(
+            data=facturation(status="bogus")
+        )
+        self.assertFalse(serialiseur.is_valid())
 
 
 class TestRefusDuNumeroDejaEmis(APITestCase):
@@ -626,6 +637,38 @@ class TestAnnulationParFactureCorrectiveInvalide(APITestCase):
                 "corrective_invoice": {
                     "status": "invoiced",
                     "amount": "0.00",
+                    "paiment_mode": "cash",
+                    "reason": None,
+                    "check": {},
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, reponse.status_code)
+        self.facture.refresh_from_db()
+        self.assertNotEqual(InvoiceStatus.CANCELED, self.facture.status)
+
+    def test_un_statut_de_facturation_inconnu_a_l_annulation_rend_400_sans_lever_de_keyerror(
+        self,
+    ):
+        """Avant le durcissement de `ExaminationInvoicingSerializer.validate`, un statut
+        hors des deux valeurs connues faisait rendre `{}` par `invoice_examination`
+        (`generator.py:261`), et `models.Invoice.objects.get(id=result["invoiced"])`
+        levait `KeyError` -- une 500, non une 400. Rouge si : cette ligne redevient
+        atteignable."""
+        regle_cabinet(cancel_invoice_credit_note=False)
+        consultation = self.client.get(
+            reverse("examination-detail", kwargs={"pk": self.consultation.id})
+        ).data
+
+        reponse = self.client.post(
+            reverse("invoice-cancel", kwargs={"pk": self.facture.pk}),
+            data={
+                "examination": consultation,
+                "corrective_invoice": {
+                    "status": "bogus",
+                    "amount": "50.00",
                     "paiment_mode": "cash",
                     "reason": None,
                     "check": {},

@@ -1399,12 +1399,19 @@ Chacun avec son motif de non-correction — détail dans
   un `FieldFile` vide qui n'est pas `None` (constat de la tâche F8). Sans portée aujourd'hui,
   le dépôt étant refusé à l'analyse avant d'atteindre l'intégrateur. À ne pas « réparer »
   sans arbitrage.
-- **Un statut de facturation inconnu rend 200 au corps vide** (constat de la tâche C14), là
+- ~~**Un statut de facturation inconnu rend 200 au corps vide** (constat de la tâche C14), là
   où 400 serait plus juste ; et **`generator.py:261` (`return {}`) sur ce même statut
   inconnu ferait lever `KeyError`** dans l'annulation par facture corrective, préexistant et
   indépendant de la suppression S19. `status` est un `CharField` libre hérité de l'amont,
   aucun geste d'écran ne l'atteint, et le durcissement appartiendrait à
-  `ExaminationInvoicingSerializer.validate`.
+  `ExaminationInvoicingSerializer.validate`.~~ — **corrigé** :
+  `ExaminationInvoicingSerializer.validate` rejette tout statut hors
+  `{"notinvoiced", "invoiced"}`. Les trois points d'entrée atteignables rendent
+  désormais 400 (`ExaminationViewSet.invoice`/`close`, `InvoiceViewSet.cancel` avec
+  facture corrective) ; `facturer_ou_cloturer` (écran) reste hors d'atteinte, le
+  formulaire n'offrant que les deux statuts valides. `generator.py:261` (`return {}`)
+  n'est alors plus jamais atteint avec un statut inconnu : clos par ricochet, sans code
+  à y changer.
 - ~~**Le renforcement du `raise Exception("Operation already in progress")`** des verrous
   consultatifs (`patient.py:63`, `consultation.py:164`) en une réponse 409 : la ligne est
   **impossible à éprouver** tant que I1 tient (huit instructions, verrous PostgreSQL

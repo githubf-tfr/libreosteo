@@ -125,6 +125,9 @@ msgid "Paiment mode is mandatory when the examination is invoiced"
 msgstr ""
 "Le mode de paiement est obligatoire lorsque la consultation est facturée"
 
+msgid "Unknown invoicing status"
+msgstr "Statut de facturation inconnu"
+
 msgid "Check information is missing"
 msgstr "Les informations de chèque sont manquantes"
 
