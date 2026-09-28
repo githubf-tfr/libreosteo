@@ -12,14 +12,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LibreOsteo.  If not, see <http://www.gnu.org/licenses/>.
-"""Reglages de la suite unitaire : PostgreSQL, le moteur de la production.
+"""Reglages des deux suites de tests : PostgreSQL, le moteur de la production.
 
 `pyproject.toml` en fait le `DJANGO_SETTINGS_MODULE` de pytest. Le serveur est demarre par
 `make test-db`, sur l'image que le compose de production epingle ; les quatre variables
-`LIBREOSTEO_TEST_DB_*` pointent la suite ailleurs. La suite fonctionnelle, elle, reste sur
-sqlite (`--ds=Libreosteo.settings`) jusqu'a son propre lot.
+`LIBREOSTEO_TEST_DB_*` pointent les suites ailleurs.
 
-Jamais de repli sur sqlite : tests/qualite/test_contrat_moteur_de_test.py le fait rougir.
+Jamais de repli sur sqlite : tests/qualite/test_contrat_moteur_de_test.py le fait rougir pour
+la suite unitaire, la garde de moteur de tests/functional/conftest.py arrete la suite
+fonctionnelle.
 """
 
 import os
