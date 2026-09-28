@@ -1831,6 +1831,50 @@ Deux constats mineurs versés au passage par D5, sans rapport avec le périmètr
 
 ## Terminé
 
+- **2026-09-28 — Lot « hygiène de code » clos : dix constats corrigés ou reconduits (export
+  xlsx, périmètre `mypy`, i18n, mutations d'environnement de test, divergence `/install/`,
+  statut de facturation inconnu), journal remis en cohérence** (10 commits, `cfbc9db`..
+  `4cd6b3f`). Spec : `docs/superpowers/specs/2026-09-28-lot2-hygiene-code-design.md`.
+  `make check` vert, **1232 passed, 12 warnings**, couverture **99,96 %** sur **4674
+  instructions** (2 manquantes : `generator.py:261`, ligne morte défensive rendue
+  inatteignable par ce lot ; `dossier_patient.py:275`, garde de typage `mypy`, I2) ;
+  `fail_under` inchangé à 99.
+  - **T1** (`cfbc9db`) — l'export xlsx patients/consultations rend enfin son
+    `Content-Disposition` : `XLSXFileMixin` passé avant `ModelViewSet` dans les bases de
+    `PatientViewSet` et `ExaminationViewSet`, réponse JSON par défaut et refus 409 d'un
+    export concurrent inchangés. `docs/recette.md` § R-IMP-05 à jour.
+  - **T2-T5** (`3c6ea55`, `80676ab`, `92c75f9`, `e2b9b84`) — neuf fichiers de test ajoutés à
+    `[tool.mypy] files` ; `libreosteoweb/admin.py` retiré (quatre `admin.site.register`
+    sans route, `admin.autodiscover()` retiré de `Libreosteo/urls.py`) ; `Patient.set_request`
+    retiré (aucun lecteur) ; le msgid orphelin `"Cannot read the content file..."` purgé de
+    `django.po`/`.mo`. Périmètre `mypy` : **192 → 200 fichiers** (+9 −1), aucun rétrécissement.
+  - **T6-T8** (`16e822d`, `d27252d`, `477ad86`, correctif `4cd6b3f`) — `TestReconstructionIndex`
+    et `environnement_isole` mutent désormais `HAYSTACK_CONNECTIONS["default"]` en place et le
+    restaurent après chaque test (préexistant : mutation hors de portée de la restauration
+    automatique de `pytest-django` entre tests) ; la divergence `/install/` entre middleware et
+    vue est épinglée par un test, pas corrigée : **écart mesuré, différent du plan**, qui
+    attendait à tort un 200 anonyme — un anonyme est redirigé (302, middleware) ; un
+    utilisateur non `is_staff` déjà connecté atteint la vue (200, page en lecture seule), mais
+    ses deux actions (`accounts/create-admin/`, chargement d'archive) sont refusées en 403 par
+    `@maintenance_available` : aucun compte créé. Divergence assumée, pas un défaut de sécurité.
+  - **T9** (`13adf3c`) — `ExaminationInvoicingSerializer.validate` rejette tout statut de
+    facturation hors `{"notinvoiced", "invoiced"}` ; les trois points d'entrée atteignables
+    (`ExaminationViewSet.invoice`/`close`, `InvoiceViewSet.cancel` avec facture corrective)
+    rendent 400. `generator.py:261` (`return {}`) devient inatteignable par ricochet, laissé
+    tel quel (ligne morte défensive, sans code à changer) : couverture **99,98 % → 99,96 %**,
+    `fail_under` intact.
+  - **T10** (journal) — doublon `__exit__` barré (déjà clos par `1c8189e` le
+    2026-09-24, entrée dupliquée par erreur) ; `IntegratorExamination.integrate` clos comme
+    garde sans portée avec condition de réouverture explicite ; trois reconductions actées
+    sans rouvrir la décision (`api/utils.py:23`, « 3 char length maximum », les quatre commits
+    `test(...)` du lot correctif du 2026-09-19) ; date de `f0cb705` corrigée (2026-09-24, pas
+    2026-09-25) ; remesure du `RuntimeWarning` d'`AppConfig.ready()` : **12 warnings**
+    (unitaire, inchangé), **1 warning** (fonctionnelle, mesure du lot 1 reprise sans
+    rejouer la suite). Doublon HAYSTACK déjà clos par T8, non retouché ; relevé de nuit
+    (archive) non touché.
+  - **Plan achevé et supprimé**, fondu dans cette entrée et dans la spec ci-dessus
+    (`docs/superpowers/plans/2026-09-28-lot2-hygiene-code.md`).
+
 - **2026-09-28 — Lot « suite fonctionnelle et base de développement sur PostgreSQL » : les deux
   suites sur PostgreSQL, sqlite et standalone retirés du dépôt** (15 commits,
   `5b8a8f6`..`b8a1df8`). Spec :
