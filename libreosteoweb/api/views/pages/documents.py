@@ -463,20 +463,9 @@ def documents_du_patient(request: HttpRequest, identifiant: str) -> HttpResponse
     )
 
 
-def _en_demonstration(request: HttpRequest) -> bool:
-    """La meme regle que `PatientDocumentViewSet.is_demonstration`, a l'identique.
-
-    Deux canaux, et le second n'est pas theorique : un deploiement multi-schema pose le
-    locataire sur la requete sans que `settings.DEMONSTRATION` soit vrai.
-    """
-    if settings.DEMONSTRATION:
-        return True
-    locataire = getattr(request, "tenant", None)
-    return bool(
-        locataire
-        and getattr(locataire, "schema_name", None)
-        and locataire.schema_name == "demonstration"
-    )
+def _en_demonstration() -> bool:
+    """La meme regle que `PatientDocumentViewSet.is_demonstration` : le seul reglage."""
+    return settings.DEMONSTRATION
 
 
 def _creer_le_document(
@@ -496,7 +485,7 @@ def _creer_le_document(
     sur la voie DRF. T12 avait perdu cette regle en reecrivant la creation ici, et
     l'instance de demonstration est **le seul deploiement public** du produit.
     """
-    if _en_demonstration(request):
+    if _en_demonstration():
         fichier = get_demonstration_file()
     document = models.Document(
         title=formulaire.cleaned_data["title"],
