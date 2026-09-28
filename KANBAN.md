@@ -406,9 +406,6 @@ Aucun.
   réparer, ou retirer. Nuance le motif de l'unicité des numéros par cabinet (2026-09-06).
   Constat du 2026-09-10 : `docs/journal/2026-09.md`,
   « Décisions actées — entrées retirées », « Le multi-cabinet est codé mais inatteignable ».
-- (2026-09-28) **Suivi amont : le commit amont `560d734` (2026-09-26) n'est pas examiné**
-  (« fix(load dump): due to haystack massive data raw to import does not work well… ») ;
-  « Suivi amont » s'arrête à `33753e0`.
 - (2026-09-26) **2026-09-26 (lot « suite unitaire sur PostgreSQL »)** — constats versés, non corrigés,
   chacun avec son motif :
   - Le verrou consultatif d'export ne peut pas être disputé dans le déploiement de référence
@@ -469,6 +466,10 @@ Chacun avec son motif de non-correction — détail dans
 - (2026-09-28) Lot 6, T6 : constat « `.env.example` dit la publication linux/amd64
   uniquement » clos, vrai en partie — commentaire réécrit (`a0908b0`/`latest` amd64,
   `df1e658-arm64` en arm64, `make build` publie les trois étiquettes) — spec
+  `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
+  détail : `docs/journal/2026-09.md`.
+- (2026-09-28) Lot 6, T7 : suivi amont — `560d734` examiné, **sans objet**, défaut déjà
+  fermé par `c5c902a` — spec
   `docs/superpowers/specs/2026-09-28-lot6-constats-ouverts-design.md` ; commit celui-ci ;
   détail : `docs/journal/2026-09.md`.
 - (2026-09-28) Lot 6, T5 : constat « l'archive JSON porte des dates sans fuseau » clos,
@@ -1283,6 +1284,13 @@ Commits amont examinés et décision prise à leur sujet (repris / adapté / éc
   405 garanti. **Preuve attendue** : après l'échec, `SESSION_KEY` n'est plus dans la session.
   La cible de redirection ne change pas ; seul l'effet de bord est neuf, et c'est lui qui doit
   être prouvé.
+
+- (2026-09-28) **`560d734` (2026-09-26) examiné — sans objet** (décision de la session
+  principale, lot 6) : l'amont remplace le processeur temps réel de Haystack par
+  `SafeRealtimeSignalProcessor`, qui ignore les enregistrements `raw` d'un `loaddata`.
+  Défaut déjà fermé chez le fork par `c5c902a` (D10 T2, 2026-09-19) : `restaurer()`
+  débranche l'indexation pendant le chargement puis vide l'index ; c'est le seul appel à
+  `loaddata` en production. `upstream/master` = `560d734`.
 
 ## Points en suspens
 
