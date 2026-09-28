@@ -23,39 +23,15 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 """
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-import logging
 import os
-import sys
 
 from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-if getattr(sys, "frozen", False):
-    logger = logging.getLogger(__name__)
-    logger.info("Frozen with attribute value %s" % (getattr(sys, "frozen", False)))
-    logger.info("Real path of the start : %s " % (os.path.realpath(__file__)))
-    SITE_ROOT = os.path.split(
-        os.path.split(os.path.split(os.path.dirname(os.path.realpath(__file__)))[0])[0]
-    )[0]
-    logger.info("SITE_ROOT = %s" % SITE_ROOT)
-    if getattr(sys, "frozen", False):
-        SITE_ROOT = os.path.split(SITE_ROOT)[0]
-    DATA_FOLDER = SITE_ROOT
-    if getattr(sys, "frozen", False) == "macosx_app":
-        DATA_FOLDER = os.path.join(
-            os.path.join(
-                os.path.join(os.environ["HOME"], "Library"), "Application Support"
-            ),
-            "Libreosteo",
-        )
-        SITE_ROOT = os.path.join(os.path.split(SITE_ROOT)[0], "Resources")
-        if not os.path.exists(DATA_FOLDER):
-            os.makedirs(DATA_FOLDER)
-else:
-    SITE_ROOT = BASE_DIR
-    DATA_FOLDER = os.path.join(SITE_ROOT, "data")
-    if not os.path.exists(DATA_FOLDER):
-        os.makedirs(DATA_FOLDER)
+SITE_ROOT = BASE_DIR
+DATA_FOLDER = os.path.join(SITE_ROOT, "data")
+if not os.path.exists(DATA_FOLDER):
+    os.makedirs(DATA_FOLDER)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
@@ -81,7 +57,6 @@ ALLOWED_HOSTS = [hote.strip() for hote in _HOTES_AUTORISES.split(",") if hote.st
 
 LOCALE_PATHS = (
     "locale",
-    os.path.join(SITE_ROOT, "django", "conf", "locale"),
     os.path.join(SITE_ROOT, "locale"),
 )
 
