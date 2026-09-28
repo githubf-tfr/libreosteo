@@ -1636,7 +1636,7 @@ Chacun avec son motif de non-correction — détail dans
   `--http-timeout 180` sur la commande `uwsgi` de
   `Docker/build/http-ready/Dockerfile`, cf. « Terminé ».
 
-### Doublon patient à la création : investigation du 2026-09-02, non concluante
+### ~~Doublon patient à la création : investigation du 2026-09-02, non concluante~~ — **close le 2026-09-28** (lot 5)
 
 Le refus instable consigné plus haut (S4, tâche 5, défaut C) **n'a pas été reproduit** :
 neuf exécutions ciblées du parcours incriminé, toutes déterministes, refus systématique,
@@ -1661,6 +1661,16 @@ défaut reste en « À faire ». Deux acquis, à ne pas réinstruire :
 Le défaut C est **clos par D3 (2026-09-05), par son résultat observable et non par sa
 cause** : cf. « Terminé ». Les deux acquis ci-dessus restent valides et ne se réinstruisent
 pas — le TOCTOU n'a jamais été prouvé, et ce lot ne l'a pas cherché à l'être.
+
+**Clos le 2026-09-28 (lot 5).** Le symptôme est impossible et la course prouvée sur le
+moteur réel : contrainte `unique_patient_nom_prenom_naissance` (`0057`, franchie par le
+parc) ; les deux chemins de création — `PatientViewSet.perform_create` et
+`page_nouveau_patient` — convertissent le refus de la base en « Ce patient existe déjà » ;
+`test_deux_creations_simultanees_ne_produisent_qu_une_ligne` asserte 201 + 400 et une
+seule ligne sur PostgreSQL depuis le 2026-09-26. La cause de l'instabilité du 2026-09-01
+n'est pas recherchée : l'écran AngularJS où elle a été vue est parti avec D6f. Limitation
+assumée ; un doublon ou un refus instable sur l'écran htmx serait un constat neuf. Les
+deux acquis ci-dessus sont historiques (la suite unitaire ne tourne plus sur sqlite).
 
 ### ~~Défauts produit constatés en recette (à traiter, pas encore planifiés)~~ — **rien d'ouvert, vérifié le 2026-09-28**
 
