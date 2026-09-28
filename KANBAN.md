@@ -1571,7 +1571,11 @@ Chacun avec son motif de non-correction — détail dans
   ⚠️ **Ce qui reste réellement gelé est bien plus étroit** : **Font Awesome 4.5.0**,
   vendorisé depuis le fork (`d4f9b17`) et jamais monté, plus deux fichiers orphelins sans
   consommateur (police Glyphicons de Bootstrap 3, copie de `timeline.css` de SB Admin 2) —
-  dette de **nettoyage**, pas gel de version. Le texte ci-dessous est conservé pour mémoire
+  dette de **nettoyage**, pas gel de version. — **soldé le 2026-09-28** (lot 5) : les deux
+  orphelins sont partis (`95dc888`, polices Glyphicons, 2026-09-24 ; `ad913f3`, copie de
+  `timeline.css`, 2026-09-25). Font Awesome 4.5.0 est une limitation assumée ; **son motif
+  est écrit une fois**, à la clôture de l'entrée « Aucune montée de version frontend »
+  (« Renvoyé par D5 », lot 3). Le texte ci-dessous est conservé pour mémoire
   du raisonnement qui valait jusqu'au 2026-09-19 : le reliquat
   était un socle **visuel**, pas un framework applicatif, et le remplacer était une décision de
   base visuelle (D6g), à ne pas engager sans décision explicite.
@@ -1739,7 +1743,8 @@ deux acquis ci-dessus sont historiques (la suite unitaire ne tourne plus sur sql
   sans bénéfice pour le praticien qui utilise l'application — le sujet n'a jamais été le
   poids (6 fichiers, 764 Ko, tous référencés par `libreosteoweb/templates/base.html` et
   `account/login.html`), seulement la version gelée. Le reste du paragraphe garde sa
-  valeur d'inventaire.
+  valeur d'inventaire. Le même motif clôt le reliquat Font Awesome de « Dette technique »
+  (lot 5).
 - ~~**L'écart entre l'arbre exercé en local et celui exercé en CI par la suite
   Playwright**, décrit à la clôture ci-dessus (§ « Ce que cela change à la priorité des
   lots restants »).~~ — **fermé le 2026-09-06 par `bfbc160`** : une cible `make static`
