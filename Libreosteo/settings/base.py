@@ -179,13 +179,10 @@ TEMPLATES = [
             "loaders": [
                 "django.template.loaders.filesystem.Loader",
                 "django.template.loaders.app_directories.Loader",
-                #'Libreosteo.zip_loader.Loader',
             ],
         },
     },
 ]
-
-TEMPLATE_ZIP_FILES = ("library.zip",)
 
 # Additional locations of static files
 # STATICFILES_DIRS = (

@@ -75,13 +75,15 @@ fail_under = 99
 # Reste volontairement en retrait du plancher d'execution, qui est 3.14 (cf.
 # [tool.mypy] python_version ci-dessous), pour une raison unique : sous "py314",
 # `ruff format` adopterait la syntaxe PEP 758 (`except A, B:` sans parentheses)
-# dans 4 fichiers. Cette syntaxe se lit comme l'`except E, e:` de Python 2, qui
+# dans 7 fichiers. Cette syntaxe se lit comme l'`except E, e:` de Python 2, qui
 # signifiait tout autre chose (capturer l'exception sous le nom `e`, pas les
 # types A et B) - c'est cette ambiguite, et elle seule, qui tient ce plancher en
 # retrait ; aucun canal ne sert plus reellement Python 3.13. Ne pas relever sans
-# assumer le reformatage de ces 4 fichiers (Libreosteo/zip_loader.py,
-# libreosteoweb/api/file_integrator.py, libreosteoweb/api/utils.py,
-# libreosteoweb/api/views/administration.py).
+# assumer le reformatage de ces 7 fichiers (libreosteoweb/api/file_integrator.py,
+# libreosteoweb/api/services/reprise_archive.py, libreosteoweb/api/utils.py,
+# libreosteoweb/api/views/administration.py,
+# libreosteoweb/api/views/pages/tableau_de_bord.py, libreosteoweb/api/views/patient.py,
+# outils/diagnostic_archive.py).
 target-version = "py313"
 extend-exclude = ["libreosteoweb/migrations", "node_modules", ".venv", ".tools"]
 
@@ -116,7 +118,6 @@ files = [
     "Libreosteo/settings/test.py",
     "Libreosteo/urls.py",
     "Libreosteo/wsgi.py",
-    "Libreosteo/zip_loader.py",
     "libreosteoweb/__init__.py",
     "libreosteoweb/admin.py",
     "libreosteoweb/api/__init__.py",
