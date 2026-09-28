@@ -37,7 +37,7 @@ from ..renderers import PatientCSVRenderer
 logger = logging.getLogger(__name__)
 
 
-class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
+class PatientViewSet(XLSXFileMixin, viewsets.ModelViewSet):
     model = models.Patient
     serializer_class = apiserializers.PatientSerializer
     queryset = models.Patient.objects.all()
@@ -47,7 +47,7 @@ class PatientViewSet(viewsets.ModelViewSet, XLSXFileMixin):
         XLSXRenderer,
     ]
     xlsx_use_labels = True
-    filename = "patients.xsls"
+    filename = "patients.xlsx"
 
     def list(self, request, *args, **kwargs):
         with connection.cursor() as cursor:

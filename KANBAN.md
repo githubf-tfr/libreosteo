@@ -528,9 +528,13 @@ Tenu à la main.
 - ~~**Routine de relève du digest de `postgres:18-alpine`** — renvoyée (2026-09-26) ; d'ici là,
   relever le digest est un commit ordinaire, vert sous `make check`.~~ — **sans objet le
   2026-09-27** : plus de digest (DU3 renversé, cf. « Décisions actées »).
-- **`patients.xsls`** (`PatientViewSet.filename`) — constat (2026-09-26) : extension fautive
+- ~~**`patients.xsls`** (`PatientViewSet.filename`) — constat (2026-09-26) : extension fautive
   et de toute façon morte, `XLSXFileMixin` venant après `ModelViewSet` dans les bases de
-  `PatientViewSet`/`ExaminationViewSet`, son `finalize_response` ne s'exécute jamais.
+  `PatientViewSet`/`ExaminationViewSet`, son `finalize_response` ne s'exécute jamais.~~ —
+  **corrigé** : bases réordonnées (`XLSXFileMixin` avant `ModelViewSet`) sur les deux
+  ViewSets, `filename = "patients.xlsx"`. `Content-Disposition` posé sous `?format=xlsx`
+  uniquement, réponse JSON par défaut inchangée (`TestEnTeteDExport`,
+  `libreosteoweb/tests/test_exploitation.py`). `docs/recette.md` § R-IMP-05 mis à jour.
 
 > 🌙 **Relevé de décision de la nuit du 2026-09-24 au 2026-09-25.** L'utilisateur a confié
 > l'exécution complète en autonomie avant de dormir, avec quatre autonomies explicitement

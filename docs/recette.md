@@ -3733,10 +3733,10 @@ journal.
 1. Menu utilisateur → « Import/export », onglet « Exporter vers un système externe ».
    Attendu : liens « Fichier patients » et « Fichier des consultations ».
 2. Cliquer « Fichier patients ».
-   Attendu : le navigateur télécharge un fichier ; ouvert dans un tableur, il liste les
-   patients de E2, un par ligne.
+   Attendu : le navigateur télécharge un fichier nommé `patients.xlsx` ; ouvert dans un
+   tableur, il liste les patients de E2, un par ligne.
 3. Cliquer « Fichier des consultations ».
-   Attendu : idem, une ligne par consultation de E2.
+   Attendu : idem, un fichier nommé `consultations.xlsx`, une ligne par consultation de E2.
 4. Dans un terminal, à la racine du dépôt :
    `docker compose --env-file "$SCRATCH/.env" -f Docker/deploy/pg/docker-compose.yml exec db sh -c 'psql -U "$POSTGRES_USER" -d libreosteo -c "SELECT pg_advisory_lock(1), pg_sleep(60);"'`
    puis, dans les 60 secondes, cliquer « Fichier patients ».

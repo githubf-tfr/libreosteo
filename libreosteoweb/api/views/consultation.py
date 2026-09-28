@@ -38,7 +38,7 @@ from ..services import facturation as services_facturation
 logger = logging.getLogger(__name__)
 
 
-class ExaminationViewSet(viewsets.ModelViewSet, XLSXFileMixin):
+class ExaminationViewSet(XLSXFileMixin, viewsets.ModelViewSet):
     model = models.Examination
     queryset = models.Examination.objects.all()
     serializer_class = apiserializers.ExaminationSerializer
