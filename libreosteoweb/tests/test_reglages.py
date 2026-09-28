@@ -71,9 +71,10 @@ class TestMoteurDeBaseDeDonnees(SimpleTestCase):
         Une clef secrète est fournie : c'est bien le moteur de base, et non la
         clef, qui doit faire échouer le démarrage. Sans paquet `settings` sur
         `sys.path`, l'import `from settings import *` de `container.py` ne ramène
-        rien et `DATABASES` reste sur le sqlite de `base.py` — exactement la
-        situation d'un volume `/Libreosteo/settings` monté sans `__init__.py`
-        réexportant `local.py`.
+        rien — exactement la situation d'un volume `/Libreosteo/settings` monté sans
+        `__init__.py` réexportant `local.py`. `container.py` efface le `DATABASES` de
+        `base.py` avant cet import : le moteur effectif est alors « aucun », quel que
+        soit le défaut de développement de `base.py`.
 
         Isolé dans un sous-processus pour la raison déjà écrite plus haut :
         recharger un module de réglages Django pollue le processus de la suite.
@@ -92,10 +93,15 @@ class TestMoteurDeBaseDeDonnees(SimpleTestCase):
             text=True,
             check=False,
         )
+        # Rouge si : le conteneur retombe sur le défaut de développement de `base.py` au
+        # lieu de refuser (ligne `DATABASES = {}` de `container.py` retirée ou déplacée
+        # après l'import du `settings/` monté).
         self.assertNotEqual(0, resultat.returncode, resultat.stderr)
         self.assertIn("ImproperlyConfigured", resultat.stderr)
+        self.assertIn("Moteur de base de données inattendu : aucun.", resultat.stderr)
         self.assertIn("django.db.backends.postgresql", resultat.stderr)
-        self.assertIn("db.sqlite3", resultat.stderr)
+        self.assertIn("__init__.py", resultat.stderr)
+        self.assertNotIn("db.sqlite3", resultat.stderr)
 
 
 class TestHotesAutorises(SimpleTestCase):

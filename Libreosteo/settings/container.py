@@ -22,6 +22,13 @@ DEBUG = False
 cast(dict, TEMPLATES[0]["OPTIONS"])["debug"] = False
 COMPRESS_ENABLED = True
 
+# Le deploiement ne tient sa base que du settings/ monte, jamais du defaut de developpement
+# de base.py : on l'efface avant l'import. Un local.py qui definit DATABASES (cas de
+# l'exemple), ou qui importe base et le modifie, le ramene par l'import etoile ci-dessous ;
+# seul un montage qui n'apporte aucun DATABASES le laisse vide, et la garde plus bas le
+# refuse.
+DATABASES = {}
+
 try:
     from settings import *
 except ImportError:
@@ -35,21 +42,20 @@ if not SECRET_KEY:
 
 # Le mode conteneur est PostgreSQL, et rien d'autre (décision S4). Sans cette garde, un
 # volume /Libreosteo/settings sans __init__.py fait réussir « from settings import * » sur
-# un paquet-espace de noms vide (PEP 420) : aucun nom n'est importé, DATABASES reste sur le
-# sqlite de base.py, et l'instance écrit dans data/db.sqlite3 sans un mot. On lit le moteur
-# effectif après tous les imports, et non l'existence d'un fichier : c'est ENGINE qui décide
-# où l'instance écrit. Le préfixe couvre postgresql et postgresql_psycopg2, la seconde forme
-# étant celle du montage documenté.
-moteur = cast(dict, DATABASES["default"])["ENGINE"]
+# un paquet-espace de noms vide (PEP 420) : aucun nom n'est importé, DATABASES reste le
+# dictionnaire vide posé plus haut, et l'instance sortirait plus loin sur une erreur qui ne
+# nomme pas la cause. On lit le moteur effectif après tous les imports, et non l'existence
+# d'un fichier : c'est ENGINE qui décide où l'instance écrit. Le préfixe couvre postgresql
+# et postgresql_psycopg2, la seconde forme étant celle du montage documenté.
+moteur = cast(dict, DATABASES.get("default", {})).get("ENGINE") or "aucun"
 if not moteur.startswith("django.db.backends.postgresql"):
     raise ImproperlyConfigured(
         f"Moteur de base de données inattendu : {moteur}. Le mode conteneur exige "
         "PostgreSQL (django.db.backends.postgresql ou "
-        "django.db.backends.postgresql_psycopg2). Cause la plus fréquente : le volume "
-        "monté sur /Libreosteo/settings ne porte pas d'__init__.py réexportant local.py, "
-        "auquel cas l'import « from settings import * » réussit sur un paquet-espace de "
-        "noms vide et n'importe aucun nom. Sans cette garde, l'instance aurait écrit dans "
-        "data/db.sqlite3."
+        "django.db.backends.postgresql_psycopg2), défini par le settings/ monté. Cause la "
+        "plus fréquente : le volume monté sur /Libreosteo/settings ne porte pas "
+        "d'__init__.py réexportant local.py, auquel cas l'import « from settings import * » "
+        "réussit sur un paquet-espace de noms vide et n'importe aucun nom."
     )
 
 # Une requete HTTP = une transaction. Le reglage est pose ici, sur le dictionnaire
