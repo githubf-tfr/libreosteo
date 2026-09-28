@@ -5,3 +5,4 @@ data/
 media/
 whoosh_index/
 settings/
+Libreosteo/settings/local.py*
