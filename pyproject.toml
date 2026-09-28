@@ -297,6 +297,7 @@ files = [
     "tests/qualite/test_contrat_gabarits.py",
     "tests/qualite/test_contrat_index_hors_depot.py",
     "tests/qualite/test_contrat_moteur_de_test.py",
+    "tests/qualite/test_contrat_pilote_psycopg2.py",
     "tests/qualite/test_contrat_recette.py",
     "tests/qualite/test_contrat_styles.py",
     "tests/qualite/test_contrat_traductions.py",
