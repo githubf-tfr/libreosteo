@@ -19,7 +19,7 @@ refused` « repare » en repointant la suite sur sqlite -- `--ds` vers un module
 sqlite, ou un `DJANGO_SETTINGS_MODULE` exporte, qui l'emporte sur `pyproject.toml` pour
 pytest-django.
 La suite passerait alors en silence, sur un moteur que la production n'execute pas
-(`CLAUDE.md` § Deploiement), et le plancher de couverture mesurerait ce moteur-la. Avec ce
+(`AGENTS.md` § Deploiement), et le plancher de couverture mesurerait ce moteur-la. Avec ce
 module, elle rougit en nommant la cause.
 
 Il garde aussi la source de l'image PostgreSQL : la ligne `image:` du service `db` de
@@ -108,7 +108,7 @@ def test_la_suite_tourne_sur_postgresql() -> None:
     assert connection.vendor == "postgresql", (
         f"La suite unitaire tourne sur {connection.vendor}. Elle ne tourne que sur "
         "PostgreSQL : `make test-db` demarre le serveur, le reglage est "
-        "Libreosteo.settings.test. Ne jamais la repointer sur sqlite (CLAUDE.md)."
+        "Libreosteo.settings.test. Ne jamais la repointer sur sqlite (AGENTS.md)."
     )
 
 

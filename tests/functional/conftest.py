@@ -69,7 +69,7 @@ if connection.vendor != "postgresql":
         f"La suite fonctionnelle tourne sur {connection.vendor}. Elle ne tourne que sur "
         "PostgreSQL : `make test-functional` demarre le serveur de test (`make test-db`), "
         "le reglage est Libreosteo.settings.test. Ne jamais la repointer sur sqlite "
-        "(CLAUDE.md, Tests et qualite)."
+        "(AGENTS.md, Tests et qualite)."
     )
 
 # Plafond des assertions Playwright. C'est un delai de garde, pas une temporisation :

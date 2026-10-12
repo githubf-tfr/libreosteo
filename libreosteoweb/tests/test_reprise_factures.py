@@ -238,7 +238,7 @@ class TestAppliquerSurDesDoubles(SimpleTestCase):
 class TestAppliquerSurLesVraisModeles(TestCase):
     """Le seul parc que la contrainte de 0060 laisse construire est un parc sain :
     ces deux cas verifient que la reprise ne touche a rien et se rejoue sans effet
-    de bord — c'est l'idempotence exigee par `~/claude/CLAUDE.md`.
+    de bord — c'est l'idempotence exigee par `~/Git/AGENTS.md`.
     """
 
     def setUp(self):

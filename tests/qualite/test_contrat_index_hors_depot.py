@@ -20,7 +20,7 @@ c'est-a-dire `./data/whoosh_index`. Chaque `make test` reecrivait donc un index
 **partage entre lancements**, dans l'arbre de travail. Deux consequences, toutes deux
 constatees : un test qui compte des resultats de recherche compte ceux du lancement
 precedent, et `MAIN_WRITELOCK` bloque deux lancements simultanes. `data/` est
-gitignore, donc rien n'etait commite -- mais la regle de `~/claude/CLAUDE.md` § Tests
+gitignore, donc rien n'etait commite -- mais la regle de `~/Git/AGENTS.md` § Tests
 niveau 1 etait violee en toutes lettres : « tout appel systeme ou chemin cible passe
 par un parametre injectable ».
 
