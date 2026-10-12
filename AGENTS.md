@@ -50,5 +50,5 @@ GPL-3.0 héritée (`LICENSE.md`, `COPYING`).
 
 ## Documentation
 
-Trois rôles, cf. `~/claude/AGENTS.md` : `README.md` (comment, intemporel), `KANBAN.md` (journal
+Trois rôles, cf. `~/Git/AGENTS.md` : `README.md` (comment, intemporel), `KANBAN.md` (journal
 daté, décisions ; historique sous `docs/journal/`), `AGENTS.md` (invariants pour qui modifie).
